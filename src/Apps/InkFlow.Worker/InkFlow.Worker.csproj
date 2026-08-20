@@ -1,9 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Observability/InkFlow.BuildingBlocks.Observability.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />

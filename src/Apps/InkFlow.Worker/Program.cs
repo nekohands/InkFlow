@@ -1,14 +1,15 @@
 using InkFlow.BuildingBlocks.Observability;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.AddInkFlowObservability("InkFlow.Worker");
 builder.Services.AddHostedService<WorkerHeartbeat>();
 
-await builder.Build().RunAsync();
+var app = builder.Build();
+app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "InkFlow.Worker" }));
+await app.RunAsync();
 
 internal sealed class WorkerHeartbeat(ILogger<WorkerHeartbeat> logger) : BackgroundService
 {
