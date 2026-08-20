@@ -6,28 +6,25 @@ public sealed class CrawlerTaskStore(CrawlingDbContext dbContext)
 {
     public async Task EnqueueAsync(CrawlerTaskRecord task, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(task);
-        if (task.Id == Guid.Empty)
-        {
-            task.Id = Guid.CreateVersion7();
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        if (task.CreatedAtUtc == default)
-        {
-            task.CreatedAtUtc = now;
-        }
-        if (task.UpdatedAtUtc == default)
-        {
-            task.UpdatedAtUtc = now;
-        }
-        if (task.ScheduledAtUtc == default)
-        {
-            task.ScheduledAtUtc = now;
-        }
-
+        Prepare(task);
         dbContext.CrawlerTasks.Add(task);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<bool> TryEnqueueAsync(CrawlerTaskRecord task, CancellationToken cancellationToken = default)
+    {
+        Prepare(task);
+        var affected = await dbContext.Database.ExecuteSqlInterpolatedAsync($$"""
+            INSERT INTO crawler.tasks
+                (id, type, source_id, payload, idempotency_key, priority, status, attempt, max_attempts,
+                 scheduled_at_utc, lease_until_utc, lease_owner, created_at_utc, updated_at_utc, last_error, trace_id)
+            VALUES
+                ({{task.Id}}, {{task.Type}}, {{task.SourceId}}, {{task.Payload}}, {{task.IdempotencyKey}}, {{task.Priority}},
+                 {{task.Status}}, {{task.Attempt}}, {{task.MaxAttempts}}, {{task.ScheduledAtUtc}}, {{task.LeaseUntilUtc}},
+                 {{task.LeaseOwner}}, {{task.CreatedAtUtc}}, {{task.UpdatedAtUtc}}, {{task.LastError}}, {{task.TraceId}})
+            ON CONFLICT (idempotency_key) DO NOTHING
+            """, cancellationToken);
+        return affected == 1;
     }
 
     public async Task<CrawlerTaskRecord?> LeaseNextAsync(
@@ -123,6 +120,29 @@ public sealed class CrawlerTaskStore(CrawlingDbContext dbContext)
 
     public Task<CrawlerTaskRecord?> FindAsync(Guid taskId, CancellationToken cancellationToken = default) =>
         dbContext.CrawlerTasks.AsNoTracking().SingleOrDefaultAsync(task => task.Id == taskId, cancellationToken);
+
+    private static void Prepare(CrawlerTaskRecord task)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (task.Id == Guid.Empty)
+        {
+            task.Id = Guid.CreateVersion7();
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (task.CreatedAtUtc == default)
+        {
+            task.CreatedAtUtc = now;
+        }
+        if (task.UpdatedAtUtc == default)
+        {
+            task.UpdatedAtUtc = now;
+        }
+        if (task.ScheduledAtUtc == default)
+        {
+            task.ScheduledAtUtc = now;
+        }
+    }
 
     private async Task<CrawlerTaskRecord> GetOwnedLeaseAsync(
         Guid taskId,
