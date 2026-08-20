@@ -31,6 +31,31 @@ InkFlow 以 Canonical Content 为核心，将多来源小说采集、作品与�
 
 现有源代码目录仍是最初 bootstrap 结构；目标结构与迁移计划以 Phase 0 文档为准，保留 Git 历史渐进重构，不重新初始化仓库。
 
+## 强制工程流程
+
+所有编码、Bug 修复、重构、数据库、Source、Legado、API、CI 和部署改动都必须遵守：
+
+`docs/engineering/development-workflow.md`
+
+每个工作包默认执行完整闭环：
+
+```text
+明确目标/验收
+→ 实现
+→ Diff 自检
+→ 实际 Build
+→ Tests
+→ Runtime/Integration 验收
+→ Security/Architecture 检查
+→ Candidate Commit
+→ 实际 CI
+→ Bug 修复与回归
+→ 文档/Progress/Handoff 同步
+→ Accepted / Completed
+```
+
+**代码写完、本地单测通过或 CI 尚未触发，都不能单独作为 Completed 的依据。**
+
 ## 核心文档
 
 ### 产品
@@ -46,6 +71,10 @@ InkFlow 以 Canonical Content 为核心，将多来源小说采集、作品与�
 - `docs/architecture/source-runtime.md`：Official/Community/Private Source 与 Hybrid Adapter
 - `docs/architecture/legado-contract.md`：Legado 专用协议与 Release Gate
 - `docs/architecture/security-model.md`：认证、授权、SSRF、沙箱、Secrets 与内容安全
+
+### 工程规范
+
+- `docs/engineering/development-workflow.md`：**每轮强制实现、编译、测试、验收、CI、修复、回归与交付流程**
 
 ### 路线、进度与验收
 
