@@ -2,29 +2,61 @@
 
 多源小说采集、聚合、阅读与分发平台。
 
-InkFlow 将小说来源采集、内容标准化、在线阅读、开放 API 与阅读 3.0（Legado）兼容分发统一在一个可演进的平台中。
+InkFlow 以 Canonical Content 为核心，将多来源小说采集、作品与章节归一化、正文版本化与质量选优、自动追更、Web 阅读、开放 API 和阅读 3.0（Legado）兼容分发统一到一个可演进的平台中。
 
-## 技术栈
+## 产品优先级
+
+1. 阅读 3.0 / Legado
+2. 在线阅读体验
+3. 自动追更
+4. 多源切换 / 容灾
+5. 多站点小说采集
+6. 统一书库
+7. 搜索
+8. 用户书架与阅读历史
+
+## 技术基线
 
 - .NET 10 / ASP.NET Core
 - PostgreSQL
 - Redis
-- Modular Monolith + 独立 Worker / Scheduler
+- Modular Monolith + 独立 API / Worker / Scheduler
 - Docker Compose
 - GitHub Actions
+- OpenTelemetry（Phase 0）
 
-## 目录
+## 当前状态
 
-- `src/InkFlow.Api`：HTTP API
-- `src/InkFlow.Worker`：采集与内容处理 Worker
-- `src/InkFlow.Scheduler`：采集任务调度
-- `src/InkFlow.Domain`：领域模型
-- `src/InkFlow.Application`：应用服务与用例
-- `src/InkFlow.Infrastructure`：基础设施实现
-- `src/InkFlow.Modules.Legado`：阅读 3.0 兼容层
-- `docs/architecture`：架构文档
-- `docs/adr`：架构决策记录
+当前 `chore/bootstrap` 分支已经完成项目骨架与产品/架构对齐文档，下一工程阶段是 Phase 0 Foundation：重构模块边界、建立 Persistence/Migrations、Outbox/Inbox、Architecture Tests、Observability 和完整 CI 基线。
 
-## 当前阶段
+现有源代码目录仍是最初 bootstrap 结构；目标结构与迁移计划以 Phase 0 文档为准，保留 Git 历史渐进重构，不重新初始化仓库。
 
-当前仓库处于基础骨架阶段。第一条产品闭环目标为：来源接入 → 小说导入 → 章节采集 → Web/API 阅读 → Legado 书源/订阅源导入。
+## 核心文档
+
+### 产品
+
+- `docs/product/product-vision.md`：产品定位、用户、商业方向和优先级
+- `docs/product/non-goals.md`：明确暂不实现的能力和范围护栏
+
+### 架构
+
+- `docs/architecture/architecture.md`：总体架构规范
+- `docs/architecture/invariants.md`：不可轻易违反的工程不变量
+- `docs/architecture/domain-model.md`：Canonical Book/Chapter/Content 领域模型
+- `docs/architecture/source-runtime.md`：Official/Community/Private Source 与 Hybrid Adapter
+- `docs/architecture/legado-contract.md`：Legado 专用协议与 Release Gate
+- `docs/architecture/security-model.md`：认证、授权、SSRF、沙箱、Secrets 与内容安全
+
+### 路线与验收
+
+- `docs/roadmap/roadmap.md`：Phase 0 → 1.0 路线
+- `docs/roadmap/phase-0-plan.md`：Foundation 实施计划与验收
+- `docs/roadmap/phase-1-acceptance.md`：Single/Dual Source Vertical Slice 验收标准
+- `docs/roadmap/risk-register.md`：核心工程风险与缓解措施
+
+### ADR
+
+- `docs/adr/0001-modular-monolith.md`
+- `docs/adr/0002-content-source-model.md`
+- `docs/adr/0003-legado-compatibility.md`
+- `docs/adr/0004-infrastructure.md`
