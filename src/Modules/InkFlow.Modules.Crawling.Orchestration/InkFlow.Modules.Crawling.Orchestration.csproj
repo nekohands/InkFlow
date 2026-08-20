@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="../InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
+    <ProjectReference Include="../InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
+    <ProjectReference Include="../InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />
+    <ProjectReference Include="../InkFlow.Modules.Content/InkFlow.Modules.Content.csproj" />
+  </ItemGroup>
+</Project>

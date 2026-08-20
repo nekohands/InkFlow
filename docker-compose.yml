@@ -5,10 +5,8 @@ services:
       POSTGRES_DB: inkflow
       POSTGRES_USER: inkflow
       POSTGRES_PASSWORD: ${INKFLOW_DB_PASSWORD:-inkflow}
-    ports:
-      - "5432:5432"
-    volumes:
-      - inkflow-postgres:/var/lib/postgresql
+    ports: ["5432:5432"]
+    volumes: ["inkflow-postgres:/var/lib/postgresql"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inkflow -d inkflow"]
       interval: 5s
@@ -18,10 +16,8 @@ services:
   redis:
     image: redis:8
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
-    volumes:
-      - inkflow-redis:/data
+    ports: ["6379:6379"]
+    volumes: ["inkflow-redis:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -71,6 +67,8 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.worker
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
     ports: ["8081:8080"]
     depends_on:
       migrations:
