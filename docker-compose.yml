@@ -5,7 +5,7 @@ services:
       POSTGRES_DB: inkflow
       POSTGRES_USER: inkflow
       POSTGRES_PASSWORD: ${INKFLOW_DB_PASSWORD:-inkflow}
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes: ["inkflow-postgres:/var/lib/postgresql"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inkflow -d inkflow"]
@@ -15,11 +15,11 @@ services:
 
   redis:
     image: redis:8
-    command: ["redis-server", "--appendonly", "yes"]
-    ports: ["6379:6379"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${INKFLOW_REDIS_PASSWORD:-inkflow-redis}"]
+    ports: ["127.0.0.1:6379:6379"]
     volumes: ["inkflow-redis:/data"]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${INKFLOW_REDIS_PASSWORD:-inkflow-redis}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -45,7 +45,8 @@ services:
       dockerfile: deploy/docker/Dockerfile.api
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
-    ports: ["8080:8080"]
+      ConnectionStrings__Redis: redis:6379,password=${INKFLOW_REDIS_PASSWORD:-inkflow-redis}
+    ports: ["127.0.0.1:8080:8080"]
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -69,7 +70,8 @@ services:
       dockerfile: deploy/docker/Dockerfile.worker
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
-    ports: ["8081:8080"]
+      ConnectionStrings__Redis: redis:6379,password=${INKFLOW_REDIS_PASSWORD:-inkflow-redis}
+    ports: ["127.0.0.1:8081:8080"]
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -91,7 +93,12 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.scheduler
-    ports: ["8082:8080"]
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+      ConnectionStrings__Redis: redis:6379,password=${INKFLOW_REDIS_PASSWORD:-inkflow-redis}
+      Scheduler__UpdateIntervalMinutes: ${INKFLOW_UPDATE_INTERVAL_MINUTES:-15}
+      Scheduler__PollIntervalSeconds: ${INKFLOW_SCHEDULER_POLL_SECONDS:-30}
+    ports: ["127.0.0.1:8082:8080"]
     depends_on:
       migrations:
         condition: service_completed_successfully

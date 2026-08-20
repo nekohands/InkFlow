@@ -1,6 +1,7 @@
 using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Crawling.Orchestration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -15,6 +16,15 @@ builder.Services.AddHostedService<CrawlerWorker>();
 
 var app = builder.Build();
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "InkFlow.Worker" }));
+app.MapGet("/ready", async (CrawlingDbContext database, CancellationToken cancellationToken) =>
+{
+    if (!await database.Database.CanConnectAsync(cancellationToken))
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    return Results.Ok(new { status = "ready", service = "InkFlow.Worker" });
+});
 await app.RunAsync();
 
 internal sealed class CrawlerWorker(IServiceScopeFactory scopeFactory, ILogger<CrawlerWorker> logger) : BackgroundService
