@@ -56,6 +56,24 @@ InkFlow 以 Canonical Content 为核心，将多来源小说采集、作品与�
 
 **代码写完、本地单测通过或 CI 尚未触发，都不能单独作为 Completed 的依据。**
 
+## 前端设计原则
+
+所有主要用户页面必须遵守：
+
+`docs/engineering/frontend-design.md`
+
+核心要求：
+
+- 实现主要页面前至少研究 3 个当前活跃同类产品，形成 Benchmark Note 或等效记录。
+- 持续参考番茄、七猫、起点、晋江、Kakuyomu、Royal Road 等成熟阅读产品的交互模式，但禁止直接复制视觉和品牌设计。
+- 优先保证操作路径短、页面清晰、视觉友好、长时间阅读舒适。
+- Mobile 与 Desktop 都作为正式产品体验进行验收。
+- 高级 Source/ContentVersion/Quality 等内部能力采用 Progressive Disclosure，不污染普通读者界面。
+- Reader 页面以正文优先，必须单独验收排版、主题、目录、章节切换和下一章加载体验。
+- 可访问性目标以 WCAG 2.2 AA 为基线。
+
+前端功能完成但未通过 Responsive / UX / Visual / Accessibility 验收时，不得标记 `Completed`。
+
 ## 核心文档
 
 ### 产品
@@ -75,6 +93,7 @@ InkFlow 以 Canonical Content 为核心，将多来源小说采集、作品与�
 ### 工程规范
 
 - `docs/engineering/development-workflow.md`：**每轮强制实现、编译、测试、验收、CI、修复、回归与交付流程**
+- `docs/engineering/frontend-design.md`：**前端竞品调研、信息架构、交互、视觉、Reader、响应式、可访问性与 UI 验收规范**
 
 ### 路线、进度与验收
 
