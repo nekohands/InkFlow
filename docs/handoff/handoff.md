@@ -2,30 +2,33 @@
 
 > 本文档用于让新的开发者、AI Agent 或未来会话在最少上下文下安全接手 InkFlow。
 >
-> 交接原则：先理解产品优先级与架构不变量，再改代码；任何状态描述必须以仓库、测试和 CI 的真实结果为准。
+> 交接原则：先理解产品优先级、强制开发流程与架构不变量，再改代码；任何状态描述必须以仓库、测试和 CI 的真实结果为准。
 
 - 产品：墨流 / InkFlow
 - 当前阶段：Phase 0 — Foundation
 - 当前工作分支：`chore/bootstrap`
 - 交接基线日期：2026-08-20
-- 当前基线提交：`e5da0b8e696ac9c16d2bffc176bf88237ac998c8`
+- 当前基线提交：以 `chore/bootstrap` 远端 HEAD 为准；交接记录必须注明实际 Commit。
 
 ## 1. 先读这些文档
 
 接手后按顺序阅读：
 
 1. `../product/product-vision.md`
-2. `../architecture/invariants.md`
-3. `../architecture/architecture.md`
-4. `../architecture/domain-model.md`
-5. `../architecture/source-runtime.md`
-6. `../architecture/legado-contract.md`
-7. `../architecture/security-model.md`
-8. `../roadmap/progress.md`
-9. `../roadmap/phase-0-plan.md`
-10. `../roadmap/phase-1-acceptance.md`
-11. `../product/non-goals.md`
-12. `../roadmap/risk-register.md`
+2. `../engineering/development-workflow.md`
+3. `../architecture/invariants.md`
+4. `../architecture/architecture.md`
+5. `../architecture/domain-model.md`
+6. `../architecture/source-runtime.md`
+7. `../architecture/legado-contract.md`
+8. `../architecture/security-model.md`
+9. `../roadmap/progress.md`
+10. `../roadmap/phase-0-plan.md`
+11. `../roadmap/phase-1-acceptance.md`
+12. `../product/non-goals.md`
+13. `../roadmap/risk-register.md`
+
+其中 `../engineering/development-workflow.md` 是强制执行规范，不是参考建议。
 
 如果这些文档与代码发生冲突：
 
@@ -69,6 +72,7 @@ InkFlow 不是单纯小说爬虫，也不是单纯 Legado 规则生成器。
 - Source Runtime / Legado Contract / Security Model。
 - Roadmap / Phase 0 Plan / Phase 1 Acceptance / Risk Register。
 - Progress Tracker。
+- 强制 Development / Build / Test / Runtime / CI / Fix / Regression / Documentation 闭环规范。
 
 当前尚未完成正式 Phase 0 Foundation，因此现有 `src/InkFlow.*` 目录是 Bootstrap 结构，不应被误认为最终目录。
 
@@ -125,7 +129,7 @@ src/
 12. 强化 CI。
 13. 实际 Build/Test/Docker 验收并修复到全绿。
 
-每完成一项都应更新 `../roadmap/progress.md`。
+每完成一项都应更新 `../roadmap/progress.md`，并对该工作包完整执行 `../engineering/development-workflow.md`。
 
 ## 6. 关键架构不变量
 
@@ -141,6 +145,7 @@ src/
 8. Redis 不是关键事实数据的唯一存储。
 9. Community Source 不允许无限制任意代码执行。
 10. Modular Monolith 优先，禁止无证据提前微服务化。
+11. 每一个编码工作包必须经过真实 Build/Test/Runtime/CI/Fix/Regression/Documentation Gate；未通过或未执行的 Gate 不得被口头假定为成功。
 
 完整版本见 `../architecture/invariants.md`。
 
@@ -284,33 +289,97 @@ Crawler Fixture Tests
 
 真实 Source 检查应放到独立 Live/Nightly Pipeline。
 
-## 14. 接手前检查清单
+## 14. 每轮编码的强制闭环
+
+任何可验收工作包必须执行：
+
+```text
+明确工作包/验收条件
+→ 实现
+→ Diff 自检
+→ 实际 Restore/Build
+→ Unit/Architecture/Integration/Contract Tests（按范围）
+→ Runtime/业务链路验收
+→ Security/Architecture 检查
+→ Candidate Commit
+→ 实际 CI
+→ 失败则读取日志、定位根因、修复
+→ 局部验证
+→ 全量回归
+→ CI 重跑
+→ 功能验收
+→ 必要优化
+→ 如果代码变化则再次 Build/Test/CI
+→ Progress/Handoff/ADR/Contract 同步
+→ Accepted / Completed
+```
+
+严禁：
+
+- 把 `Implemented` 写成 `Completed`。
+- 把 `CI Not Triggered/Pending` 写成 `CI Green`。
+- CI 失败后只反复重跑而不定位根因。
+- 修改代码后沿用修改前的验证结果。
+- 为了变绿删除测试、弱化正确断言或隐藏警告。
+
+完整规范、状态定义、Gate 和交付报告模板见 `../engineering/development-workflow.md`。
+
+## 15. 接手前检查清单
 
 接手者开始写代码前：
 
 - [ ] 确认当前分支和 HEAD。
-- [ ] 阅读 `progress.md`，确认真实阶段。
+- [ ] 阅读 `../engineering/development-workflow.md`。
+- [ ] 阅读 `../roadmap/progress.md`，确认真实阶段。
 - [ ] 阅读 Architecture Invariants。
 - [ ] 检查当前仓库 diff，不覆盖他人未合并工作。
 - [ ] 明确当前工作是否属于 Phase 0 / Phase 1。
+- [ ] 为本工作包定义目标、范围、非目标、验收条件和验证计划。
 - [ ] 如果要改公共 API/Legado Contract，先检查兼容性影响。
 - [ ] 如果要改领域边界，先检查是否需要 ADR。
 
-## 15. 工作完成前检查清单
+## 16. 工作完成前检查清单
 
 每次交接前至少：
 
+- [ ] 本工作包状态使用规范术语记录。
 - [ ] `dotnet restore` 结果已记录。
 - [ ] `dotnet build -c Release` 结果已记录。
 - [ ] `dotnet test -c Release` 结果已记录。
-- [ ] CI 状态已确认；没有运行就明确写“未运行”。
+- [ ] 相关 Architecture/Integration/Contract Test 结果已记录。
+- [ ] Runtime/业务链路验收结果已记录，或明确 N/A 原因。
+- [ ] CI 状态已确认；没有运行就明确写 `NOT TRIGGERED`，Pending 就明确写 `PENDING`。
+- [ ] CI 失败项已读取日志并完成根因修复/回归，或明确记录 Blocker。
 - [ ] Migration 影响已说明。
 - [ ] 新增风险/技术债已写入文档或 Issue。
 - [ ] `progress.md` 已更新。
-- [ ] 本文档的“当前状态/下一项工作”已更新。
+- [ ] 本文档的“当前状态/下一项工作”在阶段性交接时已更新。
 - [ ] Commit message 清晰描述逻辑工作包。
+- [ ] 所有声称 `Completed` 的工作包都满足 `development-workflow.md` 的适用 Gate。
 
-## 16. 交接记录模板
+## 17. 每轮交付摘要模板
+
+```text
+工作包：
+状态：Planned / In Progress / Implemented / Locally Validated / CI Green / Accepted / Completed / Blocked
+实现：
+验收：
+Build：PASS / FAIL / NOT RUN
+Tests：PASS / FAIL / PARTIAL / NOT RUN
+Runtime：PASS / FAIL / N/A / NOT RUN
+CI：GREEN / RED / PENDING / NOT TRIGGERED
+发现的问题：
+已修复的问题：
+剩余风险/Blocker：
+Commit/PR：
+Progress 更新：Yes / No
+Handoff 更新：Yes / No / N/A
+下一步：
+```
+
+报告必须与实际工具输出一致。
+
+## 18. 交接记录模板
 
 后续每次阶段性交接，在本文档底部追加简短记录：
 
@@ -329,11 +398,11 @@ Do not change without ADR:
 
 不要删除旧的重大交接记录；可以把非常旧的记录归档到 `docs/handoff/archive/`。
 
-## 17. Handoff 2026-08-20
+## 19. Handoff 2026-08-20
 
 Branch: `chore/bootstrap`
 
-HEAD at handoff creation: `e5da0b8e696ac9c16d2bffc176bf88237ac998c8`
+HEAD at initial handoff creation: `e5da0b8e696ac9c16d2bffc176bf88237ac998c8`
 
 Completed:
 
@@ -341,11 +410,14 @@ Completed:
 - Grill Me 产品/架构对齐。
 - 正式 Product/Architecture/Roadmap/Security 文档。
 - 项目 Progress Tracker。
+- 工程 Handoff 文档。
+- 强制每轮开发/编译/测试/验收/CI/修复/回归流程规范。
 
 Validated:
 
 - 远端 `chore/bootstrap` 分支存在并承载 Bootstrap + 文档工作。
 - `main` 保持初始仓库提交，未擅自合并。
+- 强制流程已进入 README、Architecture Invariants、Progress 和 Handoff。
 
 Not validated yet:
 
@@ -363,7 +435,7 @@ Known issues:
 
 Next task:
 
-> 重构为 `Apps / BuildingBlocks / Modules` 并开始 Phase 0 Foundation；完成后按 Build → Test → CI → Fix → Validate 循环推进。
+> 重构为 `Apps / BuildingBlocks / Modules` 并开始 Phase 0 Foundation；每个工作包严格按 `development-workflow.md` 的 Build → Test → Runtime → CI → Fix → Regression → Validate → Docs 循环推进。
 
 Do not change without ADR:
 
