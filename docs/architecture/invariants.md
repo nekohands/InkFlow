@@ -1,0 +1,24 @@
+# InkFlow Architecture Invariants
+
+以下规则是默认不可违反的工程不变量。任何突破必须通过明确 ADR 和证据证明其必要性。
+
+1. `BookId` / `ChapterId` 对外长期稳定；来源切换、重排、Merge 不应让客户端身份失效。
+2. `SourceBook != CanonicalBook`，`SourceChapter != CanonicalChapter`。
+3. 正常阅读路径只读取 InkFlow Canonical Content，不实时依赖第三方抓取。
+4. 有效新正文形成新的 Content Version，不覆盖历史正文。
+5. Book Match、Chapter Alignment、Content Selection、Source Failover 等自动决策必须可解释、可追溯、可撤销。
+6. Legado 是一级产品协议，拥有独立 Contract、API、兼容性测试和 SLO。
+7. 公共内容、组织内容和用户私人内容必须保持明确授权边界；Blob 去重不能绕过权限。
+8. Redis 不是任何关键业务事实或任务事实的唯一数据源。
+9. Community Source 只能运行受限 DSL/Sandbox；任意代码只允许在可信官方执行域。
+10. Modular Monolith 优先；只有明确的性能、部署、团队或隔离证据才允许拆服务。
+11. Worker 负责执行，不负责决定 Canonical Identity 或最终 Content Selection。
+12. Scheduler 负责任务时机，不拥有 Book/Chapter 业务事实。
+13. Published Source Rule、Parser/Normalizer Algorithm Version 不可变；修改产生新版本。
+14. Source URL 不是业务主键；优先保留外部稳定 ID，并维护历史 URL。
+15. EF Core、Redis、ASP.NET 等基础设施依赖不得进入纯 Domain 模型。
+16. Authoritative Data 与 Projection/Cache/Search Index 分离，Derived Data 必须可重建。
+17. 外部调用均视为不可靠，必须考虑 Timeout、Retry、Backoff、Circuit Breaker 和 Idempotency。
+18. 公共 API Contract 与内部 Entity/DTO 分离，`/api/v1` 默认向后兼容。
+19. 生产数据库迁移由独立 Migration 流程执行，不由 API 启动隐式升级。
+20. 关键修复通过 Admin Command、Repair Job 或 Migration Job 完成，不把手工 SQL 作为常规运营流程。
