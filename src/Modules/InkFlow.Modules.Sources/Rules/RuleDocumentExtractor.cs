@@ -106,7 +106,7 @@ public sealed class RuleDocumentExtractor
         }
 
         return nodes
-            .Select(node => ExtractElementValue(node.InnerText, node.InnerHtml, attribute => node.GetAttributeValue(attribute, null), field.Attribute))
+            .Select(node => ExtractElementValue(node.InnerText, node.InnerHtml, attribute => node.Attributes[attribute]?.Value, field.Attribute))
             .Where(value => value is not null)
             .Cast<string>()
             .ToArray();
