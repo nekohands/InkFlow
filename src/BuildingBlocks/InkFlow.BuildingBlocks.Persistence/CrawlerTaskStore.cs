@@ -19,7 +19,7 @@ public sealed class CrawlerTaskStore(CrawlingDbContext dbContext)
                 (id, type, source_id, payload, idempotency_key, priority, status, attempt, max_attempts,
                  scheduled_at_utc, lease_until_utc, lease_owner, created_at_utc, updated_at_utc, last_error, trace_id)
             VALUES
-                ({{task.Id}}, {{task.Type}}, {{task.SourceId}}, {{task.Payload}}, {{task.IdempotencyKey}}, {{task.Priority}},
+                ({{task.Id}}, {{task.Type}}, {{task.SourceId}}, CAST({{task.Payload}} AS jsonb), {{task.IdempotencyKey}}, {{task.Priority}},
                  {{task.Status}}, {{task.Attempt}}, {{task.MaxAttempts}}, {{task.ScheduledAtUtc}}, {{task.LeaseUntilUtc}},
                  {{task.LeaseOwner}}, {{task.CreatedAtUtc}}, {{task.UpdatedAtUtc}}, {{task.LastError}}, {{task.TraceId}})
             ON CONFLICT (idempotency_key) DO NOTHING
