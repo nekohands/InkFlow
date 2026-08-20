@@ -15,30 +15,26 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
       - name: Restore
         run: dotnet restore InkFlow.sln
-
       - name: Build
         run: dotnet build InkFlow.sln --configuration Release --no-restore
-
       - name: Test
         run: dotnet test InkFlow.sln --configuration Release --no-build --verbosity normal
-
       - name: Validate Compose
         run: docker compose config --quiet
-
       - name: Runtime smoke test
         run: |
           docker compose up -d --build --wait api worker scheduler
           curl --fail --silent http://localhost:8080/health
+          curl --fail --silent http://localhost:8080/api/v1/search?q=test
+          curl --fail --silent http://localhost:8080/api/legado/v1/search?q=test
+          curl --fail --silent http://localhost:8080/legado/book-source.json | grep -q 'ruleContent'
           curl --fail --silent http://localhost:8081/health
           curl --fail --silent http://localhost:8082/health
-
       - name: Runtime diagnostics
         if: always()
         run: |

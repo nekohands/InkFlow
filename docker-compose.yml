@@ -39,19 +39,17 @@ services:
         condition: service_healthy
     restart: "no"
     read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
 
   api:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.api
-    ports:
-      - "8080:8080"
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+    ports: ["8080:8080"]
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -59,12 +57,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
     read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
       interval: 5s
@@ -76,8 +71,7 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.worker
-    ports:
-      - "8081:8080"
+    ports: ["8081:8080"]
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -85,12 +79,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
     read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
       interval: 5s
@@ -102,8 +93,7 @@ services:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.scheduler
-    ports:
-      - "8082:8080"
+    ports: ["8082:8080"]
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -111,12 +101,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
     read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
       interval: 5s
