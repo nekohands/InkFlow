@@ -1,6 +1,7 @@
 using InkFlow.BuildingBlocks.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton(TimeProvider.System);
 builder.AddInkFlowObservability("InkFlow.Api");
 
 var app = builder.Build();

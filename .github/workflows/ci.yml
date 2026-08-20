@@ -6,15 +6,25 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
       - name: Restore
         run: dotnet restore InkFlow.sln
+
       - name: Build
         run: dotnet build InkFlow.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test InkFlow.sln --configuration Release --no-build --verbosity normal

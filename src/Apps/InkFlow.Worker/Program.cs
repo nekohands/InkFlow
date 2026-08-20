@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSingleton(TimeProvider.System);
 builder.AddInkFlowObservability("InkFlow.Worker");
 builder.Services.AddHostedService<WorkerHeartbeat>();
 
