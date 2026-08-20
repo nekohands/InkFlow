@@ -29,6 +29,8 @@
 - `⏳ Not Started`：尚未进入实现。
 - `⛔ Blocked`：存在明确阻塞项，必须记录原因和解除条件。
 
+工作包状态必须进一步遵守 `../engineering/development-workflow.md`：`Implemented`、`Locally Validated`、`CI Green`、`Accepted` 和 `Completed` 不得混为一谈。
+
 ## 2. 已完成
 
 ### 2.1 产品与架构对齐
@@ -80,10 +82,13 @@
 - `docs/architecture/source-runtime.md`
 - `docs/architecture/legado-contract.md`
 - `docs/architecture/security-model.md`
+- `docs/engineering/development-workflow.md`
 - `docs/roadmap/roadmap.md`
 - `docs/roadmap/phase-0-plan.md`
 - `docs/roadmap/phase-1-acceptance.md`
 - `docs/roadmap/risk-register.md`
+- `docs/roadmap/progress.md`
+- `docs/handoff/handoff.md`
 
 ## 3. 当前正在做
 
@@ -105,6 +110,12 @@
 12. 强化 GitHub Actions：Restore → Build → Unit → Architecture → Integration。
 13. 实际运行 `dotnet build`、`dotnet test` 和 Docker Compose 验收。
 14. 修复全部错误，确保 CI Green。
+
+每一个上述工作包都必须独立遵守：
+
+`明确验收条件 → 实现 → Diff 自检 → 实际 Build → Tests → Runtime/Integration 验收 → Security/Architecture 检查 → Candidate Commit → 实际 CI → Bug 修复/回归 → 文档更新 → Accepted`
+
+完整流程见 `../engineering/development-workflow.md`。
 
 ## 4. 下一里程碑
 
@@ -173,13 +184,36 @@ Owner：
 4. `下一里程碑` 的 checkbox。
 5. `已知未完成项`。
 6. 新增/解除的 Blocker。
+7. 本轮真实验证证据：Build / Tests / Runtime / CI 状态。
+8. 本轮发现并修复的 Bug，以及仍未解决的风险。
 
 禁止：
 
 - 把“代码已写但未 Build/Test”标记为 Completed。
 - 把“本地通过但 CI 未执行”写成 CI Green。
+- CI Pending 时提前标记完成。
+- CI Red 时通过反复重跑掩盖根因。
+- 修改代码后沿用修改前的验证结果。
 - 删除历史重大里程碑来让进度看起来更快。
 - 让本文档长期落后于实际仓库状态。
+
+### 每轮验证记录模板
+
+每轮编码工作完成或暂停时，在对应进度记录中至少能够回答：
+
+```text
+工作包：
+状态：Planned / In Progress / Implemented / Locally Validated / CI Green / Accepted / Completed / Blocked
+Build：PASS / FAIL / NOT RUN
+Tests：PASS / FAIL / PARTIAL / NOT RUN
+Runtime：PASS / FAIL / N/A / NOT RUN
+CI：GREEN / RED / PENDING / NOT TRIGGERED
+验收结果：
+发现的 Bug：
+修复的 Bug：
+剩余风险/Blocker：
+Commit/PR：
+```
 
 ## 8. 相关文档
 
@@ -187,6 +221,7 @@ Owner：
 - 非目标：`../product/non-goals.md`
 - 架构规范：`../architecture/architecture.md`
 - 架构不变量：`../architecture/invariants.md`
+- **强制开发/验收流程：`../engineering/development-workflow.md`**
 - 领域模型：`../architecture/domain-model.md`
 - Source Runtime：`../architecture/source-runtime.md`
 - Legado Contract：`../architecture/legado-contract.md`
