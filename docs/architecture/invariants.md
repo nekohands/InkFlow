@@ -23,6 +23,7 @@
 19. 生产数据库迁移由独立 Migration 流程执行，不由 API 启动隐式升级。
 20. 关键修复通过 Admin Command、Repair Job 或 Migration Job 完成，不把手工 SQL 作为常规运营流程。
 21. 每一个编码工作包必须遵守 `docs/engineering/development-workflow.md` 的完整闭环：实现 → Diff 自检 → 实际 Build → 自动化测试 → 运行/集成验收 → 安全/架构检查 → Candidate Commit → 实际 CI → Bug 修复与回归 → 文档同步 → Accepted。任何规定 Gate 未通过或未实际执行时，不得标记 `Completed`。
+22. 所有主要用户前端页面必须遵守 `docs/engineering/frontend-design.md`：实现前研究至少 3 个当前活跃同类产品，优先优化操作路径、可读性、响应式和可访问性；核心 UI 不能只依据开发者个人偏好设计，也不能直接复制竞品视觉。用户可见页面在未完成 Mobile/Desktop/UX/Visual/Accessibility 验收前不得标记 `Completed`。
 
 ## 工程完成定义
 
@@ -36,4 +37,16 @@
 
 工程工作包只有在其适用的 Build、Test、Runtime、Security、CI、Regression 和 Documentation Gate 有真实证据通过后才可进入 `Accepted / Completed`。
 
-详细强制流程见：`../engineering/development-workflow.md`。
+对于用户可见的前端工作，还必须同时满足：
+
+- 已完成同类产品 Benchmark Note 或等效记录。
+- Mobile / Tablet / Desktop / Wide Desktop 中适用视口已检查。
+- Primary Action 和高频操作路径通过人工 UX 验收。
+- Loading / Empty / Error / Edge Case 已检查。
+- Keyboard、Focus、Contrast、Touch Target 等可访问性要求已检查。
+- Reader 类页面额外通过长时间阅读舒适性和章节切换体验检查。
+
+详细强制流程见：
+
+- `../engineering/development-workflow.md`
+- `../engineering/frontend-design.md`
