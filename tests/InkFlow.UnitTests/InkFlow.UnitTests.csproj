@@ -9,5 +9,7 @@
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
+    <ProjectReference Include="../../src/Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />
+    <ProjectReference Include="../../src/Modules/InkFlow.Modules.Content/InkFlow.Modules.Content.csproj" />
   </ItemGroup>
 </Project>

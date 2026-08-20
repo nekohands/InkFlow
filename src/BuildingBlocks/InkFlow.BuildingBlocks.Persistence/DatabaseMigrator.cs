@@ -9,13 +9,11 @@ public static class DatabaseMigrator
     {
         await using var scope = services.CreateAsyncScope();
 
-        var schemaContext = scope.ServiceProvider.GetRequiredService<SchemaDbContext>();
-        await schemaContext.Database.MigrateAsync(cancellationToken);
-
-        var crawlingContext = scope.ServiceProvider.GetRequiredService<CrawlingDbContext>();
-        await crawlingContext.Database.MigrateAsync(cancellationToken);
-
-        var messagingContext = scope.ServiceProvider.GetRequiredService<MessagingDbContext>();
-        await messagingContext.Database.MigrateAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<SchemaDbContext>().Database.MigrateAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<SourcesDbContext>().Database.MigrateAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<LibraryDbContext>().Database.MigrateAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<CrawlingDbContext>().Database.MigrateAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<ContentDbContext>().Database.MigrateAsync(cancellationToken);
+        await scope.ServiceProvider.GetRequiredService<MessagingDbContext>().Database.MigrateAsync(cancellationToken);
     }
 }

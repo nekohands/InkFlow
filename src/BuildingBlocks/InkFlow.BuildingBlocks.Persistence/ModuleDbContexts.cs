@@ -18,15 +18,40 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     : ModuleDbContext(options, DatabaseSchemas.Identity);
 
 public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
-    : ModuleDbContext(options, DatabaseSchemas.Library);
+    : ModuleDbContext(options, DatabaseSchemas.Library)
+{
+    public DbSet<BookRecord> Books => Set<BookRecord>();
+    public DbSet<ChapterRecord> Chapters => Set<ChapterRecord>();
+    public DbSet<SourceBookMatchRecord> SourceBookMatches => Set<SourceBookMatchRecord>();
+    public DbSet<ChapterMappingRecord> ChapterMappings => Set<ChapterMappingRecord>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        CatalogModel.ConfigureLibrary(modelBuilder);
+    }
+}
 
 public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
-    : ModuleDbContext(options, DatabaseSchemas.Sources);
+    : ModuleDbContext(options, DatabaseSchemas.Sources)
+{
+    public DbSet<SourceRecord> Sources => Set<SourceRecord>();
+    public DbSet<SourceRuleVersionRecord> RuleVersions => Set<SourceRuleVersionRecord>();
+    public DbSet<SourceBookRecord> SourceBooks => Set<SourceBookRecord>();
+    public DbSet<SourceChapterRecord> SourceChapters => Set<SourceChapterRecord>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        CatalogModel.ConfigureSources(modelBuilder);
+    }
+}
 
 public sealed class CrawlingDbContext(DbContextOptions<CrawlingDbContext> options)
     : ModuleDbContext(options, DatabaseSchemas.Crawler)
 {
     public DbSet<CrawlerTaskRecord> CrawlerTasks => Set<CrawlerTaskRecord>();
+    public DbSet<FetchArtifactRecord> FetchArtifacts => Set<FetchArtifactRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,11 +79,24 @@ public sealed class CrawlingDbContext(DbContextOptions<CrawlingDbContext> option
         task.HasIndex(value => value.IdempotencyKey).IsUnique().HasDatabaseName("ux_crawler_tasks_idempotency_key");
         task.HasIndex(value => new { value.Status, value.ScheduledAtUtc, value.Priority }).HasDatabaseName("ix_crawler_tasks_dispatch");
         task.HasIndex(value => value.LeaseUntilUtc).HasDatabaseName("ix_crawler_tasks_lease_until");
+
+        CatalogModel.ConfigureFetchArtifacts(modelBuilder);
     }
 }
 
 public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
-    : ModuleDbContext(options, DatabaseSchemas.Content);
+    : ModuleDbContext(options, DatabaseSchemas.Content)
+{
+    public DbSet<ContentBlobRecord> ContentBlobs => Set<ContentBlobRecord>();
+    public DbSet<ContentVersionRecord> ContentVersions => Set<ContentVersionRecord>();
+    public DbSet<ChapterSelectionRecord> ChapterSelections => Set<ChapterSelectionRecord>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        CatalogModel.ConfigureContent(modelBuilder);
+    }
+}
 
 public sealed class ReadingDbContext(DbContextOptions<ReadingDbContext> options)
     : ModuleDbContext(options, DatabaseSchemas.Reading);
