@@ -24,7 +24,38 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
     : ModuleDbContext(options, DatabaseSchemas.Sources);
 
 public sealed class CrawlingDbContext(DbContextOptions<CrawlingDbContext> options)
-    : ModuleDbContext(options, DatabaseSchemas.Crawler);
+    : ModuleDbContext(options, DatabaseSchemas.Crawler)
+{
+    public DbSet<CrawlerTaskRecord> CrawlerTasks => Set<CrawlerTaskRecord>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        var task = modelBuilder.Entity<CrawlerTaskRecord>();
+        task.ToTable("tasks", DatabaseSchemas.Crawler);
+        task.HasKey(value => value.Id).HasName("pk_crawler_tasks");
+        task.Property(value => value.Id).HasColumnName("id");
+        task.Property(value => value.Type).HasColumnName("type").HasMaxLength(128).IsRequired();
+        task.Property(value => value.SourceId).HasColumnName("source_id");
+        task.Property(value => value.Payload).HasColumnName("payload").HasColumnType("jsonb").IsRequired();
+        task.Property(value => value.IdempotencyKey).HasColumnName("idempotency_key").HasMaxLength(512).IsRequired();
+        task.Property(value => value.Priority).HasColumnName("priority");
+        task.Property(value => value.Status).HasColumnName("status").HasMaxLength(32).IsRequired();
+        task.Property(value => value.Attempt).HasColumnName("attempt");
+        task.Property(value => value.MaxAttempts).HasColumnName("max_attempts");
+        task.Property(value => value.ScheduledAtUtc).HasColumnName("scheduled_at_utc");
+        task.Property(value => value.LeaseUntilUtc).HasColumnName("lease_until_utc");
+        task.Property(value => value.LeaseOwner).HasColumnName("lease_owner").HasMaxLength(256);
+        task.Property(value => value.CreatedAtUtc).HasColumnName("created_at_utc");
+        task.Property(value => value.UpdatedAtUtc).HasColumnName("updated_at_utc");
+        task.Property(value => value.LastError).HasColumnName("last_error").HasMaxLength(4000);
+        task.Property(value => value.TraceId).HasColumnName("trace_id").HasMaxLength(128);
+        task.HasIndex(value => value.IdempotencyKey).IsUnique().HasDatabaseName("ux_crawler_tasks_idempotency_key");
+        task.HasIndex(value => new { value.Status, value.ScheduledAtUtc, value.Priority }).HasDatabaseName("ix_crawler_tasks_dispatch");
+        task.HasIndex(value => value.LeaseUntilUtc).HasDatabaseName("ix_crawler_tasks_lease_until");
+    }
+}
 
 public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
     : ModuleDbContext(options, DatabaseSchemas.Content);
