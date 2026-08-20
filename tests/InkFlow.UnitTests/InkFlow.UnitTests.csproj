@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="MSTest" />
+    <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+</Project>

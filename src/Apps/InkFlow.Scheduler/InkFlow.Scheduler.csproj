@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Observability/InkFlow.BuildingBlocks.Observability.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
+  </ItemGroup>
+</Project>
