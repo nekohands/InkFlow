@@ -9,7 +9,7 @@ namespace InkFlow.UnitTests;
 [TestClass]
 public sealed class SafeHttpTests
 {
-    [DataTestMethod]
+    [TestMethod]
     [DataRow("http://127.0.0.1/")]
     [DataRow("http://10.1.2.3/")]
     [DataRow("http://169.254.169.254/latest/meta-data/")]
