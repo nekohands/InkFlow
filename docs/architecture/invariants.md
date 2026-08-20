@@ -22,3 +22,18 @@
 18. 公共 API Contract 与内部 Entity/DTO 分离，`/api/v1` 默认向后兼容。
 19. 生产数据库迁移由独立 Migration 流程执行，不由 API 启动隐式升级。
 20. 关键修复通过 Admin Command、Repair Job 或 Migration Job 完成，不把手工 SQL 作为常规运营流程。
+21. 每一个编码工作包必须遵守 `docs/engineering/development-workflow.md` 的完整闭环：实现 → Diff 自检 → 实际 Build → 自动化测试 → 运行/集成验收 → 安全/架构检查 → Candidate Commit → 实际 CI → Bug 修复与回归 → 文档同步 → Accepted。任何规定 Gate 未通过或未实际执行时，不得标记 `Completed`。
+
+## 工程完成定义
+
+以下表述均不等价于“完成”：
+
+- 代码已经写完。
+- 静态阅读认为应该能编译。
+- 本地某个测试通过。
+- CI 尚未触发或仍在 Pending。
+- CI 失败后仅重新运行而未定位根因。
+
+工程工作包只有在其适用的 Build、Test、Runtime、Security、CI、Regression 和 Documentation Gate 有真实证据通过后才可进入 `Accepted / Completed`。
+
+详细强制流程见：`../engineering/development-workflow.md`。
