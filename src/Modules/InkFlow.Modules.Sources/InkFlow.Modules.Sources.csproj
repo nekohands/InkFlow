@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="AngleSharp" />
+    <PackageReference Include="HtmlAgilityPack" />
+    <PackageReference Include="JsonPath.Net" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
   </ItemGroup>
