@@ -43,7 +43,7 @@ public sealed class CrawlerIngestionPipelineTests
         var sourceBook = await sources.SourceBooks.SingleAsync();
         var canonicalBook = await library.Books.SingleAsync();
         Assert.AreEqual(canonicalBook.Id, (await library.SourceBookMatches.SingleAsync()).BookId);
-        var tocTask = await crawling.CrawlerTasks.SingleAsync(task => task.IdempotencyKey.StartsWith("toc:", StringComparison.Ordinal));
+        var tocTask = await crawling.CrawlerTasks.SingleAsync(task => task.IdempotencyKey.StartsWith("toc:"));
         var tocPayload = RuleCrawlerTaskPayload.Deserialize(tocTask.Payload);
 
         var tocExecution = new SourceOperationExecution(200, new Uri("https://example.test/book/1/toc"), "toc-fixture", 11,
@@ -56,9 +56,9 @@ public sealed class CrawlerIngestionPipelineTests
         Assert.AreEqual(2, await sources.SourceChapters.CountAsync());
         Assert.AreEqual(2, await library.Chapters.CountAsync());
         Assert.AreEqual(2, await library.ChapterMappings.CountAsync());
-        Assert.AreEqual(2, await crawling.CrawlerTasks.CountAsync(task => task.IdempotencyKey.StartsWith("content:", StringComparison.Ordinal)));
+        Assert.AreEqual(2, await crawling.CrawlerTasks.CountAsync(task => task.IdempotencyKey.StartsWith("content:")));
 
-        var contentTask = await crawling.CrawlerTasks.Where(task => task.IdempotencyKey.StartsWith("content:", StringComparison.Ordinal)).OrderBy(task => task.CreatedAtUtc).FirstAsync();
+        var contentTask = await crawling.CrawlerTasks.Where(task => task.IdempotencyKey.StartsWith("content:")).OrderBy(task => task.CreatedAtUtc).FirstAsync();
         var contentPayload = RuleCrawlerTaskPayload.Deserialize(contentTask.Payload);
         var body = string.Join('\n', Enumerable.Repeat("这是一段用于集成测试的完整小说正文，应该形成可阅读的 Canonical Content。", 40));
         var contentExecution = Execution("https://example.test/chapter/1", new Dictionary<string, string> { ["content"] = body });
