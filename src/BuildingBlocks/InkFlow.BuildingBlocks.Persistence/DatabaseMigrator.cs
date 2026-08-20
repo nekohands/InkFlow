@@ -8,7 +8,11 @@ public static class DatabaseMigrator
     public static async Task MigrateInkFlowAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
     {
         await using var scope = services.CreateAsyncScope();
+
         var schemaContext = scope.ServiceProvider.GetRequiredService<SchemaDbContext>();
         await schemaContext.Database.MigrateAsync(cancellationToken);
+
+        var messagingContext = scope.ServiceProvider.GetRequiredService<MessagingDbContext>();
+        await messagingContext.Database.MigrateAsync(cancellationToken);
     }
 }
