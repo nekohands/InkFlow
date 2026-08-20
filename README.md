@@ -47,12 +47,17 @@ InkFlow 以 Canonical Content 为核心，将多来源小说采集、作品与�
 - `docs/architecture/legado-contract.md`：Legado 专用协议与 Release Gate
 - `docs/architecture/security-model.md`：认证、授权、SSRF、沙箱、Secrets 与内容安全
 
-### 路线与验收
+### 路线、进度与验收
 
+- `docs/roadmap/progress.md`：项目持续进度、当前阶段、完成项、阻塞与下一步
 - `docs/roadmap/roadmap.md`：Phase 0 → 1.0 路线
 - `docs/roadmap/phase-0-plan.md`：Foundation 实施计划与验收
 - `docs/roadmap/phase-1-acceptance.md`：Single/Dual Source Vertical Slice 验收标准
 - `docs/roadmap/risk-register.md`：核心工程风险与缓解措施
+
+### 工程交接
+
+- `docs/handoff/handoff.md`：接手顺序、当前状态、架构不变量、下一工作包与交接检查清单
 
 ### ADR
 
