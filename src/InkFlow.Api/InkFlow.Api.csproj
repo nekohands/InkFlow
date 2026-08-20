@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\InkFlow.Application\InkFlow.Application.csproj" />
+    <ProjectReference Include="..\InkFlow.Infrastructure\InkFlow.Infrastructure.csproj" />
+    <ProjectReference Include="..\InkFlow.Modules.Legado\InkFlow.Modules.Legado.csproj" />
+  </ItemGroup>
+</Project>

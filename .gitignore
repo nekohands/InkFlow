@@ -1,0 +1,15 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+.env
+.env.*
+!.env.example
+node_modules/
+.nuxt/
+.output/
+coverage/
+TestResults/
+artifacts/
