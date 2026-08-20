@@ -1,6 +1,7 @@
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Crawling;
 using InkFlow.Modules.Crawling.Orchestration;
+using InkFlow.Modules.Sources.Rules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
