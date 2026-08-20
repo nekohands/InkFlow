@@ -19,6 +19,7 @@ public sealed class SourceRequestCompiler
         var baseUri = new Uri(document.BaseUrl, UriKind.Absolute);
         var expandedUrl = RuleTemplate.Expand(rule.Request.Url, variables);
         var uri = Uri.TryCreate(expandedUrl, UriKind.Absolute, out var absolute)
+                  && absolute.Scheme is Uri.UriSchemeHttp or Uri.UriSchemeHttps
             ? absolute
             : new Uri(baseUri, expandedUrl);
 
