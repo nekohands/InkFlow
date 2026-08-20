@@ -30,6 +30,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InkFlow.Modules.Sources", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InkFlow.Modules.Crawling", "src\Modules\InkFlow.Modules.Crawling\InkFlow.Modules.Crawling.csproj", "{6327EDCB-0176-5E17-8257-19DAEFBEB913}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InkFlow.Modules.Crawling.Orchestration", "src\Modules\InkFlow.Modules.Crawling.Orchestration\InkFlow.Modules.Crawling.Orchestration.csproj", "{D94D270E-9812-4BC1-9DC5-36E78D9E00B1}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InkFlow.Modules.Content", "src\Modules\InkFlow.Modules.Content\InkFlow.Modules.Content.csproj", "{6E26040F-A384-54A2-8233-3E322546558E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InkFlow.Modules.Reading", "src\Modules\InkFlow.Modules.Reading\InkFlow.Modules.Reading.csproj", "{07FFEA52-F5AF-5A10-8F21-5EAAB84F77FB}"
@@ -108,6 +110,10 @@ Global
     {6327EDCB-0176-5E17-8257-19DAEFBEB913}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {6327EDCB-0176-5E17-8257-19DAEFBEB913}.Release|Any CPU.ActiveCfg = Release|Any CPU
     {6327EDCB-0176-5E17-8257-19DAEFBEB913}.Release|Any CPU.Build.0 = Release|Any CPU
+    {D94D270E-9812-4BC1-9DC5-36E78D9E00B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {D94D270E-9812-4BC1-9DC5-36E78D9E00B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {D94D270E-9812-4BC1-9DC5-36E78D9E00B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {D94D270E-9812-4BC1-9DC5-36E78D9E00B1}.Release|Any CPU.Build.0 = Release|Any CPU
     {6E26040F-A384-54A2-8233-3E322546558E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
     {6E26040F-A384-54A2-8233-3E322546558E}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {6E26040F-A384-54A2-8233-3E322546558E}.Release|Any CPU.ActiveCfg = Release|Any CPU
