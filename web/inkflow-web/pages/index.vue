@@ -4,12 +4,17 @@ import type { BookSummary } from '~/types/api'
 const route = useRoute()
 const searchInput = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const query = computed(() => typeof route.query.q === 'string' ? route.query.q.trim() : '')
-const { data: books, status, error } = await useInkFlowApi<BookSummary[]>('/api/v1/search', {
-  key: 'home-books',
-  query: computed(() => ({ q: query.value })),
-  watch: [query],
-  default: () => []
-})
+const { data: books, status, error } = await useAsyncData<BookSummary[]>(
+  'home-books',
+  () => $fetch<BookSummary[]>('/api/v1/search', {
+    baseURL: inkFlowApiBase(),
+    query: { q: query.value }
+  }),
+  {
+    watch: [query],
+    default: () => []
+  }
+)
 
 useSeoMeta({ title: query.value ? `搜索 ${query.value}` : '发现好故事' })
 

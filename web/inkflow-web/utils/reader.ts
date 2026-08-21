@@ -38,8 +38,8 @@ export function splitParagraphs(content: string): string[] {
 export function chapterNeighbors(chapters: ChapterSummary[], chapterId: string) {
   const index = chapters.findIndex(chapter => chapter.id === chapterId)
   return {
-    previous: index > 0 ? chapters[index - 1] : null,
-    next: index >= 0 && index < chapters.length - 1 ? chapters[index + 1] : null,
+    previous: index > 0 ? chapters[index - 1] ?? null : null,
+    next: index >= 0 && index < chapters.length - 1 ? chapters[index + 1] ?? null : null,
     index
   }
 }

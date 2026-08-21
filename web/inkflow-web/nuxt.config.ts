@@ -14,9 +14,9 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: {
-    apiServerBase: process.env.NUXT_API_SERVER_BASE || 'http://localhost:8080',
+    apiServerBase: 'http://localhost:8080',
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
+      apiBase: 'http://localhost:8080'
     }
   },
   typescript: {
