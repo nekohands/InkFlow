@@ -13,8 +13,12 @@ var connectionString = builder.Configuration.GetConnectionString("Database")
 builder.Services.AddInkFlowPersistence(connectionString);
 builder.Services.AddScoped<SourceAdministrationService>();
 builder.Services.AddScoped<SourceDebuggerService>();
+var webOrigin = builder.Configuration["Web:AllowedOrigin"] ?? "http://localhost:3000";
+builder.Services.AddCors(options => options.AddPolicy("InkFlowWeb", policy =>
+    policy.WithOrigins(webOrigin).AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
+app.UseCors("InkFlowWeb");
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "InkFlow.Api" }));
 app.MapGet("/ready", async (LibraryDbContext database, CancellationToken cancellationToken) =>
