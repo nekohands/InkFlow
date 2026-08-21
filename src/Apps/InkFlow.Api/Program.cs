@@ -12,6 +12,7 @@ var connectionString = builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5432;Database=inkflow;Username=inkflow;Password=inkflow";
 builder.Services.AddInkFlowPersistence(connectionString);
 builder.Services.AddScoped<SourceAdministrationService>();
+builder.Services.AddScoped<SourceDebuggerService>();
 
 var app = builder.Build();
 
@@ -22,7 +23,6 @@ app.MapGet("/ready", async (LibraryDbContext database, CancellationToken cancell
     {
         return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     }
-
     return Results.Ok(new { status = "ready", service = "InkFlow.Api" });
 });
 app.MapGet("/api/v1", () => Results.Ok(new { name = "墨流", product = "InkFlow", version = "v1" }));

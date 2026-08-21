@@ -17,6 +17,7 @@ public static class AdminEndpoints
         group.MapPost("/rules/validate", ValidateRuleAsync);
         group.MapPost("/sources/{sourceId:guid}/rules/publish", PublishRuleAsync);
         group.MapPost("/sources/{sourceId:guid}/imports", ImportBookAsync);
+        group.MapPost("/sources/{sourceId:guid}/debug/{operation}", DebugSourceAsync);
         return endpoints;
     }
 
@@ -30,7 +31,6 @@ public static class AdminEndpoints
         {
             return failure;
         }
-
         return Results.Ok(await service.ListSourcesAsync(cancellationToken));
     }
 
@@ -45,7 +45,6 @@ public static class AdminEndpoints
         {
             return failure;
         }
-
         try
         {
             var created = await service.CreateSourceAsync(request.Name, request.BaseUrl, request.Kind, cancellationToken);
@@ -71,7 +70,6 @@ public static class AdminEndpoints
         {
             return Task.FromResult(failure);
         }
-
         var report = service.ValidateRule(request.Rule.GetRawText());
         return Task.FromResult<IResult>(Results.Ok(report));
     }
@@ -88,7 +86,6 @@ public static class AdminEndpoints
         {
             return failure;
         }
-
         try
         {
             var result = await service.PublishRuleAsync(sourceId, request.Rule.GetRawText(), cancellationToken);
@@ -96,7 +93,6 @@ public static class AdminEndpoints
             {
                 return Results.BadRequest(new { error = "RULE_INVALID", errors = result.Errors });
             }
-
             return Results.Ok(result.Rule);
         }
         catch (KeyNotFoundException)
@@ -117,7 +113,6 @@ public static class AdminEndpoints
         {
             return failure;
         }
-
         try
         {
             var result = await service.EnqueueBookImportAsync(sourceId, request.BookUrl, request.ExternalId, cancellationToken);
@@ -137,6 +132,43 @@ public static class AdminEndpoints
         }
     }
 
+    private static async Task<IResult> DebugSourceAsync(
+        Guid sourceId,
+        string operation,
+        DebugSourceRequest request,
+        HttpContext context,
+        IConfiguration configuration,
+        SourceDebuggerService debugger,
+        CancellationToken cancellationToken)
+    {
+        if (RequireAdmin(context, configuration) is { } failure)
+        {
+            return failure;
+        }
+        try
+        {
+            var result = await debugger.DebugAsync(
+                sourceId,
+                operation,
+                request.Rule.GetRawText(),
+                request.Variables,
+                cancellationToken);
+            if (result.ValidationErrors.Count > 0)
+            {
+                return Results.BadRequest(result);
+            }
+            if (!result.Executed)
+            {
+                return Results.Json(result, statusCode: StatusCodes.Status502BadGateway);
+            }
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { error = "SOURCE_NOT_FOUND" });
+        }
+    }
+
     private static IResult? RequireAdmin(HttpContext context, IConfiguration configuration)
     {
         var expected = configuration["Admin:BootstrapKey"];
@@ -146,13 +178,11 @@ public static class AdminEndpoints
                 title: "Admin bootstrap key is not configured.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
-
         if (!context.Request.Headers.TryGetValue(AdminKeyHeader, out var provided)
             || string.IsNullOrWhiteSpace(provided))
         {
             return Results.Unauthorized();
         }
-
         var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expected));
         var providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(provided.ToString()));
         return CryptographicOperations.FixedTimeEquals(expectedHash, providedHash)
@@ -163,4 +193,5 @@ public static class AdminEndpoints
     public sealed record CreateSourceRequest(string Name, string BaseUrl, string? Kind);
     public sealed record RuleDocumentRequest(JsonElement Rule);
     public sealed record ImportBookRequest(string BookUrl, string? ExternalId);
+    public sealed record DebugSourceRequest(JsonElement Rule, IReadOnlyDictionary<string, string>? Variables);
 }
