@@ -46,6 +46,7 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       ConnectionStrings__Redis: redis:6379,password=${INKFLOW_REDIS_PASSWORD:-inkflow-redis}
+      Admin__BootstrapKey: ${INKFLOW_ADMIN_BOOTSTRAP_KEY:?INKFLOW_ADMIN_BOOTSTRAP_KEY must be set}
     ports: ["127.0.0.1:8080:8080"]
     depends_on:
       migrations:

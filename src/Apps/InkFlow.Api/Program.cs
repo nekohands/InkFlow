@@ -1,6 +1,7 @@
 using InkFlow.Api;
 using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Persistence;
+using InkFlow.Modules.Crawling.Orchestration;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +11,7 @@ builder.AddInkFlowObservability("InkFlow.Api");
 var connectionString = builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5432;Database=inkflow;Username=inkflow;Password=inkflow";
 builder.Services.AddInkFlowPersistence(connectionString);
+builder.Services.AddScoped<SourceAdministrationService>();
 
 var app = builder.Build();
 
@@ -25,6 +27,7 @@ app.MapGet("/ready", async (LibraryDbContext database, CancellationToken cancell
 });
 app.MapGet("/api/v1", () => Results.Ok(new { name = "墨流", product = "InkFlow", version = "v1" }));
 app.MapCatalogEndpoints();
+app.MapAdminEndpoints();
 
 app.Run();
 

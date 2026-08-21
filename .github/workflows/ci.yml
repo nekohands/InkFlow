@@ -13,6 +13,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      INKFLOW_ADMIN_BOOTSTRAP_KEY: ci-bootstrap-admin-key
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -34,6 +36,14 @@ jobs:
           curl --fail --silent http://localhost:8080/api/v1/search?q=test
           curl --fail --silent http://localhost:8080/api/legado/v1/search?q=test
           curl --fail --silent http://localhost:8080/legado/book-source.json | grep -q 'ruleContent'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:8080/api/admin/v1/sources)" = "401"
+          curl --fail --silent -H "X-InkFlow-Admin-Key: ${INKFLOW_ADMIN_BOOTSTRAP_KEY}" http://localhost:8080/api/admin/v1/sources | grep -q '^\[\]$'
+          curl --fail --silent -X POST \
+            -H "X-InkFlow-Admin-Key: ${INKFLOW_ADMIN_BOOTSTRAP_KEY}" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI Fixture","baseUrl":"https://example.test","kind":"Official"}' \
+            http://localhost:8080/api/admin/v1/sources | grep -q 'CI Fixture'
+          curl --fail --silent -H "X-InkFlow-Admin-Key: ${INKFLOW_ADMIN_BOOTSTRAP_KEY}" http://localhost:8080/api/admin/v1/sources | grep -q 'CI Fixture'
           curl --fail --silent http://localhost:8081/health
           curl --fail --silent http://localhost:8081/ready
           curl --fail --silent http://localhost:8082/health
