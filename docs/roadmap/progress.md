@@ -132,6 +132,13 @@ Phase 0 开发过程中真实发现并修复：
 - 校验为纯声明检查：不触网、不执行正则。
 - UnitTests 新增 16 个校验用例；Release Build 0 warnings / 0 errors；全部测试通过。
 
+**Safe HTTP / SSRF 防线**（`dev` @ `5f3ae4b`）：
+
+- `InkFlow.BuildingBlocks.Security`：`IpAddressClassification`（loopback/RFC1918/link-local 含云 metadata/CGNAT/ULA/组播/IPv4-mapped-IPv6 判定）、`IIpAddressResolver` 抽象 + DNS 实现、`SsrfGuard` 两阶段校验。
+- 字面量检查：仅允许 http/https、端口白名单 80/443、拒绝字面内网 IP 与纯数字混淆主机；字面量失败短路，不发起任何网络请求。
+- 解析后复检：DNS 全部结果逐一遍过网段判定，防 rebinding（执行器须配合使用已验证地址连接）。
+- 新增 18 个单元测试覆盖阻断网段、scheme/port 规则与 DNS 路径；Release Build 0 warnings / 0 errors。
+
 **Crawler Task / Lease / Retry / DeadLetter**（已完成，待在 `dev` 重建）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
