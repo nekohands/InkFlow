@@ -203,11 +203,11 @@ dotnet build -c Release               PASS (0 warnings / 0 errors)
 dotnet test -c Release                PASS (Unit/Architecture/Integration/Contract 各 1 用例)
 ```
 
-Runtime Smoke（compose 全栈）本机无 Docker，由远端 CI 执行验证。
+远端 CI（Run `32821162412`）：**GREEN**，Restore → Release Build → Tests → Compose Validation → Runtime Smoke 全部通过，API / Worker / Scheduler `/health` 验证 OK。
 
 ### 8.3 剩余风险
 
-- Runtime Smoke 与容器化验收在远端 CI 首跑确认前视为 Pending，不得声称 Completed。
+无已知阻塞；后续工作包按第 4 节顺序在 `dev` 上推进，每个工作包维持完整 Gate 闭环。
 
 ## 9. 强制维护规则
 

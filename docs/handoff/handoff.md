@@ -65,7 +65,9 @@ Unit: PASS
 Architecture: PASS
 Integration: PASS
 Contract: PASS
-Runtime smoke: PENDING（由远端 CI 执行验证）
+Compose validation: PASS
+Runtime smoke: PASS
+CI: GREEN (Run 32821162412)
 ```
 
 ## 4. 下一工作包
@@ -208,7 +210,7 @@ Phase 1A：
 
 ## 12. 开始下一阶段前检查
 
-- [ ] `dev` 分支远端 CI（含 Runtime Smoke）首跑确认 GREEN 后，骨架阶段方可标记 Completed。
+- [x] `dev` 分支远端 CI（含 Runtime Smoke）首跑确认 GREEN（Run `32821162412`），骨架阶段 Completed。
 - [ ] Phase 1A 各工作包在 `dev` 上按第 4 节顺序重建，参考 `main` 历史实现与设计文档，不直接复制代码。
 - [ ] 当前 worktree/diff 无未确认冲突。
 - [ ] 阅读 `phase-1-acceptance.md`。
