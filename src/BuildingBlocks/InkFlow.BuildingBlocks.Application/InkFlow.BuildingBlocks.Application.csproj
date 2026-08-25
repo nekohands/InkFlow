@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+</Project>

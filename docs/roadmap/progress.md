@@ -4,8 +4,8 @@
 
 - 产品：墨流 / InkFlow
 - 当前阶段：Phase 1A — Single Source Vertical Slice
-- 当前工作分支：`main`
-- 最后更新日期：2026-08-21
+- 当前工作分支：`dev`（2026-08-25 起）
+- 最后更新日期：2026-08-25
 
 ## 1. 总体状态
 
@@ -14,7 +14,7 @@
 | Grill Me / 产品与架构对齐 | ✅ Completed | 产品定位、核心领域、Legado、Source Runtime、安全、商业化和路线已文档化 |
 | Repository Bootstrap | ✅ Completed | .NET 10 基础仓库与最初 CI 已建立 |
 | Phase 0 — Foundation | ✅ Completed | 模块边界、Persistence、Migration、Outbox/Inbox、OTel、测试与 Runtime CI Gate 已验收 |
-| Phase 1A — Single Source Vertical Slice | 🚧 In Progress | Source DSL/Adapter → Crawl → Canonical → Content → API/Legado/Web |
+| Phase 1A — Single Source Vertical Slice | 🚧 In Progress | Source DSL/Adapter → Crawl → Canonical → Content → API/Legado/Web。已完成的 DSL/Crawler 工作包实现暂存于 `main` 历史，`dev` 上按原顺序重建 |
 | Phase 1B — Dual Source Validation | ⏳ Not Started | 双来源匹配、内容版本、质量选优、故障切源 |
 | Phase 2 — Multi-Source Production | ⏳ Not Started | 多源生产化、健康评分、自适应追更、规则 Canary |
 | Phase 3 — User Product | ⏳ Not Started | Web Reader、账号、书架、历史、私人书库 |
@@ -103,6 +103,8 @@ Phase 0 开发过程中真实发现并修复：
 
 ## 4. 当前正在做 — Phase 1A
 
+> **分支说明（2026-08-25）**：项目已切换到 `dev` 分支重新起步，`dev` 为唯一开发主线，完成后经 PR 合入 `main`。`dev` 目前仅包含基础设施骨架（见第 8 节）；Phase 1A 各工作包按原顺序与设计文档在 `dev` 上重新推进。
+
 按以下顺序推进，每一项继续执行完整工程闭环：
 
 1. ✅ Source DSL v1 与校验模型。（已实现，本地验证通过）
@@ -123,12 +125,11 @@ Phase 0 开发过程中真实发现并修复：
 
 ### 4.1 Phase 1A 已完成工作包记录
 
-**Crawler Task / Lease / Retry / DeadLetter**（已在 `main` 上实现）：
+**Crawler Task / Lease / Retry / DeadLetter**（已完成，待在 `dev` 重建）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
 - Application：`CrawlerLeaseService`、`RetryPolicy`、`DeadLetterTask`、`ICrawlerTaskExecutor`。
 - Infrastructure：`CrawlerTaskRepository` 契约 + EF 实体/配置/`CrawlingDbContext`/`DeadLetterEntity` 骨架。
-- 对应 commit：`953a21f`..`84b5b6d`。
 
 **Source DSL v1 与校验模型**（本轮）：
 
@@ -182,7 +183,33 @@ Official Source
 
 当前无已知产品级阻塞。
 
-## 8. 强制维护规则
+## 8. dev 分支骨架重建记录（2026-08-25）
+
+`dev` 是当前唯一开发主线（root commit `c5f2048`）；业务代码在本骨架上按路线图重新实现。
+
+### 8.1 本轮完成
+
+- CI 触发扩展：`push` / `pull_request` 覆盖 `main` + `dev`，保留 `workflow_dispatch`。
+- 重建 solution 全部 22 个项目骨架（4 Apps / 6 BuildingBlocks / 8 Modules / 4 Tests），目录与 `InkFlow.sln` 引用一致，项目引用关系遵循 `architecture/architecture.md` 的模块依赖矩阵。
+- 全部源码为 `dev` 上重新编写（宿主 `/health` 探针、Observability 扩展 `ObservabilitySetup`、四个测试项目的守卫用例），**未从 `main` 复制任何代码**。
+- 新增仓库级 `nuget.config`：CPM 下固定单一 nuget.org 源，解决本机多源导致的 `NU1507`，同时消除对开发者全局源配置的依赖。
+- 移除 `src/`、`tests/` 旧代码；业务实现待按路线图重建。
+
+### 8.2 验证证据
+
+```text
+dotnet restore InkFlow.sln            PASS
+dotnet build -c Release               PASS (0 warnings / 0 errors)
+dotnet test -c Release                PASS (Unit/Architecture/Integration/Contract 各 1 用例)
+```
+
+Runtime Smoke（compose 全栈）本机无 Docker，由远端 CI 执行验证。
+
+### 8.3 剩余风险
+
+- Runtime Smoke 与容器化验收在远端 CI 首跑确认前视为 Pending，不得声称 Completed。
+
+## 9. 强制维护规则
 
 每完成一个工作包至少记录：Build、Tests、Runtime、CI、验收结果、发现/修复的 Bug、剩余风险、Commit/PR。
 

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Observability/InkFlow.BuildingBlocks.Observability.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Identity/InkFlow.Modules.Identity.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Content/InkFlow.Modules.Content.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Reading/InkFlow.Modules.Reading.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Search/InkFlow.Modules.Search.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Legado/InkFlow.Modules.Legado.csproj" />
+  </ItemGroup>
+</Project>

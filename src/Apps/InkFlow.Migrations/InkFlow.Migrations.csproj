@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Identity/InkFlow.Modules.Identity.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Content/InkFlow.Modules.Content.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Reading/InkFlow.Modules.Reading.csproj" />
+  </ItemGroup>
+</Project>

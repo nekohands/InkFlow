@@ -4,9 +4,9 @@
 
 - 产品：墨流 / InkFlow
 - 当前阶段：Phase 1A — Single Source Vertical Slice
-- Phase 0 技术验收 HEAD：`e0a2b3cebfc0aac8895555427f7cc172df2d3f37`
-- Phase 0 验收 CI：Run `32383751475`，GREEN
-- 交接日期：2026-08-21
+- 当前工作分支：`dev`（2026-08-25 起）
+- `dev` 骨架 root commit：`c5f2048`
+- 交接日期：2026-08-21；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -41,22 +41,22 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 
 ## 3. 当前真实仓库状态
 
-Phase 0 已完成并验证：
+**分支模型（2026-08-25 起）**：
 
-- `src/Apps`：API / Worker / Scheduler / Migrations。
+- `dev`：当前唯一开发主线。仅包含基础设施骨架，业务代码按路线图重新实现，完成后经 PR 合入 `main`。
+- 历史实现不迁移到 `dev`；已完成工作包的设计记录以 `../roadmap/progress.md` 第 4.1 节为准，落地时在 `dev` 上重新编写。
+
+`dev` 骨架（root commit `c5f2048`）已重建并通过本地验证：
+
+- `src/Apps`：API / Worker / Scheduler / Migrations（`/health` 探针骨架）。
 - `src/BuildingBlocks`：Domain / Application / Persistence / Messaging / Security / Observability。
 - `src/Modules`：Identity / Library / Sources / Crawling / Content / Reading / Search / Legado。
-- EF Core + PostgreSQL 18。
-- 模块 Schema：`identity / library / sources / crawler / content / reading / messaging`。
-- Transactional Outbox / Inbox。
-- OpenTelemetry 基础。
-- Unit / Architecture / Integration / Contract Tests。
-- Testcontainers PostgreSQL 18。
-- Docker Compose 全栈 Runtime Smoke。
-- Architecture dependency matrix。
-- CI Release Gate 全绿。
+- Unit / Architecture / Integration / Contract 四个测试项目各含守卫用例。
+- Central Package Management + 仓库级 `nuget.config`（单一 nuget.org 源）。
+- Docker Compose 与 `deploy/docker/*.Dockerfile` 原样保留。
+- CI 触发覆盖 `main` + `dev`。
 
-Phase 0 验收证据：
+`dev` 本地验证证据：
 
 ```text
 Restore: PASS
@@ -65,13 +65,7 @@ Unit: PASS
 Architecture: PASS
 Integration: PASS
 Contract: PASS
-Migration on empty PostgreSQL 18: PASS
-Outbox transaction: PASS
-Inbox idempotency: PASS
-Compose validation: PASS
-Runtime smoke: PASS
-API/Worker/Scheduler health: PASS
-CI: GREEN
+Runtime smoke: PENDING（由远端 CI 执行验证）
 ```
 
 ## 4. 下一工作包
@@ -214,8 +208,8 @@ Phase 1A：
 
 ## 12. 开始下一阶段前检查
 
-- [ ] Phase 0 PR 已合并到 `main`。
-- [ ] 从最新 `main` 新建 Phase 1 feature branch。
+- [ ] `dev` 分支远端 CI（含 Runtime Smoke）首跑确认 GREEN 后，骨架阶段方可标记 Completed。
+- [ ] Phase 1A 各工作包在 `dev` 上按第 4 节顺序重建，参考 `main` 历史实现与设计文档，不直接复制代码。
 - [ ] 当前 worktree/diff 无未确认冲突。
 - [ ] 阅读 `phase-1-acceptance.md`。
 - [ ] Source DSL v1 先定义可测试的最小 schema/AST，不提前做万能脚本语言。
