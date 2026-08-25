@@ -125,6 +125,13 @@ Phase 0 开发过程中真实发现并修复：
 
 ### 4.1 Phase 1A 已完成工作包记录
 
+**Source DSL v1 与校验模型**（`dev` @ `1f01918`）：
+
+- `InkFlow.Modules.Sources.Domain`：`SourceCapability`、`RuleHttpMethod`、`RuleRequest`（路径模板 `{name}` 占位符 + Header/Query/Form）、`RuleSelector`（CSS/XPath/JSONPath）、`RuleRegex`（强制正超时，上限 2000ms）、`TrimTransform`/`ReplaceTransform`、`RuleField`、`CapabilityRule`、`SourceRuleDsl`。
+- `SourceRuleDslValidator`：一次性返回全部违规——schemaVersion 固定为 "1"、sourceId 非空且无空白、能力规则不重复、路径模板以 `/` 开头且占位符合法、POST 必须带 Form、字段名唯一、每字段恰好一个抽取来源、replace 的 from 非空。
+- 校验为纯声明检查：不触网、不执行正则。
+- UnitTests 新增 16 个校验用例；Release Build 0 warnings / 0 errors；全部测试通过。
+
 **Crawler Task / Lease / Retry / DeadLetter**（已完成，待在 `dev` 重建）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
