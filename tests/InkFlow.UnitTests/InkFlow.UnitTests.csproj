@@ -10,5 +10,6 @@
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Security/InkFlow.BuildingBlocks.Security.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
+    <ProjectReference Include="../../src/Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
   </ItemGroup>
 </Project>
