@@ -46,6 +46,10 @@ builder.Services.AddScoped<ContentFetchTaskHandler>();
 builder.Services.AddHostedService<TaskPollingService>();
 
 var app = builder.Build();
+
+// compose healthcheck 依赖此端点。
+app.MapGet("/health", () => Results.Json(new { status = "healthy", service = "InkFlow.Worker" }));
+
 await app.RunAsync();
 
 /// <summary>按能力分派的执行器组合根。</summary>
