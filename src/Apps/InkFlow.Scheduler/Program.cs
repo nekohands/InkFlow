@@ -22,6 +22,10 @@ builder.Services.AddScoped<UpdateScanService>();
 builder.Services.AddHostedService<UpdateScanBackgroundService>();
 
 var app = builder.Build();
+
+// compose healthcheck 依赖此端点。
+app.MapGet("/health", () => Results.Json(new { status = "healthy", service = "InkFlow.Scheduler" }));
+
 await app.RunAsync();
 
 /// <summary>
