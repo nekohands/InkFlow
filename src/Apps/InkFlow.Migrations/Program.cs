@@ -4,6 +4,7 @@
 // 进程必须以退出码 0 结束——compose 中 api/worker/scheduler 依赖 migrations 成功完成。
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
+using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 var connectionString =
@@ -15,6 +16,7 @@ var contexts = new DbContext[]
 {
     new CrawlingDbContext(new DbContextOptionsBuilder<CrawlingDbContext>().UseNpgsql(connectionString).Options),
     new LibraryDbContext(new DbContextOptionsBuilder<LibraryDbContext>().UseNpgsql(connectionString).Options),
+    new SourcesDbContext(new DbContextOptionsBuilder<SourcesDbContext>().UseNpgsql(connectionString).Options),
 };
 
 foreach (var context in contexts)
