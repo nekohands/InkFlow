@@ -135,3 +135,38 @@ public sealed class EfMatchCandidateRepository(LibraryDbContext db) : IMatchCand
                 (MatchCandidateStatus)entity.Status, entity.CreatedAt);
     }
 }
+
+public sealed class EfChapterMappingRepository(LibraryDbContext db) : IChapterMappingRepository
+{
+    public async Task AddAsync(ChapterMapping mapping, CancellationToken cancellationToken = default)
+    {
+        db.ChapterMappings.Add(new ChapterMappingEntity
+        {
+            Id = mapping.Id,
+            SourceId = mapping.SourceId,
+            ExternalChapterId = mapping.ExternalChapterId,
+            SourceChapterId = mapping.SourceChapterId,
+            CanonicalBookId = mapping.CanonicalBookId,
+            CanonicalChapterId = mapping.CanonicalChapterId,
+            CreatedAt = mapping.CreatedAt,
+        });
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ChapterMapping?> FindAsync(
+        string sourceId, string externalChapterId, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.ChapterMappings
+            .SingleOrDefaultAsync(
+                m => m.SourceId == sourceId && m.ExternalChapterId == externalChapterId,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity is null
+            ? null
+            : new ChapterMapping(
+                entity.Id, entity.SourceId, entity.ExternalChapterId, entity.SourceChapterId,
+                entity.CanonicalBookId, entity.CanonicalChapterId, entity.CreatedAt);
+    }
+}

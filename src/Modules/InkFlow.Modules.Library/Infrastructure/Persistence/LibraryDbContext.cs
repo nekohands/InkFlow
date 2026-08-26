@@ -14,6 +14,7 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
     public DbSet<CanonicalBookEntity> Books => Set<CanonicalBookEntity>();
     public DbSet<CanonicalChapterEntity> Chapters => Set<CanonicalChapterEntity>();
     public DbSet<MatchCandidateEntity> MatchCandidates => Set<MatchCandidateEntity>();
+    public DbSet<ChapterMappingEntity> ChapterMappings => Set<ChapterMappingEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +52,17 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
             // 不变量 1：同一来源书至多一条候选记录。
             b.HasIndex(x => new { x.SourceId, x.ExternalBookId }).IsUnique();
             b.HasIndex(x => x.CanonicalBookId);
+        });
+
+        modelBuilder.Entity<ChapterMappingEntity>(b =>
+        {
+            b.ToTable("chapter_mappings");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.ExternalChapterId).HasMaxLength(512).IsRequired();
+            // 不变量 1：同一来源章节至多一条映射。
+            b.HasIndex(x => new { x.SourceId, x.ExternalChapterId }).IsUnique();
+            b.HasIndex(x => x.CanonicalChapterId);
         });
     }
 }
