@@ -17,6 +17,9 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 支持 GB2312/GBK 等老站点编码(书源兼容层)。
+System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
 var connectionString =
     builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5432;Database=inkflow;Username=inkflow;Password=inkflow";
@@ -41,6 +44,7 @@ builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<SourceCatalogService>();
 builder.Services.AddScoped<CanonicalChapterMappingService>();
 builder.Services.AddScoped<SourceContentService>();
+builder.Services.AddScoped<ISourceAdapterFactory, SourceAdapterFactory>();
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
 builder.Services.AddSingleton<CrawlerLeaseService>();

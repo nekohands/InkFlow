@@ -16,32 +16,27 @@ public sealed record ContentFetchOutcome(
 }
 
 /// <summary>
-/// 章节正文抓取服务：执行 Content 能力规则，把原始产物按 RawHash 幂等落库。
-/// 上游内容未变（哈希一致）时返回 Unchanged，不产生新的存储行。
-/// 正文 → Content AST / CanonicalHash 的清洗链路由 Content 模块负责，不在此处。
+/// 章节正文抓取服务:经书源兼容层获取原始正文,按 RawHash 幂等落库。
+/// 上游内容未变(哈希一致)时返回 Unchanged,不产生新的存储行。
+/// 正文 → Content AST / CanonicalHash 的清洗链路由 Content 模块负责,不在此处。
 /// </summary>
 public sealed class SourceContentService(
-    ISourceRepository sourceRepository,
+    ISourceAdapterFactory adapterFactory,
     ISourceBookRepository sourceBookRepository,
     IFetchArtifactRepository artifactRepository,
-    RuleAdapter ruleAdapter)
+    TimeProvider clock)
 {
     public async Task<ContentFetchOutcome> FetchChapterContentAsync(
         string sourceId, string externalBookId, string externalChapterId,
-        DateTimeOffset now, CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
-        // 前置校验全部在触网前完成：来源、书目、章节必须已存在。
-        var source = await sourceRepository.GetAsync(sourceId, cancellationToken).ConfigureAwait(false);
-        if (source is null)
+        // 前置校验全部在触网前完成:适配器、书目、章节必须已存在。
+        var adapter = await adapterFactory
+            .GetAdapterAsync(sourceId, cancellationToken)
+            .ConfigureAwait(false);
+        if (adapter is null)
         {
-            return ContentFetchOutcome.Fail([$"source '{sourceId}' does not exist."]);
-        }
-
-        var rule = source.FindRule(SourceCapability.Content);
-        if (rule is null)
-        {
-            return ContentFetchOutcome.Fail(
-                [$"source '{sourceId}' declares no rule for capability {SourceCapability.Content}."]);
+            return ContentFetchOutcome.Fail([$"source '{sourceId}' does not exist or has no adapter."]);
         }
 
         var book = await sourceBookRepository
@@ -53,36 +48,24 @@ public sealed class SourceContentService(
                 [$"catalog: book '{sourceId}/{externalBookId}' has not been imported."]);
         }
 
-        var chapterExists = book.Chapters.Any(c => c.ExternalChapterId == externalChapterId);
-        if (!chapterExists)
+        var chapter = book.Chapters.FirstOrDefault(c => c.ExternalChapterId == externalChapterId);
+        if (chapter is null)
         {
             return ContentFetchOutcome.Fail(
                 [$"catalog: chapter '{externalChapterId}' is not part of book '{sourceId}/{externalBookId}'."]);
         }
 
-        var result = await ruleAdapter
-            .ExecuteAsync(
-                rule, source.BaseUrl,
-                new Dictionary<string, string>
-                {
-                    ["chapterId"] = externalChapterId,
-                    ["bookId"] = externalBookId,
-                },
-                cancellationToken)
+        var rawContent = await adapter
+            .GetChapterContentAsync(externalChapterId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.IsSuccess)
-        {
-            return ContentFetchOutcome.Fail(result.Errors);
-        }
-
-        if (!result.Values.TryGetValue("content", out var content) || string.IsNullOrWhiteSpace(content))
+        if (string.IsNullOrWhiteSpace(rawContent))
         {
             return ContentFetchOutcome.Fail(
-                ["rules[Content]: required field 'content' missing from extraction."]);
+                [$"content: chapter '{externalChapterId}' returned no content from the source."]);
         }
 
-        var artifact = FetchArtifact.Capture(sourceId, externalBookId, externalChapterId, content, now);
+        var artifact = FetchArtifact.Capture(sourceId, externalBookId, externalChapterId, rawContent, clock.GetUtcNow());
 
         var latest = await artifactRepository
             .GetLatestAsync(sourceId, externalChapterId, cancellationToken)

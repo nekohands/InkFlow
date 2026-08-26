@@ -10,8 +10,7 @@ namespace InkFlow.Modules.Crawling.Application;
 /// </summary>
 public sealed class TocSyncTaskHandler(
     SourceCatalogService catalog,
-    CanonicalChapterMappingService mappingService,
-    TimeProvider clock) : ICrawlerTaskExecutor
+    CanonicalChapterMappingService mappingService) : ICrawlerTaskExecutor
 {
     public async Task<CrawlOutcome> ExecuteAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
@@ -21,7 +20,7 @@ public sealed class TocSyncTaskHandler(
         }
 
         var sync = await catalog
-            .SyncChaptersAsync(task.Payload.SourceId, externalBookId, clock.GetUtcNow(), cancellationToken)
+            .SyncChaptersAsync(task.Payload.SourceId, externalBookId, cancellationToken)
             .ConfigureAwait(false);
 
         if (!sync.IsSuccess)
@@ -46,8 +45,7 @@ public sealed class TocSyncTaskHandler(
 /// 正文抓取处理器:执行 Content 规则并按 RawHash 幂等落库。
 /// </summary>
 public sealed class ContentFetchTaskHandler(
-    SourceContentService contentService,
-    TimeProvider clock) : ICrawlerTaskExecutor
+    SourceContentService contentService) : ICrawlerTaskExecutor
 {
     public async Task<CrawlOutcome> ExecuteAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
@@ -61,7 +59,7 @@ public sealed class ContentFetchTaskHandler(
         var outcome = await contentService
             .FetchChapterContentAsync(
                 task.Payload.SourceId, externalBookId ?? string.Empty, externalChapterId,
-                clock.GetUtcNow(), cancellationToken)
+                cancellationToken)
             .ConfigureAwait(false);
 
         if (!outcome.IsSuccess)
