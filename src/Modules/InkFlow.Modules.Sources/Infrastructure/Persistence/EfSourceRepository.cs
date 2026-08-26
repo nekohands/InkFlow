@@ -14,6 +14,8 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public DbSet<SourceEntity> Sources => Set<SourceEntity>();
+    public DbSet<SourceBookEntity> SourceBooks => Set<SourceBookEntity>();
+    public DbSet<SourceChapterEntity> SourceChapters => Set<SourceChapterEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +29,32 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
             b.Property(s => s.DisplayName).HasMaxLength(256).IsRequired();
             b.Property(s => s.BaseUrl).HasMaxLength(1024).IsRequired();
             b.Property(s => s.RuleDslJson).HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<SourceBookEntity>(b =>
+        {
+            b.ToTable("source_books");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.ExternalBookId).HasMaxLength(512).IsRequired();
+            b.Property(x => x.Title).HasMaxLength(512).IsRequired();
+            b.Property(x => x.Author).HasMaxLength(256).IsRequired();
+            // (来源, 外部书 ID) 唯一：同一来源同一本书只有一条来源视图。
+            b.HasIndex(x => new { x.SourceId, x.ExternalBookId }).IsUnique();
+        });
+
+        modelBuilder.Entity<SourceChapterEntity>(b =>
+        {
+            b.ToTable("source_chapters");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ExternalChapterId).HasMaxLength(512).IsRequired();
+            b.Property(x => x.Title).HasMaxLength(512).IsRequired();
+            b.HasIndex(x => new { x.SourceBookId, x.ExternalChapterId }).IsUnique();
+            b.HasIndex(x => new { x.SourceBookId, x.ChapterIndex }).IsUnique();
+            b.HasOne<SourceBookEntity>()
+                .WithMany()
+                .HasForeignKey(x => x.SourceBookId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
