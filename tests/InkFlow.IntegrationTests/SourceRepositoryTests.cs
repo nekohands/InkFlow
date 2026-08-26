@@ -42,12 +42,12 @@ public sealed class SourceRepositoryTests
         return new EfSourceRepository(db);
     }
 
-    private static Source NewSourceWithRules() =>
+    private static Source NewSourceWithRules(string sourceId) =>
         Source.Rehydrate(
-            "example-source",
+            sourceId,
             "示例来源",
             "https://books.example.com",
-            new SourceRuleDsl("1", "example-source",
+            new SourceRuleDsl("1", sourceId,
             [
                 new CapabilityRule(
                     SourceCapability.Search,
@@ -61,10 +61,10 @@ public sealed class SourceRepositoryTests
     public async Task Source_With_Rule_Dsl_Roundtrips()
     {
         var repo = CreateRepository();
-        var source = NewSourceWithRules();
+        var source = NewSourceWithRules("roundtrip-source");
         await repo.AddAsync(source).ConfigureAwait(false);
 
-        var loaded = await repo.GetAsync("example-source").ConfigureAwait(false);
+        var loaded = await repo.GetAsync("roundtrip-source").ConfigureAwait(false);
         Assert.IsNotNull(loaded);
         Assert.AreEqual("https://books.example.com", loaded.BaseUrl);
         Assert.IsNotNull(loaded.RuleDsl, "jsonb 规则文档应完整往返");
@@ -75,11 +75,11 @@ public sealed class SourceRepositoryTests
     public async Task Save_Updates_Rule_Document()
     {
         var repo = CreateRepository();
-        await repo.AddAsync(NewSourceWithRules()).ConfigureAwait(false);
+        await repo.AddAsync(NewSourceWithRules("save-source")).ConfigureAwait(false);
 
-        var loaded = (await repo.GetAsync("example-source").ConfigureAwait(false))!;
+        var loaded = (await repo.GetAsync("save-source").ConfigureAwait(false))!;
         loaded.UpdateRuleDsl(
-            new SourceRuleDsl("1", "example-source",
+            new SourceRuleDsl("1", "save-source",
             [
                 new CapabilityRule(
                     SourceCapability.Toc,
@@ -89,7 +89,7 @@ public sealed class SourceRepositoryTests
             T0.AddMinutes(1));
         await repo.SaveAsync(loaded).ConfigureAwait(false);
 
-        var reloaded = await repo.GetAsync("example-source").ConfigureAwait(false);
+        var reloaded = await repo.GetAsync("save-source").ConfigureAwait(false);
         Assert.IsNull(reloaded!.FindRule(SourceCapability.Search), "规则替换应为整体覆盖");
         Assert.IsNotNull(reloaded.FindRule(SourceCapability.Toc));
     }
