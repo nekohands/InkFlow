@@ -85,6 +85,59 @@ legado.MapGet("/chapters/{chapterId:guid}",
     return content is null ? Results.NotFound() : Results.Json(content);
 });
 
+// ---- Minimal Web Reader(服务端渲染 HTML)----
+
+app.MapGet("/reader", async (string? q, CatalogQueryService catalog, CancellationToken ct) =>
+{
+    var books = await catalog.ListBooksAsync(ct);
+    return Results.Content(
+        ReaderHtml.BookListPage(books, q), contentType: "text/html; charset=utf-8");
+});
+
+app.MapGet("/reader/books/{bookId:guid}",
+    async (Guid bookId, CatalogQueryService catalog, CancellationToken ct) =>
+{
+    var book = await catalog.GetBookAsync(bookId, ct);
+    return book is null
+        ? Results.Content(ReaderHtml.BookListPage([], null), "text/html; charset=utf-8", statusCode: 404)
+        : Results.Content(
+            ReaderHtml.BookDetailPage(book), contentType: "text/html; charset=utf-8");
+});
+
+app.MapGet("/reader/read/{chapterId:guid}",
+    async (Guid chapterId, CatalogQueryService catalog, CancellationToken ct) =>
+{
+    var content = await catalog.GetChapterContentAsync(chapterId, ct);
+    if (content is null)
+    {
+        return Results.Content(
+            "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>未找到</title></head><body><main><p role=\"status\">该章节尚未发布内容。</p><p><a href=\"/reader\">返回书目</a></p></main></body></html>",
+            "text/html; charset=utf-8",
+            statusCode: 404);
+    }
+
+    var book = await catalog.GetBookAsync(content.BookId, ct);
+    var chapters = book?.Chapters ?? [];
+
+    (Guid ChapterId, string Title)? previous = null;
+    (Guid ChapterId, string Title)? next = null;
+    for (var i = 0; i < chapters.Count; i++)
+    {
+        if (chapters[i].ChapterId != chapterId)
+        {
+            continue;
+        }
+
+        previous = i > 0 ? (chapters[i - 1].ChapterId, chapters[i - 1].Title) : null;
+        next = i + 1 < chapters.Count ? (chapters[i + 1].ChapterId, chapters[i + 1].Title) : null;
+        break;
+    }
+
+    return Results.Content(
+        ReaderHtml.ChapterPage(content, previous, next, content.BookId, book?.Title ?? string.Empty),
+        contentType: "text/html; charset=utf-8");
+});
+
 // 书源清单:由代码生成,baseUrl 取请求自身的 scheme+host。
 app.MapGet("/legado/book-source.json", (HttpContext http) =>
 {
