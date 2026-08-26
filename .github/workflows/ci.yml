@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # smoke 验证当前 commit 的源码构建产物;GHCR 预构建镜像由 docker.yml 单独构建发布。
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
@@ -31,11 +32,11 @@ jobs:
         run: dotnet test InkFlow.sln --configuration Release --no-build --verbosity normal
 
       - name: Validate Compose
-        run: docker compose config --quiet
+        run: docker compose -f docker-compose.build.yml config --quiet
 
       - name: Runtime smoke test
         run: |
-          docker compose up -d --build --wait api worker scheduler
+          docker compose -f docker-compose.build.yml up -d --build --wait api worker scheduler
           curl --fail --silent http://localhost:8080/health
           curl --fail --silent http://localhost:8081/health
           curl --fail --silent http://localhost:8082/health

@@ -1,3 +1,5 @@
+# 源码构建编排:在本地从当前代码构建全部镜像并启动(适合开发与自定义修改)。
+# 部署推荐使用 docker-compose.yml(直接拉取 GHCR 预构建镜像)。
 services:
   postgres:
     image: postgres:18
@@ -29,7 +31,9 @@ services:
       retries: 10
 
   migrations:
-    image: ghcr.io/nekohands/inkflow-migrations:dev
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.migrations
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
     depends_on:
@@ -45,7 +49,9 @@ services:
       - ALL
 
   api:
-    image: ghcr.io/nekohands/inkflow-api:dev
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.api
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
     ports:
@@ -71,7 +77,9 @@ services:
       start_period: 5s
 
   worker:
-    image: ghcr.io/nekohands/inkflow-worker:dev
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.worker
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
     ports:
@@ -97,7 +105,9 @@ services:
       start_period: 5s
 
   scheduler:
-    image: ghcr.io/nekohands/inkflow-scheduler:dev
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.scheduler
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
     ports:
