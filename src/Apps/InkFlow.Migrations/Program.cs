@@ -2,6 +2,7 @@
 // 连接串来自环境变量 ConnectionStrings__Database（docker compose 注入），
 // 本地默认指向 compose 的 postgres 实例。
 // 进程必须以退出码 0 结束——compose 中 api/worker/scheduler 依赖 migrations 成功完成。
+using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
@@ -17,6 +18,7 @@ var contexts = new DbContext[]
     new CrawlingDbContext(new DbContextOptionsBuilder<CrawlingDbContext>().UseNpgsql(connectionString).Options),
     new LibraryDbContext(new DbContextOptionsBuilder<LibraryDbContext>().UseNpgsql(connectionString).Options),
     new SourcesDbContext(new DbContextOptionsBuilder<SourcesDbContext>().UseNpgsql(connectionString).Options),
+    new ContentDbContext(new DbContextOptionsBuilder<ContentDbContext>().UseNpgsql(connectionString).Options),
 };
 
 foreach (var context in contexts)
