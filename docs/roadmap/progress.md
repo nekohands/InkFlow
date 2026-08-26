@@ -202,6 +202,13 @@ Phase 0 开发过程中真实发现并修复：
 - 持久化：library schema 新增 match_candidates 表，(sourceId, externalBookId) 唯一约束兜底。
 - 测试：3 匹配服务单测（新建/幂等/缺失失败）+ 1 Testcontainers 集成测试。
 
+**Canonical Chapter 映射**（`dev` @ `af1764d`，CI Run `32924655770` GREEN）：
+
+- `Library.Domain`：`ChapterMapping`——来源章节 → 正典章节的稳定绑定；(sourceId, externalChapterId) 唯一；映射一经创建不可改指向。
+- `CanonicalChapterMappingService`：书目级 Confirmed 匹配完成后，为每个未映射的 SourceChapter 在正典书上**追加式**创建稳定 CanonicalChapter 并写入映射；重复调用幂等（零新增）；来源后续新增的章节在再次同步时追加，既有映射不动。
+- 持久化：library schema 新增 chapter_mappings 表，AddChapterMappings 迁移入库。
+- 测试：4 映射服务单测（首次同步/幂等/增量追加/未匹配拒绝）+ 1 Testcontainers 集成测试。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
