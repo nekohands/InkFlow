@@ -238,6 +238,15 @@ Phase 0 开发过程中真实发现并修复：
 - 渲染器为纯函数(`ReaderHtml`),可离线单测;CI smoke 断言 reader 页面真实渲染。
 - 测试:6 渲染器单测(转义、主操作、上下章导航、首章无上一章)。
 
+**追更调度（Scheduler/Worker 闭环）**（`dev` @ `5c94b3f`，CI Run `32934543579` GREEN）：
+
+- `UpdateScanService`：周期扫描已导入书目，为每本书入队 Toc 同步任务；活跃任务去重避免重复扫描。
+- `TocSyncTaskHandler`：目录规则执行 → 来源章节落库 → 正典章节映射；`ContentFetchTaskHandler`：正文规则执行 → RawHash 幂等落库。按能力分派。
+- Worker 宿主：轮询消费循环（租约领取 → 执行 → 完成/失败/死信落库）；生产适配器接入——`ProductionSafeSourceHttpClient`（DNS 解析级 SSRF 复检）与 `CssSelectorEvaluator`（AngleSharp 1.7.2）。
+- Scheduler 宿主：30 分钟间隔追更扫描后台服务。
+- **修复**：api/worker/scheduler 补回 `/health` 端点（compose healthcheck 依赖）；补注入连接串环境变量。
+- 测试：116 单测全绿；容器环境 Runtime Smoke 全绿。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
