@@ -61,15 +61,17 @@ public sealed class FetchArtifactRepositoryTests
     public async Task Latest_Is_Per_Chapter_Isolated()
     {
         var repo = CreateRepository();
-        await repo.AddAsync(FetchArtifact.Capture("src", "b1", "c1", "第一章内容", T0)).ConfigureAwait(false);
-        await repo.AddAsync(FetchArtifact.Capture("src", "b1", "c2", "第二章内容", T0)).ConfigureAwait(false);
+        // 使用本测试专属的来源/章节标识,避免与其他测试的数据相互干扰。
+        await repo.AddAsync(FetchArtifact.Capture("iso-src", "b1", "iso-c1", "第一章内容", T0)).ConfigureAwait(false);
+        await repo.AddAsync(FetchArtifact.Capture("iso-src", "b1", "iso-c2", "第二章内容", T0)).ConfigureAwait(false);
 
-        var latestC1 = await repo.GetLatestAsync("src", "c1").ConfigureAwait(false);
+        var latestC1 = await repo.GetLatestAsync("iso-src", "iso-c1").ConfigureAwait(false);
         Assert.IsNotNull(latestC1);
 
-        // 用确定性哈希验证隔离：c1 的最新产物哈希应等于 c1 内容的哈希。
-        var expected = FetchArtifact.Capture("src", "b1", "c1", "第一章内容", T0).RawHash;
+        // 用确定性哈希验证隔离:c1 的最新产物哈希应等于 c1 内容的哈希。
+        var expected = FetchArtifact.Capture("iso-src", "b1", "iso-c1", "第一章内容", T0).RawHash;
         Assert.AreEqual(expected, latestC1.RawHash);
+        Assert.IsNull(await repo.GetLatestAsync("iso-src", "never").ConfigureAwait(false));
     }
 
     [TestMethod]
