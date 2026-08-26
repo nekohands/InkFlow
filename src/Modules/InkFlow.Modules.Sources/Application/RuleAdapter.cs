@@ -149,9 +149,22 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
 
         foreach (var field in rule.Fields)
         {
-            var extracted = field.Selector is { } selector
-                ? selectorEvaluator.EvaluateFirst(body, selector)
-                : EvaluateRegex(body, field.Regex!, field.Name, rule.Capability, errors);
+            string? extracted;
+
+            if (field.Selector is { } selector)
+            {
+                extracted = selectorEvaluator.EvaluateFirst(
+                    body, selector, field.Attribute);
+            }
+            else if (field.Regex is { } regexSpec)
+            {
+                extracted = EvaluateRegex(body, regexSpec, field.Name, rule.Capability, errors);
+            }
+            else
+            {
+                errors.Add($"rules[{rule.Capability}]['{field.Name}']: no extraction source defined.");
+                continue;
+            }
 
             if (extracted is null)
             {
@@ -172,7 +185,7 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
             values[field.Name] = extracted;
         }
 
-        return errors.Count > 0 ? RuleExecutionResult.Fail(errors) : RuleExecutionResult.Ok(values);
+        return errors.Count > 0 ? RuleExecutionResult.Fail(errors) : RuleExecutionResult.Ok(values, body);
     }
 
     private static string? EvaluateRegex(string body, RuleRegex regexSpec, string fieldName, SourceCapability capability, List<string> errors)

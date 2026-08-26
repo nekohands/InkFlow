@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace InkFlow.Modules.Sources.Infrastructure;
+namespace InkFlow.Sources.Adapters.Kanunu8;
 
 /// <summary>书源兼容层的编码支持:按需注册 CodePages 提供程序并缓存 GB18030。</summary>
 public static class SourceEncodings

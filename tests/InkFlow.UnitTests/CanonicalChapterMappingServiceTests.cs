@@ -46,6 +46,9 @@ public sealed class CanonicalChapterMappingServiceTests
             => Task.FromResult<IReadOnlyList<CanonicalBook>>(
                 Book is null ? [] : [Book]);
 
+        public Task<CanonicalBook?> FindByTitleAuthorAsync(string title, string author, CancellationToken cancellationToken = default)
+            => Task.FromResult<CanonicalBook?>(null);
+
         public Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
             SaveCount++;

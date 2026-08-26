@@ -7,6 +7,7 @@ using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure;
+using InkFlow.Sources.Adapters.Kanunu8;
 using InkFlow.BuildingBlocks.Security;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -33,6 +34,11 @@ public sealed class EndToEndDataFlowTests
             => Task.FromResult(Store.TryGetValue(id, out var b) ? b : null);
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CanonicalBook>>(Store.Values.ToList());
+
+
+        public Task<CanonicalBook?> FindByTitleAuthorAsync(string title, string author, CancellationToken cancellationToken = default)
+            => Task.FromResult<CanonicalBook?>(null);
+
         public Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
             Store[book.Id] = book;
@@ -85,6 +91,7 @@ public sealed class EndToEndDataFlowTests
         var factory = new SourceAdapterFactory(
             new NullSourceRepository(),
             ruleAdapter,
+            new CssSelectorEvaluator(),
             [kanunu]);
 
         var sourceBooks = new InMemorySourceBooks();
@@ -193,6 +200,9 @@ public sealed class EndToEndDataFlowTests
             => Task.FromResult(Book is not null && Book.Id == id ? Book : null);
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CanonicalBook>>(Book is null ? [] : [Book]);
+
+        public Task<CanonicalBook?> FindByTitleAuthorAsync(string title, string author, CancellationToken cancellationToken = default)
+            => Task.FromResult(Book is not null && Book.Title == title && Book.Author == author ? Book : null);
         public Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
             Book = book;

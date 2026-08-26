@@ -6,24 +6,23 @@ namespace InkFlow.Modules.Sources.Application;
 /// 规则型来源适配器:解释 Source 聚合的 RuleDsl,把统一契约的四个能力操作
 /// 翻译为规则执行。新增规则型站点零代码——登记 Source 记录即可。
 ///
-/// 过渡协议(DSL v1 无列表选择器引擎期间):
-/// - Search:字段 <c>results</c> 多行文本,每行 <c>externalBookId TAB title TAB author</c>;
-/// - Toc:字段 <c>chapters</c> 多行文本,每行 <c>externalChapterId TAB title</c>。
-/// 列表选择器引擎接入后,以上文本协议由结构化抽取取代。
+/// 抽取模型:
+/// - 单结果能力(BookInfo/Content):Fields 逐字段抽取(selector 可带 attribute 取值);
+/// - 多结果能力(Toc/Search):List 绑定条目集(ItemsSelector),
+///   外部 ID = 条目的 ExternalIdAttribute 值剥离 IdPrefixToStrip/IdSuffixToStrip,
+///   标题取条目文本。
 /// </summary>
-public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapter) : ISourceAdapter
+public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapter, ISelectorEvaluator selectorEvaluator) : ISourceAdapter
 {
     public string SourceId => source.Id;
 
-    private const string ResultsField = "results";
-    private const string ChaptersField = "chapters";
     private static readonly char[] Tab = ['\t'];
 
     public async Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
         string keyword, CancellationToken cancellationToken = default)
     {
         var rule = source.FindRule(SourceCapability.Search);
-        if (rule is null)
+        if (rule?.List is null)
         {
             return [];
         }
@@ -32,10 +31,26 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
             .ExecuteAsync(rule, source.BaseUrl, new Dictionary<string, string> { ["key"] = keyword }, cancellationToken)
             .ConfigureAwait(false);
 
-        return result.IsSuccess && result.Values.TryGetValue(ResultsField, out var block)
-            ? ParseLines(block, 3,
-                parts => new SourceSearchResult(parts[0], parts[1], parts.Length > 2 ? parts[2] : ""))
-            : [];
+        if (!result.IsSuccess)
+        {
+            return [];
+        }
+
+        var items = selectorEvaluator.SelectAll(result.Body ?? string.Empty, ToSelector(rule.List));
+        var results = new List<SourceSearchResult>();
+
+        foreach (var item in items)
+        {
+            var externalId = ExtractExternalId(item, rule.List);
+            if (string.IsNullOrEmpty(externalId))
+            {
+                continue;
+            }
+
+            results.Add(new SourceSearchResult(externalId, item.TextContent, "未知"));
+        }
+
+        return results;
     }
 
     public async Task<SourceBookInfo?> GetBookInfoAsync(
@@ -47,7 +62,11 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
             return null;
         }
 
-        var result = await ExecuteWithBookIdAsync(rule, externalBookId, cancellationToken).ConfigureAwait(false);
+        var result = await ExecuteWithVariablesAsync(
+            rule,
+            new Dictionary<string, string> { ["bookId"] = externalBookId },
+            cancellationToken).ConfigureAwait(false);
+
         if (!result.IsSuccess ||
             !result.Values.TryGetValue("title", out var title) ||
             string.IsNullOrWhiteSpace(title))
@@ -63,34 +82,38 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
         string externalBookId, CancellationToken cancellationToken = default)
     {
         var rule = source.FindRule(SourceCapability.Toc);
-        if (rule is null)
+        if (rule?.List is null)
         {
             return [];
         }
 
-        var result = await ExecuteWithBookIdAsync(rule, externalBookId, cancellationToken).ConfigureAwait(false);
-        if (!result.IsSuccess || !result.Values.TryGetValue(ChaptersField, out var block))
+        var result = await ExecuteWithVariablesAsync(
+            rule,
+            new Dictionary<string, string> { ["bookId"] = externalBookId },
+            cancellationToken).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
         {
             return [];
         }
+
+        var body = result.Body ?? string.Empty;
+        var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
 
         var index = 0;
         var entries = new List<SourceTocEntry>();
-        foreach (var line in block.Split('\n'))
+
+        foreach (var item in items)
         {
-            var trimmed = line.Trim('\r', ' ');
-            if (string.IsNullOrWhiteSpace(trimmed))
+            var externalId = ExtractExternalId(item, rule.List);
+            var title = item.TextContent.Trim();
+
+            if (string.IsNullOrEmpty(externalId) || string.IsNullOrEmpty(title))
             {
                 continue;
             }
 
-            var parts = trimmed.Split(Tab, 2);
-            if (parts.Length != 2 || parts[0].Length == 0 || parts[1].Length == 0)
-            {
-                continue;
-            }
-
-            entries.Add(new SourceTocEntry(parts[0].Trim(), index++, parts[1].Trim()));
+            entries.Add(new SourceTocEntry(externalId, index++, title));
         }
 
         return entries;
@@ -105,14 +128,11 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
             return null;
         }
 
+        // v1:Content 规则模板仅依赖 chapterId;bookId 上下文随章节映射增强后提供。
         var result = await ruleAdapter
             .ExecuteAsync(
                 rule, source.BaseUrl,
-                new Dictionary<string, string>
-                {
-                    // v1:Content 规则模板仅依赖 chapterId;bookId 上下文随章节映射增强后提供。
-                    ["chapterId"] = externalChapterId,
-                },
+                new Dictionary<string, string> { ["chapterId"] = externalChapterId },
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -121,33 +141,38 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
             : null;
     }
 
-    /// <summary>v1 目录协议不含书 ID;正文抓取的 bookId 由调用方上下文提供时才可用。</summary>
+    private Task<RuleExecutionResult> ExecuteWithVariablesAsync(
+        CapabilityRule rule,
+        IReadOnlyDictionary<string, string> variables,
+        CancellationToken cancellationToken) =>
+        ruleAdapter.ExecuteAsync(rule, source.BaseUrl, variables, cancellationToken);
 
-    private Task<RuleExecutionResult> ExecuteWithBookIdAsync(
-        CapabilityRule rule, string externalBookId, CancellationToken cancellationToken) =>
-        ruleAdapter.ExecuteAsync(
-            rule, source.BaseUrl, new Dictionary<string, string> { ["bookId"] = externalBookId }, cancellationToken);
+    private static RuleSelector ToSelector(RuleListBinding binding) =>
+        new(SelectorKind.Css, binding.ItemsSelector);
 
-    private static IReadOnlyList<T> ParseLines<T>(string block, int minParts, Func<string[], T> map)
+    /// <summary>外部 ID = 条目属性值剥离声明的前缀/后缀。</summary>
+    private static string? ExtractExternalId(
+        SelectorElementSnapshot element, RuleListBinding binding)
     {
-        var items = new List<T>();
-        foreach (var raw in block.Split('\n'))
+        if (!element.Attributes.TryGetValue(binding.ExternalIdAttribute, out var raw))
         {
-            var line = raw.Trim('\r', ' ');
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            var parts = line.Split(Tab);
-            if (parts.Length < minParts || parts.Any(p => p.Length == 0))
-            {
-                continue;
-            }
-
-            items.Add(map(parts));
+            return null;
         }
 
-        return items;
+        var id = raw;
+
+        if (binding.IdPrefixToStrip.Length > 0 &&
+            id.StartsWith(binding.IdPrefixToStrip, StringComparison.Ordinal))
+        {
+            id = id[binding.IdPrefixToStrip.Length..];
+        }
+
+        if (binding.IdSuffixToStrip.Length > 0 &&
+            id.EndsWith(binding.IdSuffixToStrip, StringComparison.Ordinal))
+        {
+            id = id[..^binding.IdSuffixToStrip.Length];
+        }
+
+        return id.Length == 0 ? null : id;
     }
 }

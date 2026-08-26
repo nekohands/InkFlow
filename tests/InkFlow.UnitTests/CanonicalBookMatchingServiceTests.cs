@@ -27,6 +27,9 @@ public sealed class CanonicalBookMatchingServiceTests
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CanonicalBook>>(Store.Values.ToList());
 
+
+        public Task<CanonicalBook?> FindByTitleAuthorAsync(string title, string author, CancellationToken cancellationToken = default)
+            => Task.FromResult<CanonicalBook?>(null);
         public Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
             Store[book.Id] = book;

@@ -5,7 +5,7 @@ using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 
-namespace InkFlow.Modules.Sources.Infrastructure;
+namespace InkFlow.Sources.Adapters.Kanunu8;
 
 /// <summary>
 /// 努努书坊(kanunu8.com)定制适配器 —— CodeAdapter 形态的第一个示例:

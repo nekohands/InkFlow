@@ -20,7 +20,12 @@ public sealed class SourceRuleDslValidatorTests
                         new RuleSelector(SelectorKind.XPath, "//a/@href"),
                         null,
                         [new ReplaceTransform("/book/", "")]),
-                ]),
+                ],
+                List: new RuleListBinding(
+                    ItemsSelector: ".result a",
+                    ExternalIdAttribute: "href",
+                    IdPrefixToStrip: string.Empty,
+                    IdSuffixToStrip: ".html")),
         ]);
 
     [TestMethod]
