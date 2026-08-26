@@ -96,6 +96,53 @@ src/
 
 代码写完、本地单测通过或 CI 尚未触发，都不能单独作为 Completed 的依据。
 
+## 部署
+
+### 快速开始（Docker Compose）
+
+前置要求:Docker Engine 24+ 与 Docker Compose v2。
+
+```bash
+git clone git@github.com:nekohands/InkFlow.git
+cd InkFlow
+docker compose up -d --build
+```
+
+启动顺序由编排自动保证:PostgreSQL/Redis 健康检查通过后，migrations 服务对空库执行全部迁移并退出，随后 api / worker / scheduler 启动。
+
+### 服务与端口
+
+| 服务 | 端口 | 说明 |
+| --- | --- | --- |
+| api | 8080 (宿主) | 公共 API + Web Reader + Legado 契约 |
+| worker | 8081 (宿主) | 抓取任务消费(轮询 crawler.tasks 队列) |
+| scheduler | 8082 (宿主) | 追更扫描(默认 30 分钟周期) |
+| postgres | 未暴露 | 事实数据存储(仅容器网络内) |
+| redis | 未暴露 | 可重建状态缓存 |
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `INKFLOW_DB_PASSWORD` | `inkflow` | PostgreSQL 密码，生产环境务必修改 |
+
+### 部署验证
+
+```bash
+curl --fail http://localhost:8080/health
+curl --fail --silent http://localhost:8080/api/v1/books   # 目录查询(JSON)
+curl --fail --silent http://localhost:8080/reader          # Web Reader(HTML)
+```
+
+Web Reader 入口:`http://<主机>:8080/reader`。Legado 书源:`http://<主机>:8080/legado/book-source.json`(baseUrl 自动取请求地址)。
+
+### 生产注意事项
+
+- 通过反向代理(Nginx/Caddy)提供 HTTPS,api 容器只暴露给内网;
+- 修改 `INKFLOW_DB_PASSWORD`,数据持久化在命名卷 `inkflow-postgres` / `inkflow-redis`;
+- worker/scheduler/api 容器以 read-only 文件系统、no-new-privileges、drop capabilities 运行;
+- 数据库结构变更由 migrations 服务在启动链路中自动应用(Expand → Migrate → Contract)。
+
 ## 核心文档
 
 - `docs/product/product-vision.md`
