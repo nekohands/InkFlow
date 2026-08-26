@@ -50,7 +50,7 @@ public sealed class SourceRepositoryTests
             new SourceRuleDsl("1", "example-source",
             [
                 new CapabilityRule(
-                    Sources.Domain.SourceCapability.Search,
+                    SourceCapability.Search,
                     RuleRequest.Get("/search?q={query}"),
                     [new RuleField("title", new RuleSelector(SelectorKind.Css, "h1"), null, [])]),
             ]),
@@ -68,7 +68,7 @@ public sealed class SourceRepositoryTests
         Assert.IsNotNull(loaded);
         Assert.AreEqual("https://books.example.com", loaded.BaseUrl);
         Assert.IsNotNull(loaded.RuleDsl, "jsonb 规则文档应完整往返");
-        Assert.IsNotNull(loaded.FindRule(Sources.Domain.SourceCapability.Search));
+        Assert.IsNotNull(loaded.FindRule(SourceCapability.Search));
     }
 
     [TestMethod]
@@ -82,7 +82,7 @@ public sealed class SourceRepositoryTests
             new SourceRuleDsl("1", "example-source",
             [
                 new CapabilityRule(
-                    Sources.Domain.SourceCapability.Toc,
+                    SourceCapability.Toc,
                     RuleRequest.Get("/toc/{bookId}"),
                     [new RuleField("title", new RuleSelector(SelectorKind.Css, ".t"), null, [])]),
             ]),
@@ -90,8 +90,8 @@ public sealed class SourceRepositoryTests
         await repo.SaveAsync(loaded).ConfigureAwait(false);
 
         var reloaded = await repo.GetAsync("example-source").ConfigureAwait(false);
-        Assert.IsNull(reloaded!.FindRule(Sources.Domain.SourceCapability.Search), "规则替换应为整体覆盖");
-        Assert.IsNotNull(reloaded.FindRule(Sources.Domain.SourceCapability.Toc));
+        Assert.IsNull(reloaded!.FindRule(SourceCapability.Search), "规则替换应为整体覆盖");
+        Assert.IsNotNull(reloaded.FindRule(SourceCapability.Toc));
     }
 
     [TestMethod]
