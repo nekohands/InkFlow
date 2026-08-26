@@ -231,6 +231,13 @@ Phase 0 开发过程中真实发现并修复：
 - 全部只读已落库正典数据——Legado 阅读路径同样零实时抓取。
 - 测试:6 契约/清单单测(搜索过滤、detailUrl/tocUrl/chapterUrl 形态、当前版本正文、清单结构与占位符、非法 baseUrl);CI smoke 增加 manifest 端点断言。
 
+**Minimal Web Reader**（`dev` @ `ffea1a3`，CI Run `32930447713` GREEN）：
+
+- Api 宿主服务端渲染 HTML 阅读页:`/reader`(书目列表 + 搜索表单)、`/reader/books/{id}`(详情 + 有序目录 + "开始阅读"主操作)、`/reader/read/{chapterId}`(正文段落 + 上一章/下一章导航)。
+- 按 frontend-design.md 最小验收落地:移动 viewport、语义化标签(nav/main/article/role=status)、正文宽度受限(42em)、触控目标充足、空/缺失状态明确、内容与标题全部 HTML 转义(单测覆盖脚本注入转义)。
+- 渲染器为纯函数(`ReaderHtml`),可离线单测;CI smoke 断言 reader 页面真实渲染。
+- 测试:6 渲染器单测(转义、主操作、上下章导航、首章无上一章)。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
