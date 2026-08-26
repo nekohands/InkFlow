@@ -16,6 +16,7 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
     public DbSet<SourceEntity> Sources => Set<SourceEntity>();
     public DbSet<SourceBookEntity> SourceBooks => Set<SourceBookEntity>();
     public DbSet<SourceChapterEntity> SourceChapters => Set<SourceChapterEntity>();
+    public DbSet<FetchArtifactEntity> FetchArtifacts => Set<FetchArtifactEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +56,18 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
                 .WithMany()
                 .HasForeignKey(x => x.SourceBookId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FetchArtifactEntity>(b =>
+        {
+            b.ToTable("fetch_artifacts");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.ExternalBookId).HasMaxLength(512).IsRequired();
+            b.Property(x => x.ExternalChapterId).HasMaxLength(512).IsRequired();
+            b.Property(x => x.RawHash).HasMaxLength(64).IsRequired();
+            // "最新产物"查询路径：按来源章节倒序取第一条。
+            b.HasIndex(x => new { x.SourceId, x.ExternalChapterId, x.FetchedAt });
         });
     }
 
@@ -127,5 +140,40 @@ public sealed class SourcesDbContextFactory : IDesignTimeDbContextFactory<Source
             .Options;
 
         return new SourcesDbContext(options);
+    }
+}
+
+public sealed class EfFetchArtifactRepository(SourcesDbContext db) : IFetchArtifactRepository
+{
+    public async Task AddAsync(FetchArtifact artifact, CancellationToken cancellationToken = default)
+    {
+        db.FetchArtifacts.Add(new FetchArtifactEntity
+        {
+            Id = artifact.Id,
+            SourceId = artifact.SourceId,
+            ExternalBookId = artifact.ExternalBookId,
+            ExternalChapterId = artifact.ExternalChapterId,
+            RawHash = artifact.RawHash,
+            BodyLength = artifact.BodyLength,
+            FetchedAt = artifact.FetchedAt,
+        });
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<FetchArtifact?> GetLatestAsync(
+        string sourceId, string externalChapterId, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.FetchArtifacts
+            .Where(a => a.SourceId == sourceId && a.ExternalChapterId == externalChapterId)
+            .OrderByDescending(a => a.FetchedAt)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity is null
+            ? null
+            : new FetchArtifact(
+                entity.Id, entity.SourceId, entity.ExternalBookId, entity.ExternalChapterId,
+                entity.RawHash, entity.BodyLength, entity.FetchedAt);
     }
 }
