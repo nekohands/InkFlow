@@ -3,5 +3,6 @@
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="../InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
   </ItemGroup>
 </Project>

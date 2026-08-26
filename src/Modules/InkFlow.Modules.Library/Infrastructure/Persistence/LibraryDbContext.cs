@@ -13,6 +13,7 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
 {
     public DbSet<CanonicalBookEntity> Books => Set<CanonicalBookEntity>();
     public DbSet<CanonicalChapterEntity> Chapters => Set<CanonicalChapterEntity>();
+    public DbSet<MatchCandidateEntity> MatchCandidates => Set<MatchCandidateEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,18 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
                 .WithMany()
                 .HasForeignKey(x => x.BookId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MatchCandidateEntity>(b =>
+        {
+            b.ToTable("match_candidates");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.ExternalBookId).HasMaxLength(512).IsRequired();
+            b.Property(x => x.Status).IsRequired();
+            // 不变量 1：同一来源书至多一条候选记录。
+            b.HasIndex(x => new { x.SourceId, x.ExternalBookId }).IsUnique();
+            b.HasIndex(x => x.CanonicalBookId);
         });
     }
 }

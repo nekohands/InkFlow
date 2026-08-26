@@ -101,3 +101,37 @@ public sealed class LibraryDbContextFactory : IDesignTimeDbContextFactory<Librar
         return new LibraryDbContext(options);
     }
 }
+
+public sealed class EfMatchCandidateRepository(LibraryDbContext db) : IMatchCandidateRepository
+{
+    public async Task AddAsync(MatchCandidate candidate, CancellationToken cancellationToken = default)
+    {
+        db.MatchCandidates.Add(new MatchCandidateEntity
+        {
+            Id = candidate.Id,
+            CanonicalBookId = candidate.CanonicalBookId,
+            SourceId = candidate.SourceId,
+            ExternalBookId = candidate.ExternalBookId,
+            Status = (int)candidate.Status,
+            CreatedAt = candidate.CreatedAt,
+        });
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MatchCandidate?> FindForSourceBookAsync(
+        string sourceId, string externalBookId, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.MatchCandidates
+            .SingleOrDefaultAsync(
+                c => c.SourceId == sourceId && c.ExternalBookId == externalBookId,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity is null
+            ? null
+            : new MatchCandidate(
+                entity.Id, entity.CanonicalBookId, entity.SourceId, entity.ExternalBookId,
+                (MatchCandidateStatus)entity.Status, entity.CreatedAt);
+    }
+}
