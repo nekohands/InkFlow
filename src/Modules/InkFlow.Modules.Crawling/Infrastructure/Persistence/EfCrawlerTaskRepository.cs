@@ -1,6 +1,7 @@
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
+using InkFlow.Modules.Sources.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace InkFlow.Modules.Crawling.Infrastructure.Persistence;
@@ -57,6 +58,25 @@ public sealed class EfCrawlerTaskRepository(CrawlingDbContext db) : ICrawlerTask
         });
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<bool> HasActiveTaskAsync(
+        string sourceId, SourceCapability capability, CancellationToken cancellationToken = default)
+    {
+        var activeStatuses = new[]
+        {
+            (int)CrawlerTaskStatus.Pending,
+            (int)CrawlerTaskStatus.Leased,
+            (int)CrawlerTaskStatus.Running,
+        };
+
+        return await db.Tasks
+            .AnyAsync(t =>
+                t.SourceId == sourceId &&
+                t.Capability == (int)capability &&
+                activeStatuses.Contains(t.Status),
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<DeadLetterTask>> ListDeadLettersAsync(int limit, CancellationToken cancellationToken = default)

@@ -5,4 +5,7 @@
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Security/InkFlow.BuildingBlocks.Security.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" />
+  </ItemGroup>
 </Project>

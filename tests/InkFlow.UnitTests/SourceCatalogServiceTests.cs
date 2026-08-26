@@ -23,6 +23,9 @@ public sealed class SourceCatalogServiceTests
         public Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default)
             => Task.FromResult(Store.TryGetValue((sourceId, externalBookId), out var book) ? book : null);
 
+        public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SourceBook>>(Store.Values.ToList());
+
         public Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default)
         {
             Store[(book.SourceId, book.ExternalBookId)] = book;

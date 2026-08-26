@@ -21,6 +21,9 @@ public sealed class SourceContentServiceTests
         public Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default)
             => Task.FromResult(Book is not null && Book.SourceId == sourceId && Book.ExternalBookId == externalBookId ? Book : null);
 
+        public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SourceBook>>(Book is null ? [] : [Book]);
+
         public Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

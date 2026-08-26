@@ -1,4 +1,5 @@
 using InkFlow.Modules.Crawling.Domain;
+using InkFlow.Modules.Sources.Domain;
 
 namespace InkFlow.Modules.Crawling.Application;
 
@@ -24,4 +25,8 @@ public interface ICrawlerTaskRepository
     Task AddDeadLetterAsync(DeadLetterTask deadLetter, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<DeadLetterTask>> ListDeadLettersAsync(int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>是否存在某来源某能力的活跃(Pending/Leased/Running)任务,用于入队去重。</summary>
+    Task<bool> HasActiveTaskAsync(
+        string sourceId, SourceCapability capability, CancellationToken cancellationToken = default);
 }

@@ -35,6 +35,20 @@ public sealed class EfSourceBookRepository(SourcesDbContext db) : ISourceBookRep
         return ToDomain(entity, chapters);
     }
 
+    public async Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
+    {
+        var entities = await db.SourceBooks
+            .OrderBy(b => b.CreatedAt)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities
+            .Select(e => SourceBook.Rehydrate(
+                e.Id, e.SourceId, e.ExternalBookId, e.Title, e.Author,
+                e.CreatedAt, e.UpdatedAt, []))
+            .ToList();
+    }
+
     public async Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default)
     {
         var entity = await db.SourceBooks.FindAsync([book.Id], cancellationToken).ConfigureAwait(false)

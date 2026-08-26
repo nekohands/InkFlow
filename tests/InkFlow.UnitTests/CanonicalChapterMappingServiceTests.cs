@@ -16,6 +16,8 @@ public sealed class CanonicalChapterMappingServiceTests
         public Task AddAsync(SourceBook book, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default)
             => Task.FromResult(book is not null && book.SourceId == sourceId && book.ExternalBookId == externalBookId ? book : null);
+        public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<SourceBook>>(book is null ? [] : [book]);
         public Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
