@@ -17,6 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # compose 默认使用 ghcr.io 私有预构建镜像,需要先登录。
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
