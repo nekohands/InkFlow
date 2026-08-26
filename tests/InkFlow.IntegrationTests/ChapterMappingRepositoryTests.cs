@@ -32,7 +32,7 @@ public sealed class ChapterMappingRepositoryTests
         }
     }
 
-    private static EfChapterMappingRepository CreateRepository()
+    private static (EfChapterMappingRepository Repo, LibraryDbContext Db) CreateRepository()
     {
         var options = new DbContextOptionsBuilder<LibraryDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
@@ -40,7 +40,7 @@ public sealed class ChapterMappingRepositoryTests
 
         var db = new LibraryDbContext(options);
         db.Database.Migrate();
-        return new EfChapterMappingRepository(db);
+        return (new EfChapterMappingRepository(db), db);
     }
 
     [TestMethod]
