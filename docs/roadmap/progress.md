@@ -224,6 +224,13 @@ Phase 0 开发过程中真实发现并修复：
 - **修复 compose 缺陷**:api/worker/scheduler 容器此前未注入 `ConnectionStrings__Database`,首个查库请求必然失败(connection refused)——现已补齐,smoke test 增加 `/api/v1/books` 断言并附带失败时自动 dump API 日志的诊断路径。
 - 测试:4 查询服务单测(列表含章节数/当前版本段落/未发布 null/缺失 null);CI 容器环境端到端验证目录端点。
 
+**Legado v1 契约**（`dev` @ `9d53ffd`，CI Run `32929810277` GREEN）：
+
+- `Legado.Application`：`LegadoContractService`（search/bookInfo/toc/chapterContent 四个只读翻译端点）+ `LegadoBookSourceManifest`（程序化生成 `/legado/book-source.json`,JSONPath 规则与 InkFlow 响应形态一一对应;非 http baseUrl 拒绝;searchUrl 携带 Legado `{{key}}` 占位符）。
+- Api 端点:`/api/legado/v1/search|books/{id}|books/{id}/chapters|chapters/{id}` + `/legado/book-source.json`(baseUrl 取请求 scheme+host)。
+- 全部只读已落库正典数据——Legado 阅读路径同样零实时抓取。
+- 测试:6 契约/清单单测(搜索过滤、detailUrl/tocUrl/chapterUrl 形态、当前版本正文、清单结构与占位符、非法 baseUrl);CI smoke 增加 manifest 端点断言。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
