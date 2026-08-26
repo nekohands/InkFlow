@@ -63,6 +63,19 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
         return LibraryMapper.ToDomain(bookEntity, chapters);
     }
 
+    public async Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        var entities = await db.Books
+            .OrderBy(b => b.CreatedAt)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // 列表页不含章节,只返回书目元数据。
+        return entities
+            .Select(e => CanonicalBook.Rehydrate(e.Id, e.Title, e.Author, e.CreatedAt, e.UpdatedAt, []))
+            .ToList();
+    }
+
     public async Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
     {
         var entity = await db.Books.FindAsync([book.Id], cancellationToken).ConfigureAwait(false)

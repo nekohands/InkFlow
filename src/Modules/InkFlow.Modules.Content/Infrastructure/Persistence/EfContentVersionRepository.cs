@@ -81,6 +81,18 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
         return entities.Select(ContentDbContext.ToDomain).ToList();
     }
 
+    public async Task<ContentVersion?> GetCurrentForChapterAsync(
+        Guid canonicalChapterId, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.Versions
+            .SingleOrDefaultAsync(
+                v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity is null ? null : ContentDbContext.ToDomain(entity);
+    }
+
     /// <summary>原子切换当前版本:先全部置 false,再指定版本置 true。</summary>
     public async Task SetCurrentAsync(
         Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)

@@ -15,6 +15,10 @@ public interface IContentVersionRepository
     Task<IReadOnlyList<ContentVersion>> ListForChapterAsync(
         Guid canonicalChapterId, CancellationToken cancellationToken = default);
 
+    /// <summary>章节的当前(IsCurrent)版本;尚未发布内容时返回 null。</summary>
+    Task<ContentVersion?> GetCurrentForChapterAsync(
+        Guid canonicalChapterId, CancellationToken cancellationToken = default);
+
     /// <summary>原子地把某章节的当前版本切换为指定版本。</summary>
     Task SetCurrentAsync(Guid chapterId, Guid versionId, CancellationToken cancellationToken = default);
 }

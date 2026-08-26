@@ -9,6 +9,9 @@ public interface ICanonicalBookRepository
 
     Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>全部书目(不含章节,供列表页使用)。</summary>
+    Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default);
+
     /// <summary>写回聚合的元数据与新增章节（已有章节不可变）。</summary>
     Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default);
 }

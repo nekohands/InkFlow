@@ -40,6 +40,10 @@ public sealed class CanonicalChapterMappingServiceTests
         public Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(Book is not null && Book.Id == id ? Book : null);
 
+        public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<CanonicalBook>>(
+                Book is null ? [] : [Book]);
+
         public Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
             SaveCount++;

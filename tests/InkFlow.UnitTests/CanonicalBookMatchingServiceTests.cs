@@ -24,6 +24,9 @@ public sealed class CanonicalBookMatchingServiceTests
         public Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(Store.TryGetValue(id, out var book) ? book : null);
 
+        public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<CanonicalBook>>(Store.Values.ToList());
+
         public Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
             Store[book.Id] = book;
