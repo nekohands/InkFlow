@@ -43,6 +43,7 @@ builder.Services.AddScoped<CanonicalChapterMappingService>();
 builder.Services.AddScoped<SourceContentService>();
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
+builder.Services.AddSingleton<CrawlerLeaseService>();
 builder.Services.AddHostedService<TaskPollingService>();
 
 var app = builder.Build();
