@@ -39,12 +39,16 @@ builder.Services.AddScoped<IChapterMappingRepository, EfChapterMappingRepository
 builder.Services.AddScoped<IContentVersionRepository, EfContentVersionRepository>();
 
 builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>();
+builder.Services.AddHttpClient<KanunuSourceAdapter>();
 builder.Services.AddScoped<ISelectorEvaluator, CssSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<SourceCatalogService>();
 builder.Services.AddScoped<CanonicalChapterMappingService>();
 builder.Services.AddScoped<SourceContentService>();
-builder.Services.AddScoped<ISourceAdapterFactory, SourceAdapterFactory>();
+builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
+    sp.GetRequiredService<ISourceRepository>(),
+    sp.GetRequiredService<RuleAdapter>(),
+    [sp.GetRequiredService<KanunuSourceAdapter>()]));
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
 builder.Services.AddSingleton<CrawlerLeaseService>();
