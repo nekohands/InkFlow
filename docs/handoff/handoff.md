@@ -72,23 +72,20 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-Phase 1A 已推进：Source DSL v1 模型 + 校验、Crawler Task/Lease/Retry/DeadLetter、RuleAdapter + Fixture 驱动执行器 已实现。下一步是 **Safe HTTP / SSRF 基础防线**。
+**Phase 1A 收尾状态（2026-08-27）**：机制链路全部就绪并通过 CI;剩余验收依赖外部输入：
+
+1. **真实 Official Source 接入**：需提供一个可抓取的小说站点(域名 + 简单结构),按 DSL v1 编写规则 → `SourceCatalogService` 导入验证 Search/BookInfo/TOC 全链路。
+2. **Legado 真机验证**：在阅读 3.0 中导入 `/legado/book-source.json`,验证搜索/详情/目录/正文四步(契约端点已过容器 smoke)。
+3. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行,新章检测需真实源数据佐证。
 
 推荐顺序（当前进度）：
 
 ```text
-✅ Source DSL v1 模型 + 校验
-✅ Crawler Task/Lease/Retry/DeadLetter
-✅ RuleAdapter fixture execution
-→ Safe HTTP / SSRF boundary（当前）
-→ SourceBook/SourceChapter
-→ Canonical Book/Chapter
-→ Content AST/Version/Quality
-→ Public API
-→ Legado API/Rule Generator
-→ Web Reader
-→ Auto Update
-→ Single Source E2E
+→ 真实 Official Source 规则编写与导入（当前）
+→ Legado 真机接入验证
+→ 追更真实验证
+→ Phase 1A Completed
+→ Phase 1B: Dual Source Canonical Validation
 ```
 
 普通 PR CI 不依赖真实第三方小说站点；Crawler 使用固定 Fixture/Mock Server。真实 Source 进入独立 Live/Nightly 检查。

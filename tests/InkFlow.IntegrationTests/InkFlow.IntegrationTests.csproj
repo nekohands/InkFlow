@@ -8,5 +8,8 @@
     <PackageReference Include="MSTest" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="../../src/Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
+    <ProjectReference Include="../../src/Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
+    <ProjectReference Include="../../src/Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />
   </ItemGroup>
 </Project>

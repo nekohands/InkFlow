@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Identity/InkFlow.Modules.Identity.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />
