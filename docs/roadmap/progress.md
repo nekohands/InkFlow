@@ -289,6 +289,31 @@ Official Source
 
 不得依赖人工直接修改数据库或手工拼生产数据。
 
+## 5.5 Phase 1A 验收清单核对（2026-08-27）
+
+对照 `phase-1-acceptance.md` 的 Required flow 逐项核对：
+
+| # | 验收项 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| 1 | 从来源搜索书籍 | ⚙️ 机制就绪 | Search 能力规则执行链路可用;实际数据待接入真实 Official Source |
+| 2 | 导入 SourceBook | ✅ | `SourceCatalogService.ImportBookInfoAsync`(upsert) |
+| 3 | 创建/关联 CanonicalBook | ✅ | `CanonicalBookMatchingService`(Confirmed 候选 + 稳定 BookId) |
+| 4 | 抓取 TOC / SourceChapter | ✅ | `SyncChaptersAsync` 幂等落库 |
+| 5 | CanonicalChapter 记录/映射 | ✅ | `CanonicalChapterMappingService` + chapter_mappings |
+| 6 | 抓取章节正文 | ✅ | Content 能力规则执行链路 |
+| 7 | FetchArtifact 元数据 + RawHash | ✅ | SHA-256,哈希幂等去重 |
+| 8 | 规范化为 Content AST | ✅ | `ContentNormalizer` → `ContentDocument`(等价标记同形态) |
+| 9 | CanonicalHash + Quality v1 | ✅ | SHA-256 + 可解释启发式评分 |
+| 10 | 持久化 ContentVersion | ✅ | content.versions 表((chapter, hash) 唯一) |
+| 11 | 选定当前版本 | ✅ | 质量分高者胜、平分取新;IsCurrent 原子切换 |
+| 12 | Minimal Web Reader 阅读 | ✅ | `/reader` 三页面流(CI 容器验证渲染) |
+| 13 | 生成 book-source.json | ✅ | 程序化生成,CI smoke 断言 |
+| 14–16 | Legado 导入与搜索/阅读 | ⏳ 契约就绪 | 端点已过容器 smoke;真机导入验证需阅读 3.0 客户端 |
+| 17 | Scheduler 自动检测更新 | ✅ 机制就绪 | 扫描入队 + Worker 消费闭环;真实数据验证依赖真实源接入 |
+| 18 | CI/Docker baseline green | ✅ | 全部工作包 CI GREEN |
+
+结论：**机制层验收通过**。两项外部依赖待完成——① 接入真实 Official Source(需提供站点);② Legado 真机导入验证(需阅读 3.0 客户端)。在此之前 Phase 1A 状态为 **Ready for Real-Source Acceptance**,不标记 Completed。
+
 ## 6. 已知未完成项
 
 - CSS/XPath/JSONPath 具体 selector 引擎尚未实现。
