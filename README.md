@@ -108,6 +108,15 @@ cd InkFlow
 docker compose up -d --build
 ```
 
+**方式二(推荐):使用 GHCR 预构建镜像**,无需本地构建:
+
+```bash
+docker login ghcr.io -u <GitHub用户名>   # 密码为 PAT,需 read:packages 权限
+docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up -d
+```
+
+镜像由 GitHub Actions 在 main/dev 分支每次推送时自动构建发布(`.github/workflows/docker.yml`),标签包含分支名与完整 commit SHA。
+
 启动顺序由编排自动保证:PostgreSQL/Redis 健康检查通过后，migrations 服务对空库执行全部迁移并退出，随后 api / worker / scheduler 启动。
 
 ### 服务与端口
