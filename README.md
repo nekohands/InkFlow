@@ -102,20 +102,20 @@ src/
 
 前置要求:Docker Engine 24+ 与 Docker Compose v2。
 
-```bash
-git clone git@github.com:nekohands/InkFlow.git
-cd InkFlow
-docker compose up -d --build
-```
-
-**方式二(推荐):使用 GHCR 预构建镜像**,无需本地构建:
+**方式一(推荐):使用 GHCR 预构建镜像**,无需本地构建:
 
 ```bash
 docker login ghcr.io -u <GitHub用户名>   # 密码为 PAT,需 read:packages 权限
-docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up -d
+docker compose up -d
 ```
 
-镜像由 GitHub Actions 在 main/dev 分支每次推送时自动构建发布(`.github/workflows/docker.yml`),标签包含分支名与完整 commit SHA。
+镜像由 GitHub Actions 在 main/dev 分支每次推送时自动构建发布(`.github/workflows/docker.yml`),标签包含分支名(`dev`/`main`)与完整 commit SHA。
+
+**方式二:源码构建**(适合开发与自定义修改):
+
+```bash
+docker compose -f docker-compose.build.yml up -d --build
+```
 
 启动顺序由编排自动保证:PostgreSQL/Redis 健康检查通过后，migrations 服务对空库执行全部迁移并退出，随后 api / worker / scheduler 启动。
 
