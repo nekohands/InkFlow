@@ -72,21 +72,25 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**Phase 1A 收尾状态（2026-08-27）**：机制链路全部就绪并通过 CI;剩余验收依赖外部输入：
+**Phase 1A 收尾状态（2026-08-27 更新）**：真实源端到端验证已通过——kanunu8 作为第一个 Official Source,经 `EndToEndDataFlowTests` 完成真实数据全链路验证(导入 → 目录 → 匹配 → 映射 → 发布 → 查询)。剩余外部依赖仅剩 **Legado 真机导入验证**(需阅读 3.0 客户端)。
 
-1. **真实 Official Source 接入**：需提供一个可抓取的小说站点(域名 + 简单结构),按 DSL v1 编写规则 → `SourceCatalogService` 导入验证 Search/BookInfo/TOC 全链路。
+1. ~~真实 Official Source 接入~~ ✅ kanunu8 CodeAdapter(`KanunuSourceAdapter`),GB18030 解码 + SSRF 校验,live 测试 3/3。
 2. **Legado 真机验证**：在阅读 3.0 中导入 `/legado/book-source.json`,验证搜索/详情/目录/正文四步(契约端点已过容器 smoke)。
 3. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行,新章检测需真实源数据佐证。
 
 推荐顺序（当前进度）：
 
 ```text
-→ 真实 Official Source 规则编写与导入（当前）
-→ Legado 真机接入验证
+✅ 真实源适配器(kanunu8)+ E2E 数据流验证
+→ Legado 真机接入验证（需阅读 3.0 客户端）
 → 追更真实验证
 → Phase 1A Completed
 → Phase 1B: Dual Source Canonical Validation
 ```
+
+扩展新来源的方式(书源兼容层):
+- 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
+- 复杂站点(特殊编码/签名):实现 `ISourceAdapter`(参考 `KanunuSourceAdapter`)并在适配器工厂注册。
 
 普通 PR CI 不依赖真实第三方小说站点；Crawler 使用固定 Fixture/Mock Server。真实 Source 进入独立 Live/Nightly 检查。
 

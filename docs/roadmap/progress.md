@@ -247,6 +247,14 @@ Phase 0 开发过程中真实发现并修复：
 - **修复**：api/worker/scheduler 补回 `/health` 端点（compose healthcheck 依赖）；补注入连接串环境变量。
 - 测试：116 单测全绿；容器环境 Runtime Smoke 全绿。
 
+**第一个真实 Official Source 接入（kanunu8）**（`dev` @ `cf7b594`，CI Run `32942631739` GREEN）：
+
+- `KanunuSourceAdapter`：首个代码型 CodeAdapter,实现 `ISourceAdapter` 统一契约——验证了兼容层的代码扩展路径。
+- 处理 GB18030 编码(努努书坊为老式编码站点)与非标准页面结构;外部 ID 自包含定位(`book/{id}` / `book/{id}/{chapter}.html`)。
+- 全部出网请求经 DNS 解析级 SSRF 校验;`SourceEncodings.Gb18030` 封装 CodePages 提供程序注册。
+- **真实抓取验证 3/3 通过**(本机 `INKFLOW_LIVE_TESTS=1`):书目元数据(玉簟秋/灵希)、完整目录(12 章)、正文(13180 字符,GB18030 解码正确)。live 测试默认 opt-in,CI 环境自动跳过。
+- 站点探测记录:17K(阿里云 WAF)、bqg70(JS 混淆)、七猫(JS 渲染)不可纯 HTTP 抓取;bige7 详情页开放但目录/正文有 JS cookie 挑战。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。

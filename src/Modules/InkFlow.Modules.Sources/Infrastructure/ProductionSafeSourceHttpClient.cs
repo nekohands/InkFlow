@@ -45,7 +45,26 @@ public sealed class ProductionSafeSourceHttpClient(
             .SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
-        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        // 兼容老站点的非 UTF-8 编码(GB2312/GBK 等):按响应声明的 charset 解码,未知则回退 UTF-8。
+        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var body = Decode(bytes, response.Content.Headers.ContentType?.CharSet);
         return new SourceHttpResponse((int)response.StatusCode, body);
+    }
+
+    private static string Decode(byte[] bytes, string? charset)
+    {
+        if (string.IsNullOrWhiteSpace(charset))
+        {
+            return Encoding.UTF8.GetString(bytes);
+        }
+
+        try
+        {
+            return Encoding.GetEncoding(charset).GetString(bytes);
+        }
+        catch (ArgumentException)
+        {
+            return Encoding.UTF8.GetString(bytes);
+        }
     }
 }
