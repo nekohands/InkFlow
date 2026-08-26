@@ -84,7 +84,12 @@ public sealed class SourceRepositoryTests
                 new CapabilityRule(
                     SourceCapability.Toc,
                     RuleRequest.Get("/toc/{bookId}"),
-                    [new RuleField("title", new RuleSelector(SelectorKind.Css, ".t"), null, [])]),
+                    [],
+                    List: new RuleListBinding(
+                        ItemsSelector: ".toc a",
+                        ExternalIdAttribute: "href",
+                        IdPrefixToStrip: string.Empty,
+                        IdSuffixToStrip: ".html")),
             ]),
             T0.AddMinutes(1));
         await repo.SaveAsync(loaded).ConfigureAwait(false);
