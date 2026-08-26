@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 using InkFlow.BuildingBlocks.Security;
-using InkFlow.Modules.Sources.Infrastructure;
+using InkFlow.Sources.Adapters.Kanunu8;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace InkFlow.UnitTests;

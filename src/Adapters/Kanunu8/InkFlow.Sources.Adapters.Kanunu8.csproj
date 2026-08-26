@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>InkFlow.Sources.Adapters.Kanunu8</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
+  </ItemGroup>
+</Project>

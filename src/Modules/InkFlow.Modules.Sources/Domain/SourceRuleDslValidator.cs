@@ -51,6 +51,7 @@ public static class SourceRuleDslValidator
 
             ValidateRequest(rule, errors);
             ValidateFields(rule, errors);
+            ValidateList(rule, errors);
         }
 
         return errors;
@@ -108,9 +109,15 @@ public static class SourceRuleDslValidator
     {
         var prefix = $"rules[{rule.Capability}]";
 
+        // 列表绑定能力(Toc/Search)由 List 提供结构化输出,单值字段可选;
+        // 若同时声明了字段,仍逐个校验其合法性。
         if (rule.Fields.Count == 0)
         {
-            errors.Add($"{prefix}: at least one output field is required.");
+            if (rule.List is null)
+            {
+                errors.Add($"{prefix}: at least one output field or a list binding is required.");
+            }
+
             return;
         }
 
@@ -148,6 +155,11 @@ public static class SourceRuleDslValidator
                 {
                     errors.Add($"{prefix}['{field.Name}']: selector expression must not be empty.");
                 }
+
+                if (field.Attribute is not null && string.IsNullOrWhiteSpace(field.Attribute))
+                {
+                    errors.Add($"{prefix}['{field.Name}']: attribute name must not be blank when specified.");
+                }
             }
 
             if (field.Regex is { } regex)
@@ -171,6 +183,44 @@ public static class SourceRuleDslValidator
                     errors.Add($"{prefix}['{field.Name}']: replace transform requires a non-empty 'from'.");
                 }
             }
+        }
+    }
+
+    /// <summary>校验列表抽取绑定(Toc/Search 多结果能力)。</summary>
+    private static void ValidateList(CapabilityRule rule, List<string> errors)
+    {
+        var prefix = $"rules[{rule.Capability}]";
+        var list = rule.List;
+
+        if (list is null)
+        {
+            // 多结果能力(Toc/Search)必须声明列表绑定;单结果能力(BookInfo/Content)不要求。
+            if (rule.Capability is SourceCapability.Toc or SourceCapability.Search)
+            {
+                errors.Add($"{prefix}: capability {rule.Capability} requires a list binding.");
+            }
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(list.ItemsSelector))
+        {
+            errors.Add($"{prefix}: list itemsSelector must not be empty.");
+        }
+
+        if (string.IsNullOrWhiteSpace(list.ExternalIdAttribute))
+        {
+            errors.Add($"{prefix}: list externalIdAttribute must not be empty.");
+        }
+
+        if (list.IdPrefixToStrip is null)
+        {
+            errors.Add($"{prefix}: idPrefixToStrip must be specified (may be empty string).");
+        }
+
+        if (list.IdSuffixToStrip is null)
+        {
+            errors.Add($"{prefix}: idSuffixToStrip must be specified (may be empty string).");
         }
     }
 }

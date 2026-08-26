@@ -2,7 +2,9 @@
   <ItemGroup>
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Observability/InkFlow.BuildingBlocks.Observability.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
+    <ProjectReference Include="../../Adapters/Kanunu8/InkFlow.Sources.Adapters.Kanunu8.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Content/InkFlow.Modules.Content.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />
   </ItemGroup>
 </Project>

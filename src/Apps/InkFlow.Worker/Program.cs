@@ -8,6 +8,8 @@ using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
+using InkFlow.Sources.Adapters.Kanunu8;
+using InkFlow.Sources.Adapters.Seeding;
 using InkFlow.Modules.Sources.Infrastructure;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
@@ -48,11 +50,14 @@ builder.Services.AddScoped<SourceContentService>();
 builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
     sp.GetRequiredService<ISourceRepository>(),
     sp.GetRequiredService<RuleAdapter>(),
+    sp.GetRequiredService<ISelectorEvaluator>(),
     [sp.GetRequiredService<KanunuSourceAdapter>()]));
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
 builder.Services.AddSingleton<CrawlerLeaseService>();
 builder.Services.AddHostedService<TaskPollingService>();
+builder.Services.AddHostedService<SourceSeedService>();
+
 
 var app = builder.Build();
 

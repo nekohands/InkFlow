@@ -34,8 +34,10 @@ public sealed class RuleCrawlerTaskExecutorTests
 
     private sealed class PassthroughSelectorEvaluator : ISelectorEvaluator
     {
-        public string? EvaluateFirst(string documentBody, RuleSelector selector) =>
+        public string? EvaluateFirst(string documentBody, RuleSelector selector, string? attributeName = null) =>
             selector.Expression.Contains("title") || selector.Expression.Contains("h1") ? "标题" : null;
+
+        public IReadOnlyList<SelectorElementSnapshot> SelectAll(string documentBody, RuleSelector selector) => [];
     }
 
     private static Source SourceWithSearchRule() =>

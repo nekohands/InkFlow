@@ -76,6 +76,26 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
             .ToList();
     }
 
+    public async Task<CanonicalBook?> FindByTitleAuthorAsync(
+        string title, string author, CancellationToken cancellationToken = default)
+    {
+        // Book Matcher v1:书名+作者归一化(去空白、小写)精确匹配。
+        var normalizedTitle = Normalize(title);
+        var normalizedAuthor = Normalize(author);
+
+        var entities = await db.Books
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var entity = entities.FirstOrDefault(e =>
+            Normalize(e.Title) == normalizedTitle && Normalize(e.Author) == normalizedAuthor);
+
+        return entity is null ? null : LibraryMapper.ToDomain(entity, []);
+    }
+
+    private static string Normalize(string value) =>
+        string.Concat(value.Where(c => !char.IsWhiteSpace(c))).ToLowerInvariant();
+
     public async Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
     {
         var entity = await db.Books.FindAsync([book.Id], cancellationToken).ConfigureAwait(false)

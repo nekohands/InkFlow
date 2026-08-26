@@ -29,7 +29,9 @@ public sealed class RuleAdapterTests
                 ? "  《示例书名》  "
                 : null;
 
-        public string? EvaluateFirst(string documentBody, RuleSelector selector) => Handler(documentBody, selector);
+        public string? EvaluateFirst(string documentBody, RuleSelector selector, string? attributeName = null) => Handler(documentBody, selector);
+
+        public IReadOnlyList<SelectorElementSnapshot> SelectAll(string documentBody, RuleSelector selector) => [];
     }
 
     private const string BaseUrl = "https://books.example.com";

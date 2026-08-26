@@ -4,7 +4,8 @@ namespace InkFlow.Modules.Sources.Application;
 
 /// <summary>
 /// 适配器工厂:按来源标识解析适配器实例。
-/// 规则型来源动态构建(基于 Source 聚合的 RuleDsl);代码型来源由 DI 注册表提供。
+/// 规则型来源动态构建(基于 Source 聚合的 RuleDsl);代码型来源由 DI 注册表提供
+/// (插件方式:新 CodeAdapter 实现 ISourceAdapter 并注册到 DI 即被自动收集)。
 /// </summary>
 public interface ISourceAdapterFactory
 {
@@ -14,18 +15,20 @@ public interface ISourceAdapterFactory
 
 /// <summary>
 /// 规则型适配器工厂:依据 Source 聚合的 RuleDsl 动态构建 <see cref="RuleBasedSourceAdapter"/>。
-/// 代码型来源(特殊编码/签名/登录)实现 <see cref="ISourceAdapter"/> 后在此注册即可被上层统一调度。
+/// 代码型来源(特殊编码/签名/登录)实现 <see cref="ISourceAdapter"/> 后以插件形式注册即可被上层统一调度。
 /// </summary>
 public sealed class SourceAdapterFactory(
     ISourceRepository sourceRepository,
     RuleAdapter ruleAdapter,
-    IEnumerable<ISourceAdapter> customAdapters) : ISourceAdapterFactory
+    ISelectorEvaluator selectorEvaluator,
+    IEnumerable<ISourceAdapter> codeAdapters) : ISourceAdapterFactory
 {
-    private readonly Dictionary<string, ISourceAdapter> _custom = customAdapters.ToDictionary(a => a.SourceId, StringComparer.Ordinal);
+    private readonly Dictionary<string, ISourceAdapter> _codeAdapters =
+        codeAdapters.ToDictionary(a => a.SourceId, StringComparer.Ordinal);
 
     public async Task<ISourceAdapter?> GetAdapterAsync(string sourceId, CancellationToken cancellationToken = default)
     {
-        if (_custom.TryGetValue(sourceId, out var custom))
+        if (_codeAdapters.TryGetValue(sourceId, out var custom))
         {
             return custom;
         }
@@ -36,6 +39,6 @@ public sealed class SourceAdapterFactory(
             return null;
         }
 
-        return new RuleBasedSourceAdapter(source, ruleAdapter);
+        return new RuleBasedSourceAdapter(source, ruleAdapter, selectorEvaluator);
     }
 }
