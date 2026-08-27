@@ -76,7 +76,7 @@ CI: GREEN (Run 32821162412)
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
-随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。在此基础上追更写侧已完整闭环：目录联动入队（上一轮）+ 抓取→发布桥 + 上游修订重扫（本轮），Content 任务现在真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。
+随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -93,6 +93,7 @@ CI: GREEN (Run 32821162412)
 ✅ CI/Docker 验证重试退避调度与 `ScheduledAt` Migration（`33062448255` / `33062448243`）
 ✅ 追更正文闭环：TOC 联动正文入队、死信不复活、Worker 短轮询（`33065212994` / `33065212936`）
 ✅ 抓取→发布桥 + 上游修订重扫：Content 任务产出 IsCurrent 版本、stale 复检保鲜（`33066966836` / `33066966966`）
+✅ 搜索发现接入：/api/v1/search 与 Legado search 可发现未入库书目并自动建档（`33069358438` / `33069358437`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -144,6 +145,15 @@ CI: GREEN (Run 32821162412)
 - 新增 `IFetchArtifactRepository.ListRecentlyFetchedExternalChapterIdsAsync(since)` 批量保鲜查询;无 Schema 变更、无新 Migration。
 - 自动化证据:Unit 153/153、Architecture 1/1(接口倒置未破坏依赖矩阵)、Contract 1/1;远端 Integration 34 中 33 通过 + 1 live 跳过;Release Build 0 warnings / 0 errors;本机 docker_engine 缺失致 Integration 27 例 BLOCKED 不记为通过;Worker 进程烟测 `/health` 200。候选提交 `3edb3dc` 的 CI `33066966836` 与 Docker `33066966966` 均 GREEN。
 - 未含:stale 任务错峰调度、多 Worker 并发消费、publishing 失败可观测告警。
+
+### 4.8 搜索发现接入（本轮，2026-08-29）
+
+- 冷启动缺口:Legado/公共 API 搜索原本只过滤已入库书目,新书永远搜不到;v1 自动匹配服务自实现以来无生产调用方。
+- `BookDiscoveryService`(Crawling.Application):健康过滤 → 多源搜索(失败隔离为逐源 warning)→ 幂等导入 BookInfo → v1 匹配(Confirmed 幂等/同名同作者挂接/新建)→ 按正典身份归并。导入书目自动进入 Scheduler→Worker 追更链路。
+- API:新增 `GET /api/v1/search`(归并结果+warnings);Legado `/search` 先发现后返回落库数据,DTO 形态不变。
+- Api 宿主补引 Sources/Crawling/Kanunu8 并扩展组合根;**进程烟测实测抓到 ProductionSafeSourceHttpClient 缺 IIpAddressResolver 注册的必然 DI 失败**,修复后复测通过。
+- 自动化证据:Unit 159/159(发现服务 6 例)、Architecture 1/1、Contract 1/1(Legado DTO 未变);远端 Integration 35 中 34 通过 + 1 live 跳过;首次 CI RED 暴露 List 用例误按空库断言总数(共享容器残留的既有教训),改为专属 ID 断言后复绿——候选提交 `66fc150` 修复提交 `42ac47e`,CI `33069358438` 与 Docker `33069358437` 均 GREEN。
+- 未含:结果排序/分页与全文检索评分、Discovery 异步化、Reader 页接入发现流。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 

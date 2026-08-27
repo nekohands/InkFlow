@@ -311,6 +311,16 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据:Unit 153/153(复检续期回归、stale/refetch 混合矩阵、发布桥编排含异常转重试与未装配兼容)、Architecture 1/1(接口倒置未破坏依赖矩阵)、Contract 1/1、Release Build 0 warnings / 0 errors;远端 Integration 34 中 33 通过 + 1 live 跳过;本机 Integration 因 docker_engine 缺失 27 例 BLOCKED 不记为通过;Worker 进程烟测 `/health` 200(DI 含发布桥解析正常)。候选提交 `3edb3dc` 的 CI `33066966836` 与 Docker `33066966966` 均 **GREEN**(含 Runtime Smoke 与四镜像)。
 - 本轮不含:stale 任务错峰调度(整本同时到期时一次入队,由 Worker 短轮询串行消化)、多 Worker 并发消费、 publishing 失败的可观测告警。
 
+**搜索发现接入：冷启动主路径打通（本轮，2026-08-29）**：
+
+- 缺口:Legado/公共 API 的搜索只过滤已入库书目——用户搜任何新书都一无所获,且 v1 自动匹配(`CanonicalBookMatchingService`)自实现以来无生产调用方,Phase 1A 验收第 1 项"从来源搜索书籍"始终停留在机制层。
+- 新增 `BookDiscoveryService`(Crawling.Application):枚举已登记来源 → Search 能力健康过滤(不健康跳过并警告)→ 多源关键词搜索(**失败隔离**:单源异常只产生 warning 不影响其他来源)→ 命中后幂等导入 BookInfo → 走 v1 匹配(Confirmed 幂等 / 同名同作者挂接既有正典书 / 新建)→ 按正典身份归并,多源命中合一条并带 SourceIds 与 AlreadyInLibrary 标记。
+- API:`GET /api/v1/search` 返回归并结果+逐源 warnings;`GET /api/legado/v1/search` 改为先发现再从落库数据返回 Legado DTO——**契约形态不变**,阅读 3.0 冷启动从此可发现未入库书目。导入的书自动进入 Scheduler→Worker 追更链路,发现即建档。
+- 组合根:ISourceRepository.ListAsync(EF 实现);Api 宿主补引 Sources/Crawling/Kanunu8 项目并注册适配器组合根。**Api 进程烟测实测抓到真实缺陷**:ProductionSafeSourceHttpClient 缺 IIpAddressResolver 注册导致 search 端点必然 DI 失败(与数据库无关)——补注册后复测通过,该缺陷若仅靠单测永远暴露不了。
+- 测试:发现服务 6 例(双源同名同作者归并+双 Confirmed、不健康跳过、异常隔离、无适配器跳过、重复发现幂等、空查询零触达)+ListAsync EF 集成用例;首次 CI 运行暴露 List 用例误按空库断言总数(共享容器跨用例数据残留的既有教训),改为专属 ID 存在性断言后复绿。
+- 自动化证据:Unit 159/159、Architecture 1/1、Contract 1/1(Legado DTO 未变)、Release Build 0 warnings / 0 errors;远端 Integration 35 中 34 通过 + 1 live 跳过;本机 docker_engine 缺失致 Integration 28 例 BLOCKED 不记为通过。候选提交 `66fc150` 初跑 CI RED(上述 List 断言),修复提交 `42ac47e` 的 CI `33069358438` 与 Docker `33069358437` 均 **GREEN**(Unit 159 Passed、Integration Total 35 Passed 34,含 Runtime Smoke 与四镜像)。
+- 本轮不含:搜索结果排序/分页与全文检索(v2 评分)、Discovery 的异步化(当前同步触网由限流保护)、Reader 页接入发现流。
+
 **追更正文闭环：目录联动正文抓取（上一轮，2026-08-28）**：
 
 - 补齐"事件触发"缺口：`TocSyncTaskHandler` 在目录同步 + 正典映射成功后调用 `ContentFetchChainService`，为**该来源从未抓取过正文**的章节自动入队 Content 抓取任务——"检测新章 → 抓取"不再依赖人工种子或额外扫描周期。
