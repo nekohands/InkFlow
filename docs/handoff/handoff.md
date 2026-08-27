@@ -159,6 +159,15 @@ CI: GREEN (Run 32821162412)
 - 自动化证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 252/252、Architecture 1/1、Contract 2/2 PASS。全量解决方案测试中 IntegrationTests 48 项为 6 通过、41 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过，进程 FAIL，不记为本机集成通过。候选提交 `b3561a2` 的远端 CI `33123325151`、Docker `33123325184` 均 GREEN；CI Runtime smoke 已覆盖 Manifest、Service Worker、账户、书架和历史公开路由。
 - 未含：真实 PWA 安装/离线、登录注册和用户状态浏览器链路、跨尺寸视觉/长时间阅读、跨标签页/跨设备同步、离线私人内容、私人书库和 TXT/EPUB 导入导出；按用户决定全部列入待定事项。
 
+### 4.23 Operations/Repair Center UI v1（本轮，2026-08-28）
+
+- 缺口：Operations Read Model v1 已提供统一快照，但运维人员仍需直接调用多个 API，缺少按来源健康、采集死信和跨模块一致性分组的操作界面。
+- 实现：新增 /admin/operations 静态管理壳；浏览器先用当前 tab 会话验证 Operator / Administrator，再通过受保护的 overview API 读取有限快照。页面按区块呈现 ready / partial / unavailable、合法空状态、生成时间和可解释问题。
+- 受控操作：来源能力停用/恢复与死信重放均通过确认对话框提交非空理由，成功/冲突结果展示服务端状态；UI 不绕过既有 policy、审计、状态机和重放幂等约束。
+- 安全与可访问性：动态字段只进入 textContent，不缓存运维 API，不显示凭据引用、任务 Variables 或正文；页面具备语义标题/表格、aria-live、键盘焦点、文字状态、窄屏布局和 reduced-motion 基线。基准记录为 docs/engineering/benchmarks/operations-center-v1.md。
+- 自动化证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 254/254、Architecture 1/1、Contract 2/2 PASS。API 静态页面 200、/health 200、未认证 overview 401；全量 Integration 48 项为 6 通过、41 项因本机 Docker Engine 不可用而 BLOCKED、1 项跳过，不记为本机集成通过。
+- 边界：未执行 Operator/Administrator 实际浏览器操作、跨尺寸视觉/对比度/键盘截图和真实修复命令；自动修复、告警、备份治理、私人书库和真实来源验收仍未完成。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -166,8 +175,8 @@ CI: GREEN (Run 32821162412)
 5. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 6. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
 7. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
-8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、区块部分失败展示和死信截断标记；本轮只完成自动化基线，未执行人工操作。
-9. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、私人书库、Center UI、Security/Operations 与商业化能力。
+8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
+9. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、私人书库、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 

@@ -503,6 +503,15 @@ Phase 0 开发过程中真实发现并修复：
 - 验证：Release Build 0 warnings / 0 errors；Unit Tests 24 通过；Architecture Tests 3 通过。
 - CI：本地验证通过，远端 CI 未触发（`CI Pending / Not Triggered`）。
 
+**Operations/Repair Center UI v1（本轮，2026-08-28）**：
+
+- 缺口：Operations Read Model v1 已提供统一快照，但运维人员仍需直接调用多个 API，缺少按来源健康、死信和一致性分组的可操作界面。
+- 实现：新增受保护数据渐进加载的 /admin/operations 静态页面；登录后先验证 Operator / Administrator 角色，再读取有限的 admin operations overview 快照。页面分组呈现整体状态、来源能力、死信和一致性问题，区分 ready / partial / unavailable、合法空状态、401/403 和稳定错误。
+- 受控操作：来源能力停用/恢复和死信重放使用可访问确认对话框，要求 1–512 字符理由，结果展示 Replayed / AlreadyReplayed、重放任务 ID 或恢复后的待探测语义；服务端 policy、审计和状态机仍是最终边界。
+- 安全与体验：动态数据只通过 DOM textContent 写入；不缓存管理数据，不显示凭据引用、任务 Variables 或正文载荷；支持键盘焦点、语义标题/表格、aria-live、颜色之外的文字状态、窄屏布局和 prefers-reduced-motion。基准记录见 docs/engineering/benchmarks/operations-center-v1.md。
+- 测试与证据：ReaderHtml 回归 19/19；本机 Unit 254/254、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS。API 运行时静态页面 200、/health 200、未认证 overview 401；本机全量 Integration 48 项为 6 通过、41 项因 docker_engine 不可用而 BLOCKED、1 项跳过，不记为集成通过。
+- 边界：本轮未执行 Operator/Administrator 浏览器操作、跨尺寸视觉、键盘/对比度截图和真实修复命令；这些人工验收继续列入第 6 节。自动修复、告警、备份治理、私人书库和真实来源验收仍未实现。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -575,7 +584,7 @@ Official Source
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：补充第二个真实 Official Source；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
-- [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、死信 `HasMore` 截断标记和区块部分失败状态；本轮只完成自动化基线。
+- [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
 
 ### 6.2 需要可用环境复验
 
@@ -584,7 +593,7 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1 与 Operations Center Read Model v1 已落地，完整 Center UI、自动修复与更强运维治理仍属于后续工程工作。
+- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
@@ -593,7 +602,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有三项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA 的实际安装、离线、账户和跨尺寸浏览器验收尚未执行。Content Policy、Identity/Repair、Reader/PWA 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已确认通过；这些限制仍属于整体 Release Gate，不改变已通过的自动化证据。
+当前仍有四项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA 与 Operations Center 的实际安装、操作、跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Content Policy、Identity/Repair、Reader/PWA、Operations Center 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 需在提交后以实际结果确认；这些限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

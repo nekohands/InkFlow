@@ -235,4 +235,32 @@ public sealed class ReaderHtmlTests
             StringAssert.Contains(page, "/reader/history");
         }
     }
+
+    [TestMethod]
+    public void Operations_Page_Exposes_Protected_Snapshot_And_Audited_Action_Shell()
+    {
+        var html = ReaderHtml.OperationsPage();
+
+        StringAssert.Contains(html, "运维中心");
+        StringAssert.Contains(html, "/api/v1/admin/operations/overview?limit=50");
+        StringAssert.Contains(html, "/api/v1/admin/crawler/dead-letters/");
+        StringAssert.Contains(html, "/api/v1/admin/sources/");
+        StringAssert.Contains(html, "operations-action-reason");
+        StringAssert.Contains(html, "aria-live=\"polite\"");
+        StringAssert.Contains(html, "hasMoreDeadLetters");
+        StringAssert.Contains(html, "isReplayed");
+    }
+
+    [TestMethod]
+    public void Operations_Page_Does_Not_Render_Secrets_Or_Unsafe_Html_Sinks()
+    {
+        var html = ReaderHtml.OperationsPage();
+
+        Assert.IsFalse(html.Contains("innerHTML"), "运维数据必须通过 textContent/DOM 节点写入");
+        Assert.IsFalse(html.Contains("CredentialReferenceId"));
+        Assert.IsFalse(html.Contains("Variables"));
+        Assert.IsFalse(html.Contains("X-InkFlow-Legado-Token"));
+        StringAssert.Contains(html, "credentials: \"same-origin\"");
+        StringAssert.Contains(html, "cache: \"no-store\"");
+    }
 }

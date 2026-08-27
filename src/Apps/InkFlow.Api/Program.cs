@@ -929,6 +929,13 @@ app.MapGet("/reader/history", () =>
         contentType: "text/html; charset=utf-8"))
     .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
 
+// 运维页面本身只返回静态壳；快照与修复命令仍由前端通过受保护 API 获取。
+app.MapGet("/admin/operations", () =>
+    Results.Content(
+        ReaderHtml.OperationsPage(),
+        contentType: "text/html; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
 app.MapGet("/reader", async (string? q, CatalogQueryService catalog, BookDiscoveryService discovery, CancellationToken ct) =>
 {
     var query = q?.Trim() ?? string.Empty;

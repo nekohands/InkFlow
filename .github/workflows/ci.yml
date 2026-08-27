@@ -172,6 +172,14 @@ jobs:
             docker compose logs --no-color api
             exit 1
           }
+          operations_page=$(curl --fail --silent http://localhost:8080/admin/operations)
+          printf '%s' "$operations_page" | grep -q 'id="operations-content"' &&
+          printf '%s' "$operations_page" | grep -q '/api/v1/admin/operations/overview' &&
+          printf '%s' "$operations_page" | grep -q 'operations-action-reason' || {
+            echo "operations center page failed; dumping api logs:"
+            docker compose logs --no-color api
+            exit 1
+          }
 
       - name: Runtime diagnostics
         if: always()
