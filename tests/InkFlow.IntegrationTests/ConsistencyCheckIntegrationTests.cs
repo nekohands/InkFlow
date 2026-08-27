@@ -69,6 +69,7 @@ public sealed class ConsistencyCheckIntegrationTests
         await library.SaveChangesAsync().ConfigureAwait(false);
 
         var missingChapterId = Guid.NewGuid();
+        const string canonicalText = "这段正文不应被快照读取";
         content.Versions.Add(new ContentVersionEntity
         {
             Id = Guid.NewGuid(),
@@ -76,7 +77,7 @@ public sealed class ConsistencyCheckIntegrationTests
             CanonicalChapterId = missingChapterId,
             SourceId = sourceId,
             CanonicalHash = "hash-consistency",
-            CanonicalText = "这段正文不应被快照读取",
+            CanonicalText = canonicalText,
             ParagraphCount = 1,
             QualityScore = 80,
             QualityAlgorithmVersion = "quality-v1",
@@ -89,7 +90,7 @@ public sealed class ConsistencyCheckIntegrationTests
         var snapshot = await new EfConsistencySnapshotReader(library, sources, content, crawling)
             .ReadAsync()
             .ConfigureAwait(false);
-        Assert.AreEqual(12, snapshot.ContentVersions.Single().CanonicalTextLength);
+        Assert.AreEqual(canonicalText.Length, snapshot.ContentVersions.Single().CanonicalTextLength);
 
         var service = new ConsistencyCheckService(
             new FixedSnapshotReader(snapshot),
