@@ -270,7 +270,7 @@ Phase 0 开发过程中真实发现并修复：
 - `SourceCatalogService`、`SourceContentService` 记录能力成功/失败；不可用的 Toc 来源不再由 Scheduler 入队，不可用的 Content 来源不触发上游正文请求。
 - `ContentSelectionService` 先排除 Content 能力不可用的版本，再按 `quality-v1` 选优；全来源不可用时保留已落库当前版本。每次选择追加 `content.selection_decisions`，保存 `content-selection-v1` 与候选/排除/回退证据。
 - 新增官方 EF 迁移：`AddSourceCapabilityHealth`、`AddContentSelectionDecisions`；`dotnet ef migrations list` 已发现两者。
-- 自动化证据：Unit 126/126、Architecture 1/1、Contract 1/1、双来源健康感知切源 2/2、Release Build 0 warnings / 0 errors。Sources/Content PostgreSQL 往返测试已加入，等待 Docker/CI 环境执行。
+- 自动化证据：Unit 126/126、Architecture 1/1、Contract 1/1、双来源健康感知切源 2/2、Release Build 0 warnings / 0 errors。Sources/Content PostgreSQL 往返测试已加入；本机 Docker 阻塞，但远端 CI `33055478173` 已全绿，包含 Test、Compose Validation 与三服务 Runtime Smoke；Docker `33055478099` 的四个镜像也已全绿。
 - 真实第二来源、真实运行时故障切源和 Legado 真机仍不纳入本轮自动完成，继续按第 6 节待定事项管理。
 
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：

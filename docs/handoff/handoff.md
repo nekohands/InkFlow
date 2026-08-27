@@ -98,7 +98,7 @@ CI: GREEN (Run 32821162412)
 - `ChapterMapping` 记录 `chapter-alignment-v1` 与对齐证据；`ContentVersion` 记录 `quality-v1` 与质量证据。
 - 低质量第二来源保存为独立候选，不替换已选正文；健康不可用时排除对应来源，全部不可用时保留当前版本；查询路径只读已落库当前版本。
 - Release Build：PASS（0 warnings / 0 errors）。Unit 126/126、Architecture 1/1、Contract 1/1、双来源健康感知切源 2/2：PASS。
-- 完整集成测试：本机 Docker 不可用，20 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。远端 CI 需验证本轮新增迁移和持久化往返。
+- 完整集成测试：本机 Docker 不可用，20 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。远端 CI `33055478173` 已全绿，包含 Test、Compose Validation 与三服务 Runtime Smoke；Docker `33055478099` 的四个镜像也已全绿。
 - EF 新迁移已用官方生成流程补齐 Designer，并由 `dotnet ef migrations list` 发现。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
