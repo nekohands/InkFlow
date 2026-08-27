@@ -107,7 +107,7 @@ public sealed class EndToEndDataFlowTests
         var chapterMapping = new CanonicalChapterMappingService(sourceBooks, candidates, canonicalRepo, mappings);
         var contentService = new SourceContentService(factory, sourceBooks, artifacts, TimeProvider.System);
         var publishing = new ContentPublishingService(versions);
-        var query = new CatalogQueryService(canonicalRepo, versions);
+        var query = new CatalogQueryService(canonicalRepo, versions, new AllowAllContentPolicyReader());
 
         const string externalBookId = "book/3441";
 
@@ -234,6 +234,10 @@ public sealed class EndToEndDataFlowTests
             => Task.FromResult<ContentVersion?>(
                 Store.LastOrDefault(v => v.CanonicalChapterId == canonicalChapterId &&
                     _current.TryGetValue((canonicalChapterId, v.CanonicalHash), out var cur) && cur));
+        public Task<Guid?> GetCurrentCanonicalBookIdAsync(Guid canonicalChapterId, CancellationToken cancellationToken = default)
+            => Task.FromResult<Guid?>(Store.LastOrDefault(v =>
+                v.CanonicalChapterId == canonicalChapterId &&
+                _current.TryGetValue((canonicalChapterId, v.CanonicalHash), out var cur) && cur)?.CanonicalBookId);
         public Task SetCurrentAsync(Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)
         {
             foreach (var v in Store.Where(v => v.CanonicalChapterId == chapterId))
@@ -242,6 +246,14 @@ public sealed class EndToEndDataFlowTests
             }
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class AllowAllContentPolicyReader : IContentPolicyReader
+    {
+        public Task<bool> IsTakedownAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
     }
 
     private sealed class InMemoryArtifacts : IFetchArtifactRepository

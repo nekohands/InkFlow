@@ -89,6 +89,14 @@ CanonicalChapter 的当前默认内容选择。自动 Quality Selection 可变�
 Sources 的 Capability Health 以 `(SourceId, Capability)` 为独立事实，Content 选择只读取其可用性，
 不把来源健康状态混入 CanonicalBook/CanonicalChapter 或 ContentVersion 历史快照。
 
+### ContentPolicy
+
+当前 v1 以 `CanonicalBook` 为策略目标。`ContentPolicyDecision` 保存不可变的
+`CanonicalBookId`、`Action`（`Takedown` / `Restore`）、`ActorId`、`Reason` 和 `CreatedAt`；
+同一本书的最新决策派生当前是否允许公开。重复同状态命令幂等，实际状态变化追加新决策，
+不覆盖既有历史。公开目录、详情、正文与 Legado 查询必须通过策略读端口；管理员命令要求
+Administrator、理由和命令级审计。`content.policy_decisions` 由数据库追加式触发器保护。
+
 ## Matching / Decision
 
 核心自动决策统一记录：

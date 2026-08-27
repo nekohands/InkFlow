@@ -11,6 +11,7 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
 {
     public DbSet<ContentVersionEntity> Versions => Set<ContentVersionEntity>();
     public DbSet<ContentSelectionDecisionEntity> SelectionDecisions => Set<ContentSelectionDecisionEntity>();
+    public DbSet<ContentPolicyDecisionEntity> PolicyDecisions => Set<ContentPolicyDecisionEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +40,20 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
             b.Property(x => x.AlgorithmVersion).HasMaxLength(64).IsRequired();
             b.Property(x => x.Evidence).HasMaxLength(ContentSelectionAlgorithm.MaxEvidenceLength).IsRequired();
             b.HasIndex(x => new { x.CanonicalChapterId, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<ContentPolicyDecisionEntity>(b =>
+        {
+            b.ToTable("policy_decisions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Action).IsRequired();
+            b.Property(x => x.ActorId)
+                .HasMaxLength(ContentPolicyDecision.MaxActorIdLength)
+                .IsRequired();
+            b.Property(x => x.Reason)
+                .HasMaxLength(ContentPolicyDecision.MaxReasonLength)
+                .IsRequired();
+            b.HasIndex(x => new { x.CanonicalBookId, x.CreatedAt, x.Id });
         });
     }
 
@@ -151,6 +166,14 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
         return entity is null ? null : ContentDbContext.ToDomain(entity);
     }
 
+    public Task<Guid?> GetCurrentCanonicalBookIdAsync(
+        Guid canonicalChapterId,
+        CancellationToken cancellationToken = default) =>
+        db.Versions
+            .Where(v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent)
+            .Select(v => (Guid?)v.CanonicalBookId)
+            .SingleOrDefaultAsync(cancellationToken);
+
     /// <summary>原子切换当前版本:先全部置 false,再指定版本置 true。</summary>
     public async Task SetCurrentAsync(
         Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)
@@ -165,6 +188,77 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
             .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsCurrent, true), cancellationToken)
             .ConfigureAwait(false);
     }
+}
+
+public sealed class EfContentPolicyRepository(ContentDbContext db) : IContentPolicyRepository
+{
+    public async Task<ContentPolicyDecision?> GetLatestAsync(
+        Guid canonicalBookId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.PolicyDecisions
+            .AsNoTracking()
+            .Where(x => x.CanonicalBookId == canonicalBookId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity is null ? null : ToDomain(entity);
+    }
+
+    public async Task<IReadOnlyList<ContentPolicyDecision>> ListLatestAsync(
+        bool takenDownOnly,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var query = db.PolicyDecisions
+            .AsNoTracking()
+            .Where(decision => !db.PolicyDecisions.Any(other =>
+                other.CanonicalBookId == decision.CanonicalBookId &&
+                (other.CreatedAt > decision.CreatedAt ||
+                 (other.CreatedAt == decision.CreatedAt && other.Id > decision.Id))));
+
+        if (takenDownOnly)
+        {
+            query = query.Where(decision => decision.Action == ContentPolicyAction.Takedown);
+        }
+
+        var entities = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities.Select(ToDomain).ToList();
+    }
+
+    public async Task AddAsync(
+        ContentPolicyDecision decision,
+        CancellationToken cancellationToken = default)
+    {
+        db.PolicyDecisions.Add(new ContentPolicyDecisionEntity
+        {
+            Id = decision.Id,
+            CanonicalBookId = decision.CanonicalBookId,
+            Action = decision.Action,
+            ActorId = decision.ActorId,
+            Reason = decision.Reason,
+            CreatedAt = decision.CreatedAt,
+        });
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static ContentPolicyDecision ToDomain(ContentPolicyDecisionEntity entity) =>
+        ContentPolicyDecision.Rehydrate(
+            entity.Id,
+            entity.CanonicalBookId,
+            entity.Action,
+            entity.ActorId,
+            entity.Reason,
+            entity.CreatedAt);
 }
 
 /// <summary>dotnet-ef 设计时工厂。</summary>

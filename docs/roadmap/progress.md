@@ -387,6 +387,16 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 212/212、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 `/api/v1/auth/me` 与 `/api/v1/admin/consistency` 均返回 401。本机完整 Integration 43 项中 6 通过、1 跳过、36 项因 `npipe://./pipe/docker_engine` 不可用在 Testcontainers 初始化阶段 BLOCKED，不记为通过；远端首跑 CI `33105564941` 仅因新增集成测试把 11 字符夹具误断言为 12 而失败，未涉及实现逻辑；修复提交 `7dac6ce` 后 CI `33106044634` GREEN（43 项：42 通过、1 跳过，含 Restore/Build/Compose/Runtime smoke/Diagnostics），Docker `33106044677` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：本轮不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；自动修复、完整 Repair Center UI、查询授权/保留策略、告警和备份恢复仍待后续。
 
+**Content Policy / Takedown v1（本轮，2026-08-28）**：
+
+- 缺口：公开目录、详情、正文和 Legado 输出此前没有统一的内容下架策略，管理员也没有可追溯的下架/恢复命令入口。
+- 实现：Content 新增书级 `ContentPolicyDecision`（`Takedown` / `Restore`）不可变决策历史；最新决策派生当前公开状态，同状态命令幂等，理由/操作者有长度边界并拒绝空值与日志换行。
+- 持久化：新增 `content.policy_decisions` 与 `AddContentPolicyDecisions` Migration；数据库触发器拒绝 UPDATE/DELETE。Migrations App 会按既有 Content context 自动应用迁移。
+- 公开读取：`CatalogQueryService` 在书目列表、详情和章节正文路径统一门控；章节正文先读取当前版本关联的 `CanonicalBookId` 再加载正文；`/api/v1/search` 发现结果与 Legado 共用隐藏语义，Web Reader 通过 Catalog 继承门控。
+- 管理入口与安全：新增 Administrator-only `ContentModeration` policy；`GET /api/v1/admin/content/takedowns`、POST 下架与 POST 恢复均要求认证主体和理由，并写入 `content.policy.takedown` / `content.policy.restore` 命令审计。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 219/219、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Content Policy 管理入口返回 401。本机新增 PostgreSQL Testcontainers 2 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过；远端 CI/Docker 尚待本轮候选提交后确认。
+- 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；Content Policy 管理命令的人工管理员验收加入第 6 节待定事项。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -510,6 +520,7 @@ Official Source
 - [ ] **Web Reader 人工体验验收**：移动端、桌面端、宽屏正文宽度、长标题/缺封面/长作者、Loading/Empty/Error、键盘焦点、触控目标和阅读导航。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：补充第二个真实 Official Source；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
+- [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 
 ### 6.2 需要可用环境复验
 

@@ -64,6 +64,11 @@ Phase 1 先使用章节号、标准化标题和序列上下文；Phase 2 再加�
 
 Quality 决策必须输出可解释 Evidence 和 AlgorithmVersion，并支持人工 Lock。
 
+公开策略由 Content 模块的 `ContentPolicyDecision` 追加式历史派生。书级 Takedown/Restore
+命令只允许 Administrator，命令要求理由并写入审计；目录、书籍详情、章节正文、Web Reader
+和 Legado 输出都必须经过策略门控，且正文门控先于正文列加载。策略历史不是覆盖式状态表，
+数据库触发器拒绝更新/删除。
+
 ## 5. Source Runtime
 
 统一 `ISourceAdapter`，支持：

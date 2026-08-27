@@ -11,7 +11,8 @@ namespace InkFlow.UnitTests;
 [TestClass]
 public sealed class LegadoContractServiceTests
 {
-    private static (CatalogQueryService Catalog, InMemoryVersionRepository Versions) BuildCatalog()
+    private static (CatalogQueryService Catalog, InMemoryVersionRepository Versions) BuildCatalog(
+        IContentPolicyReader? policyReader = null)
     {
         var books = new InMemoryBooks();
         var versions = new InMemoryVersionRepository();
@@ -29,7 +30,12 @@ public sealed class LegadoContractServiceTests
             "<p>正文第一段。</p><p>正文第二段。</p>").Result;
         Assert.IsTrue(published.IsSuccess);
 
-        return (new CatalogQueryService(books, versions), versions);
+        return (
+            new CatalogQueryService(
+                books,
+                versions,
+                policyReader ?? new AllowAllContentPolicyReader()),
+            versions);
     }
 
     private static readonly DateTimeOffset T0 = new(2026, 8, 27, 8, 30, 0, TimeSpan.Zero);
@@ -57,8 +63,30 @@ public sealed class LegadoContractServiceTests
             => Task.FromResult<ContentVersion?>(
                 Store.FirstOrDefault(v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent));
 
+        public Task<Guid?> GetCurrentCanonicalBookIdAsync(Guid canonicalChapterId, CancellationToken cancellationToken = default)
+            => Task.FromResult<Guid?>(Store.FirstOrDefault(v =>
+                v.CanonicalChapterId == canonicalChapterId && v.IsCurrent)?.CanonicalBookId);
+
         public Task SetCurrentAsync(Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class AllowAllContentPolicyReader : IContentPolicyReader
+    {
+        public Task<bool> IsTakedownAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+    }
+
+    private sealed class MutableContentPolicyReader : IContentPolicyReader
+    {
+        public HashSet<Guid> TakenDownBookIds { get; } = [];
+
+        public Task<bool> IsTakedownAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(TakenDownBookIds.Contains(canonicalBookId));
     }
 
     private sealed class InMemoryBooks : ICanonicalBookRepository
@@ -137,6 +165,20 @@ public sealed class LegadoContractServiceTests
         var content = await service.GetChapterContentAsync(toc![0].ChapterId);
         Assert.IsNotNull(content);
         StringAssert.Contains(content!.Content, "正文第一段");
+    }
+
+    [TestMethod]
+    public async Task Takedown_Hides_Book_From_Legado_Search_Info_And_Toc()
+    {
+        var policy = new MutableContentPolicyReader();
+        var (catalog, _) = BuildCatalog(policy);
+        var service = new LegadoContractService(catalog);
+        var visible = (await service.SearchAsync("剑来")).Single();
+        policy.TakenDownBookIds.Add(visible.BookId);
+
+        Assert.AreEqual(0, (await service.SearchAsync("剑来")).Count);
+        Assert.IsNull(await service.GetBookAsync(visible.BookId));
+        Assert.IsNull(await service.GetTocAsync(visible.BookId));
     }
 
     [TestMethod]

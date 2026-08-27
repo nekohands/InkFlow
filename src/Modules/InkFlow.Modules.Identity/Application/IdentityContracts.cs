@@ -72,6 +72,7 @@ public enum IdentityResultStatus
 public static class IdentityPolicies
 {
     public const string CrawlerRepair = "identity-crawler-repair";
+    public const string ContentModeration = "identity-content-moderation";
 }
 
 public sealed record AuthenticatedIdentity(

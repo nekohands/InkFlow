@@ -23,7 +23,8 @@ public sealed record ChapterContent(
 /// </summary>
 public sealed class CatalogQueryService(
     ICanonicalBookRepository bookRepository,
-    IContentVersionRepository versionRepository)
+    IContentVersionRepository versionRepository,
+    IContentPolicyReader policyReader)
 {
     public async Task<IReadOnlyList<BookListItem>> ListBooksAsync(CancellationToken cancellationToken = default)
     {
@@ -33,6 +34,13 @@ public sealed class CatalogQueryService(
         var items = new List<BookListItem>(books.Count);
         foreach (var book in books)
         {
+            if (await policyReader
+                .IsTakedownAsync(book.Id, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                continue;
+            }
+
             var full = await bookRepository.GetAsync(book.Id, cancellationToken).ConfigureAwait(false);
             items.Add(new BookListItem(book.Id, book.Title, book.Author, full?.Chapters.Count ?? 0));
         }
@@ -65,6 +73,13 @@ public sealed class CatalogQueryService(
 
     public async Task<BookDetail?> GetBookAsync(Guid bookId, CancellationToken cancellationToken = default)
     {
+        if (await policyReader
+            .IsTakedownAsync(bookId, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            return null;
+        }
+
         var book = await bookRepository.GetAsync(bookId, cancellationToken).ConfigureAwait(false);
         if (book is null)
         {
@@ -84,11 +99,31 @@ public sealed class CatalogQueryService(
     public async Task<ChapterContent?> GetChapterContentAsync(
         Guid chapterId, CancellationToken cancellationToken = default)
     {
+        // 先读取不含正文的关联书籍 ID，策略拒绝时不加载正文列。
+        var canonicalBookId = await versionRepository
+            .GetCurrentCanonicalBookIdAsync(chapterId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (canonicalBookId is null || await policyReader
+            .IsTakedownAsync(canonicalBookId.Value, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            return null;
+        }
+
         var version = await versionRepository
             .GetCurrentForChapterAsync(chapterId, cancellationToken)
             .ConfigureAwait(false);
 
         if (version is null)
+        {
+            return null;
+        }
+
+        // 防止元数据检查与正文加载之间发生下架时把正文返回给调用方。
+        if (await policyReader
+            .IsTakedownAsync(version.CanonicalBookId, cancellationToken)
+            .ConfigureAwait(false))
         {
             return null;
         }

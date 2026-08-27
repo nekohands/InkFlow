@@ -43,6 +43,7 @@ public sealed class CatalogQueryServiceTests
     private sealed class InMemoryVersionRepository : IContentVersionRepository
     {
         public List<ContentVersion> Store { get; } = [];
+        public int FullContentReads { get; private set; }
 
         public Task AddAsync(ContentVersion version, CancellationToken cancellationToken = default)
         {
@@ -59,8 +60,15 @@ public sealed class CatalogQueryServiceTests
                 Store.Where(v => v.CanonicalChapterId == canonicalChapterId).ToList());
 
         public Task<ContentVersion?> GetCurrentForChapterAsync(Guid canonicalChapterId, CancellationToken cancellationToken = default)
-            => Task.FromResult<ContentVersion?>(
+        {
+            FullContentReads++;
+            return Task.FromResult<ContentVersion?>(
                 Store.FirstOrDefault(v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent));
+        }
+
+        public Task<Guid?> GetCurrentCanonicalBookIdAsync(Guid canonicalChapterId, CancellationToken cancellationToken = default)
+            => Task.FromResult<Guid?>(Store.FirstOrDefault(v =>
+                v.CanonicalChapterId == canonicalChapterId && v.IsCurrent)?.CanonicalBookId);
 
         public Task SetCurrentAsync(Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)
         {
@@ -85,7 +93,7 @@ public sealed class CatalogQueryServiceTests
         await books.AddAsync(CreateBook("剑来", "烽火戏诸侯", withChapters: false));
         await books.AddAsync(CreateBook("玉簟秋", "灵希", withChapters: false));
 
-        var service = new CatalogQueryService(books, new InMemoryVersionRepository());
+        var service = new CatalogQueryService(books, new InMemoryVersionRepository(), new AllowAllContentPolicyReader());
 
         // 书名包含匹配、作者包含匹配、大小写不敏感。
         Assert.AreEqual(1, (await service.SearchBooksAsync("剑来")).Count);
@@ -108,7 +116,7 @@ public sealed class CatalogQueryServiceTests
         var books = new InMemoryBookRepository();
         await books.AddAsync(CreateBook("剑来", "烽火戏诸侯", withChapters: false));
 
-        var service = new CatalogQueryService(books, new InMemoryVersionRepository());
+        var service = new CatalogQueryService(books, new InMemoryVersionRepository(), new AllowAllContentPolicyReader());
 
         var hits = await service.SearchBooksAsync("不存在的书");
 
@@ -125,7 +133,7 @@ public sealed class CatalogQueryServiceTests
         await books.AddAsync(bookA);
         await books.AddAsync(bookB);
 
-        var service = new CatalogQueryService(books, new InMemoryVersionRepository());
+        var service = new CatalogQueryService(books, new InMemoryVersionRepository(), new AllowAllContentPolicyReader());
         var list = await service.ListBooksAsync();
 
         Assert.AreEqual(2, list.Count);
@@ -150,7 +158,7 @@ public sealed class CatalogQueryServiceTests
         var book = CanonicalBook.Create("书", "作者", T0);
         await books.AddAsync(book);
 
-        var service = new CatalogQueryService(books, versions);
+        var service = new CatalogQueryService(books, versions, new AllowAllContentPolicyReader());
         var content = await service.GetChapterContentAsync(chapterId);
 
         Assert.IsNotNull(content);
@@ -160,16 +168,47 @@ public sealed class CatalogQueryServiceTests
     }
 
     [TestMethod]
+    public async Task Takedown_Hides_Book_And_Blocks_Body_Load()
+    {
+        var books = new InMemoryBookRepository();
+        var versions = new InMemoryVersionRepository();
+        var book = CreateBook("受限书", "作者", withChapters: true);
+        await books.AddAsync(book);
+        var chapter = book.Chapters.Single();
+        var published = await new ContentPublishingService(versions).PublishAsync(
+            book.Id,
+            chapter.Id,
+            "example-source",
+            "<p>不可公开正文</p>");
+        Assert.IsTrue(published.IsSuccess);
+
+        var policy = new SelectiveContentPolicyReader(book.Id);
+        var service = new CatalogQueryService(books, versions, policy);
+
+        Assert.AreEqual(0, (await service.ListBooksAsync()).Count);
+        Assert.IsNull(await service.GetBookAsync(book.Id));
+        Assert.IsNull(await service.GetChapterContentAsync(chapter.Id));
+        Assert.AreEqual(0, versions.FullContentReads,
+            "下架检查应在加载 CanonicalText 前完成");
+    }
+
+    [TestMethod]
     public async Task Chapter_Without_Published_Content_Returns_Null()
     {
-        var service = new CatalogQueryService(new InMemoryBookRepository(), new InMemoryVersionRepository());
+        var service = new CatalogQueryService(
+            new InMemoryBookRepository(),
+            new InMemoryVersionRepository(),
+            new AllowAllContentPolicyReader());
         Assert.IsNull(await service.GetChapterContentAsync(Guid.NewGuid()));
     }
 
     [TestMethod]
     public async Task GetBook_Missing_Returns_Null()
     {
-        var service = new CatalogQueryService(new InMemoryBookRepository(), new InMemoryVersionRepository());
+        var service = new CatalogQueryService(
+            new InMemoryBookRepository(),
+            new InMemoryVersionRepository(),
+            new AllowAllContentPolicyReader());
         Assert.IsNull(await service.GetBookAsync(Guid.NewGuid()));
     }
 
@@ -183,5 +222,21 @@ public sealed class CatalogQueryServiceTests
         }
 
         return book;
+    }
+
+    private sealed class AllowAllContentPolicyReader : IContentPolicyReader
+    {
+        public Task<bool> IsTakedownAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+    }
+
+    private sealed class SelectiveContentPolicyReader(Guid takenDownBookId) : IContentPolicyReader
+    {
+        public Task<bool> IsTakedownAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(canonicalBookId == takenDownBookId);
     }
 }

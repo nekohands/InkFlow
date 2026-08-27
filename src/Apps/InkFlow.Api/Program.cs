@@ -7,6 +7,7 @@ using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
+using InkFlow.Modules.Content.Domain;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
@@ -61,11 +62,16 @@ builder.Services.AddAuthentication(options =>
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
         OpaqueBearerAuthenticationHandler>(IdentityAuthenticationDefaults.Scheme, _ => { });
 builder.Services.AddAuthorization(options =>
+{
     options.AddPolicy(
         IdentityPolicies.CrawlerRepair,
         policy => policy.RequireRole(
             UserRole.Operator.ToString(),
-            UserRole.Administrator.ToString())));
+            UserRole.Administrator.ToString()));
+    options.AddPolicy(
+        IdentityPolicies.ContentModeration,
+        policy => policy.RequireRole(UserRole.Administrator.ToString()));
+});
 
 builder.Services.AddScoped<EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ICrawlerTaskRepository>(sp =>
@@ -119,6 +125,13 @@ builder.Services.AddScoped<InkFlow.Modules.Content.Infrastructure.Persistence.Co
             .Options));
 builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentVersionRepository,
     InkFlow.Modules.Content.Infrastructure.Persistence.EfContentVersionRepository>();
+builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicyRepository,
+    InkFlow.Modules.Content.Infrastructure.Persistence.EfContentPolicyRepository>();
+builder.Services.AddScoped<InkFlow.Modules.Content.Application.ContentPolicyService>();
+builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicyService>(sp =>
+    sp.GetRequiredService<InkFlow.Modules.Content.Application.ContentPolicyService>());
+builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicyReader>(sp =>
+    sp.GetRequiredService<InkFlow.Modules.Content.Application.ContentPolicyService>());
 builder.Services.AddScoped<IConsistencySnapshotReader, EfConsistencySnapshotReader>();
 builder.Services.AddScoped<IConsistencyCheckService, ConsistencyCheckService>();
 builder.Services.AddScoped<CatalogQueryService>();
@@ -254,6 +267,109 @@ repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (
         ct);
 });
 
+var contentPolicy = api.MapGroup("/admin/content")
+    .RequireAuthorization(IdentityPolicies.ContentModeration);
+
+contentPolicy.MapGet("/takedowns", async (
+    int? limit,
+    IContentPolicyService policy,
+    CancellationToken ct) =>
+{
+    var boundedLimit = Math.Clamp(limit ?? 50, 1, ContentPolicyService.MaxListLimit);
+    var statuses = await policy.ListAsync(
+        takenDownOnly: true,
+        limit: boundedLimit,
+        cancellationToken: ct);
+    return Results.Ok(statuses);
+});
+
+contentPolicy.MapPost("/takedowns", async (
+    ContentPolicyTakedownRequest? request,
+    ClaimsPrincipal principal,
+    ICanonicalBookRepository books,
+    IContentPolicyService policy,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    if (request is null || request.BookId == Guid.Empty || string.IsNullOrWhiteSpace(request.Reason))
+    {
+        return Results.BadRequest(new { error = "book_id_and_reason_required" });
+    }
+
+    if (request.Reason.Trim().Length > ContentPolicyDecision.MaxReasonLength)
+    {
+        return Results.BadRequest(new { error = "reason_too_long" });
+    }
+
+    if (await books.GetAsync(request.BookId, ct) is null)
+    {
+        return Results.NotFound();
+    }
+
+    var reason = request.Reason.Trim();
+    var result = await policy.TakedownAsync(request.BookId, actorId, reason, ct);
+    return ContentPolicyEndpointResults.Command(
+        result,
+        ContentPolicyAction.Takedown,
+        actorId,
+        reason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
+contentPolicy.MapPost("/takedowns/{bookId:guid}/restore", async (
+    Guid bookId,
+    ContentPolicyRestoreRequest? request,
+    ClaimsPrincipal principal,
+    ICanonicalBookRepository books,
+    IContentPolicyService policy,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    if (request is null || bookId == Guid.Empty || string.IsNullOrWhiteSpace(request.Reason))
+    {
+        return Results.BadRequest(new { error = "book_id_and_reason_required" });
+    }
+
+    if (request.Reason.Trim().Length > ContentPolicyDecision.MaxReasonLength)
+    {
+        return Results.BadRequest(new { error = "reason_too_long" });
+    }
+
+    if (await books.GetAsync(bookId, ct) is null)
+    {
+        return Results.NotFound();
+    }
+
+    var reason = request.Reason.Trim();
+    var result = await policy.RestoreAsync(bookId, actorId, reason, ct);
+    return ContentPolicyEndpointResults.Command(
+        result,
+        ContentPolicyAction.Restore,
+        actorId,
+        reason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
 api.MapGet("/books", async (CatalogQueryService catalog, CancellationToken ct) =>
 {
     var books = await catalog.ListBooksAsync(ct);
@@ -261,10 +377,23 @@ api.MapGet("/books", async (CatalogQueryService catalog, CancellationToken ct) =
 });
 
 // 来源搜索发现:幂等导入 + v1 匹配后返回归并结果(落库数据)。
-api.MapGet("/search", async (string q, BookDiscoveryService discovery, CancellationToken ct) =>
+api.MapGet("/search", async (
+    string q,
+    BookDiscoveryService discovery,
+    IContentPolicyReader policy,
+    CancellationToken ct) =>
 {
     var outcome = await discovery.DiscoverAsync(q ?? string.Empty, ct);
-    return Results.Ok(new { books = outcome.Books, warnings = outcome.Warnings });
+    var visibleBooks = new List<DiscoveredBook>(outcome.Books.Count);
+    foreach (var book in outcome.Books)
+    {
+        if (!await policy.IsTakedownAsync(book.CanonicalBookId, ct))
+        {
+            visibleBooks.Add(book);
+        }
+    }
+
+    return Results.Ok(new { books = visibleBooks, warnings = outcome.Warnings });
 });
 
 api.MapGet("/books/{bookId:guid}", async (Guid bookId, CatalogQueryService catalog, CancellationToken ct) =>

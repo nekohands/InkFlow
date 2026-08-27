@@ -140,7 +140,7 @@ public sealed class DualSourceCanonicalValidationTests
         StringAssert.Contains(failover.Evidence, "excludedSources=official-a");
         Assert.AreEqual(degradedCandidate.Id, decisions.Store.Last().SelectedVersionId);
 
-        var query = new CatalogQueryService(canonicalBooks, versions);
+        var query = new CatalogQueryService(canonicalBooks, versions, new AllowAllContentPolicyReader());
         var readable = await query
             .GetChapterContentAsync(chapter.Id);
         Assert.IsNotNull(readable, "来源暂时不可用时，阅读路径仍应读取已选 Canonical Content");
@@ -360,6 +360,11 @@ public sealed class DualSourceCanonicalValidationTests
             Task.FromResult<ContentVersion?>(Store.FirstOrDefault(version =>
                 version.CanonicalChapterId == canonicalChapterId && version.IsCurrent));
 
+        public Task<Guid?> GetCurrentCanonicalBookIdAsync(
+            Guid canonicalChapterId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Guid?>(Store.FirstOrDefault(version =>
+                version.CanonicalChapterId == canonicalChapterId && version.IsCurrent)?.CanonicalBookId);
+
         public Task SetCurrentAsync(
             Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)
         {
@@ -384,5 +389,13 @@ public sealed class DualSourceCanonicalValidationTests
             CurrentVersionId = versionId;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class AllowAllContentPolicyReader : IContentPolicyReader
+    {
+        public Task<bool> IsTakedownAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
     }
 }
