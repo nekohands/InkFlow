@@ -67,6 +67,7 @@ builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory
     [sp.GetRequiredService<KanunuSourceAdapter>()]));
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
+builder.Services.AddScoped<CompositeTaskExecutor>();
 builder.Services.AddSingleton<CrawlerLeaseService>();
 builder.Services.AddHostedService<TaskPollingService>();
 builder.Services.AddHostedService<SourceSeedService>();
@@ -98,7 +99,8 @@ internal sealed class CompositeTaskExecutor(
 /// </summary>
 internal sealed class TaskPollingService(
     IServiceScopeFactory scopeFactory,
-    CrawlerLeaseService leases) : BackgroundService
+    CrawlerLeaseService leases,
+    TimeProvider clock) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -109,7 +111,7 @@ internal sealed class TaskPollingService(
                 using var scope = scopeFactory.CreateScope();
                 var tasks = scope.ServiceProvider.GetRequiredService<ICrawlerTaskRepository>();
 
-                var leasable = await tasks.FindLeasableAsync(DateTimeOffset.UtcNow, 1, stoppingToken)
+                var leasable = await tasks.FindLeasableAsync(clock.GetUtcNow(), 1, stoppingToken)
                     .ConfigureAwait(false);
                 foreach (var task in leasable)
                 {
@@ -118,29 +120,8 @@ internal sealed class TaskPollingService(
                         continue;
                     }
 
-                    task.MarkRunning(DateTimeOffset.UtcNow);
-                    await tasks.SaveAsync(task, stoppingToken).ConfigureAwait(false);
-
-                    var executor = scope.ServiceProvider.GetRequiredService<CompositeTaskExecutor>();
-                    var outcome = await executor.ExecuteAsync(task, stoppingToken).ConfigureAwait(false);
-
-                    if (outcome.Succeeded)
-                    {
-                        task.Complete(DateTimeOffset.UtcNow);
-                    }
-                    else
-                    {
-                        Console.WriteLine($"task {task.Id} failed: {outcome.FailureReason}");
-                        task.Fail(DateTimeOffset.UtcNow);
-                        if (task.Status == CrawlerTaskStatus.DeadLettered)
-                        {
-                            await tasks.AddDeadLetterAsync(
-                                DeadLetterTask.From(task, outcome.FailureReason ?? "unknown", DateTimeOffset.UtcNow),
-                                stoppingToken).ConfigureAwait(false);
-                        }
-                    }
-
-                    await tasks.SaveAsync(task, stoppingToken).ConfigureAwait(false);
+                    await ProcessTaskAsync(task, tasks, scope.ServiceProvider, stoppingToken)
+                        .ConfigureAwait(false);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -150,5 +131,64 @@ internal sealed class TaskPollingService(
 
             await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
         }
+    }
+
+    private async Task ProcessTaskAsync(
+        CrawlerTask task,
+        ICrawlerTaskRepository tasks,
+        IServiceProvider services,
+        CancellationToken stoppingToken)
+    {
+        try
+        {
+            task.MarkRunning(clock.GetUtcNow());
+            await tasks.SaveAsync(task, stoppingToken).ConfigureAwait(false);
+
+            var executor = services.GetRequiredService<CompositeTaskExecutor>();
+            var outcome = await executor.ExecuteAsync(task, stoppingToken).ConfigureAwait(false);
+            if (outcome.Succeeded)
+            {
+                task.Complete(clock.GetUtcNow());
+                await tasks.SaveAsync(task, stoppingToken).ConfigureAwait(false);
+                return;
+            }
+
+            await FailTaskAsync(
+                task,
+                tasks,
+                outcome.FailureReason ?? "unknown",
+                stoppingToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await FailTaskAsync(task, tasks, exception.Message, stoppingToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task FailTaskAsync(
+        CrawlerTask task,
+        ICrawlerTaskRepository tasks,
+        string reason,
+        CancellationToken stoppingToken)
+    {
+        Console.WriteLine($"task {task.Id} failed: {reason}");
+        if (task.Status != CrawlerTaskStatus.Running)
+        {
+            return;
+        }
+
+        task.Fail(clock.GetUtcNow());
+        if (task.Status == CrawlerTaskStatus.DeadLettered)
+        {
+            await tasks.AddDeadLetterAsync(
+                DeadLetterTask.From(task, reason, clock.GetUtcNow()),
+                stoppingToken).ConfigureAwait(false);
+        }
+
+        await tasks.SaveAsync(task, stoppingToken).ConfigureAwait(false);
     }
 }

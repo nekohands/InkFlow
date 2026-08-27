@@ -17,7 +17,7 @@ public interface ICrawlerTaskRepository
     Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 找出在 <paramref name="now"/> 时刻可领取（Pending，或租约已过期）的任务。
+    /// 找出在 <paramref name="now"/> 时刻可领取（Pending，或 Leased/Running 租约已过期）的任务。
     /// 实现必须保证同一批结果内不含重复任务；跨 worker 的互斥由租约语义 + 存储层约束共同保证。
     /// </summary>
     Task<IReadOnlyList<CrawlerTask>> FindLeasableAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken = default);

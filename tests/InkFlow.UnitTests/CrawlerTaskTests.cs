@@ -51,6 +51,55 @@ public sealed class CrawlerTaskTests
     }
 
     [TestMethod]
+    public void TryLease_Reclaims_An_Expired_Lease_Before_Retrying()
+    {
+        var service = new CrawlerLeaseService(new FixedClock(T0.AddMinutes(2)))
+        {
+            DefaultLeaseDuration = TimeSpan.FromMinutes(1),
+        };
+        var task = NewTask(maxAttempts: 3);
+        task.Lease("worker-a", T0, TimeSpan.FromMinutes(1));
+
+        Assert.IsTrue(service.TryLease(task, "worker-b"));
+        Assert.AreEqual(CrawlerTaskStatus.Leased, task.Status);
+        Assert.AreEqual("worker-b", task.LeaseOwner);
+        Assert.AreEqual(2, task.AttemptCount);
+    }
+
+    [TestMethod]
+    public void TryLease_Reclaims_An_Expired_Running_Task_After_Worker_Crash()
+    {
+        var service = new CrawlerLeaseService(new FixedClock(T0.AddMinutes(2)))
+        {
+            DefaultLeaseDuration = TimeSpan.FromMinutes(1),
+        };
+        var task = NewTask(maxAttempts: 3);
+        task.Lease("worker-a", T0, TimeSpan.FromMinutes(1));
+        task.MarkRunning(T0.AddSeconds(1));
+
+        Assert.IsTrue(service.TryLease(task, "worker-b"));
+        Assert.AreEqual(CrawlerTaskStatus.Leased, task.Status);
+        Assert.AreEqual("worker-b", task.LeaseOwner);
+        Assert.AreEqual(2, task.AttemptCount);
+    }
+
+    [TestMethod]
+    public void ReleaseExpired_Reclaims_Running_Task()
+    {
+        var service = new CrawlerLeaseService(new FixedClock(T0.AddMinutes(2)));
+        var task = NewTask();
+        task.Lease("worker-a", T0, TimeSpan.FromMinutes(1));
+        task.MarkRunning(T0.AddSeconds(1));
+
+        var released = service.ReleaseExpired([task]);
+
+        Assert.AreEqual(1, released.Count);
+        Assert.AreEqual(CrawlerTaskStatus.Pending, task.Status);
+        Assert.IsNull(task.LeaseOwner);
+        Assert.AreEqual(1, task.AttemptCount);
+    }
+
+    [TestMethod]
     public void Fail_Below_Max_Attempts_Returns_To_Pending()
     {
         var task = NewTask(maxAttempts: 3);

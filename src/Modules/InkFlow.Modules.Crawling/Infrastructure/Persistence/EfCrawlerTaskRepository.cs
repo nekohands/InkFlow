@@ -36,7 +36,9 @@ public sealed class EfCrawlerTaskRepository(CrawlingDbContext db) : ICrawlerTask
         var entities = await db.Tasks
             .Where(t =>
                 t.Status == (int)CrawlerTaskStatus.Pending ||
-                (t.Status == (int)CrawlerTaskStatus.Leased && t.LeaseExpiresAt != null && t.LeaseExpiresAt <= now))
+                ((t.Status == (int)CrawlerTaskStatus.Leased ||
+                  t.Status == (int)CrawlerTaskStatus.Running) &&
+                 t.LeaseExpiresAt != null && t.LeaseExpiresAt <= now))
             .OrderBy(t => t.CreatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken)

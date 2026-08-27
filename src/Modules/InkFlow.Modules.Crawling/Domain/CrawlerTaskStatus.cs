@@ -23,7 +23,7 @@ public static class CrawlerTaskTransitions
     {
         [CrawlerTaskStatus.Pending] = [CrawlerTaskStatus.Leased],
         [CrawlerTaskStatus.Leased] = [CrawlerTaskStatus.Running, CrawlerTaskStatus.Pending],
-        [CrawlerTaskStatus.Running] = [CrawlerTaskStatus.Completed, CrawlerTaskStatus.Failed],
+        [CrawlerTaskStatus.Running] = [CrawlerTaskStatus.Completed, CrawlerTaskStatus.Failed, CrawlerTaskStatus.Pending],
         [CrawlerTaskStatus.Failed] = [CrawlerTaskStatus.Pending, CrawlerTaskStatus.DeadLettered],
         [CrawlerTaskStatus.Completed] = [],
         [CrawlerTaskStatus.DeadLettered] = [],
