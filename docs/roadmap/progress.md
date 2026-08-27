@@ -448,7 +448,7 @@ Phase 0 开发过程中真实发现并修复：
 - 实现：保留服务端渲染与 Canonical Content 只读边界，重做书目列表、书籍详情和章节页的语义结构与统一 token；章节页增加目录、阅读设置、上一章/下一章、滚动进度条和空正文状态。设置提供 System/Light/Sepia/Dark、字号和行高，使用受限值并保存在当前设备 `localStorage`；脚本不可用时正文和章节导航仍可用。
 - 安全与可访问性：书名、作者、章节标题和正文全部 HTML 转义；不渲染 SourceId 或上游 HTML。页面使用语义 landmark、skip link、可见焦点、`dialog` 设置面板、键盘关闭和 `prefers-reduced-motion` 降级；移动端触控目标和窄屏章节导航单列适配。
 - Benchmark：按 `docs/engineering/benchmarks/web-reader-v1.md` 对照 Royal Road、Kobo Web Reader 与 Wuxiaworld 的官方阅读说明，采用“正文页一跳打开设置、主题/字号/行高、目录/上下章直达、设备本地偏好”的模式，不复制竞品视觉。
-- 测试与证据：新增 Reader HTML 结构、设置控件、空正文状态和 SourceId 不泄漏回归；本机 Unit 247/247、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS。CI smoke 已增加 `/reader` 搜索语义、Reader v1 样式和 reduced-motion 标记检查；浏览器截图、四尺寸人工视觉验收按用户决定保留待定。
+- 测试与证据：新增 Reader HTML 结构、设置控件、空正文状态和 SourceId 不泄漏回归；本机 Restore、Unit 247/247、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS。候选提交 `a8d1c23` 的远端 CI `33120844695` GREEN（Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33120844685` GREEN（API、Migrations、Scheduler、Worker 四镜像）；CI smoke 已增加 `/reader` 搜索语义、Reader v1 样式和 reduced-motion 标记检查；浏览器截图、四尺寸人工视觉验收按用户决定保留待定。
 - 边界：本轮不实现 PWA 安装/离线缓存、服务端 Reading State 同步、评论/书签、分页阅读或真实设备验收；Web Reader 浏览器视觉与长时间阅读体验仍需人工验收。
 
 **搜索发现接入：冷启动主路径打通（上一轮，2026-08-29）**：

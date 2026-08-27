@@ -148,7 +148,7 @@ CI: GREEN (Run 32821162412)
 - 实现：重做服务端 `ReaderHtml` 的书目列表、书籍详情和章节页；保留搜索→详情→开始阅读、目录、上一章/下一章路径，增加统一视觉 token、语义 landmark、skip link、滚动进度条、空正文状态和移动端触控布局。
 - 阅读设置：章节页提供 `dialog`，支持 System/Light/Sepia/Dark、字号和行高；匿名偏好以受限数值写入当前设备 `localStorage`，脚本不可用时正文和链接导航仍可用。
 - 安全/验收：所有业务文本 HTML 转义，不输出 SourceId 或上游 HTML；加入 reduced-motion、焦点和设置控件结构回归。Benchmark Note 记录了 Royal Road、Kobo Web Reader、Wuxiaworld 的官方阅读模式取舍。
-- 当前证据：本机 Unit 247/247、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS；CI smoke 已增加 `/reader` 语义结构检查。浏览器截图、移动/平板/桌面/宽屏视觉检查和长时间阅读仍未执行，按用户决定加入人工验收。
+- 当前证据：本机 Restore、Unit 247/247、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS；候选提交 `a8d1c23` 的远端 CI `33120844695` 与 Docker `33120844685` 均 GREEN，包含 `/reader` 语义结构 smoke、Compose/Runtime smoke、Diagnostics 和四镜像构建。浏览器截图、移动/平板/桌面/宽屏视觉检查和长时间阅读仍未执行，按用户决定加入人工验收。
 - 边界：未实现 PWA 安装/离线缓存、服务端 Reading State 同步、评论/书签、分页阅读或真实设备验收。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
@@ -185,7 +185,7 @@ CI: GREEN (Run 32821162412)
 ✅ Source Health Operator Controls v1：来源能力查询 + Operator/Administrator 停用/恢复 + 命令审计（`49e0fc1`，CI `33110684551` / Docker `33110684410` 均 GREEN）
 ✅ Operations/Repair Center Read Model v1：统一只读快照 + 独立查询 policy + 区块异常隔离（`ff02c23`，CI `33112741068` / Docker `33112741039` 均 GREEN）
 ✅ Personal Legado Token v1：一次性原文签发 + Hash 持久化 + 独立 header 认证 + Personal API + 撤销审计（`fbe0c62`，CI `33118314796` / Docker `33118314789` 均 GREEN）
-✅ Web Reader v1：响应式书目/详情/章节页 + 主题/字号/行高本地设置 + 可访问章节导航（本轮候选提交待 CI）
+✅ Web Reader v1：响应式书目/详情/章节页 + 主题/字号/行高本地设置 + 可访问章节导航（`a8d1c23`，CI `33120844695` / Docker `33120844685` 均 GREEN）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
