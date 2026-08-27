@@ -117,11 +117,20 @@ CI: GREEN (Run 32821162412)
 - 当前证据：本机 Release Build 0 warnings / 0 errors；Unit 221/221、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Source Operations 入口 401。完整 Integration 45 项中 6 通过、1 跳过、38 项因本机 Docker Engine 不可用而 BLOCKED；远端 CI `33110684551` GREEN（Unit 221、Integration 45 项 44 通过/1 跳过，含 Compose/Runtime smoke/Diagnostics），Docker `33110684410` GREEN（四镜像）。
 - 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源故障切换；Source Health 管理命令的人工实际操作、完整 Repair/Operations Center、告警和备份治理仍待后续。
 
+### 4.18 Operations/Repair Center Read Model v1（本轮，2026-08-28）
+
+- 缺口：死信、一致性和来源健康原本是分散的只读入口，缺少统一的运维快照；查询授权与命令授权也没有明确拆开。
+- 实现：新增 `IOperationsCenterReader` 与 `GET /api/v1/admin/operations/overview`，聚合来源健康、有限死信和一致性报告；死信多取一条判断 `HasMore`，读模型不携带任务 Variables、CredentialReferenceId 或正文。
+- 授权/韧性：新增 `OperationsRead` policy（`Operator` / `Administrator`），用于 overview、死信列表、一致性和 Source Health 查询；replay/disable/enable 继续使用独立命令 policy。每个区块隔离异常并返回稳定 `partial` / `unavailable` 状态，不泄漏内部异常细节。
+- 当前证据：本机 Release Build 0 warnings / 0 errors、Unit 223/223、Architecture 1/1、Contract 1/1；API `/health` 200，Operations overview、Consistency、Source Health 未认证请求均 401。真实设备/来源测试按用户决定跳过，本机 Docker 集成仍待环境恢复；远端 CI/Docker 验证待提交后补录。
+- 边界：未实现 Center UI、自动修复、告警、备份治理和真实业务验收；人工 Operations Center 操作加入待定事项。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
 4. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
-5. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、完整 Repair Center、Security/Operations 与商业化能力。
+5. **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、区块部分失败展示和死信截断标记；本轮只完成自动化基线，未执行人工操作。
+6. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、Center UI、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -146,6 +155,7 @@ CI: GREEN (Run 32821162412)
 ✅ 跨模块 Consistency Check v1：只读四 schema 扫描 + 受保护 Admin 入口（`7dac6ce`，CI `33106044634` / Docker `33106044677` 均 GREEN）
 ✅ Content Policy / Takedown v1：公开读取门控 + Administrator 命令审计 + 追加式决策历史（`34c5c71`，CI `33109068649` / Docker `33109068630` 均 GREEN）
 ✅ Source Health Operator Controls v1：来源能力查询 + Operator/Administrator 停用/恢复 + 命令审计（`49e0fc1`，CI `33110684551` / Docker `33110684410` 均 GREEN）
+✅ Operations/Repair Center Read Model v1：统一只读快照 + 独立查询 policy + 区块异常隔离（本轮提交待补）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -164,7 +174,7 @@ CI: GREEN (Run 32821162412)
 ### 4.3 API 安全与可观测性基线
 
 - `ApiRateLimitOptions` / `ApiRateLimitPolicies`：公共 API 与 Legado 独立 fixed-window 策略，匿名按连接层 IP、认证主体按 `sub` / `client_id` 短哈希分桶；未配置可信代理前不信任 `X-Forwarded-For`。
-- `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志，数据库触发器保证普通路径追加式写入。高风险命令的 before/after、查询授权和保留策略仍未完成。
+- `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志，数据库触发器保证普通路径追加式写入。Operations Center 已补齐粗粒度查询 policy；高风险命令的 before/after、资源级查询授权和保留策略仍未完成。
 - `SsrfGuard` / `SsrfSafeHttpMessageHandler`：来源请求先做字面量与 DNS 全结果检查，再由连接回调直接连接同一批已校验地址；环境代理关闭，80/443 之外端口和超过 5 跳的自动重定向被拒绝。真实网络策略扫描和 live 来源证据仍未完成。
 - 自动化证据：新增安全测试使 Unit 达到 133/133；Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。API 本地烟测实际验证 `429` 与 `Retry-After: 60`；首次业务请求受本机 PostgreSQL 不可用影响返回 500。
 - 全量测试仍有 20 个 Testcontainers 用例因本机 Docker 不可用而 BLOCKED，1 个跳过；远端 CI `33057431574` 与 Docker `33057431610` 已 GREEN，具体以远端实际记录为准。
@@ -363,7 +373,7 @@ Phase 1A / 1B 外部验收：
 
 Phase 2 及以后：
 
-- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口和跨模块 Consistency Check v1 已完成，完整 Repair Center/公开修复中心、自动修复和更强运维治理仍待实现。
+- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1 和 Operations Center Read Model v1 已完成，Center UI、自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 

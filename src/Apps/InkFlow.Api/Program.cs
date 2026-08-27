@@ -69,6 +69,11 @@ builder.Services.AddAuthorization(options =>
             UserRole.Operator.ToString(),
             UserRole.Administrator.ToString()));
     options.AddPolicy(
+        IdentityPolicies.OperationsRead,
+        policy => policy.RequireRole(
+            UserRole.Operator.ToString(),
+            UserRole.Administrator.ToString()));
+    options.AddPolicy(
         IdentityPolicies.ContentModeration,
         policy => policy.RequireRole(UserRole.Administrator.ToString()));
     options.AddPolicy(
@@ -140,6 +145,7 @@ builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicyRea
     sp.GetRequiredService<InkFlow.Modules.Content.Application.ContentPolicyService>());
 builder.Services.AddScoped<IConsistencySnapshotReader, EfConsistencySnapshotReader>();
 builder.Services.AddScoped<IConsistencyCheckService, ConsistencyCheckService>();
+builder.Services.AddScoped<IOperationsCenterReader, OperationsCenterReader>();
 builder.Services.AddScoped<CatalogQueryService>();
 builder.Services.AddScoped<LegadoContractService>();
 
@@ -212,10 +218,10 @@ auth.MapPost("/logout", async (
 auth.MapGet("/me", (ClaimsPrincipal principal) =>
     AuthEndpointResults.Current(principal)).RequireAuthorization();
 
-var repair = api.MapGroup("/admin")
-    .RequireAuthorization(IdentityPolicies.CrawlerRepair);
+var operationsRead = api.MapGroup("/admin")
+    .RequireAuthorization(IdentityPolicies.OperationsRead);
 
-repair.MapGet("/crawler/dead-letters", async (
+operationsRead.MapGet("/crawler/dead-letters", async (
     int? limit,
     ICrawlerTaskRepository tasks,
     CancellationToken ct) =>
@@ -225,13 +231,27 @@ repair.MapGet("/crawler/dead-letters", async (
     return Results.Ok(deadLetters);
 });
 
-repair.MapGet("/consistency", async (
+operationsRead.MapGet("/consistency", async (
     IConsistencyCheckService consistency,
     CancellationToken ct) =>
 {
     var report = await consistency.CheckAsync(ct);
     return Results.Ok(report);
 });
+
+operationsRead.MapGet("/operations/overview", async (
+    int? limit,
+    IOperationsCenterReader operations,
+    CancellationToken ct) =>
+{
+    var snapshot = await operations.ReadAsync(
+        limit ?? OperationsCenterReader.DefaultLimit,
+        ct);
+    return Results.Ok(snapshot);
+});
+
+var repair = api.MapGroup("/admin")
+    .RequireAuthorization(IdentityPolicies.CrawlerRepair);
 
 repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (
     Guid deadLetterId,
@@ -273,10 +293,10 @@ repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (
         ct);
 });
 
-var sourceOperations = api.MapGroup("/admin/sources")
-    .RequireAuthorization(IdentityPolicies.SourceOperations);
+var sourceOperationsRead = api.MapGroup("/admin/sources")
+    .RequireAuthorization(IdentityPolicies.OperationsRead);
 
-sourceOperations.MapGet("/{sourceId}/health", async (
+sourceOperationsRead.MapGet("/{sourceId}/health", async (
     string sourceId,
     ISourceRepository sources,
     ISourceHealthOperations health,
@@ -295,6 +315,9 @@ sourceOperations.MapGet("/{sourceId}/health", async (
     var rows = await health.ListForSourceAsync(sourceId, ct).ConfigureAwait(false);
     return Results.Ok(rows.Select(SourceHealthEndpointResults.ToResponse));
 });
+
+var sourceOperations = api.MapGroup("/admin/sources")
+    .RequireAuthorization(IdentityPolicies.SourceOperations);
 
 sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/disable", async (
     string sourceId,

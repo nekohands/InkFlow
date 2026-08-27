@@ -405,6 +405,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 Release Build PASS（0 warnings / 0 errors）；Unit 221/221、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，新入口未认证返回 401；本机完整 Integration 45 项中 6 通过、1 跳过、38 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过。远端 CI `33110684551` GREEN（Unit 221、Integration 45 项 44 通过/1 跳过，含 Compose/Runtime smoke/Diagnostics），Docker `33110684410` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；管理员实际停用/恢复、告警路由、完整 Repair Center 和本机 Docker 集成复验继续列入待定/后续工程事项。
 
+**Operations/Repair Center Read Model v1（本轮，2026-08-28）**：
+
+- 缺口：死信、跨模块一致性和来源健康已有分散的受保护入口，但缺少一个可供运维首页消费的统一只读快照；查询授权也与修复命令共用策略，无法明确区分读权限和写权限。
+- 实现：新增 `IOperationsCenterReader` 深接口及 API 组合根实现；`GET /api/v1/admin/operations/overview` 聚合来源元数据/能力健康、有限死信列表和一致性报告。死信多取一条判断 `HasMore`，对外始终只返回有界数据。
+- 安全与韧性：新增 `OperationsRead` policy（`Operator` / `Administrator`），并将死信列表、一致性检查、Source Health 查询与 Operations overview 统一到该只读 policy；replay/disable/enable 保留独立命令 policy。读模型不暴露任务 Variables、CredentialReferenceId 或正文；来源健康、Crawler、Consistency 区块分别隔离异常，返回 `ready` / `partial` / `unavailable` 和稳定错误码，不泄漏基础设施异常。
+- 自动化证据：本机 Release Build PASS（0 warnings / 0 errors）；Unit 223/223、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Operations overview、Consistency、Source Health 查询均返回 401。MuMu/阅读 3.0 真机、真实来源和 Docker Testcontainers 集成仍按既定范围跳过/阻塞，未记为通过。
+- 边界：本轮只提供 API 读模型和授权 seam，不实现自动修复、Center UI、告警、备份治理或真实业务验收；人工 Operations Center 操作验收加入下方待定事项。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -529,6 +537,7 @@ Official Source
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：补充第二个真实 Official Source；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
+- [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、死信 `HasMore` 截断标记和区块部分失败状态；本轮只完成自动化基线。
 
 ### 6.2 需要可用环境复验
 
@@ -537,8 +546,8 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口与跨模块 Consistency Check v1 已落地，完整 Repair Center/自动修复与更强运维治理仍属于后续工程工作。
-- API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，但 Redis 分布式配额、查询/资源授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
+- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1 与 Operations Center Read Model v1 已落地，完整 Center UI、自动修复与更强运维治理仍属于后续工程工作。
+- API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；书架、阅读历史、导入/导出仍尚未进入产品实现阶段。
