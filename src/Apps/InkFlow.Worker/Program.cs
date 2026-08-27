@@ -9,6 +9,7 @@ using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Sources.Adapters.Kanunu8;
+using InkFlow.Sources.Adapters.SeventeenK;
 using InkFlow.Sources.Adapters.Seeding;
 using InkFlow.Modules.Sources.Infrastructure;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
@@ -70,6 +71,10 @@ builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient
 builder.Services.AddHttpClient<KanunuSourceAdapter>()
     .ConfigurePrimaryHttpMessageHandler(sp =>
         new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
+builder.Services.AddHttpClient<SeventeenKSourceAdapter>()
+    .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(20))
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
 builder.Services.AddScoped<ISelectorEvaluator, CssSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<SourceCatalogService>();
@@ -79,7 +84,10 @@ builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory
     sp.GetRequiredService<ISourceRepository>(),
     sp.GetRequiredService<RuleAdapter>(),
     sp.GetRequiredService<ISelectorEvaluator>(),
-    [sp.GetRequiredService<KanunuSourceAdapter>()]));
+    [
+        sp.GetRequiredService<KanunuSourceAdapter>(),
+        sp.GetRequiredService<SeventeenKSourceAdapter>(),
+    ]));
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
 builder.Services.AddScoped<ContentFetchChainService>();

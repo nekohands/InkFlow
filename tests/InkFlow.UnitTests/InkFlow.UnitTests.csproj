@@ -19,5 +19,6 @@
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Reading/InkFlow.Modules.Reading.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Legado/InkFlow.Modules.Legado.csproj" />
     <ProjectReference Include="../../src/Adapters/Kanunu8/InkFlow.Sources.Adapters.Kanunu8.csproj" />
+    <ProjectReference Include="../../src/Adapters/SeventeenK/InkFlow.Sources.Adapters.SeventeenK.csproj" />
   </ItemGroup>
 </Project>

@@ -571,6 +571,15 @@ Official Source
 
 结论：Phase 1B 已建立可回归的双来源自动化切源基线，尚未标记 Completed；真实故障切源和运行时/真机证据仍是 Release Gate。
 
+## 5.7 第三个 Official Source 接入（本轮，2026-08-28）
+
+- 缺口：1.0 要求至少 3 个稳定 Official Source；此前只有一个真实 CodeAdapter 和一个规则型来源，第三来源尚未进入宿主组合根。
+- 实现：新增 `InkFlow.Sources.Adapters.SeventeenK` 17K CodeAdapter，覆盖 Search、BookInfo、TOC、Content；外部书籍 ID 约束为纯数字，章节 ID 固定为 `bookId/chapterId`，避免把可变 URL 当业务主键。API、目录和正文使用固定 allowlist 主机，所有请求先经 `SsrfGuard`，生产宿主再经 `SsrfSafeHttpMessageHandler`，适配器超时 20 秒。
+- 访问边界：上游未购买 VIP 章节返回 null，不读取或执行订阅/自动购买地址；非 2xx、空响应和非法 JSON 不产生伪造内容。Worker 启动种子现在幂等登记 linovelib、kanunu8 和 17K 三个 Official Source，已有 Source 记录不会被覆盖。
+- Fixture 回归：新增 17K JSON Fixture 覆盖搜索结果去重、书籍/目录/正文解析、稳定章节 ID、非法 ID 零触网和未购买 VIP 不绕过；三宿主均注册同一 CodeAdapter，并继续复用连接级 SSRF 防护。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 258/258、Architecture 1/1、Contract 2/2 PASS。Integration 48 项实际运行结果为 6 通过、41 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过，不记为本机集成通过；未执行真实 17K/其他来源请求。
+- 验收边界：本轮只完成第三来源的代码/种子/Fixture 机制闭环，不能据此宣称 17K 已稳定实测或 1.0 完成；真实 Search → BookInfo → TOC → Content、付费/免费边界和多源故障切换继续列入第 6 节待定事项。
+
 ## 6. 待定事项（人工/真实环境，后续处理）
 
 > 以下事项本轮明确不执行，后续按清单逐项验收；自动化测试和 CI 绿灯不能替代这些证据。
@@ -582,7 +591,7 @@ Official Source
 - [ ] **Web Reader 人工体验验收**：在移动端、平板、桌面端、宽屏实际打开 `/reader` 三页面，检查正文宽度、长标题/长作者、Loading/Empty/Error、键盘焦点、触控目标、主题/字号/行高和上下章导航；自动化基线已完成，本轮未做浏览器截图/长时间阅读。
 - [ ] **Reader/PWA 用户状态人工验收**：在支持的浏览器中验证账户登录/注册、刷新后会话、书架加入/移除、历史、章节进度/偏好同步、401 刷新和登出；验证安装提示、Service Worker 注册与网络不可用时离线提示。本轮按用户决定不执行。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
-- [ ] **真实第二来源与故障切换**：补充第二个真实 Official Source；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
+- [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
 
@@ -590,6 +599,7 @@ Official Source
 
 - [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前因 `docker_engine` 不可用而 BLOCKED 的用例不记为通过。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
+- [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 

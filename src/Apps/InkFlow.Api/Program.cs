@@ -130,13 +130,20 @@ builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient
 builder.Services.AddHttpClient<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>()
     .ConfigurePrimaryHttpMessageHandler(sp =>
         new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
+builder.Services.AddHttpClient<InkFlow.Sources.Adapters.SeventeenK.SeventeenKSourceAdapter>()
+    .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(20))
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
 builder.Services.AddScoped<ISelectorEvaluator, CssSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
     sp.GetRequiredService<ISourceRepository>(),
     sp.GetRequiredService<RuleAdapter>(),
     sp.GetRequiredService<ISelectorEvaluator>(),
-    [sp.GetRequiredService<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>()]));
+    [
+        sp.GetRequiredService<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>(),
+        sp.GetRequiredService<InkFlow.Sources.Adapters.SeventeenK.SeventeenKSourceAdapter>(),
+    ]));
 builder.Services.AddScoped<SourceCatalogService>();
 builder.Services.AddScoped<CanonicalBookMatchingService>();
 builder.Services.AddScoped<BookDiscoveryService>();

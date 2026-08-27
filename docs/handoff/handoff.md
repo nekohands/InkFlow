@@ -168,15 +168,23 @@ CI: GREEN (Run 32821162412)
 - 自动化证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 254/254、Architecture 1/1、Contract 2/2 PASS。API 静态页面 200、/health 200、未认证 overview 401；全量 Integration 48 项为 6 通过、41 项因本机 Docker Engine 不可用而 BLOCKED、1 项跳过，不记为本机集成通过。提交 ed0ff8c 的远端 CI 33125476460 GREEN（Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker 33125476441 GREEN（四镜像）。
 - 边界：未执行 Operator/Administrator 实际浏览器操作、跨尺寸视觉/对比度/键盘截图和真实修复命令；自动修复、告警、备份治理、私人书库和真实来源验收仍未完成。
 
+### 4.24 第三个 Official Source：17K CodeAdapter（本轮，2026-08-28）
+
+- 缺口：1.0 要求至少 3 个稳定 Official Source；此前第三来源只有路线和候选，没有进入三个宿主的适配器工厂与 Source 种子。
+- 实现：新增 `SeventeenKSourceAdapter` 独立插件，基于 17K API/Web JSON 覆盖 Search、BookInfo、TOC、Content；固定 allowlist 主机并在请求前执行 `SsrfGuard`，三宿主均使用 `SsrfSafeHttpMessageHandler` 和 20 秒超时。书籍 ID 只接受纯数字，章节 ID 采用 `bookId/chapterId` 自包含格式。
+- 版权/访问边界：上游标记为未购买的 VIP 章节返回 null，不绕过登录、订阅或自动购买地址；非 2xx、空响应和非法 JSON 不伪造正文。Worker 启动种子幂等登记 linovelib、kanunu8、17K，已有 Source 不覆盖。
+- Fixture 回归：覆盖 Search 去重、书目/目录/正文解析、稳定章节 ID、非法 ID 零触网和 VIP 不绕过。自动化证据为本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 258/258、Architecture 1/1、Contract 2/2 PASS；Integration 48 项实际为 6 通过、41 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过。
+- 边界：本轮没有触发真实 17K 或其他来源网络请求，不能宣称 17K 已稳定实测，也不能关闭真实第二来源故障切换 Release Gate；真实链路和多源切换继续待后续人工/可用环境验收。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
 4. **Reader/PWA 用户状态人工验收**：在支持的浏览器中验证账户登录/注册、刷新后会话、书架加入/移除、历史、章节进度/偏好同步、401 刷新、登出、安装提示、Service Worker 注册与网络不可用时离线提示；本轮按用户决定不执行。
 5. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
-6. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
+6. **Phase 1B 真实切源验收**：从已接入来源中选择可稳定访问的真实第二 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
 7. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
 8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
-9. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、私人书库、Security/Operations 与商业化能力。
+9. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收，并继续推进私人书库、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -206,8 +214,10 @@ CI: GREEN (Run 32821162412)
 ✅ Web Reader v1：响应式书目/详情/章节页 + 主题/字号/行高本地设置 + 可访问章节导航（`a8d1c23`，CI `33120844695` / Docker `33120844685` 均 GREEN）
 ✅ Reader/PWA 用户状态 v1：账户/书架/历史/进度/偏好渐进增强 + 公开 PWA 壳（`b3561a2`，CI `33123325151` / Docker `33123325184` 均 GREEN）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
+✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Legado 真机导入/阅读（后续人工）
+→ 17K 真实 Search/BookInfo/TOC/Content 验收
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
 → 继续推进 1.0 Release Gates
@@ -324,9 +334,10 @@ CI: GREEN (Run 32821162412)
 - [ ] **Web Reader 人工 UX/视觉验收**：移动端、桌面端、宽屏、长标题/缺封面/长作者、加载/空/错、键盘焦点、触控和上下章导航。
 - [ ] **Reader/PWA 用户状态人工验收**：验证账户登录/注册、刷新会话、书架/历史/进度/偏好同步、登出、PWA 安装提示、Service Worker 注册和离线提示；本轮按用户决定跳过。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
-- [ ] **真实第二来源故障切换**：禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
+- [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [ ] **linovelib 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → Content，并把该来源纳入真实第二来源/故障切换演练；本轮仅完成离线规则回归，未触网。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 43 项中 36 项因 `docker_engine` 不可用而 BLOCKED，不记为通过。
+- [ ] **17K 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向；本轮仅完成 Fixture 回归，未触网。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 48 项中 41 项因 `docker_engine` 不可用而 BLOCKED，1 项跳过，不记为通过。
 
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
@@ -419,7 +430,7 @@ Phase 1A / 1B 外部验收：
 
 - 阅读 3.0 导入 `/legado/book-source.json`，Search → BookInfo → TOC → Content 真机验证（按用户决定后续人工执行）。
 - Scheduler/Worker 使用真实更新数据的追更验证。
-- 第二个真实 Official Source 与真实故障切源演练；当前只有确定性双来源夹具自动化证据。
+- 第二个真实 Official Source 与真实故障切源演练；当前只有确定性双来源夹具和 17K 离线 CodeAdapter 证据，不能替代真实来源验收。
 - linovelib 已完成 Search 规则的离线定义与回归，真实网络验证仍受 DNS 污染影响，待可用环境复验。
 - 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待本机可用容器环境复验；本轮一致性检查新增用例已在远端 CI PostgreSQL 容器中通过。
 

@@ -21,6 +21,8 @@ public sealed class KanunuSourceAdapter(
     IIpAddressResolver resolver) : ISourceAdapter
 {
     public const string SourceIdValue = "kanunu8";
+    public const string DisplayNameValue = "努努书坊(kanunu8)";
+    public const string BaseUrlValue = "https://www.kanunu8.com";
 
     private static readonly HtmlParserHolder ParserHolder = new();
     private static readonly Regex ChapterLinkPattern =
@@ -110,7 +112,7 @@ public sealed class KanunuSourceAdapter(
         return Gb18030.GetString(bytes);
     }
 
-    private const string BaseUrl = "https://www.kanunu8.com";
+    private const string BaseUrl = BaseUrlValue;
     private static readonly Encoding Gb18030 = SourceEncodings.Gb18030;
 
     private static System.Text.RegularExpressions.Regex NewRegex(string pattern) =>
