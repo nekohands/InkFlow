@@ -80,6 +80,8 @@ CI: GREEN (Run 32821162412)
 
 本轮补齐 linovelib 的 Search 种子规则：`POST /S6/` + `searchkey={key}` + 列表抽取，统一修正 `/novel/` 外部 ID 归一化，并修复中文表单占位符的重复编码；离线回归与远端 CI/Docker 已通过（提交 `52c36a4`，CI `33090147713`，Docker `33090147561`）。真实来源访问、阅读 3.0 真机流程和其他人工验收仍按第 4.2 节待定，不在本轮执行。
 
+随后补齐 Worker 失败观测基线：`CrawlerFailureObservation` 将失败原因归类为低基数 `FailureKind`，`CrawlerFailureReporter` 通过 `ICrawlerFailureSink` 向结构化日志和 OpenTelemetry counters 扇出；失败路径明确记录 retry/dead-letter/not-running disposition，sink 异常与任务状态隔离。远端 CI `33091872440`、Docker `33091872458` 均 GREEN；本机 Docker 集成仍因环境不可用 BLOCKED。外部告警路由、阈值治理与持久化运维闭环留待后续 Operations/Crawling 工作包。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
@@ -100,6 +102,7 @@ CI: GREEN (Run 32821162412)
 ✅ 主动巡检探针 + Reader 接入发现流（Progress 表对应记录）
 ✅ 冷却参数配置化：SourceHealth 配置节 → SourceHealthParameters，启动时装载（ADR 0005）
 ✅ linovelib Search 规则 + 中文表单编码/路径归一化离线回归（`33090147713` / `33090147561`）
+✅ Crawler 失败结构化日志 + OTel counters（`2747e2b`，`33091872440` / `33091872458`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -294,7 +297,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；跨源一致性和更强的 Repair/Replay 仍待实现。
-- 第三个稳定 Official Source、监控告警、备份恢复、安全扫描；限流已形成单实例基线，Redis 分布式配额、认证/授权和持久化审计仍待实现。
+- Crawler 失败结构化日志与 OpenTelemetry counters 已完成基线；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和持久化审计仍待实现。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。

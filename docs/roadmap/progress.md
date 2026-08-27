@@ -334,6 +334,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 Unit 183/183、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；本机 Integration 36 中 29 项因 `docker_engine` 不可用而 BLOCKED、6 通过、1 跳过；Worker `/health` 本地返回 200（数据库链路因本机无 PostgreSQL 未执行）。候选提交 `52c36a4` 的 CI `33090147713` **GREEN**（Unit 183、Integration 35 通过 + 1 live 跳过、Compose 与 Runtime smoke 全通过），Docker `33090147561` **GREEN**（四镜像）。
 - 本轮不含：linovelib 真实网络/搜索/BookInfo/TOC/Content 验证、阅读 3.0 真机导入、Web Reader 人工体验、真实追更与真实第二来源故障切换。
 
+**Crawler 失败观测基线（本轮，2026-08-28）**：
+
+- 缺口：Worker 任务失败此前只有进程级文本输出，无法按能力、失败类型和处理结果稳定聚合，也没有统一的告警入口。
+- 实现：Observability BuildingBlock 新增 `CrawlerFailureObservation`、`CrawlerFailureReporter` 和 `ICrawlerFailureSink` seam；Worker 失败路径统一上报 `retry`、`dead_letter`、`not_running`。结构化日志使用 EventId `2201`；OpenTelemetry 新增 `inkflow.crawler.task.failures` 与 `inkflow.crawler.task.dead_letters` counters，仅使用低基数标签，原始失败原因不进入日志/指标标签。
+- 可靠性：日志和指标 sink 逐个隔离，sink 自身异常不会改变原有重试、死信和持久化状态；死信现有原始 reason 持久化语义保持不变。本轮无 Schema、Migration 或公共 API Contract 变更。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 186/186、Architecture 1/1、Contract 1/1 PASS；本机 Integration 36 中 29 项因 `docker_engine` 不可用而 BLOCKED、6 通过、1 跳过；Worker `/health` 本地 200。远端 CI `33091872440` GREEN（Unit 186、Architecture 1、Contract 1、Integration 35 通过 + 1 跳过，含 Compose/Runtime smoke）；Docker `33091872458` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
+- 提交：`2747e2b`。本轮不含外部告警路由/阈值治理、死信人工重放与敏感信息清洗重设计，也不执行阅读 3.0 真机、真实来源和真实追更验收。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -467,7 +475,7 @@ Official Source
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
-- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度和单任务异常重试基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包），可观测告警仍待后续 Operations/Crawling 工作包。
+- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 
