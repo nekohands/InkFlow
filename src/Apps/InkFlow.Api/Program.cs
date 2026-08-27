@@ -1,6 +1,7 @@
 // Public Content API:目录/内容端点只读(数据来自已落库正典数据),
 // /search 端点是唯一的写侧入口——触发来源发现(幂等导入+匹配),随后仍从落库数据返回。
 using System.Security.Claims;
+using System.Text.Json;
 using InkFlow.Api;
 using InkFlow.BuildingBlocks.Application;
 using InkFlow.BuildingBlocks.Observability;
@@ -52,17 +53,21 @@ builder.Services.AddScoped<IAuditEventSink, CompositeAuditEventSink>();
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<IIdentitySessionRepository, EfIdentitySessionRepository>();
+builder.Services.AddScoped<ILegadoAccessTokenRepository, EfLegadoAccessTokenRepository>();
 builder.Services.AddSingleton(IdentityOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IOpaqueTokenGenerator, SecureOpaqueTokenGenerator>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddScoped<ILegadoAccessTokenService, LegadoAccessTokenService>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = IdentityAuthenticationDefaults.Scheme;
         options.DefaultChallengeScheme = IdentityAuthenticationDefaults.Scheme;
     })
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
-        OpaqueBearerAuthenticationHandler>(IdentityAuthenticationDefaults.Scheme, _ => { });
+        OpaqueBearerAuthenticationHandler>(IdentityAuthenticationDefaults.Scheme, _ => { })
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+        LegadoTokenAuthenticationHandler>(IdentityAuthenticationDefaults.LegadoScheme, _ => { });
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(
@@ -83,6 +88,12 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole(
             UserRole.Operator.ToString(),
             UserRole.Administrator.ToString()));
+    options.AddPolicy(
+        IdentityPolicies.LegadoRead,
+        policy => policy
+            .AddAuthenticationSchemes(IdentityAuthenticationDefaults.LegadoScheme)
+            .RequireAuthenticatedUser()
+            .RequireClaim(IdentityAuthenticationDefaults.LegadoScopeClaim, "read"));
 });
 
 builder.Services.AddScoped<EfCrawlerTaskRepository>();
@@ -223,6 +234,88 @@ auth.MapPost("/logout", async (
 
 auth.MapGet("/me", (ClaimsPrincipal principal) =>
     AuthEndpointResults.Current(principal)).RequireAuthorization();
+
+// ---- Personal Legado Token 管理(使用 Web Access Token,令牌只签发一次)----
+
+var personalLegadoTokens = api.MapGroup("/me/legado")
+    .RequireAuthorization();
+
+personalLegadoTokens.MapPost("/tokens", async (
+    CreateLegadoTokenRequest? request,
+    ClaimsPrincipal principal,
+    ILegadoAccessTokenService tokens,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!LegadoTokenEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var result = await tokens.IssueAsync(userId, request?.Name, ct).ConfigureAwait(false);
+    if (!result.IsSuccess || result.Issue is null)
+    {
+        return LegadoTokenEndpointResults.FromIssueFailure(result.Status);
+    }
+
+    var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+    using var document = JsonDocument.Parse(
+        LegadoBookSourceManifest.Generate(baseUrl, result.Issue.RawToken));
+    var response = LegadoTokenEndpointResults.ToIssueResponse(
+        result.Issue,
+        document.RootElement.Clone());
+    return LegadoTokenEndpointResults.Issue(
+        response,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
+personalLegadoTokens.MapGet("/tokens", async (
+    ClaimsPrincipal principal,
+    ILegadoAccessTokenService tokens,
+    CancellationToken ct) =>
+{
+    if (!LegadoTokenEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var values = await tokens.ListAsync(userId, ct).ConfigureAwait(false);
+    return Results.Ok(values.Select(LegadoTokenEndpointResults.ToResponse));
+});
+
+personalLegadoTokens.MapDelete("/tokens/{tokenId:guid}", async (
+    Guid tokenId,
+    ClaimsPrincipal principal,
+    ILegadoAccessTokenService tokens,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!LegadoTokenEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var status = await tokens.RevokeAsync(userId, tokenId, ct).ConfigureAwait(false);
+    if (status != LegadoTokenResultStatus.Success)
+    {
+        return LegadoTokenEndpointResults.FromRevokeStatus(status);
+    }
+
+    return LegadoTokenEndpointResults.Revoke(
+        tokenId,
+        principal,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
 
 // ---- 用户阅读状态(用户数据严格按认证主体隔离)----
 
@@ -735,6 +828,58 @@ legado.MapGet("/chapters/{chapterId:guid}",
     async (Guid chapterId, LegadoContractService legadoService, CancellationToken ct) =>
 {
     var content = await legadoService.GetChapterContentAsync(chapterId, ct);
+    return content is null ? Results.NotFound() : Results.Json(content);
+});
+
+// ---- Personal Legado v1 契约(通过 X-InkFlow-Legado-Token 认证)----
+
+var personalLegado = app.MapGroup(LegadoRoutePrefixes.Personal)
+    .RequireRateLimiting(ApiRateLimitPolicies.LegadoPolicyName)
+    .RequireAuthorization(IdentityPolicies.LegadoRead);
+
+personalLegado.MapGet("/search", async (
+    string q,
+    BookDiscoveryService discovery,
+    LegadoContractService legadoService,
+    CancellationToken ct) =>
+{
+    await discovery.DiscoverAsync(q ?? string.Empty, ct);
+    var results = await legadoService
+        .SearchAsync(q ?? string.Empty, LegadoRoutePrefixes.Personal, ct)
+        .ConfigureAwait(false);
+    return Results.Json(new { data = results });
+});
+
+personalLegado.MapGet("/books/{bookId:guid}", async (
+    Guid bookId,
+    LegadoContractService legadoService,
+    CancellationToken ct) =>
+{
+    var book = await legadoService
+        .GetBookAsync(bookId, LegadoRoutePrefixes.Personal, ct)
+        .ConfigureAwait(false);
+    return book is null ? Results.NotFound() : Results.Json(book);
+});
+
+personalLegado.MapGet("/books/{bookId:guid}/chapters", async (
+    Guid bookId,
+    LegadoContractService legadoService,
+    CancellationToken ct) =>
+{
+    var toc = await legadoService
+        .GetTocAsync(bookId, LegadoRoutePrefixes.Personal, ct)
+        .ConfigureAwait(false);
+    return toc is null ? Results.NotFound() : Results.Json(new { data = toc });
+});
+
+personalLegado.MapGet("/chapters/{chapterId:guid}", async (
+    Guid chapterId,
+    LegadoContractService legadoService,
+    CancellationToken ct) =>
+{
+    var content = await legadoService
+        .GetChapterContentAsync(chapterId, LegadoRoutePrefixes.Personal, ct)
+        .ConfigureAwait(false);
     return content is null ? Results.NotFound() : Results.Json(content);
 });
 

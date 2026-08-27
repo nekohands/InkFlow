@@ -47,7 +47,7 @@ public sealed class IdentityPersistenceTests
             .ToListAsync()
             .ConfigureAwait(false);
         CollectionAssert.AreEquivalent(
-            new[] { "users", "sessions", "access_tokens" },
+            new[] { "users", "sessions", "access_tokens", "legado_tokens" },
             tables.ToList());
     }
 
@@ -57,6 +57,7 @@ public sealed class IdentityPersistenceTests
         await using var db = CreateDb();
         var users = new EfUserRepository(db);
         var sessions = new EfIdentitySessionRepository(db);
+        var legadoTokens = new EfLegadoAccessTokenRepository(db);
         var user = User.Create("reader@example.com", "$hash$only", T0);
         await users.AddAsync(user).ConfigureAwait(false);
 
@@ -75,12 +76,26 @@ public sealed class IdentityPersistenceTests
             T0.AddMinutes(15));
         await sessions.AddSessionAsync(session, access).ConfigureAwait(false);
 
+        const string rawLegado = "lf_lgd_personal-token-only-in-memory";
+        var legado = LegadoAccessToken.Create(
+            user.Id,
+            "Reading 3.0",
+            "lf_lgd_person",
+            OpaqueTokenHashing.Hash(rawLegado),
+            LegadoTokenScope.Read,
+            T0,
+            T0.AddDays(90));
+        await legadoTokens.AddAsync(legado).ConfigureAwait(false);
+
         var loadedUser = await users.FindByNormalizedEmailAsync("reader@example.com").ConfigureAwait(false);
         var loadedSession = await sessions
             .FindRefreshSessionAsync(OpaqueTokenHashing.Hash(rawRefresh))
             .ConfigureAwait(false);
         var loadedAccess = await sessions
             .FindAccessTokenAsync(OpaqueTokenHashing.Hash(rawAccess))
+            .ConfigureAwait(false);
+        var loadedLegado = await legadoTokens
+            .FindByHashAsync(OpaqueTokenHashing.Hash(rawLegado))
             .ConfigureAwait(false);
 
         Assert.IsNotNull(loadedUser);
@@ -91,6 +106,20 @@ public sealed class IdentityPersistenceTests
         Assert.AreNotEqual(rawAccess, loadedAccess!.TokenHash);
         Assert.AreEqual(user.Id, loadedAccess.UserId);
         Assert.AreEqual(session.Id, loadedAccess.SessionId);
+        Assert.IsNotNull(loadedLegado);
+        Assert.AreNotEqual(rawLegado, loadedLegado!.TokenHash);
+        Assert.AreEqual(LegadoTokenScope.Read, loadedLegado.Scope);
+
+        var listed = await legadoTokens.ListForUserAsync(user.Id).ConfigureAwait(false);
+        Assert.AreEqual(1, listed.Count);
+        Assert.AreEqual(legado.Id, listed[0].Id);
+
+        Assert.IsTrue(await legadoTokens
+            .RevokeAsync(user.Id, legado.Id, T0.AddMinutes(1))
+            .ConfigureAwait(false));
+        Assert.IsNotNull((await legadoTokens
+            .FindByHashAsync(OpaqueTokenHashing.Hash(rawLegado))
+            .ConfigureAwait(false))!.RevokedAt);
     }
 
     [TestMethod]

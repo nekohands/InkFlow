@@ -38,3 +38,16 @@ public sealed class AccessTokenEntity
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
 }
+
+public sealed class LegadoAccessTokenEntity
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string Name { get; set; } = null!;
+    public string Prefix { get; set; } = null!;
+    public string TokenHash { get; set; } = null!;
+    public int Scope { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}

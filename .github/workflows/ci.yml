@@ -86,6 +86,33 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"fontSizePercent":110,"theme":"Sepia"}' \
             http://localhost:8080/api/v1/me/reading/preferences | jq -e '.theme == "Sepia" and .fontSizePercent == 110'
+          legado_issue=$(curl --fail --silent --request POST \
+            -H "Authorization: Bearer $rotated_access_token" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI Reading 3.0"}' \
+            http://localhost:8080/api/v1/me/legado/tokens)
+          legado_token=$(printf '%s' "$legado_issue" | jq -er '.token')
+          legado_token_id=$(printf '%s' "$legado_issue" | jq -er '.id')
+          test -n "$legado_token"
+          test -n "$legado_token_id"
+          printf '%s' "$legado_issue" | jq -e '.bookSource.header != null and (.bookSource.searchUrl | contains("/api/legado/v1/personal/search"))'
+          printf '%s' "$legado_issue" | jq -e --arg token "$legado_token" '.bookSource.header | fromjson | .["X-InkFlow-Legado-Token"] == $token'
+          personal_search_status=$(curl --silent --output /tmp/personal-legado-search.json --write-out '%{http_code}' \
+            -H "X-InkFlow-Legado-Token: $legado_token" \
+            'http://localhost:8080/api/legado/v1/personal/search?q=')
+          test "$personal_search_status" = "200"
+          jq -e '.data | type == "array"' /tmp/personal-legado-search.json
+          curl --fail --silent \
+            -H "Authorization: Bearer $rotated_access_token" \
+            http://localhost:8080/api/v1/me/legado/tokens | \
+            jq -e --arg token_id "$legado_token_id" 'map(select(.id == $token_id)) | length == 1 and (.[0] | has("token") | not)'
+          curl --fail --silent --request DELETE \
+            -H "Authorization: Bearer $rotated_access_token" \
+            "http://localhost:8080/api/v1/me/legado/tokens/$legado_token_id"
+          revoked_legado_status=$(curl --silent --output /tmp/personal-legado-revoked.json --write-out '%{http_code}' \
+            -H "X-InkFlow-Legado-Token: $legado_token" \
+            'http://localhost:8080/api/legado/v1/personal/search?q=')
+          test "$revoked_legado_status" = "401"
           curl --fail --silent --request POST \
             -H "Authorization: Bearer $rotated_access_token" \
             http://localhost:8080/api/v1/auth/logout

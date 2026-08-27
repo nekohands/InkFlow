@@ -70,6 +70,31 @@ public static class IdentityMapper
             entity.CreatedAt,
             entity.ExpiresAt,
             entity.RevokedAt);
+
+    public static LegadoAccessTokenEntity ToEntity(LegadoAccessToken token) => new()
+    {
+        Id = token.Id,
+        UserId = token.UserId,
+        Name = token.Name,
+        Prefix = token.Prefix,
+        TokenHash = token.TokenHash,
+        Scope = (int)token.Scope,
+        CreatedAt = token.CreatedAt,
+        ExpiresAt = token.ExpiresAt,
+        RevokedAt = token.RevokedAt,
+    };
+
+    public static LegadoAccessToken ToDomain(LegadoAccessTokenEntity entity) =>
+        LegadoAccessToken.Rehydrate(
+            entity.Id,
+            entity.UserId,
+            entity.Name,
+            entity.Prefix,
+            entity.TokenHash,
+            (LegadoTokenScope)entity.Scope,
+            entity.CreatedAt,
+            entity.ExpiresAt,
+            entity.RevokedAt);
 }
 
 public sealed class EfUserRepository(IdentityDbContext db) : IUserRepository
@@ -219,5 +244,62 @@ public sealed class EfIdentitySessionRepository(IdentityDbContext db) : IIdentit
         }
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+}
+
+public sealed class EfLegadoAccessTokenRepository(IdentityDbContext db)
+    : ILegadoAccessTokenRepository
+{
+    public async Task AddAsync(
+        LegadoAccessToken token,
+        CancellationToken cancellationToken = default)
+    {
+        db.LegadoTokens.Add(IdentityMapper.ToEntity(token));
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<LegadoAccessToken?> FindByHashAsync(
+        string tokenHash,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.LegadoTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken)
+            .ConfigureAwait(false);
+        return entity is null ? null : IdentityMapper.ToDomain(entity);
+    }
+
+    public async Task<IReadOnlyList<LegadoAccessToken>> ListForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.LegadoTokens
+            .AsNoTracking()
+            .Where(token => token.UserId == userId)
+            .OrderByDescending(token => token.CreatedAt)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return entities.Select(IdentityMapper.ToDomain).ToList();
+    }
+
+    public async Task<bool> RevokeAsync(
+        Guid userId,
+        Guid tokenId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.LegadoTokens
+            .SingleOrDefaultAsync(
+                token => token.Id == tokenId && token.UserId == userId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        entity.RevokedAt ??= now;
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
     }
 }

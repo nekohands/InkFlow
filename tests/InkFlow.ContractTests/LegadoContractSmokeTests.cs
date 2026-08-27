@@ -1,3 +1,5 @@
+using System.Text.Json;
+using InkFlow.Modules.Legado.Application;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace InkFlow.ContractTests;
@@ -14,5 +16,24 @@ public sealed class LegadoContractSmokeTests
     {
         var loaded = System.Reflection.Assembly.Load("InkFlow.Modules.Legado");
         Assert.IsFalse(loaded.IsDynamic);
+    }
+
+    [TestMethod]
+    public void Personal_Book_Source_Manifest_Uses_Header_Authentication()
+    {
+        const string rawToken = "lf_lgd_contract-token";
+        using var document = JsonDocument.Parse(
+            LegadoBookSourceManifest.Generate("https://inkflow.example.com", rawToken));
+
+        var root = document.RootElement;
+        Assert.AreEqual(
+            "https://inkflow.example.com/api/legado/v1/personal/search?q={{key}}",
+            root.GetProperty("searchUrl").GetString());
+        Assert.IsFalse(root.GetProperty("searchUrl").GetString()!.Contains(rawToken, StringComparison.Ordinal));
+
+        using var header = JsonDocument.Parse(root.GetProperty("header").GetString()!);
+        Assert.AreEqual(
+            rawToken,
+            header.RootElement.GetProperty(LegadoBookSourceManifest.PersonalTokenHeader).GetString());
     }
 }

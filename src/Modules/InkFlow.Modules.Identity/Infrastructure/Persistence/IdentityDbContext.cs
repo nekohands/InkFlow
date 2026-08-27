@@ -10,6 +10,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<RefreshSessionEntity> Sessions => Set<RefreshSessionEntity>();
     public DbSet<AccessTokenEntity> AccessTokens => Set<AccessTokenEntity>();
+    public DbSet<LegadoAccessTokenEntity> LegadoTokens => Set<LegadoAccessTokenEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +55,23 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             b.HasOne<RefreshSessionEntity>()
                 .WithMany()
                 .HasForeignKey(token => token.SessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LegadoAccessTokenEntity>(b =>
+        {
+            b.ToTable("legado_tokens");
+            b.HasKey(token => token.Id);
+            b.Property(token => token.Name).HasMaxLength(64).IsRequired();
+            b.Property(token => token.Prefix).HasMaxLength(32).IsRequired();
+            b.Property(token => token.TokenHash).HasMaxLength(128).IsRequired();
+            b.Property(token => token.Scope).IsRequired();
+            b.HasIndex(token => token.TokenHash).IsUnique();
+            b.HasIndex(token => new { token.UserId, token.CreatedAt });
+            b.HasIndex(token => new { token.UserId, token.ExpiresAt });
+            b.HasOne<UserEntity>()
+                .WithMany()
+                .HasForeignKey(token => token.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -182,6 +182,36 @@ public sealed class LegadoContractServiceTests
     }
 
     [TestMethod]
+    public async Task Personal_Route_Prefix_Is_Used_For_All_Legado_Links()
+    {
+        var (catalog, _) = BuildCatalog();
+        var service = new LegadoContractService(catalog);
+
+        var result = (await service
+            .SearchAsync("", LegadoRoutePrefixes.Personal))
+            .Single();
+        Assert.IsTrue(result.DetailUrl.StartsWith(
+            "/api/legado/v1/personal/books/",
+            StringComparison.Ordinal));
+
+        var info = await service.GetBookAsync(
+            result.BookId,
+            LegadoRoutePrefixes.Personal);
+        Assert.IsNotNull(info);
+        Assert.IsTrue(info!.TocUrl.StartsWith(
+            "/api/legado/v1/personal/books/",
+            StringComparison.Ordinal));
+
+        var toc = await service.GetTocAsync(
+            result.BookId,
+            LegadoRoutePrefixes.Personal);
+        Assert.IsNotNull(toc);
+        Assert.IsTrue(toc![0].ChapterUrl.StartsWith(
+            "/api/legado/v1/personal/chapters/",
+            StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void Manifest_Generates_Valid_Legado_Book_Source()
     {
         var json = LegadoBookSourceManifest.Generate("https://inkflow.example.com");
@@ -201,5 +231,40 @@ public sealed class LegadoContractServiceTests
     {
         Assert.ThrowsExactly<ArgumentException>(
             () => LegadoBookSourceManifest.Generate("ftp://bad.example.com"));
+    }
+
+    [TestMethod]
+    public void Personal_Manifest_Puts_Token_In_Header_And_Not_In_Urls()
+    {
+        const string rawToken = "lf_lgd_secret-token";
+        var json = LegadoBookSourceManifest.Generate(
+            "https://inkflow.example.com",
+            rawToken);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        Assert.AreEqual("InkFlow / 墨流（个人）", root.GetProperty("bookSourceName").GetString());
+        Assert.AreEqual("https://inkflow.example.com/personal", root.GetProperty("bookSourceUrl").GetString());
+
+        var headerJson = root.GetProperty("header").GetString();
+        using var header = JsonDocument.Parse(headerJson!);
+        Assert.AreEqual(
+            rawToken,
+            header.RootElement.GetProperty(LegadoBookSourceManifest.PersonalTokenHeader).GetString());
+
+        var searchUrl = root.GetProperty("searchUrl").GetString()!;
+        Assert.IsTrue(searchUrl.StartsWith(
+            "https://inkflow.example.com/api/legado/v1/personal/search",
+            StringComparison.Ordinal));
+        Assert.IsFalse(searchUrl.Contains(rawToken, StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void Public_Manifest_Does_Not_Contain_Personal_Header()
+    {
+        using var doc = JsonDocument.Parse(
+            LegadoBookSourceManifest.Generate("https://inkflow.example.com"));
+
+        Assert.IsFalse(doc.RootElement.TryGetProperty("header", out _));
     }
 }
