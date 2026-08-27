@@ -1,6 +1,7 @@
 // Public Content API:目录/内容端点只读(数据来自已落库正典数据),
 // /search 端点是唯一的写侧入口——触发来源发现(幂等导入+匹配),随后仍从落库数据返回。
 using InkFlow.Api;
+using InkFlow.BuildingBlocks.Application;
 using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
@@ -39,6 +40,9 @@ builder.Services.AddScoped<ISourceRepository, InkFlow.Modules.Sources.Infrastruc
 builder.Services.AddScoped<ISourceBookRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceBookRepository>();
 builder.Services.AddScoped<ISourceHealthRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceHealthRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
+var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
+builder.Services.AddSingleton(sourceHealthOptions);
+SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
 builder.Services.AddScoped<SourceHealthService>();
 builder.Services.AddScoped<ISourceHealthReader>(sp => sp.GetRequiredService<SourceHealthService>());
 

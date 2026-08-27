@@ -5,6 +5,7 @@ using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
+using InkFlow.BuildingBlocks.Application;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.BuildingBlocks.Observability;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,8 @@ var connectionString =
 builder.Services.AddDbContext<SourcesDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<CrawlingDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddSingleton(TimeProvider.System);
+var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
+SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
 builder.Services.AddScoped<ICrawlerTaskRepository, EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ISourceBookRepository, EfSourceBookRepository>();
 builder.Services.AddScoped<ISourceHealthRepository, EfSourceHealthRepository>();

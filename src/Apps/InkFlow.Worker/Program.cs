@@ -14,6 +14,7 @@ using InkFlow.Modules.Sources.Infrastructure;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
+using InkFlow.BuildingBlocks.Application;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.BuildingBlocks.Observability;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +36,8 @@ builder.Services.AddDbContext<LibraryDbContext>(o => o.UseNpgsql(connectionStrin
 builder.Services.AddDbContext<ContentDbContext>(o => o.UseNpgsql(connectionString));
 
 builder.Services.AddSingleton(TimeProvider.System);
+var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
+SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
 builder.Services.AddScoped<ICrawlerTaskRepository, EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ISourceRepository, EfSourceRepository>();

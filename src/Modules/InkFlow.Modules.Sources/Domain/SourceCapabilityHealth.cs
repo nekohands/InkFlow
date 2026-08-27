@@ -10,34 +10,95 @@ public enum SourceHealthStatus
 }
 
 /// <summary>
-/// 来源健康策略 v1：健康按能力独立记录；连续三次运行失败后才进入 Unhealthy，
+/// 来源健康策略的运行时参数快照。v1 的曲线常量来自编译期 const；
+/// 引入本 record 后，宿主可在启动时经 <see cref="SourceHealthPolicy.Configure"/>
+/// 装载运营配置（冷却曲线等），持久化状态与算法版本不变。
+/// </summary>
+/// <param name="UnhealthyAfterConsecutiveFailures">连续失败多少次进入 Unhealthy。</param>
+/// <param name="ProbeCooldownBaseMinutes">首次 Unhealthy 的基础冷却（分钟）。</param>
+/// <param name="ProbeCooldownMaxMinutes">探针冷却上限（分钟）。</param>
+public sealed record SourceHealthParameters(
+    int UnhealthyAfterConsecutiveFailures,
+    int ProbeCooldownBaseMinutes,
+    int ProbeCooldownMaxMinutes)
+{
+    /// <summary>
+    /// v1 编译期默认。必须引用常量而非 SourceHealthPolicy 的可变静态属性：
+    /// 否则首次访问发生在 Configure 之后时会捕获运行时快照，
+    /// 使「传 null 恢复默认」的语义失效。
+    /// </summary>
+    public static readonly SourceHealthParameters Default = new(
+        SourceHealthPolicy.V1UnhealthyAfterConsecutiveFailures,
+        SourceHealthPolicy.V1ProbeCooldownBaseMinutes,
+        SourceHealthPolicy.V1ProbeCooldownMaxMinutes);
+
+    private const int DoublingLimit = 10;
+
+    /// <summary>
+    /// 指数退避冷却：基础时长起步，每超出阈值的失败深度翻倍，封顶上限。
+    /// 曲线的唯一实现——静态策略只是当前装载参数的只读视图。
+    /// </summary>
+    public TimeSpan ProbeCooldown(int consecutiveFailures)
+    {
+        var extra = Math.Max(0, consecutiveFailures - UnhealthyAfterConsecutiveFailures);
+        var minutes = (long)ProbeCooldownBaseMinutes << Math.Min(extra, DoublingLimit);
+        return TimeSpan.FromMinutes(Math.Min(minutes, ProbeCooldownMaxMinutes));
+    }
+}
+
+/// <summary>
+/// 来源健康策略 v1：健康按能力独立记录；连续失败达到阈值后才进入 Unhealthy，
 /// 避免一次短暂网络抖动就让来源退出候选。算法版本随持久化状态保存。
 ///
 /// 自适应恢复：Unhealthy 不是终态——冷却期满后允许下一次真实抓取充当探针
 /// （半开语义），成功即回 Healthy，失败则按失败深度指数延长下一次冷却。
 /// 冷却时长由连续失败次数推导，无需额外持久化字段。
+///
+/// 曲线常量支持运行时覆盖：<see cref="Configure"/> 在组合根装载
+/// <see cref="SourceHealthParameters"/>；未配置时全部入口回落 v1 默认值，
+/// 既有持久化数据与测试断言不受影响。
 /// </summary>
 public static class SourceHealthPolicy
 {
     public const string AlgorithmVersion = "source-health-v1";
-    public const int UnhealthyAfterConsecutiveFailures = 3;
+
+    // v1 编译期默认;静态属性初始值与 SourceHealthParameters.Default 均由此派生。
+    internal const int V1UnhealthyAfterConsecutiveFailures = 3;
+    internal const int V1ProbeCooldownBaseMinutes = 30;
+    internal const int V1ProbeCooldownMaxMinutes = 24 * 60;
+
     public const int MaxFailureReasonLength = 1024;
 
-    /// <summary>首次进入 Unhealthy 后的基础冷却期。</summary>
-    public const int ProbeCooldownBaseMinutes = 30;
+    /// <summary>
+    /// 当前装载的参数快照（未配置时即 v1 默认）。曲线算法的唯一实现
+    /// 在 <see cref="SourceHealthParameters.ProbeCooldown"/>；静态入口
+    /// 只是该快照的只读视图。
+    /// </summary>
+    public static SourceHealthParameters Parameters { get; private set; } =
+        SourceHealthParameters.Default;
 
-    /// <summary>探针冷却上限:持续失败的来源最多每天被重试一次。</summary>
-    public const int ProbeCooldownMaxMinutes = 24 * 60;
-
-    private const int ProbeCooldownDoublingLimit = 10;
-
-    /// <summary>Unhealthy 来源的探针冷却期:30 分钟起步,每多一次失败翻倍,封顶一天。</summary>
-    public static TimeSpan ProbeCooldown(int consecutiveFailures)
+    /// <summary>
+    /// 组合根在宿主启动时装载运营参数；此后所有冷却/阈值读取走配置值。
+    /// 传 null 显式恢复 v1 默认。
+    /// </summary>
+    public static void Configure(SourceHealthParameters? parameters)
     {
-        var extra = Math.Max(0, consecutiveFailures - UnhealthyAfterConsecutiveFailures);
-        var minutes = (long)ProbeCooldownBaseMinutes << Math.Min(extra, ProbeCooldownDoublingLimit);
-        return TimeSpan.FromMinutes(Math.Min(minutes, ProbeCooldownMaxMinutes));
+        Parameters = parameters ?? SourceHealthParameters.Default;
     }
+
+    /// <summary>v1 默认阈值；运行时经 <see cref="Configure"/> 覆盖后随之变化。</summary>
+    public static int UnhealthyAfterConsecutiveFailures =>
+        Parameters.UnhealthyAfterConsecutiveFailures;
+
+    /// <summary>v1 默认基础冷却；运行时经 <see cref="Configure"/> 覆盖后随之变化。</summary>
+    public static int ProbeCooldownBaseMinutes => Parameters.ProbeCooldownBaseMinutes;
+
+    /// <summary>v1 默认冷却上限；运行时经 <see cref="Configure"/> 覆盖后随之变化。</summary>
+    public static int ProbeCooldownMaxMinutes => Parameters.ProbeCooldownMaxMinutes;
+
+    /// <summary>Unhealthy 来源的探针冷却期:基础时长起步,每多一次失败翻倍,封顶上限。</summary>
+    public static TimeSpan ProbeCooldown(int consecutiveFailures) =>
+        Parameters.ProbeCooldown(consecutiveFailures);
 
     /// <summary>冷却是否已过:以最后一次状态变化时间为基准,含边界时刻判定为到期。</summary>
     public static bool IsProbeDue(
