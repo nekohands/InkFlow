@@ -342,6 +342,15 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 186/186、Architecture 1/1、Contract 1/1 PASS；本机 Integration 36 中 29 项因 `docker_engine` 不可用而 BLOCKED、6 通过、1 跳过；Worker `/health` 本地 200。远端 CI `33091872440` GREEN（Unit 186、Architecture 1、Contract 1、Integration 35 通过 + 1 跳过，含 Compose/Runtime smoke）；Docker `33091872458` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 提交：`2747e2b`。本轮不含外部告警路由/阈值治理、死信人工重放与敏感信息清洗重设计，也不执行阅读 3.0 真机、真实来源和真实追更验收。
 
+**Crawler 死信受控重放（本轮，2026-08-28）**：
+
+- 缺口：死信此前只能停留在记录层，无法通过受控修复流程恢复执行；按架构约定不得把手工 SQL 作为正常修复路径。
+- 实现：新增 `DeadLetterReplayCommand` / `DeadLetterReplayResult` 与 `ICrawlerTaskRepairRepository` seam；PostgreSQL 适配器在同一事务中锁定死信和原任务，创建全新的 `Pending` 重放任务，保留原死信失败事实，并追加 `ReplayTaskId`、`ReplayedAt`、`ReplayRequestedBy`、`ReplayReason` 修复轨迹。官方 Migration `AddDeadLetterReplay` 已生成并接入。
+- 并发与幂等：重复请求返回同一重放任务；并发请求最多创建一个新任务；原死信仍保持 `DeadLettered`，已解决的原死信不再永久阻止后续同变量任务。Worker DI 已同时暴露任务仓储与修复 seam 的同一 scoped 实现。
+- 边界：本轮提供 Application seam、EF 持久化与回归测试，不新增公开 Admin/Operations API；认证、授权、持久化审计和 Repair Center 仍属后续安全/运维工作。MuMu/阅读 3.0、真实来源和真实追更仍不执行。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 189/189、Architecture 1/1、Contract 1/1 PASS；本机 PostgreSQL Testcontainers 目标用例因 `docker_engine` 不可用而 BLOCKED；远端 CI `33094754193` GREEN（Test、Compose 校验、Runtime smoke、Diagnostics 全通过）；Docker `33094754210` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
+- 提交：实现 `20f75fb`，测试隔离修复 `c2d4aeb`。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -473,7 +482,7 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
+- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放基线已落地，跨源一致性、Repair Center/公开运维入口和更强 Repair/Consistency Check 仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。

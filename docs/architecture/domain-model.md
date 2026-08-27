@@ -112,6 +112,8 @@ CrawlerTask 是执行事实，不拥有 Canonical 业务判断。
 
 任务采用 Lease、IdempotencyKey、Attempt、Priority、Schedule 与 Error Classification。PostgreSQL 保存事实状态；Redis 只加速分发。
 
+DeadLetterTask 保存重试耗尽后的失败事实。受控重放必须通过 Application 修复 seam 执行：在同一 PostgreSQL 事务中锁定死信与原任务，创建新的 `Pending` CrawlerTask，原任务继续保持 `DeadLettered`；原死信的失败原因/尝试次数不覆盖，只追加重放任务 ID、时间、操作者和理由。重复或并发请求返回同一个重放任务，已解决死信不再永久阻止后续入队。
+
 ## Reading
 
 ReadingProgress 保存 BookId、ChapterId、Position/Progress、UpdatedAt、DeviceId。

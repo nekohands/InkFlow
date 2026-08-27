@@ -72,7 +72,7 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-27 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度。
+**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，公开修复中心仍待后续安全/运维工作。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
@@ -82,10 +82,12 @@ CI: GREEN (Run 32821162412)
 
 随后补齐 Worker 失败观测基线：`CrawlerFailureObservation` 将失败原因归类为低基数 `FailureKind`，`CrawlerFailureReporter` 通过 `ICrawlerFailureSink` 向结构化日志和 OpenTelemetry counters 扇出；失败路径明确记录 retry/dead-letter/not-running disposition，sink 异常与任务状态隔离。远端 CI `33091872440`、Docker `33091872458` 均 GREEN；本机 Docker 集成仍因环境不可用 BLOCKED。外部告警路由、阈值治理与持久化运维闭环留待后续 Operations/Crawling 工作包。
 
+本轮随后补齐 Crawler 死信受控重放：`ICrawlerTaskRepairRepository` 通过 PostgreSQL 事务与 `FOR UPDATE` 锁定死信/原任务，幂等创建新的 `Pending` 任务，并在原死信上追加操作者、理由、时间和重放任务 ID；重复/并发请求不会重复创建，已解决死信不再永久阻塞后续入队。实现提交 `20f75fb`、测试隔离修复 `c2d4aeb`；远端 CI `33094754193`、Docker `33094754210` GREEN，含 Runtime smoke。公开 Admin/Operations 入口、认证授权与持久化审计未在本轮实现。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
-4. **继续推进 1.0**：在上述证据基础上完善自适应 Health、第三个稳定 Official Source、Repair/Consistency、Security/Operations 与商业化能力。
+4. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、跨源一致性、Repair/Consistency Center、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -103,6 +105,7 @@ CI: GREEN (Run 32821162412)
 ✅ 冷却参数配置化：SourceHealth 配置节 → SourceHealthParameters，启动时装载（ADR 0005）
 ✅ linovelib Search 规则 + 中文表单编码/路径归一化离线回归（`33090147713` / `33090147561`）
 ✅ Crawler 失败结构化日志 + OTel counters（`2747e2b`，`33091872440` / `33091872458`）
+✅ Crawler 死信受控重放：事务化、幂等、并发安全（`20f75fb` / `c2d4aeb`，`33094754193` / `33094754210`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -141,7 +144,7 @@ CI: GREEN (Run 32821162412)
 ### 4.6 追更正文闭环（本轮，2026-08-28）
 
 - 目录同步 + 正典映射成功后，`ContentFetchChainService` 为"该来源从未抓取过正文"的章节自动入队 Content 任务：判定 = 书目存在有章节 ∧ Content 能力健康 ∧ 无 FetchArtifact ∧ 无同 `(source, content, chapter)` 阻止性任务。
-- 新增 `ICrawlerTaskRepository.HasConflictingTaskAsync`（Pending/Leased/Running/DeadLettered 阻止、Completed 放行）与 `IFetchArtifactRepository.ListFetchedExternalChapterIdsAsync` 批量存在性查询；无 Schema 变更、无新 Migration。死信任务不会被周期扫描反复复活，重放仍是人工路径。
+- 新增 `ICrawlerTaskRepository.HasConflictingTaskAsync`（Pending/Leased/Running/DeadLettered 阻止、Completed 放行）与 `IFetchArtifactRepository.ListFetchedExternalChapterIdsAsync` 批量存在性查询；无 Schema 变更、无新 Migration。死信任务不会被周期扫描反复复活；后续通过受控 Repair seam 重放，公开管理入口仍待实现。
 - Worker 轮询节奏：有任务时 250ms 短轮询消化联动批次，空闲回退 15s。
 - 自动化证据：Unit 147/147（新增链式服务 7 例 + Handler 编排 3 例）、Architecture 1/1、Contract 1/1；远端 Integration 33 中 32 通过 + 1 live 跳过（新增 EF 阻止态矩阵与批量存在性用例全过）；Release Build 0 warnings / 0 errors；本机 docker_engine 缺失导致 24 例集成 BLOCKED，不记为通过；Worker `/health` 本地返回 200。候选提交 `94c8be9` 的 CI `33065212994` 与 Docker `33065212936` 均 GREEN。
 - 未含：已抓正文的修订重扫、死信人工重放工具、多 Worker 并发消费。
@@ -187,6 +190,14 @@ CI: GREEN (Run 32821162412)
 - 细节:`Configure(null)` 恢复默认走编译期常量而非静态属性快照,规避静态初始化次序缺陷;`SourceHealthOptions` 是 BuildingBlocks.Application 的纯 POCO(仅依赖 Configuration.Abstractions),模块映射扩展在 Sources.Application,依赖方向不破坏。
 - 自动化证据:Unit 180/180(+5)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;本机 Integration 与基线一致(29 例 docker BLOCKED 不记为通过)。候选提交与 CI/Docker 结论见 Progress 表。
 - 未含:运行时热更新(仅启动时装载)、per-source 冷却粒度。
+
+### 4.12 Crawler 死信受控重放（本轮，2026-08-28）
+
+- 缺口：死信只能记录，无法通过受控的 Repair/Replay 流程恢复；正常修复不得依赖手工 SQL。
+- 实现：`DeadLetterReplayCommand` 校验操作者和理由；`ICrawlerTaskRepairRepository` 作为 Application seam；EF/Npgsql 在单事务内以 `FOR UPDATE` 锁定死信和原任务，创建新的 `Pending` 任务并复制原始 payload / `MaxAttempts`，原任务继续保持 `DeadLettered`。
+- 轨迹与幂等：原死信保留失败原因/尝试次数，并追加重放任务 ID、时间、操作者和理由；重复请求返回 `AlreadyReplayed`，并发请求只创建一个重放任务；已解决死信不再阻塞同变量后续任务。
+- 迁移/接线：官方生成 `AddDeadLetterReplay` Migration；Worker 将 `ICrawlerTaskRepository` 与 `ICrawlerTaskRepairRepository` 指向同一个 scoped EF 实现。当前没有公开 Admin API，因此认证授权、持久化审计和 Repair Center 尚未声称完成。
+- 证据：本机 Release Build 0 warnings / 0 errors、Unit 189/189、Architecture 1/1、Contract 1/1；本机 PostgreSQL Testcontainers 因 `docker_engine` 不可用 BLOCKED。远端 CI `33094754193`、Docker `33094754210` GREEN，包含 Test、Compose、Runtime smoke 和四镜像。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
@@ -296,7 +307,7 @@ Phase 1A / 1B 外部验收：
 
 Phase 2 及以后：
 
-- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；跨源一致性和更强的 Repair/Replay 仍待实现。
+- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放基线已完成，跨源一致性、Repair Center/公开管理入口和更强 Repair/Consistency Check 仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters 已完成基线；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和持久化审计仍待实现。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 
