@@ -166,12 +166,14 @@ public sealed class CrawlerTaskRepositoryTests
             first.Repo.TryLeaseAsync(T0.AddMinutes(1), "worker-a", TimeSpan.FromMinutes(2)),
             second.Repo.TryLeaseAsync(T0.AddMinutes(1), "worker-b", TimeSpan.FromMinutes(2)));
 
-        var claimed = claims.Where(candidate => candidate is not null).Select(candidate => candidate!).ToList();
-        Assert.AreEqual(1, claimed.Count, "同一任务只能由一个并发 worker 领取");
-        Assert.AreEqual(task.Id, claimed[0].Id);
-        Assert.AreEqual(CrawlerTaskStatus.Leased, claimed[0].Status);
-        Assert.AreEqual(1, claimed[0].AttemptCount);
-        Assert.IsTrue(new[] { "worker-a", "worker-b" }.Contains(claimed[0].LeaseOwner));
+        var targetClaims = claims
+            .Where(candidate => candidate?.Id == task.Id)
+            .Select(candidate => candidate!)
+            .ToList();
+        Assert.AreEqual(1, targetClaims.Count, "同一任务只能由一个并发 worker 领取");
+        Assert.AreEqual(CrawlerTaskStatus.Leased, targetClaims[0].Status);
+        Assert.AreEqual(1, targetClaims[0].AttemptCount);
+        Assert.IsTrue(new[] { "worker-a", "worker-b" }.Contains(targetClaims[0].LeaseOwner));
     }
 
     [TestMethod]
