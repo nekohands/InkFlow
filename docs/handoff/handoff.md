@@ -74,6 +74,8 @@ CI: GREEN (Run 32821162412)
 
 **当前状态（2026-08-27 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。
 
+本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
@@ -100,6 +102,13 @@ CI: GREEN (Run 32821162412)
 - Release Build：PASS（0 warnings / 0 errors）。Unit 126/126、Architecture 1/1、Contract 1/1、双来源健康感知切源 2/2：PASS。
 - 完整集成测试：本机 Docker 不可用，20 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。远端 CI `33055478173` 已全绿，包含 Test、Compose Validation 与三服务 Runtime Smoke；Docker `33055478099` 的四个镜像也已全绿。
 - EF 新迁移已用官方生成流程补齐 Designer，并由 `dotnet ef migrations list` 发现。
+
+### 4.3 API 安全与可观测性基线
+
+- `ApiRateLimitOptions` / `ApiRateLimitPolicies`：公共 API 与 Legado 独立 fixed-window 策略，匿名按连接层 IP、认证主体按 `sub` / `client_id` 短哈希分桶；未配置可信代理前不信任 `X-Forwarded-For`。
+- `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`LoggingAuditEventSink` 只提供当前日志落点，持久化审计仍未完成。
+- 自动化证据：新增安全测试使 Unit 达到 133/133；Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。API 本地烟测实际验证 `429` 与 `Retry-After: 60`；首次业务请求受本机 PostgreSQL 不可用影响返回 500。
+- 全量测试仍有 20 个 Testcontainers 用例因本机 Docker 不可用而 BLOCKED，1 个跳过；候选提交后的 CI/Docker 运行结果需以远端实际记录为准。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
@@ -208,7 +217,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - 自适应 Source Health 探测/恢复、跨源一致性和更强的 Repair/Replay；Capability Health v1 与健康感知切源已完成自动化基线。
-- 第三个稳定 Official Source、监控告警、备份恢复、安全扫描、限流与审计。
+- 第三个稳定 Official Source、监控告警、备份恢复、安全扫描；限流已形成单实例基线，Redis 分布式配额、认证/授权和持久化审计仍待实现。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。

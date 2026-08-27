@@ -15,9 +15,12 @@ using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.BuildingBlocks.Security;
+using InkFlow.BuildingBlocks.Observability;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddInkFlowObservability("InkFlow.Worker");
 
 // 支持 GB2312/GBK 等老站点编码(书源兼容层)。
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);

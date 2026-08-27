@@ -4,11 +4,13 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MSTest" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Security/InkFlow.BuildingBlocks.Security.csproj" />
+    <ProjectReference Include="../../src/Apps/InkFlow.Api/InkFlow.Api.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />

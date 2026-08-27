@@ -273,6 +273,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：Unit 126/126、Architecture 1/1、Contract 1/1、双来源健康感知切源 2/2、Release Build 0 warnings / 0 errors。Sources/Content PostgreSQL 往返测试已加入；本机 Docker 阻塞，但远端 CI `33055478173` 已全绿，包含 Test、Compose Validation 与三服务 Runtime Smoke；Docker `33055478099` 的四个镜像也已全绿。
 - 真实第二来源、真实运行时故障切源和 Legado 真机仍不纳入本轮自动完成，继续按第 6 节待定事项管理。
 
+**API 安全基线与三宿主可观测性接入（本轮，2026-08-27）**：
+
+- API 接入可替换的 fixed-window 限流策略：公共 API 默认 `120/60s`、Legado 默认 `60/60s`，支持 `RateLimiting` 配置；匿名请求按连接层 IP 分桶，认证主体按 `sub` / `client_id` 短哈希分桶，未配置可信代理前不信任 `X-Forwarded-For`。
+- 限流拒绝返回 `429` 和 `Retry-After`；请求审计覆盖 `/api` 与 `/legado`，记录不可变且有长度边界的 `AuditEvent`，不写入 query string，`health`、`reader` 和搜索参数不进入审计事件。默认 sink 为结构化日志，持久化不可篡改存储仍是后续工作。
+- API、Worker、Scheduler 均实际调用统一 OpenTelemetry 注册入口；Redis 分布式限流、认证/授权策略、高风险命令的持久化审计仍未宣称完成。
+- 自动化证据：Unit 133/133、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。API 本地运行时烟测实际验证第二次请求返回 `429` 与 `Retry-After: 60`；首次业务请求因本机 PostgreSQL 不可用返回 500，未将其记为业务成功。
+- 全量 `dotnet test InkFlow.sln -c Release`：162 个测试中 141 通过、20 个因本机 `docker_engine` 不可用在 Testcontainers 初始化阶段 BLOCKED、1 个跳过；本轮候选提交后的远端 CI/Docker 尚待触发。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
@@ -372,6 +380,7 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health 与 v1 健康感知切源已落地；自适应探测/自动恢复、跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
+- API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 

@@ -5,9 +5,12 @@ using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.BuildingBlocks.Security;
+using InkFlow.BuildingBlocks.Observability;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddInkFlowObservability("InkFlow.Scheduler");
 
 var connectionString =
     builder.Configuration.GetConnectionString("Database")

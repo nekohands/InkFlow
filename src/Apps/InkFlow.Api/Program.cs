@@ -1,5 +1,8 @@
 // Public Content API:全部端点只读,数据来自已落库的正典书目与 IsCurrent 内容版本——
 // 普通阅读路径零实时抓取(架构不变量 3)。
+using InkFlow.Api;
+using InkFlow.BuildingBlocks.Observability;
+using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Legado.Application;
 using InkFlow.Modules.Library.Application;
@@ -8,6 +11,11 @@ using InkFlow.Modules.Library.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddInkFlowObservability("InkFlow.Api");
+builder.Services.AddInkFlowApiRateLimiting(
+    ApiRateLimitOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton<IAuditEventSink, LoggingAuditEventSink>();
 
 builder.Services.AddDbContext<LibraryDbContext>(options =>
     options.UseNpgsql(
@@ -32,9 +40,14 @@ builder.Services.AddScoped<LegadoContractService>();
 
 var app = builder.Build();
 
+// 审计包在限流包外层，确保 429 也进入请求轨迹；health 不进入业务审计。
+app.UseMiddleware<RequestAuditMiddleware>();
+app.UseRateLimiter();
+
 app.MapGet("/health", () => Results.Json(new { status = "healthy", service = "InkFlow.Api" }));
 
-var api = app.MapGroup("/api/v1");
+var api = app.MapGroup("/api/v1")
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
 
 api.MapGet("/books", async (CatalogQueryService catalog, CancellationToken ct) =>
 {
@@ -57,7 +70,8 @@ api.MapGet("/chapters/{chapterId:guid}/content",
 
 // ---- Legado v1 契约(阅读 3.0 接入)----
 
-var legado = app.MapGroup("/api/legado/v1");
+var legado = app.MapGroup("/api/legado/v1")
+    .RequireRateLimiting(ApiRateLimitPolicies.LegadoPolicyName);
 
 legado.MapGet("/search", async (string q, LegadoContractService legadoService, CancellationToken ct) =>
 {
@@ -145,7 +159,7 @@ app.MapGet("/legado/book-source.json", (HttpContext http) =>
     return Results.Text(
         LegadoBookSourceManifest.Generate(baseUrl),
         contentType: "application/json; charset=utf-8");
-});
+}).RequireRateLimiting(ApiRateLimitPolicies.LegadoPolicyName);
 
 app.Run();
 

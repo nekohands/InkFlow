@@ -73,6 +73,8 @@ Rate limiting can combine:
 
 Expensive endpoints use weighted quota rather than treating all requests equally. APIs return proper 429/Retry-After semantics; Legado/API clients are not forced through interactive CAPTCHA.
 
+当前 API 基线已通过可替换的 policy/key seam 接入 ASP.NET Core fixed-window 限流：公共 API 与 Legado API 使用独立策略，匿名请求按连接层 IP 分桶，认证主体按 `sub` / `client_id` 的不可逆短哈希分桶；尚未配置可信代理前不信任 `X-Forwarded-For`。拒绝请求返回 `429` 并带 `Retry-After`。当前为单实例实现，Redis 分布式计数、按用户/组织的动态配额和加权成本仍待后续 Operations/Identity 能力接入。
+
 ## 8. No Open Proxy
 
 External callers operate on SourceId/BookId/ChapterId and authorized registered resources. InkFlow never exposes a generic `proxy?url=...` endpoint.
@@ -94,6 +96,8 @@ Physical ContentBlob dedup never grants logical access.
 ## 11. Audit
 
 High-risk actions emit immutable/append-oriented AuditEvent data including actor, time, resource, action, before/after or reference, reason and TraceId where applicable.
+
+当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。现阶段默认 sink 写入结构化宿主日志，仅作为审计基础设施接缝，不等同于持久化的不可篡改审计存储；高风险命令的 before/after 或脱敏 reference、保留策略、查询授权和告警仍需后续实现。
 
 Ordinary administrators cannot silently edit audit history through normal CRUD APIs.
 
