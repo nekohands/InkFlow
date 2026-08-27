@@ -166,6 +166,8 @@ public sealed class EndToEndDataFlowTests
         public Task AddAsync(Source source, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<Source?> GetAsync(string sourceId, CancellationToken cancellationToken = default)
             => Task.FromResult<Source?>(null);
+        public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Source>>([]);
         public Task SaveAsync(Source source, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

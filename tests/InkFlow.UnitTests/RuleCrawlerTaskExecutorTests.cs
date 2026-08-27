@@ -16,6 +16,8 @@ public sealed class RuleCrawlerTaskExecutorTests
         public Task AddAsync(Source source, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<Source?> GetAsync(string sourceId, CancellationToken cancellationToken = default)
             => Task.FromResult(source is not null && source.Id == sourceId ? source : null);
+        public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Source>>(source is null ? [] : [source]);
         public Task SaveAsync(Source source, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

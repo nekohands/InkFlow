@@ -118,6 +118,20 @@ public sealed class SourceRepositoryTests
     }
 
     [TestMethod]
+    public async Task List_Returns_All_Registered_Sources()
+    {
+        var repo = CreateRepository();
+        await repo.AddAsync(NewSourceWithRules("list-src-a")).ConfigureAwait(false);
+        await repo.AddAsync(NewSourceWithRules("list-src-b")).ConfigureAwait(false);
+
+        var all = await repo.ListAsync().ConfigureAwait(false);
+
+        CollectionAssert.AreEquivalent(
+            new[] { "list-src-a", "list-src-b" },
+            all.Select(s => s.Id).ToList());
+    }
+
+    [TestMethod]
     public async Task Capability_Health_Roundtrips_Status_And_Evidence()
     {
         var repo = CreateHealthRepository();

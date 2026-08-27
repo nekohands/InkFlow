@@ -1,13 +1,17 @@
-// Public Content API:全部端点只读,数据来自已落库的正典书目与 IsCurrent 内容版本——
-// 普通阅读路径零实时抓取(架构不变量 3)。
+// Public Content API:目录/内容端点只读(数据来自已落库正典数据),
+// /search 端点是唯一的写侧入口——触发来源发现(幂等导入+匹配),随后仍从落库数据返回。
 using InkFlow.Api;
 using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
+using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Legado.Application;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
+using InkFlow.Modules.Sources.Application;
+using InkFlow.Modules.Sources.Domain;
+using InkFlow.Modules.Sources.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,13 +21,41 @@ builder.Services.AddInkFlowApiRateLimiting(
     ApiRateLimitOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddSingleton<IAuditEventSink, LoggingAuditEventSink>();
 
+// 来源发现按需使用老站编码(kanunu8 GB18030 等)。
+System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+
+var databaseConnectionString =
+    builder.Configuration.GetConnectionString("Database")
+    ?? "Host=localhost;Port=5432;Database=inkflow;Username=inkflow;Password=inkflow";
+
 builder.Services.AddDbContext<LibraryDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("Database")
-        ?? "Host=localhost;Port=5432;Database=inkflow;Username=inkflow;Password=inkflow"));
+    options.UseNpgsql(databaseConnectionString));
+builder.Services.AddDbContext<InkFlow.Modules.Sources.Infrastructure.Persistence.SourcesDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
 
 builder.Services.AddScoped<ICanonicalBookRepository, EfCanonicalBookRepository>();
+builder.Services.AddScoped<IMatchCandidateRepository, InkFlow.Modules.Library.Infrastructure.Persistence.EfMatchCandidateRepository>();
+builder.Services.AddScoped<ISourceRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceRepository>();
+builder.Services.AddScoped<ISourceBookRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceBookRepository>();
+builder.Services.AddScoped<ISourceHealthRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceHealthRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<SourceHealthService>();
+builder.Services.AddScoped<ISourceHealthReader>(sp => sp.GetRequiredService<SourceHealthService>());
+
+// 规则型/代码型适配器组合根(与 Worker 同源):健康感知由 BookDiscoveryService 内部执行。
+builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
+builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>();
+builder.Services.AddHttpClient<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>();
+builder.Services.AddScoped<ISelectorEvaluator, CssSelectorEvaluator>();
+builder.Services.AddScoped<RuleAdapter>();
+builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
+    sp.GetRequiredService<ISourceRepository>(),
+    sp.GetRequiredService<RuleAdapter>(),
+    sp.GetRequiredService<ISelectorEvaluator>(),
+    [sp.GetRequiredService<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>()]));
+builder.Services.AddScoped<SourceCatalogService>();
+builder.Services.AddScoped<CanonicalBookMatchingService>();
+builder.Services.AddScoped<BookDiscoveryService>();
 
 var connectionStringForContent =
     builder.Configuration.GetConnectionString("Database")
@@ -55,6 +87,13 @@ api.MapGet("/books", async (CatalogQueryService catalog, CancellationToken ct) =
     return Results.Ok(books);
 });
 
+// 来源搜索发现:幂等导入 + v1 匹配后返回归并结果(落库数据)。
+api.MapGet("/search", async (string q, BookDiscoveryService discovery, CancellationToken ct) =>
+{
+    var outcome = await discovery.DiscoverAsync(q ?? string.Empty, ct);
+    return Results.Ok(new { books = outcome.Books, warnings = outcome.Warnings });
+});
+
 api.MapGet("/books/{bookId:guid}", async (Guid bookId, CatalogQueryService catalog, CancellationToken ct) =>
 {
     var book = await catalog.GetBookAsync(bookId, ct);
@@ -73,8 +112,11 @@ api.MapGet("/chapters/{chapterId:guid}/content",
 var legado = app.MapGroup("/api/legado/v1")
     .RequireRateLimiting(ApiRateLimitPolicies.LegadoPolicyName);
 
-legado.MapGet("/search", async (string q, LegadoContractService legadoService, CancellationToken ct) =>
+legado.MapGet("/search", async (string q, BookDiscoveryService discovery, LegadoContractService legadoService, CancellationToken ct) =>
 {
+    // 先经来源发现把命中的新书幂等导入并匹配正典身份,再从落库数据返回
+    // Legado DTO——契约形态保持稳定,冷启动搜索从此可发现未入库书目。
+    await discovery.DiscoverAsync(q ?? string.Empty, ct);
     var results = await legadoService.SearchAsync(q ?? string.Empty, ct);
     return Results.Json(new { data = results });
 });

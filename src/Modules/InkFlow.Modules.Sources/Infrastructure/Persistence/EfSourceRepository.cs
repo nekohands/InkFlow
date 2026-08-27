@@ -105,6 +105,16 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
         return entity is null ? null : ToDomain(entity);
     }
 
+    public async Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        var entities = await db.Sources
+            .OrderBy(s => s.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities.Select(ToDomain).ToList();
+    }
+
     public async Task SaveAsync(Source source, CancellationToken cancellationToken = default)
     {
         var entity = await db.Sources.FindAsync([source.Id], cancellationToken).ConfigureAwait(false)
