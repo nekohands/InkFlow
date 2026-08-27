@@ -315,5 +315,12 @@ public sealed class TocSyncTaskHandlerTests
             IEnumerable<string> externalChapterIds,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.Ordinal));
+
+        public Task<IReadOnlySet<string>> ListRecentlyFetchedExternalChapterIdsAsync(
+            string sourceId,
+            IEnumerable<string> externalChapterIds,
+            DateTimeOffset since,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlySet<string>>(new HashSet<string>(StringComparer.Ordinal));
     }
 }

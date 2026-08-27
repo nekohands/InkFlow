@@ -53,6 +53,17 @@ public sealed class SourceContentServiceTests
                 new HashSet<string>(
                     Store.Where(a => a.SourceId == sourceId).Select(a => a.ExternalChapterId),
                     StringComparer.Ordinal));
+
+        public Task<IReadOnlySet<string>> ListRecentlyFetchedExternalChapterIdsAsync(
+            string sourceId,
+            IEnumerable<string> externalChapterIds,
+            DateTimeOffset since,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlySet<string>>(
+                new HashSet<string>(
+                    Store.Where(a => a.SourceId == sourceId && a.FetchedAt >= since)
+                        .Select(a => a.ExternalChapterId),
+                    StringComparer.Ordinal));
     }
 
     /// <summary>固定正文返回的适配器。</summary>
@@ -81,7 +92,8 @@ public sealed class SourceContentServiceTests
     private static (SourceContentService Service, InMemoryArtifactRepository Artifacts, FixedAdapter Adapter) CreateService(
         string chapterBody,
         ISourceHealthReader? healthReader = null,
-        ISourceHealthRecorder? healthRecorder = null)
+        ISourceHealthRecorder? healthRecorder = null,
+        TimeProvider? clock = null)
     {
         var books = new InMemoryBookRepository();
         books.Book!.SyncChapters([("ch-001", "第一章")], T0);
@@ -93,7 +105,7 @@ public sealed class SourceContentServiceTests
             factory,
             books,
             artifacts,
-            TimeProvider.System,
+            clock ?? TimeProvider.System,
             healthReader,
             healthRecorder);
         return (service, artifacts, adapter);
@@ -118,16 +130,31 @@ public sealed class SourceContentServiceTests
     }
 
     [TestMethod]
-    public async Task Same_Content_Second_Fetch_Is_Unchanged_And_Skips_Storage()
+    public async Task Same_Content_Recheck_Is_Unchanged_And_Renews_Freshness_Anchor()
     {
-        var (service, artifacts, _) = CreateService("<p>第一章正文</p>");
-        await service.FetchChapterContentAsync("example-source", "10001", "ch-001");
+        // 每次调用时钟前进 10 分钟,模拟两次相隔一段时间的抓取。
+        var (service, artifacts, _) = CreateService(
+            "<p>第一章正文</p>",
+            clock: new SteppedClock(T0, TimeSpan.FromMinutes(10)));
+
+        var first = await service.FetchChapterContentAsync("example-source", "10001", "ch-001");
+        Assert.IsTrue(first.IsSuccess);
+        Assert.IsFalse(first.Unchanged);
+        Assert.AreEqual(1, artifacts.Store.Count);
 
         var second = await service.FetchChapterContentAsync("example-source", "10001", "ch-001");
 
+        // 复检(哈希一致)返回 Unchanged,但同样落一条相同哈希的真实抓取记录:
+        // 最新产物时间表示最近一次核查而非首次发现,作为修订重扫的保鲜锚点。
         Assert.IsTrue(second.IsSuccess);
         Assert.IsTrue(second.Unchanged, "内容未变应返回 Unchanged");
-        Assert.AreEqual(1, artifacts.Store.Count, "未变的内容不应产生新的存储行");
+        Assert.AreEqual(2, artifacts.Store.Count, "复检应落一条相同哈希的产物行以续期保鲜锚点");
+        Assert.AreEqual(artifacts.Store[0].RawHash, artifacts.Store[1].RawHash);
+        Assert.IsTrue(
+            artifacts.Store[1].FetchedAt > artifacts.Store[0].FetchedAt,
+            "复检行的 FetchedAt 必须晚于首抓,否则保鲜判定无法续期");
+        Assert.AreEqual(artifacts.Store[1].FetchedAt, second.Artifact!.FetchedAt);
+        Assert.AreEqual("<p>第一章正文</p>", second.RawContent, "原文必须回传供发布桥使用");
     }
 
     [TestMethod]
@@ -187,6 +214,19 @@ public sealed class SourceContentServiceTests
         Assert.IsFalse(blockedOutcome.IsSuccess);
         StringAssert.Contains(blockedOutcome.Errors[0], "unavailable");
         Assert.AreEqual(0, blockedParts.Adapter.ContentCallCount, "被阻断的来源不应触发上游正文请求");
+    }
+
+    /// <summary>每次调用前进固定步长的时钟,用于复检时间推进的可控断言。</summary>
+    private sealed class SteppedClock(DateTimeOffset start, TimeSpan step) : TimeProvider
+    {
+        private DateTimeOffset _current = start;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            var now = _current;
+            _current += step;
+            return now;
+        }
     }
 
     private sealed class RecordingHealth : ISourceHealthRecorder

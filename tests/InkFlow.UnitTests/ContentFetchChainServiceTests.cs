@@ -25,11 +25,34 @@ public sealed class ContentFetchChainServiceTests
             new[] { "c1", "c2", "c3" },
             harness.Tasks.Store.Select(t => t.Payload.Variables["chapterId"]).ToArray());
 
-        var task = harness.Tasks.Store[0];
-        Assert.AreEqual(SourceCapability.Content, task.Payload.Capability);
-        Assert.AreEqual("example-source", task.Payload.SourceId);
-        Assert.AreEqual(CrawlerTaskStatus.Pending, task.Status);
-        Assert.AreEqual("10001", task.Payload.Variables["bookId"]);
+        foreach (var task in harness.Tasks.Store)
+        {
+            Assert.AreEqual(SourceCapability.Content, task.Payload.Capability);
+            Assert.AreEqual("example-source", task.Payload.SourceId);
+            Assert.AreEqual(CrawlerTaskStatus.Pending, task.Status);
+            Assert.AreEqual("10001", task.Payload.Variables["bookId"]);
+            Assert.AreEqual("new", task.Payload.Variables["reason"], "零产物章节是首次抓取");
+        }
+    }
+
+    [TestMethod]
+    public async Task Stale_Chapters_Are_Refetched_While_Fresh_Ones_Skip()
+    {
+        var book = CreateBook(("c1", "第一章"), ("c2", "第二章"), ("c3", "第三章"));
+        // 保鲜期 6 天:c1 的产物已 7 天(c2 产物只有 1 天,c3 从未抓取)。
+        var harness = CreateHarness(book, staleAfter: TimeSpan.FromDays(6));
+        Fetch(harness, "c1", fetchedAt: T0.AddDays(-7));
+        Fetch(harness, "c2", fetchedAt: T0.AddDays(-1));
+
+        var enqueued = await harness.Service.EnqueuePendingContentFetchesAsync("example-source", "10001");
+
+        Assert.AreEqual(2, enqueued);
+        var refetch = harness.Tasks.Store.Single(t => t.Payload.Variables["chapterId"] == "c1");
+        Assert.AreEqual("refetch", refetch.Payload.Variables["reason"], "过期章节按修订重扫入队");
+        var fresh = harness.Tasks.Store.Where(t => t.Payload.Variables["chapterId"] == "c2").ToList();
+        Assert.AreEqual(0, fresh.Count, "保鲜期内的章节不得重抓");
+        var firstFetch = harness.Tasks.Store.Single(t => t.Payload.Variables["chapterId"] == "c3");
+        Assert.AreEqual("new", firstFetch.Payload.Variables["reason"]);
     }
 
     [TestMethod]
@@ -122,7 +145,15 @@ public sealed class ContentFetchChainServiceTests
             Guid.NewGuid(), "example-source", "10001", externalChapterId,
             $"hash-{externalChapterId}", 100, T0));
 
-    private static Harness CreateHarness(SourceBook book, string[]? unavailableSources = null)
+    private static void Fetch(Harness harness, string externalChapterId, DateTimeOffset fetchedAt) =>
+        harness.Artifacts.Store.Add(new FetchArtifact(
+            Guid.NewGuid(), "example-source", "10001", externalChapterId,
+            $"hash-{externalChapterId}", 100, fetchedAt));
+
+    private static Harness CreateHarness(
+        SourceBook book,
+        string[]? unavailableSources = null,
+        TimeSpan? staleAfter = null)
     {
         var artifacts = new InMemoryArtifacts();
         var conflicts = new HashSet<string>(StringComparer.Ordinal);
@@ -132,7 +163,8 @@ public sealed class ContentFetchChainServiceTests
             artifacts,
             tasks,
             new FixedClock(T0),
-            unavailableSources is null ? null : new FixedHealthReader(unavailableSources));
+            unavailableSources is null ? null : new FixedHealthReader(unavailableSources),
+            staleAfter);
 
         return new Harness(service, tasks, artifacts, conflicts);
     }
@@ -203,6 +235,17 @@ public sealed class ContentFetchChainServiceTests
             Task.FromResult<IReadOnlySet<string>>(
                 new HashSet<string>(
                     Store.Where(a => a.SourceId == sourceId).Select(a => a.ExternalChapterId),
+                    StringComparer.Ordinal));
+
+        public Task<IReadOnlySet<string>> ListRecentlyFetchedExternalChapterIdsAsync(
+            string sourceId,
+            IEnumerable<string> externalChapterIds,
+            DateTimeOffset since,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlySet<string>>(
+                new HashSet<string>(
+                    Store.Where(a => a.SourceId == sourceId && a.FetchedAt >= since)
+                        .Select(a => a.ExternalChapterId),
                     StringComparer.Ordinal));
     }
 

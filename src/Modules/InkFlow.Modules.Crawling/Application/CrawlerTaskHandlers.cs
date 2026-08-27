@@ -50,10 +50,13 @@ public sealed class TocSyncTaskHandler(
 }
 
 /// <summary>
-/// 正文抓取处理器:执行 Content 规则并按 RawHash 幂等落库。
+/// 正文抓取处理器:执行 Content 规则并按 RawHash 幂等落库;
+/// 成功后把原文交给发布桥(若装配),经正典映射产出/更新 IsCurrent 版本。
+/// 发布失败视为任务失败走重试退避;不可发布(未映射)静默完成。
 /// </summary>
 public sealed class ContentFetchTaskHandler(
-    SourceContentService contentService) : ICrawlerTaskExecutor
+    SourceContentService contentService,
+    IChainedContentPublisher? publisher = null) : ICrawlerTaskExecutor
 {
     public async Task<CrawlOutcome> ExecuteAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
@@ -73,6 +76,34 @@ public sealed class ContentFetchTaskHandler(
         if (!outcome.IsSuccess)
         {
             return CrawlOutcome.Fail(string.Join("; ", outcome.Errors));
+        }
+
+        if (publisher is not null && outcome.RawContent is not null)
+        {
+            bool published;
+
+            try
+            {
+                published = await publisher.TryPublishAsync(
+                        task.Payload.SourceId,
+                        externalBookId ?? string.Empty,
+                        externalChapterId,
+                        outcome.RawContent,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // 发布基础设施故障 = 任务失败,交由既有重试退避链处理。
+                return CrawlOutcome.Fail(
+                    $"content task {task.Id} publish failed for chapter '{externalChapterId}': {ex.Message}");
+            }
+
+            if (!published)
+            {
+                Console.WriteLine(
+                    $"content task {task.Id}: chapter '{externalChapterId}' fetched but not publishable yet (no canonical mapping); skipped publishing.");
+            }
         }
 
         return CrawlOutcome.Ok();

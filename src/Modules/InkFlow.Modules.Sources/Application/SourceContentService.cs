@@ -6,10 +6,11 @@ public sealed record ContentFetchOutcome(
     bool IsSuccess,
     bool Unchanged,
     FetchArtifact? Artifact,
-    IReadOnlyList<string> Errors)
+    IReadOnlyList<string> Errors,
+    string? RawContent = null)
 {
-    public static ContentFetchOutcome Ok(FetchArtifact artifact, bool unchanged) =>
-        new(true, unchanged, artifact, []);
+    public static ContentFetchOutcome Ok(FetchArtifact artifact, bool unchanged, string? rawContent = null) =>
+        new(true, unchanged, artifact, [], rawContent);
 
     public static ContentFetchOutcome Fail(IReadOnlyList<string> errors) =>
         new(false, false, null, errors);
@@ -17,7 +18,9 @@ public sealed record ContentFetchOutcome(
 
 /// <summary>
 /// 章节正文抓取服务:经书源兼容层获取原始正文,按 RawHash 幂等落库。
-/// 上游内容未变(哈希一致)时返回 Unchanged,不产生新的存储行。
+/// 上游内容未变(哈希一致)时返回 Unchanged,并同样落一条相同哈希的复检产物行——
+/// 复检本身是一次成功抓取,这让"最新产物时间"表示最近一次真实核查而非首次发现,
+/// 是修订重扫保鲜判定的锚点;重复核查不会在 Content 侧产生新版本(哈希幂等)。
 /// 正文 → Content AST / CanonicalHash 的清洗链路由 Content 模块负责,不在此处。
 /// </summary>
 public sealed class SourceContentService(
@@ -114,10 +117,12 @@ public sealed class SourceContentService(
             .ConfigureAwait(false);
         if (latest is not null && latest.RawHash == artifact.RawHash)
         {
-            return ContentFetchOutcome.Ok(latest, unchanged: true);
+            // 复检:相同哈希也记录本次真实抓取,续期保鲜判定的时间锚点。
+            await artifactRepository.AddAsync(artifact, cancellationToken).ConfigureAwait(false);
+            return ContentFetchOutcome.Ok(artifact, unchanged: true, rawContent);
         }
 
         await artifactRepository.AddAsync(artifact, cancellationToken).ConfigureAwait(false);
-        return ContentFetchOutcome.Ok(artifact, unchanged: false);
+        return ContentFetchOutcome.Ok(artifact, unchanged: false, rawContent);
     }
 }

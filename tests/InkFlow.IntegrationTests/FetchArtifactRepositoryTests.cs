@@ -113,4 +113,28 @@ public sealed class FetchArtifactRepositoryTests
 
         Assert.AreEqual(0, fetched.Count);
     }
+
+    [TestMethod]
+    public async Task ListRecentlyFetchedExternalChapterIds_Filters_By_Time_And_Source()
+    {
+        var repo = CreateRepository();
+        var now = T0.AddDays(30);
+
+        // 近期产物:7 天内复检/首抓。
+        await repo.AddAsync(FetchArtifact.Capture("recent-src", "b1", "ch-fresh", "新鲜正文", now.AddDays(-1))).ConfigureAwait(false);
+        await repo.AddAsync(FetchArtifact.Capture("recent-src", "b1", "ch-refreshed", "早期版本", T0)).ConfigureAwait(false);
+        await repo.AddAsync(FetchArtifact.Capture("recent-src", "b1", "ch-refreshed", "复检同哈希新行", now.AddDays(-2))).ConfigureAwait(false);
+        // 过期产物:最后一次抓取早于 since。
+        await repo.AddAsync(FetchArtifact.Capture("recent-src", "b1", "ch-stale", "过期正文", T0)).ConfigureAwait(false);
+        // 另一来源的同 ID 章节不得影响 recent-src 的判定。
+        await repo.AddAsync(FetchArtifact.Capture("other-recent-src", "b1", "ch-fresh", "别家近期", now.AddDays(-1))).ConfigureAwait(false);
+
+        var recent = await repo
+            .ListRecentlyFetchedExternalChapterIdsAsync(
+                "recent-src", ["ch-fresh", "ch-refreshed", "ch-stale"], since: now.AddDays(-7))
+            .ConfigureAwait(false);
+
+        CollectionAssert.AreEquivalent(new[] { "ch-fresh", "ch-refreshed" }, recent.ToList());
+        Assert.IsFalse(recent.Contains("ch-stale"), "最后一次抓取早于保鲜期的章节应判定为 stale");
+    }
 }

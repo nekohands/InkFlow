@@ -211,4 +211,28 @@ public sealed class EfFetchArtifactRepository(SourcesDbContext db) : IFetchArtif
 
         return new HashSet<string>(fetched, StringComparer.Ordinal);
     }
+
+    public async Task<IReadOnlySet<string>> ListRecentlyFetchedExternalChapterIdsAsync(
+        string sourceId,
+        IEnumerable<string> externalChapterIds,
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = externalChapterIds.ToArray();
+        if (ids.Length == 0)
+        {
+            return new HashSet<string>(StringComparer.Ordinal);
+        }
+
+        var recent = await db.FetchArtifacts
+            .Where(a => a.SourceId == sourceId &&
+                        a.FetchedAt >= since &&
+                        ids.Contains(a.ExternalChapterId))
+            .Select(a => a.ExternalChapterId)
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new HashSet<string>(recent, StringComparer.Ordinal);
+    }
 }
