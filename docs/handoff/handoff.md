@@ -122,7 +122,7 @@ CI: GREEN (Run 32821162412)
 - 缺口：死信、一致性和来源健康原本是分散的只读入口，缺少统一的运维快照；查询授权与命令授权也没有明确拆开。
 - 实现：新增 `IOperationsCenterReader` 与 `GET /api/v1/admin/operations/overview`，聚合来源健康、有限死信和一致性报告；死信多取一条判断 `HasMore`，读模型不携带任务 Variables、CredentialReferenceId 或正文。
 - 授权/韧性：新增 `OperationsRead` policy（`Operator` / `Administrator`），用于 overview、死信列表、一致性和 Source Health 查询；replay/disable/enable 继续使用独立命令 policy。每个区块隔离异常并返回稳定 `partial` / `unavailable` 状态，不泄漏内部异常细节。
-- 当前证据：本机 Release Build 0 warnings / 0 errors、Unit 223/223、Architecture 1/1、Contract 1/1；API `/health` 200，Operations overview、Consistency、Source Health 未认证请求均 401。真实设备/来源测试按用户决定跳过，本机 Docker 集成仍待环境恢复；远端 CI/Docker 验证待提交后补录。
+- 当前证据：本机 Release Build 0 warnings / 0 errors、Unit 223/223、Architecture 1/1、Contract 1/1；API `/health` 200，Operations overview、Consistency、Source Health 未认证请求均 401。远端 CI `33112741068` GREEN（含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33112741039` GREEN（四镜像）。真实设备/来源测试按用户决定跳过，本机 Docker 集成仍待环境恢复。
 - 边界：未实现 Center UI、自动修复、告警、备份治理和真实业务验收；人工 Operations Center 操作加入待定事项。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
@@ -155,7 +155,7 @@ CI: GREEN (Run 32821162412)
 ✅ 跨模块 Consistency Check v1：只读四 schema 扫描 + 受保护 Admin 入口（`7dac6ce`，CI `33106044634` / Docker `33106044677` 均 GREEN）
 ✅ Content Policy / Takedown v1：公开读取门控 + Administrator 命令审计 + 追加式决策历史（`34c5c71`，CI `33109068649` / Docker `33109068630` 均 GREEN）
 ✅ Source Health Operator Controls v1：来源能力查询 + Operator/Administrator 停用/恢复 + 命令审计（`49e0fc1`，CI `33110684551` / Docker `33110684410` 均 GREEN）
-✅ Operations/Repair Center Read Model v1：统一只读快照 + 独立查询 policy + 区块异常隔离（本轮提交待补）
+✅ Operations/Repair Center Read Model v1：统一只读快照 + 独立查询 policy + 区块异常隔离（`ff02c23`，CI `33112741068` / Docker `33112741039` 均 GREEN）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收

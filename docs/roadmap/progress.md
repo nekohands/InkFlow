@@ -410,7 +410,7 @@ Phase 0 开发过程中真实发现并修复：
 - 缺口：死信、跨模块一致性和来源健康已有分散的受保护入口，但缺少一个可供运维首页消费的统一只读快照；查询授权也与修复命令共用策略，无法明确区分读权限和写权限。
 - 实现：新增 `IOperationsCenterReader` 深接口及 API 组合根实现；`GET /api/v1/admin/operations/overview` 聚合来源元数据/能力健康、有限死信列表和一致性报告。死信多取一条判断 `HasMore`，对外始终只返回有界数据。
 - 安全与韧性：新增 `OperationsRead` policy（`Operator` / `Administrator`），并将死信列表、一致性检查、Source Health 查询与 Operations overview 统一到该只读 policy；replay/disable/enable 保留独立命令 policy。读模型不暴露任务 Variables、CredentialReferenceId 或正文；来源健康、Crawler、Consistency 区块分别隔离异常，返回 `ready` / `partial` / `unavailable` 和稳定错误码，不泄漏基础设施异常。
-- 自动化证据：本机 Release Build PASS（0 warnings / 0 errors）；Unit 223/223、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Operations overview、Consistency、Source Health 查询均返回 401。MuMu/阅读 3.0 真机、真实来源和 Docker Testcontainers 集成仍按既定范围跳过/阻塞，未记为通过。
+- 自动化证据：本机 Release Build PASS（0 warnings / 0 errors）；Unit 223/223、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Operations overview、Consistency、Source Health 查询均返回 401。远端 CI `33112741068` GREEN（Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33112741039` GREEN（API、Migrations、Scheduler、Worker 四镜像）。MuMu/阅读 3.0 真机、真实来源和 Docker Testcontainers 集成仍按既定范围跳过/阻塞，未记为通过。
 - 边界：本轮只提供 API 读模型和授权 seam，不实现自动修复、Center UI、告警、备份治理或真实业务验收；人工 Operations Center 操作验收加入下方待定事项。
 
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
