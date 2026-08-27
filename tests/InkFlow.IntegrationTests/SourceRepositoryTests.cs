@@ -153,4 +153,35 @@ public sealed class SourceRepositoryTests
         Assert.AreEqual("adapter-exception", loaded.LastFailureReason);
         Assert.AreEqual(SourceHealthPolicy.AlgorithmVersion, loaded.AlgorithmVersion);
     }
+
+    [TestMethod]
+    public async Task ListUnhealthy_Returns_Only_Unhealthy_Capability_Rows()
+    {
+        var repo = CreateHealthRepository();
+
+        var healthy = SourceCapabilityHealth.Create("probe-filter-src", SourceCapability.Toc, T0);
+        healthy.RecordSuccess(T0.AddMinutes(1));
+
+        var degraded = SourceCapabilityHealth.Create("probe-filter-src", SourceCapability.BookInfo, T0);
+        degraded.RecordFailure("timeout", T0.AddMinutes(1));
+        degraded.RecordFailure("timeout", T0.AddMinutes(2));
+
+        var unhealthy = SourceCapabilityHealth.Create("probe-filter-src", SourceCapability.Search, T0);
+        unhealthy.RecordFailure("upstream-503", T0.AddMinutes(1));
+        unhealthy.RecordFailure("upstream-503", T0.AddMinutes(2));
+        unhealthy.RecordFailure("upstream-503", T0.AddMinutes(3));
+
+        // 该来源的 Content 完全没有健康行:未探测过的能力不应出现在巡检候选里。
+
+        foreach (var row in new[] { healthy, degraded, unhealthy })
+        {
+            await repo.AddAsync(row).ConfigureAwait(false);
+        }
+
+        var result = await repo.ListUnhealthyAsync().ConfigureAwait(false);
+
+        var row = result.Single();
+        Assert.AreEqual(SourceCapability.Search, row.Capability);
+        Assert.AreEqual(SourceHealthStatus.Unhealthy, row.Status);
+    }
 }
