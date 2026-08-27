@@ -55,6 +55,8 @@ jobs:
           test "$source_health_status" = "401"
           operations_overview_status=$(curl --silent --output /tmp/operations-overview.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/operations/overview)
           test "$operations_overview_status" = "401"
+          reading_status=$(curl --silent --output /tmp/reading-shelf.json --write-out '%{http_code}' http://localhost:8080/api/v1/me/reading/shelf)
+          test "$reading_status" = "401"
           registration=$(curl --fail --silent \
             -H 'Content-Type: application/json' \
             -d '{"email":"ci-auth@example.com","password":"correct horse battery staple"}' \
@@ -76,6 +78,14 @@ jobs:
           curl --fail --silent \
             -H "Authorization: Bearer $rotated_access_token" \
             http://localhost:8080/api/v1/auth/me | jq -e '.role == "Reader"'
+          curl --fail --silent \
+            -H "Authorization: Bearer $rotated_access_token" \
+            http://localhost:8080/api/v1/me/reading/preferences | jq -e '.theme == "System" and .fontSizePercent == 100'
+          curl --fail --silent --request PUT \
+            -H "Authorization: Bearer $rotated_access_token" \
+            -H 'Content-Type: application/json' \
+            -d '{"fontSizePercent":110,"theme":"Sepia"}' \
+            http://localhost:8080/api/v1/me/reading/preferences | jq -e '.theme == "Sepia" and .fontSizePercent == 110'
           curl --fail --silent --request POST \
             -H "Authorization: Bearer $rotated_access_token" \
             http://localhost:8080/api/v1/auth/logout

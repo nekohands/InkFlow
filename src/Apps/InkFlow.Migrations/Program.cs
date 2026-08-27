@@ -6,6 +6,7 @@ using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
+using InkFlow.Modules.Reading.Infrastructure.Persistence;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.BuildingBlocks.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ var contexts = new DbContext[]
     new AuditDbContext(new DbContextOptionsBuilder<AuditDbContext>().UseNpgsql(connectionString).Options),
     new CrawlingDbContext(new DbContextOptionsBuilder<CrawlingDbContext>().UseNpgsql(connectionString).Options),
     new LibraryDbContext(new DbContextOptionsBuilder<LibraryDbContext>().UseNpgsql(connectionString).Options),
+    new ReadingDbContext(new DbContextOptionsBuilder<ReadingDbContext>().UseNpgsql(connectionString).Options),
     new SourcesDbContext(new DbContextOptionsBuilder<SourcesDbContext>().UseNpgsql(connectionString).Options),
     new ContentDbContext(new DbContextOptionsBuilder<ContentDbContext>().UseNpgsql(connectionString).Options),
 };
