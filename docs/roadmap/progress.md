@@ -302,9 +302,18 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：Unit 137/137、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；远端 PostgreSQL 集成测试 30 个中 29 通过、1 个 live 用例跳过；Worker `/health` 本地返回 200。候选提交 `3372180` 的 CI `33062448255` 与 Docker `33062448243` 均 GREEN。
 - 本机完整测试因 Docker Engine 未运行有 23 个 Testcontainers 用例在初始化阶段 BLOCKED，6 个通过、1 个跳过；该环境限制不替代远端证据。MuMu/阅读 3.0、Web Reader、真实追更与真实第二来源仍按第 6 节待定。
 
-**追更正文闭环：目录联动正文抓取（本轮，2026-08-28）**：
+**抓取→发布桥与上游修订重扫（本轮，2026-08-28）**：
 
-- 补齐"事件触发"缺口：`TocSyncTaskHandler` 在目录同步 + 正典映射成功后调用 `ContentFetchChainService`，为**该来源从未抓取过正文**的章节自动入队 Content 抓取任务——"检测新章 → 抓取 → 发布"不再依赖人工种子或额外扫描周期。
+- 补上"任务只落 fetch_artifacts 元数据、正文从不进 content.versions"的最后一环:`ContentFetchTaskHandler` 抓取成功后把原文交给 `IChainedContentPublisher`(接口倒置——契约在 Crawling.Application,宿主 Worker 提供 `MappingContentPublisher`:经 `ChapterMapping` 定位正典身份后调 `ContentPublishingService` 发布,CanonicalHash 判重幂等 + 自带选优)。发布基础设施异常转任务失败走既有重试退避链;章节未映射返回 false 静默完成(避免无意义重试到死信)。
+- 追更链式入队扩展修订重扫:`ContentFetchChainService` 现在对**零产物**(reason=new)或**最新产物过期**(早于 now - `DefaultStaleAfter`=7 天,reason=refetch)的章节入队;上游文本变化产生新 ContentVersion(版本追加不覆盖),未变化则复检行续期锚点且 Content 侧哈希幂等零新增。死信章节在下一保鲜周期自然获得一次重新入队机会(非无限复活)。
+- 配套语义修正:`SourceContentService` 对 Unchanged 复检同样落一条相同哈希的真实产物行(复检是成功抓取的事实记录),使"最新产物时间"表示最近一次核查而非首次发现;原"未变不落行"行为变更已先改回归测试再实现(`Same_Content_Recheck_Is_Unchanged_And_Renews_Freshness_Anchor`)。
+- 新增 `IFetchArtifactRepository.ListRecentlyFetchedExternalChapterIdsAsync(since)` 批量保鲜查询(服务端按时间+来源裁剪);无 Schema 变更、无新 Migration。构建中发现 publisher 异常最初依赖 Worker 顶层 catch 兜底,已改为 handler 内显式转 `CrawlOutcome.Fail`,边界自洽。
+- 自动化证据:Unit 153/153(复检续期回归、stale/refetch 混合矩阵、发布桥编排含异常转重试与未装配兼容)、Architecture 1/1(接口倒置未破坏依赖矩阵)、Contract 1/1、Release Build 0 warnings / 0 errors;远端 Integration 34 中 33 通过 + 1 live 跳过;本机 Integration 因 docker_engine 缺失 27 例 BLOCKED 不记为通过;Worker 进程烟测 `/health` 200(DI 含发布桥解析正常)。候选提交 `3edb3dc` 的 CI `33066966836` 与 Docker `33066966966` 均 **GREEN**(含 Runtime Smoke 与四镜像)。
+- 本轮不含:stale 任务错峰调度(整本同时到期时一次入队,由 Worker 短轮询串行消化)、多 Worker 并发消费、 publishing 失败的可观测告警。
+
+**追更正文闭环：目录联动正文抓取（上一轮，2026-08-28）**：
+
+- 补齐"事件触发"缺口：`TocSyncTaskHandler` 在目录同步 + 正典映射成功后调用 `ContentFetchChainService`，为**该来源从未抓取过正文**的章节自动入队 Content 抓取任务——"检测新章 → 抓取"不再依赖人工种子或额外扫描周期。
 - 入队判定四个不变量全部满足才触发：书目存在且有章节；Content 能力健康（不可用来源零上游请求）；该章节在该来源下无 FetchArtifact；无同 `(source, content, chapter)` 的阻止性任务。
 - 新增 `ICrawlerTaskRepository.HasConflictingTaskAsync`：Pending/Leased/Running 视为在途冲突去重，**DeadLettered 同样阻止**——死信任务不会被周期扫描反复复活，只能走人工处理路径；Completed 不阻止。EF 实现按 `(source, capability, 状态)` 服务端裁剪后内存匹配 jsonb 变量，无 Schema 变更、无新 Migration。
 - 新增 `IFetchArtifactRepository.ListFetchedExternalChapterIdsAsync` 批量存在性查询（单次往返甄别整本书的未抓章节）；修复了本轮开发中发现的新文件误覆盖既有 FetchArtifactRepositoryTests 的操作失误，原 3 个用例已按 HEAD 原样恢复。
@@ -412,7 +421,7 @@ Official Source
 
 - Source Health / Capability Health 与 v1 健康感知切源已落地；自适应探测/自动恢复、跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
-- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度和单任务异常重试基线；TOC 联动正文抓取的事件触发闭环已落地（见 4.x 追更正文闭环），上游修订重扫与可观测告警仍待后续 Operations/Crawling 工作包。
+- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度和单任务异常重试基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包），可观测告警仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 

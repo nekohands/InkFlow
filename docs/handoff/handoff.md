@@ -76,7 +76,7 @@ CI: GREEN (Run 32821162412)
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
-随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。在此基础上追更"事件触发"缺口已闭环：Toc 同步 + 正典映射成功后由 `ContentFetchChainService` 自动为该来源从未抓取过正文的章节入队 Content 任务（死信不被周期扫描复活），Worker 有积压时短轮询消化（详见 4.6）。
+随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。在此基础上追更写侧已完整闭环：目录联动入队（上一轮）+ 抓取→发布桥 + 上游修订重扫（本轮），Content 任务现在真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -92,6 +92,7 @@ CI: GREEN (Run 32821162412)
 ✅ CI/Docker 验证租约恢复与跨进程原子领取（`33060930049` / `33060930029`）
 ✅ CI/Docker 验证重试退避调度与 `ScheduledAt` Migration（`33062448255` / `33062448243`）
 ✅ 追更正文闭环：TOC 联动正文入队、死信不复活、Worker 短轮询（`33065212994` / `33065212936`）
+✅ 抓取→发布桥 + 上游修订重扫：Content 任务产出 IsCurrent 版本、stale 复检保鲜（`33066966836` / `33066966966`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -134,6 +135,15 @@ CI: GREEN (Run 32821162412)
 - Worker 轮询节奏：有任务时 250ms 短轮询消化联动批次，空闲回退 15s。
 - 自动化证据：Unit 147/147（新增链式服务 7 例 + Handler 编排 3 例）、Architecture 1/1、Contract 1/1；远端 Integration 33 中 32 通过 + 1 live 跳过（新增 EF 阻止态矩阵与批量存在性用例全过）；Release Build 0 warnings / 0 errors；本机 docker_engine 缺失导致 24 例集成 BLOCKED，不记为通过；Worker `/health` 本地返回 200。候选提交 `94c8be9` 的 CI `33065212994` 与 Docker `33065212936` 均 GREEN。
 - 未含：已抓正文的修订重扫、死信人工重放工具、多 Worker 并发消费。
+
+### 4.7 抓取→发布桥与上游修订重扫（本轮，2026-08-28）
+
+- 发布桥（接口倒置）：`ContentFetchTaskHandler` 抓取成功后把原文交给 `IChainedContentPublisher`；Worker 宿主 `MappingContentPublisher` 经 `ChapterMapping` 定位正典身份后调 `ContentPublishingService`，CanonicalHash 判重幂等 + 自带选优。发布基础设施异常显式转 `CrawlOutcome.Fail` 走既有重试退避；未映射章节返回 false 静默完成。
+- 修订重扫：链式入队扩展为"零产物(new) ∨ 最新产物过期(now - `DefaultStaleAfter`=7d)(refetch)"；上游变化产生新 ContentVersion(版本追加不覆盖)，未变化复检行续期锚点、Content 侧哈希幂等零新增。死信章节下一保鲜周期自然重入队(非无限复活)。
+- 语义修正:`SourceContentService` Unchanged 复检同样落相同哈希的真实产物行(最新产物时间=最近一次核查),该行为变更先改回归测试再实现。
+- 新增 `IFetchArtifactRepository.ListRecentlyFetchedExternalChapterIdsAsync(since)` 批量保鲜查询;无 Schema 变更、无新 Migration。
+- 自动化证据:Unit 153/153、Architecture 1/1(接口倒置未破坏依赖矩阵)、Contract 1/1;远端 Integration 34 中 33 通过 + 1 live 跳过;Release Build 0 warnings / 0 errors;本机 docker_engine 缺失致 Integration 27 例 BLOCKED 不记为通过;Worker 进程烟测 `/health` 200。候选提交 `3edb3dc` 的 CI `33066966836` 与 Docker `33066966966` 均 GREEN。
+- 未含:stale 任务错峰调度、多 Worker 并发消费、publishing 失败可观测告警。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
