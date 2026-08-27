@@ -311,7 +311,16 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据:Unit 153/153(复检续期回归、stale/refetch 混合矩阵、发布桥编排含异常转重试与未装配兼容)、Architecture 1/1(接口倒置未破坏依赖矩阵)、Contract 1/1、Release Build 0 warnings / 0 errors;远端 Integration 34 中 33 通过 + 1 live 跳过;本机 Integration 因 docker_engine 缺失 27 例 BLOCKED 不记为通过;Worker 进程烟测 `/health` 200(DI 含发布桥解析正常)。候选提交 `3edb3dc` 的 CI `33066966836` 与 Docker `33066966966` 均 **GREEN**(含 Runtime Smoke 与四镜像)。
 - 本轮不含:stale 任务错峰调度(整本同时到期时一次入队,由 Worker 短轮询串行消化)、多 Worker 并发消费、 publishing 失败的可观测告警。
 
-**搜索发现接入：冷启动主路径打通（本轮，2026-08-29）**：
+**自适应健康自动恢复（本轮，2026-08-29）**：
+
+- 缺口:Unhealthy 是死胡同——能力连续三次失败进入 Unhealthy 后,扫描/发现的健康门控永远跳过该来源,没有任何流量能把成功结果再送进健康表,恢复只能人工 Enable。
+- 半开恢复,零 Schema 变更:`SourceHealthPolicy` 新增由持久化**失败计数 + UpdatedAt 推导**的探针冷却(30 分钟起步、随失败深度翻倍、封顶一天);`ConsecutiveFailures` 取消封顶(失败深度驱动退避而非被丢弃);`SourceHealthService.IsAvailableAsync` 对冷却期满的 Unhealthy 来源放行下一次真实抓取作探针——周期扫描/搜索发现天然充当探测驱动,成功回 Healthy 重置链,失败刷新锚点并延长冷却。Disabled 仍为人工终态。
+- 自动化证据:Unit 163/163(冷却阶梯/边界含相等/深度增长不受阈值截断/服务级半开流程四向断言)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;既有 159 例零破坏。候选提交 `ac0de64` 的 CI `33070869295` 与 Docker `33070869320` 均 **GREEN**(含 Runtime Smoke 与四镜像)。
+- 本轮不含:主动巡检式探测(无自然流量时不发探针)、冷却参数配置化。
+
+**搜索发现接入：冷启动主路径打通（上一轮，2026-08-29）**：
+
+
 
 - 缺口:Legado/公共 API 的搜索只过滤已入库书目——用户搜任何新书都一无所获,且 v1 自动匹配(`CanonicalBookMatchingService`)自实现以来无生产调用方,Phase 1A 验收第 1 项"从来源搜索书籍"始终停留在机制层。
 - 新增 `BookDiscoveryService`(Crawling.Application):枚举已登记来源 → Search 能力健康过滤(不健康跳过并警告)→ 多源关键词搜索(**失败隔离**:单源异常只产生 warning 不影响其他来源)→ 命中后幂等导入 BookInfo → 走 v1 匹配(Confirmed 幂等 / 同名同作者挂接既有正典书 / 新建)→ 按正典身份归并,多源命中合一条并带 SourceIds 与 AlreadyInLibrary 标记。
@@ -425,7 +434,8 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 23 个用例因 `docker_engine` 不可用而 BLOCKED（本轮总计 30 个，6 个通过、1 个跳过）。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前因 `docker_engine` 不可用而 BLOCKED 的用例不记为通过。
+- [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环;种子规则已有 BookInfo/Toc/Content 三能力、**缺 Search 规则**(规则型 SearchAsync 已支持 List 绑定抽取,补一条 CapabilityRule 即可)。待网络环境可用时按 live 流程验证并补齐搜索规则——它仍是"第二个真实源+真实切源验收"的最短路径候选。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 

@@ -94,6 +94,7 @@ CI: GREEN (Run 32821162412)
 ✅ 追更正文闭环：TOC 联动正文入队、死信不复活、Worker 短轮询（`33065212994` / `33065212936`）
 ✅ 抓取→发布桥 + 上游修订重扫：Content 任务产出 IsCurrent 版本、stale 复检保鲜（`33066966836` / `33066966966`）
 ✅ 搜索发现接入：/api/v1/search 与 Legado search 可发现未入库书目并自动建档（`33069358438` / `33069358437`）
+✅ 自适应健康自动恢复：Unhealthy 冷却后半开重探、指数退避封顶一天（`33070869295` / `33070869320`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -154,6 +155,14 @@ CI: GREEN (Run 32821162412)
 - Api 宿主补引 Sources/Crawling/Kanunu8 并扩展组合根;**进程烟测实测抓到 ProductionSafeSourceHttpClient 缺 IIpAddressResolver 注册的必然 DI 失败**,修复后复测通过。
 - 自动化证据:Unit 159/159(发现服务 6 例)、Architecture 1/1、Contract 1/1(Legado DTO 未变);远端 Integration 35 中 34 通过 + 1 live 跳过;首次 CI RED 暴露 List 用例误按空库断言总数(共享容器残留的既有教训),改为专属 ID 断言后复绿——候选提交 `66fc150` 修复提交 `42ac47e`,CI `33069358438` 与 Docker `33069358437` 均 GREEN。
 - 未含:结果排序/分页与全文检索评分、Discovery 异步化、Reader 页接入发现流。
+
+### 4.9 自适应健康自动恢复（本轮，2026-08-29）
+
+- 缺口:Unhealthy 是死胡同——能力连续三次失败后,扫描/发现的健康门控永远跳过该来源,而没有任何流量能再把成功结果送进健康表,恢复只能靠人工 Enable。
+- 半开恢复(无 Schema 变更、无 Migration):`SourceHealthPolicy` 新增由**持久化失败计数 + UpdatedAt 推导**的探针冷却期(30 分钟起步、随失败深度翻倍、封顶一天);`ConsecutiveFailures` 不再封顶在阈值(深度是退避依据而非被丢弃);`SourceHealthService.IsAvailableAsync` 对冷却期满的 Unhealthy 来源放行——周期扫描/搜索发现的真实抓取天然充当探针,成败经既有 Record* 上报:成功回 Healthy 重置失败链,失败刷新锚点并延长冷却。
+- 现有调用方(追更扫描/搜索发现/发布桥)零改动即获得自动恢复;Disabled 仍为人工终态。
+- 自动化证据:Unit 163/163(冷却阶梯与边界、失败深度增长不受阈值截断、服务级半开流程:冷却内不可用→到期放行→探针失败冷却翻倍→二次到期→成功恢复)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。候选提交 `ac0de64`,远端 CI 结论见 Progress 表。
+- 未含:主动巡检式探测(Unhealthy 源在无自然流量时不会主动发探针)、冷却参数配置化。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
