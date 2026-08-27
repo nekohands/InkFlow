@@ -13,10 +13,12 @@ namespace InkFlow.IntegrationTests;
 [TestClass]
 public sealed class KanunuSourceAdapterLiveTests
 {
-    private static KanunuSourceAdapter CreateLiveAdapter()
+    private static (KanunuSourceAdapter Adapter, HttpClient Client) CreateLiveAdapter()
     {
         Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-        return new KanunuSourceAdapter(new HttpClient(), new DnsIpAddressResolver());
+        var resolver = new DnsIpAddressResolver();
+        var client = new HttpClient(new SsrfSafeHttpMessageHandler(resolver));
+        return (new KanunuSourceAdapter(client, resolver), client);
     }
 
     [TestMethod]
@@ -27,12 +29,15 @@ public sealed class KanunuSourceAdapterLiveTests
             return; // live tests opt-in only (INKFLOW_LIVE_TESTS=1)
         }
 
-        var adapter = CreateLiveAdapter();
-        var info = await adapter.GetBookInfoAsync("book/3441");
+        var (adapter, client) = CreateLiveAdapter();
+        using (client)
+        {
+            var info = await adapter.GetBookInfoAsync("book/3441");
 
-        Assert.IsNotNull(info, "真实书页应能解析出书目元数据");
-        Assert.IsFalse(string.IsNullOrWhiteSpace(info.Title));
-        Console.WriteLine($"live book info: title={info.Title}, author={info.Author}");
+            Assert.IsNotNull(info, "真实书页应能解析出书目元数据");
+            Assert.IsFalse(string.IsNullOrWhiteSpace(info.Title));
+            Console.WriteLine($"live book info: title={info.Title}, author={info.Author}");
+        }
     }
 
     [TestMethod]
@@ -43,11 +48,14 @@ public sealed class KanunuSourceAdapterLiveTests
             return; // live tests opt-in only (INKFLOW_LIVE_TESTS=1)
         }
 
-        var adapter = CreateLiveAdapter();
-        var toc = await adapter.GetTableOfContentsAsync("book/3441");
+        var (adapter, client) = CreateLiveAdapter();
+        using (client)
+        {
+            var toc = await adapter.GetTableOfContentsAsync("book/3441");
 
-        Assert.IsTrue(toc.Count > 0, "真实书页应解析出目录条目");
-        Console.WriteLine($"live toc entries: {toc.Count}, first={toc[0].ExternalChapterId} {toc[0].Title}");
+            Assert.IsTrue(toc.Count > 0, "真实书页应解析出目录条目");
+            Console.WriteLine($"live toc entries: {toc.Count}, first={toc[0].ExternalChapterId} {toc[0].Title}");
+        }
     }
 
     [TestMethod]
@@ -58,13 +66,16 @@ public sealed class KanunuSourceAdapterLiveTests
             return; // live tests opt-in only (INKFLOW_LIVE_TESTS=1)
         }
 
-        var adapter = CreateLiveAdapter();
-        var toc = await adapter.GetTableOfContentsAsync("book/3441");
-        Assert.IsTrue(toc.Count > 0);
+        var (adapter, client) = CreateLiveAdapter();
+        using (client)
+        {
+            var toc = await adapter.GetTableOfContentsAsync("book/3441");
+            Assert.IsTrue(toc.Count > 0);
 
-        var content = await adapter.GetChapterContentAsync(toc[0].ExternalChapterId);
-        Assert.IsNotNull(content, "真实章节页应解析出正文段落");
-        Assert.IsTrue(content.Length > 200, $"正文长度异常: {content.Length}");
-        Console.WriteLine($"live chapter content length: {content.Length}, preview: {content[..Math.Min(80, content.Length)]}...");
+            var content = await adapter.GetChapterContentAsync(toc[0].ExternalChapterId);
+            Assert.IsNotNull(content, "真实章节页应解析出正文段落");
+            Assert.IsTrue(content.Length > 200, $"正文长度异常: {content.Length}");
+            Console.WriteLine($"live chapter content length: {content.Length}, preview: {content[..Math.Min(80, content.Length)]}...");
+        }
     }
 }

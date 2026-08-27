@@ -54,8 +54,12 @@ builder.Services.AddScoped<ISourceHealthReader>(sp => sp.GetRequiredService<Sour
 
 // 规则型/代码型适配器组合根(与 Worker 同源):健康感知由 BookDiscoveryService 内部执行。
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
-builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>();
-builder.Services.AddHttpClient<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>();
+builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
+builder.Services.AddHttpClient<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
 builder.Services.AddScoped<ISelectorEvaluator, CssSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(

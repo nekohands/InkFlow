@@ -34,8 +34,12 @@ builder.Services.AddScoped<ISourceHealthRecorder>(sp =>
     sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddScoped<UpdateScanService>();
 builder.Services.AddScoped<HealthProbeService>();
-builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>();
-builder.Services.AddHttpClient<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>();
+builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
+builder.Services.AddHttpClient<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
 builder.Services.AddScoped<ISelectorEvaluator, InkFlow.Modules.Sources.Infrastructure.CssSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();

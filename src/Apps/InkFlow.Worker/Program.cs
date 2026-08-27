@@ -64,8 +64,12 @@ builder.Services.AddScoped<IContentSelectionDecisionRepository, EfContentSelecti
 builder.Services.AddScoped<IContentSelectionService, ContentSelectionService>();
 builder.Services.AddScoped<ContentPublishingService>();
 
-builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>();
-builder.Services.AddHttpClient<KanunuSourceAdapter>();
+builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
+builder.Services.AddHttpClient<KanunuSourceAdapter>()
+    .ConfigurePrimaryHttpMessageHandler(sp =>
+        new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
 builder.Services.AddScoped<ISelectorEvaluator, CssSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<SourceCatalogService>();

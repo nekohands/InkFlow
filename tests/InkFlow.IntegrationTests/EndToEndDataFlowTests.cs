@@ -82,8 +82,9 @@ public sealed class EndToEndDataFlowTests
 
         // ---- 组合根:真实 HTTP 适配器 + 内存持久层 ----
         Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-        var http = new HttpClient();
         var resolver = new DnsIpAddressResolver();
+        using var safeHandler = new SsrfSafeHttpMessageHandler(resolver);
+        using var http = new HttpClient(safeHandler);
         var sourceHttp = new ProductionSafeSourceHttpClient(http, resolver);
         var kanunu = new KanunuSourceAdapter(http, resolver);
 
