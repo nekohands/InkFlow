@@ -23,6 +23,8 @@ Separate credential families:
 
 Long-lived secrets are returned to users once. InkFlow's current Identity baseline uses PBKDF2-SHA256 password hashes with per-password salt and stores only SHA-256 hashes of opaque access/refresh tokens; never store directly reusable complete tokens by default.
 
+Personal Legado Token v1 follows the same boundary: `POST /api/v1/me/legado/tokens` requires an authenticated user, returns the raw `lf_lgd_...` value only in that successful issue response, and persists only its Prefix + SHA-256 Hash, scope, expiry and revocation metadata. `GET` returns metadata without the secret; `DELETE` revokes only a token owned by the current user. Legado requests use the dedicated `X-InkFlow-Legado-Token` header and `InkFlowLegadoToken` scheme, never a URL/query parameter. The `LegadoRead` policy requires an active token with the `read` scope and an active user.
+
 ## 3. RBAC and Resource Policy
 
 Administrative access uses Role -> Permission mapping. The Operations Center read model, crawler dead-letter listing and consistency/source-health queries use a dedicated `OperationsRead` policy for `Operator` / `Administrator`; repair and source-health commands keep separate policies, obtain the actor from the authenticated subject and require a reason where applicable. Content Takedown/Restore is protected by an Administrator-only `ContentModeration` policy, requires a reason, and writes an immutable policy decision plus command audit. Other sensitive operations such as Book Merge/Split, Source Rule Publish, user suspension, billing and permission changes require explicit permission checks, reason/audit, and later may support re-auth/four-eyes approval.
@@ -31,7 +33,7 @@ Source capability operations use a separate `SourceOperations` policy for `Opera
 
 Private/organization content additionally enforces ownership/resource policy.
 
-Reading State v1 is private user data. The `/api/v1/me/reading/*` endpoints require an authenticated opaque bearer token and derive the owner only from the verified `sub` claim; callers cannot select another `UserId` through the route or request body. Reading tables use user-scoped composite keys, and the application repository requires `UserId` on every read/write. Book, chapter and Content Policy checks still apply before writing progress, shelf or history. UI-level export/delete, Personal Legado Token scoping and richer resource permissions remain future work.
+Reading State v1 is private user data. The `/api/v1/me/reading/*` endpoints require an authenticated opaque bearer token and derive the owner only from the verified `sub` claim; callers cannot select another `UserId` through the route or request body. Reading tables use user-scoped composite keys, and the application repository requires `UserId` on every read/write. Book, chapter and Content Policy checks still apply before writing progress, shelf or history. UI-level export/delete and richer resource permissions remain future work; Personal Legado Token scoping is defined above and is independently enforced by the dedicated Legado scheme/policy.
 
 ## 4. Community Source Threat Boundary
 
@@ -106,7 +108,7 @@ Physical ContentBlob dedup never grants logical access.
 
 High-risk actions emit immutable/append-oriented AuditEvent data including actor, time, resource, action, before/after or reference, reason and TraceId where applicable.
 
-当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。Crawler dead-letter replay 与 Content Policy Takedown/Restore 已额外写入带认证操作者、理由、结果和资源 reference 的命令级审计事件；更完整的 before/after、保留策略、查询授权和告警仍需后续实现。
+当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。Crawler dead-letter replay、Content Policy Takedown/Restore 与 Personal Legado Token issue/revoke 已额外写入带认证操作者、理由、结果和资源 reference 的命令级审计事件；Personal 令牌审计只记录脱敏 token reference，不记录原文。更完整的 before/after、保留策略、查询授权和告警仍需后续实现。
 
 Ordinary administrators cannot silently edit audit history through normal CRUD APIs.
 

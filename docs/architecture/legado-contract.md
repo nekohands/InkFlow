@@ -18,6 +18,15 @@ Legado 不直接复用 Web/Developer API DTO。第一阶段专用接口：
 - `GET /api/legado/v1/chapters/{chapterId}`
 - `GET /legado/book-source.json`
 
+Personal 模式使用同一组 DTO 和语义，但路由前缀为 `/api/legado/v1/personal/`：
+
+- `GET /api/legado/v1/personal/search?q=`
+- `GET /api/legado/v1/personal/books/{bookId}`
+- `GET /api/legado/v1/personal/books/{bookId}/chapters`
+- `GET /api/legado/v1/personal/chapters/{chapterId}`
+
+Personal 书源由 `POST /api/v1/me/legado/tokens` 在签发令牌时返回；令牌只在该次成功响应中返回原文，后续列表仅返回元数据。撤销使用 `DELETE /api/v1/me/legado/tokens/{tokenId}`。
+
 后续可增加 rssSource、replaceRule 和个人订阅能力，但不得破坏 v1 已发布 Contract。
 
 ## 3. Rule Generator
@@ -28,6 +37,8 @@ Legado 不直接复用 Web/Developer API DTO。第一阶段专用接口：
 
 官方规则尽量只解析 InkFlow 自有稳定 JSON，复杂性全部留在服务端。
 
+Personal 书源仍由同一生成器生成；其认证配置使用书源 `header` JSON 设置 `X-InkFlow-Legado-Token`，不把令牌放入 URL、查询参数、书源名称或可长期缓存的路径。
+
 ## 4. ID 与 URL 稳定性
 
 BookId、ChapterId 是长期稳定协议身份。
@@ -37,9 +48,9 @@ BookId、ChapterId 是长期稳定协议身份。
 ## 5. 公共与个人模式
 
 - Public：无需登录，允许基础 Search/Book/TOC/Content，实施合理匿名限流。
-- Personal：使用独立 Legado Access Token，支持更高配额、个人订阅/书架等能力。
+- Personal：使用独立 Legado Access Token，v1 提供用户范围的 Search/Book/TOC/Content；后续再扩展个人订阅、书架和配额能力。
 
-Legado Token 与 Web Access/Refresh Token 分离。数据库只保存 Prefix + Hash，可单独撤销、过期、审计和限制 Scope。
+Legado Token 与 Web Access/Refresh Token 分离。v1 令牌使用 `lf_lgd_` 前缀，数据库只保存 Prefix + SHA-256 Hash；令牌支持过期、撤销和 `read` Scope。Personal 请求只接受 `X-InkFlow-Legado-Token`，由独立 `InkFlowLegadoToken` authentication scheme 验证用户状态、令牌状态和 Scope，再进入 `LegadoRead` policy。原始令牌不写入日志、审计 reference、URL 或返回 DTO（签发成功响应的一次性 `token` 字段除外）。
 
 ## 6. 内容一致性
 

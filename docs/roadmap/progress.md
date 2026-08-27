@@ -419,7 +419,18 @@ Phase 0 开发过程中真实发现并修复：
 - 实现：新增 Reading 领域模型、应用服务和 PostgreSQL `reading` schema；提供用户书架增删/状态更新、最近阅读历史、按书进度、阅读器偏好 API。进度写入把当前进度和章节历史放在同一事务边界内，重复请求幂等，旧时间戳不能覆盖新进度。
 - 安全与数据边界：`/api/v1/me/reading/*` 只从认证 `sub` 取得用户 ID，不接受调用方传入用户 ID；所有持久化主键和查询都带用户范围。书架/进度/历史写入前复用 Canonical Book 与 Content Policy 可见性校验；缓存、Source URL 和第三方正文不进入 Reading 状态。
 - 自动化证据：本机 Release Build 0 warnings / 0 errors；Unit 230/230、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Reading 入口返回 401。远端 CI `33115433510` GREEN（Unit 230、Integration 48 项 47 通过/1 跳过，含 Reading PostgreSQL migration/upsert、Compose、Runtime smoke 与 diagnostics）；Docker `33115433490` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
-- 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源和真实故障切源；Reading UI/阅读器联调、Personal Legado Token、私人书库、TXT/EPUB 导入导出与人工 UX 验收继续列入后续事项。
+- 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源和真实故障切源；Reading UI/阅读器联调、私人书库、TXT/EPUB 导入导出与人工 UX 验收继续列入后续事项。Personal Legado Token v1 已在下一工作包落地，阅读 3.0 导入与撤销后失效仍列入人工验收。
+
+**Personal Legado Token v1（本轮，2026-08-28）**：
+
+- 缺口：阅读 3.0 只有公共书源契约，缺少用户可撤销、可过期且不暴露长期秘密的个人模式；Identity 也没有独立的 Legado 凭证边界。
+- 实现：新增 `LegadoAccessToken` 聚合和 `identity.legado_tokens` 表；原始令牌使用 `lf_lgd_` 前缀，仅在 `POST /api/v1/me/legado/tokens` 成功响应中出现一次，数据库只保存 Prefix + SHA-256 Hash。`GET /api/v1/me/legado/tokens` 只返回元数据，`DELETE /api/v1/me/legado/tokens/{tokenId}` 按用户隔离且幂等撤销。
+- Legado 接入：Personal 书源清单随签发响应返回，搜索/详情/目录/正文使用 `/api/legado/v1/personal/*`；阅读 3.0 通过 `header` JSON 发送 `X-InkFlow-Legado-Token`，令牌不进入 URL。公共 `/api/legado/v1/*` 与公共清单保持兼容。
+- 授权与审计：新增独立 `InkFlowLegadoToken` authentication scheme 和 `LegadoRead` policy；每次请求验证过期、撤销、scope 和用户状态。签发/撤销写入脱敏命令审计，不记录原始令牌；Personal API 仍受既有限流和请求审计覆盖。
+- 测试：新增领域、服务、认证 handler、端点审计回归；扩展 Legado 单测/Contract、Identity PostgreSQL migration roundtrip。覆盖摘要存储、用户隔离、过期/撤销、header 认证、公共/个人 URL 和审计无秘密。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 245/245、Architecture 1/1、Contract 2/2 PASS。本机 Identity PostgreSQL Testcontainers 3 个目标用例因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过；远端 CI `33118314796` GREEN（Restore/Build/Test/Compose/Personal Legado Runtime smoke/Diagnostics 全通过），Docker `33118314789` GREEN（四镜像）。
+- 提交：`fbe0c62`。
+- 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源切换；Personal 书源在阅读 3.0 中的导入、四步阅读和撤销后失效仍列入人工验收。
 
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
@@ -541,6 +552,7 @@ Official Source
 ### 6.1 需要人工或真实业务环境验收
 
 - [ ] **阅读 3.0 真机导入与阅读**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content；记录截图、请求结果和异常。
+- [ ] **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证个人 Search → BookInfo → TOC → Content、令牌 header 传递，以及撤销后请求失效；本轮按用户决定不执行。
 - [ ] **Web Reader 人工体验验收**：移动端、桌面端、宽屏正文宽度、长标题/缺封面/长作者、Loading/Empty/Error、键盘焦点、触控目标和阅读导航。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：补充第二个真实 Official Source；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
@@ -558,7 +570,7 @@ Official Source
 - API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
-- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端已提供书架、阅读历史、进度与阅读器偏好 API，但 Web/PWA Reader 接入、Personal Legado Token、私人书库和导入/导出仍未完成。
+- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端已提供书架、阅读历史、进度与阅读器偏好 API；Personal Legado Token v1 已落地。Web/PWA Reader 接入、私人书库和导入/导出仍未完成。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 
 ## 7. 当前阻塞

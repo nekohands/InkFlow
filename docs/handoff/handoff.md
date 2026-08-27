@@ -72,7 +72,7 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端已接入，公开修复中心仍待后续安全/运维工作。
+**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端与 Personal Legado Token v1 已接入，公开修复中心仍待后续安全/运维工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效保留为人工验收。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；Redis 分布式限流、查询/资源授权和更完整的权限/告警治理仍待后续工作包。
 
@@ -131,14 +131,24 @@ CI: GREEN (Run 32821162412)
 - 实现：新增 `InkFlow.Modules.Reading` 领域/应用/EF 持久化；`reading` schema 下建立 shelf/progress/history/preferences 四张表；API 接入 `/api/v1/me/reading/*`，覆盖书架、历史、进度和偏好。
 - 关键约束：所有 Reading 查询/写入显式携带认证 `sub` 对应的 `UserId`；书籍和章节使用稳定 Canonical ID；写入前通过 Content Policy 可见性检查；进度与历史在一个事务内保存，PostgreSQL upsert 按时间戳拒绝旧请求回写。
 - 当前证据：本机 Release Build 0 warnings / 0 errors、Unit 230/230、Architecture 1/1、Contract 1/1；API `/health` 200，未认证 Reading 入口 401。远端 CI `33115433510` GREEN（Unit 230、Integration 48 项 47 通过/1 跳过，含 Reading migration/upsert、Compose、Runtime smoke/diagnostics），Docker `33115433490` GREEN（四镜像）。
-- 边界：没有实现 Web/PWA Reader UI、Personal Legado Token、私人书库、TXT/EPUB 导入导出或真实设备/真实来源验收；这些与阅读 3.0 真机、真实追更和真实切源一起保留在待定事项。
+- 边界：没有实现 Web/PWA Reader UI、私人书库、TXT/EPUB 导入导出或真实设备/真实来源验收；Personal Legado Token v1 的自动化实现已完成，但阅读 3.0 真机导入、四步阅读和撤销后失效与真实追更/真实切源一起保留在待定事项。
+
+### 4.20 Personal Legado Token v1（本轮，2026-08-28）
+
+- 缺口：公共书源契约没有用户隔离的 Legado 访问边界，长期秘密也没有独立的签发、撤销、过期和 Scope 模型。
+- 实现：新增 `LegadoAccessToken` 聚合、`identity.legado_tokens` 表、签发/列表/撤销 API；原始 `lf_lgd_` 令牌只在签发成功响应中出现一次，数据库只保存 Prefix + SHA-256 Hash 与状态元数据。
+- Legado 接入：Personal 书源返回 `header` JSON，通过 `X-InkFlow-Legado-Token` 访问 `/api/legado/v1/personal/*`；公共 `/api/legado/v1/*` 和公共书源保持兼容，令牌不进入 URL。
+- 授权与审计：独立 `InkFlowLegadoToken` scheme 和 `LegadoRead` policy 校验用户状态、令牌过期/撤销与 `read` Scope；签发/撤销命令审计只记录脱敏 reference，不记录原始令牌。
+- 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 245/245、Architecture 1/1、Contract 2/2 PASS。本机 Identity PostgreSQL Testcontainers 3 个目标用例因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；远端 CI `33118314796` GREEN，Docker `33118314789` GREEN（四镜像）。
+- 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源切换；Personal 书源导入、Search → BookInfo → TOC → Content 与撤销后失效加入下方人工验收。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
-2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
-3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
-4. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
-5. **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、区块部分失败展示和死信截断标记；本轮只完成自动化基线，未执行人工操作。
-6. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、Center UI、Security/Operations 与商业化能力。
+2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
+3. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
+4. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
+5. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
+6. **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、区块部分失败展示和死信截断标记；本轮只完成自动化基线，未执行人工操作。
+7. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、Center UI、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -164,6 +174,7 @@ CI: GREEN (Run 32821162412)
 ✅ Content Policy / Takedown v1：公开读取门控 + Administrator 命令审计 + 追加式决策历史（`34c5c71`，CI `33109068649` / Docker `33109068630` 均 GREEN）
 ✅ Source Health Operator Controls v1：来源能力查询 + Operator/Administrator 停用/恢复 + 命令审计（`49e0fc1`，CI `33110684551` / Docker `33110684410` 均 GREEN）
 ✅ Operations/Repair Center Read Model v1：统一只读快照 + 独立查询 policy + 区块异常隔离（`ff02c23`，CI `33112741068` / Docker `33112741039` 均 GREEN）
+✅ Personal Legado Token v1：一次性原文签发 + Hash 持久化 + 独立 header 认证 + Personal API + 撤销审计（`fbe0c62`，CI `33118314796` / Docker `33118314789` 均 GREEN）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -344,7 +355,7 @@ Crawler 只执行抓取并产出结果，不拥有 Canonical Match 或最终 Con
 ```text
 阅读 3.0
 → InkFlow 官方 bookSource
-→ /api/legado/v1/*
+→ /api/legado/v1/*（公共）或 /api/legado/v1/personal/*（Personal Token）
 → Canonical Content
 ```
 
@@ -383,7 +394,7 @@ Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1 和 Operations Center Read Model v1 已完成，Center UI、自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
-- 用户身份基础与 Reading State v1（书架、历史、进度、偏好后端）已完成；Web/PWA Reader、Personal Legado Token、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
+- 用户身份基础、Reading State v1（书架、历史、进度、偏好后端）和 Personal Legado Token v1 已完成；Web/PWA Reader、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。
 
@@ -412,6 +423,7 @@ Phase 2 及以后：
 - [x] `dev` 分支远端 CI（含 Runtime Smoke）首跑确认 GREEN（Run `32821162412`），骨架阶段 Completed。
 - [x] Phase 1A 自动化链路与 kanunu8 真实源端到端验证已在 `dev` 上重建并通过相应证据。
 - [ ] Legado 真机导入/阅读与真实追更仍待执行。
+- [x] Personal Legado Token v1 的自动化签发、Hash 持久化、header 认证、Personal API 与撤销审计已完成；阅读 3.0 导入、四步阅读和撤销后失效仍待人工执行。
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
