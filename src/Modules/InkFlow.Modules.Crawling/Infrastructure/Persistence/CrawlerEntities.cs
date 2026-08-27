@@ -11,6 +11,7 @@ public sealed class CrawlerTaskEntity
     public int Status { get; set; }
     public int AttemptCount { get; set; }
     public int MaxAttempts { get; set; }
+    public DateTimeOffset? ScheduledAt { get; set; }
     public string? LeaseOwner { get; set; }
     public DateTimeOffset? LeaseExpiresAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

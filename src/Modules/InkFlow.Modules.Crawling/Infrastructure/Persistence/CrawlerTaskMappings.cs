@@ -38,6 +38,7 @@ public sealed class CrawlerTaskEntityConfiguration : IEntityTypeConfiguration<Cr
         // 领取扫描的高频谓词：按状态过滤。
         builder.HasIndex(t => t.Status);
         builder.HasIndex(t => new { t.Status, t.LeaseExpiresAt });
+        builder.HasIndex(t => new { t.Status, t.ScheduledAt });
     }
 }
 
@@ -68,6 +69,7 @@ public static class CrawlerTaskMapper
             Status = (int)task.Status,
             AttemptCount = task.AttemptCount,
             MaxAttempts = task.MaxAttempts,
+            ScheduledAt = task.ScheduledAt,
             LeaseOwner = task.LeaseOwner,
             LeaseExpiresAt = task.LeaseExpiresAt,
             CreatedAt = task.CreatedAt,
@@ -88,7 +90,8 @@ public static class CrawlerTaskMapper
             entity.LeaseOwner,
             entity.LeaseExpiresAt,
             entity.CreatedAt,
-            entity.UpdatedAt);
+            entity.UpdatedAt,
+            entity.ScheduledAt);
 
     /// <summary>把聚合当前状态写回已跟踪的实体（保持同一实例，供 EF 变更跟踪）。</summary>
     public static void ApplyDomain(CrawlerTask task, CrawlerTaskEntity entity)
@@ -97,6 +100,7 @@ public static class CrawlerTaskMapper
         entity.Status = fresh.Status;
         entity.AttemptCount = fresh.AttemptCount;
         entity.MaxAttempts = fresh.MaxAttempts;
+        entity.ScheduledAt = fresh.ScheduledAt;
         entity.LeaseOwner = fresh.LeaseOwner;
         entity.LeaseExpiresAt = fresh.LeaseExpiresAt;
         entity.UpdatedAt = fresh.UpdatedAt;

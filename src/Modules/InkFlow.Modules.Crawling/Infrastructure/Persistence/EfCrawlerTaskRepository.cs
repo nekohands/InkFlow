@@ -37,7 +37,8 @@ public sealed class EfCrawlerTaskRepository(CrawlingDbContext db) : ICrawlerTask
             .FromSqlInterpolated($"""
                 SELECT *
                 FROM "crawler"."tasks"
-                WHERE "Status" = {(int)CrawlerTaskStatus.Pending}
+                WHERE ("Status" = {(int)CrawlerTaskStatus.Pending}
+                       AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
                    OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
                        AND "LeaseExpiresAt" IS NOT NULL
                        AND "LeaseExpiresAt" <= {now})
@@ -82,7 +83,8 @@ public sealed class EfCrawlerTaskRepository(CrawlingDbContext db) : ICrawlerTask
     {
         var entities = await db.Tasks
             .Where(t =>
-                t.Status == (int)CrawlerTaskStatus.Pending ||
+                (t.Status == (int)CrawlerTaskStatus.Pending &&
+                 (t.ScheduledAt == null || t.ScheduledAt <= now)) ||
                 ((t.Status == (int)CrawlerTaskStatus.Leased ||
                   t.Status == (int)CrawlerTaskStatus.Running) &&
                  t.LeaseExpiresAt != null && t.LeaseExpiresAt <= now))

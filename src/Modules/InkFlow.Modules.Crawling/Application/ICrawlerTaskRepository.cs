@@ -27,7 +27,8 @@ public interface ICrawlerTaskRepository
     Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 找出在 <paramref name="now"/> 时刻可领取（Pending，或 Leased/Running 租约已过期）的任务。
+    /// 找出在 <paramref name="now"/> 时刻可领取（已到 <c>ScheduledAt</c> 的 Pending，
+    /// 或 Leased/Running 租约已过期）的任务。
     /// 该方法用于候选发现；需要真正领取时必须调用 <see cref="TryLeaseAsync"/>。
     /// </summary>
     Task<IReadOnlyList<CrawlerTask>> FindLeasableAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken = default);

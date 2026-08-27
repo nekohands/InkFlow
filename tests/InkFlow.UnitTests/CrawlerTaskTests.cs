@@ -112,6 +112,21 @@ public sealed class CrawlerTaskTests
     }
 
     [TestMethod]
+    public void Fail_Below_Max_Attempts_Schedules_Next_Attempt()
+    {
+        var task = NewTask(maxAttempts: 3);
+        var retryAt = T0.AddMinutes(5);
+        task.Lease("w", T0, TimeSpan.FromMinutes(1));
+        task.MarkRunning(T0);
+        task.Fail(T0, retryAt);
+
+        Assert.AreEqual(CrawlerTaskStatus.Pending, task.Status);
+        Assert.AreEqual(retryAt, task.ScheduledAt);
+        Assert.IsFalse(task.IsLeasable(retryAt.AddSeconds(-1)));
+        Assert.IsTrue(task.IsLeasable(retryAt));
+    }
+
+    [TestMethod]
     public void Fail_At_Max_Attempts_DeadLetters_And_Can_Build_DeadLetter_Record()
     {
         var task = NewTask(maxAttempts: 2);
@@ -128,6 +143,7 @@ public sealed class CrawlerTaskTests
 
         Assert.AreEqual(CrawlerTaskStatus.DeadLettered, task.Status);
         Assert.AreEqual(2, task.AttemptCount);
+        Assert.IsNull(task.ScheduledAt);
 
         var deadLetter = DeadLetterTask.From(task, "upstream 503", T0.AddMinutes(3));
         Assert.AreEqual(task.Id, deadLetter.TaskId);

@@ -138,6 +138,15 @@ public sealed class CrawlerTaskRepositoryTests
         runningExpired.MarkRunning(T0.AddSeconds(1));
         await repo.SaveAsync(runningExpired).ConfigureAwait(false); // Worker 崩溃后租约已过期
 
+        var futureRetry = CrawlerTask.Create(
+            new CrawlPayload("src-future-retry", SourceCapability.Content, new Dictionary<string, string>()),
+            maxAttempts: 3,
+            createdAt: T0.AddDays(-3));
+        futureRetry.Lease("w", T0, TimeSpan.FromMinutes(1));
+        futureRetry.MarkRunning(T0.AddSeconds(1));
+        futureRetry.Fail(T0.AddSeconds(2), T0.AddHours(1));
+        await repo.AddAsync(futureRetry).ConfigureAwait(false);
+
         var leasable = await repo.FindLeasableAsync(T0.AddMinutes(5), limit: 10).ConfigureAwait(false);
         var sources = leasable.Select(t => t.Payload.SourceId).OrderBy(s => s).ToList();
 
@@ -145,6 +154,41 @@ public sealed class CrawlerTaskRepositoryTests
         Assert.IsTrue(sources.Contains("src-expired"));
         Assert.IsTrue(sources.Contains("src-running-expired"));
         Assert.IsFalse(sources.Contains("src-fresh"));
+        Assert.IsFalse(sources.Contains("src-future-retry"));
+    }
+
+    [TestMethod]
+    public async Task Save_Persists_Retry_Schedule_And_Atomic_Claim_Skips_Future_Task()
+    {
+        var seed = CreateContext();
+        await using var seedDb = seed.Db;
+        var task = CrawlerTask.Create(
+            new CrawlPayload("src-persisted-future-retry", SourceCapability.Content, new Dictionary<string, string>()),
+            maxAttempts: 3,
+            createdAt: T0.AddDays(-100));
+        await seed.Repo.AddAsync(task).ConfigureAwait(false);
+
+        var update = CreateContext();
+        await using var updateDb = update.Db;
+        var loaded = await update.Repo.GetAsync(task.Id).ConfigureAwait(false);
+        Assert.IsNotNull(loaded);
+        var retryAt = T0.AddHours(1);
+        loaded!.Lease("worker", T0, TimeSpan.FromMinutes(1));
+        loaded.MarkRunning(T0.AddSeconds(1));
+        loaded.Fail(T0.AddSeconds(2), retryAt);
+        await update.Repo.SaveAsync(loaded).ConfigureAwait(false);
+
+        var claimant = CreateContext();
+        await using var claimantDb = claimant.Db;
+        var claim = await claimant.Repo
+            .TryLeaseAsync(T0.AddMinutes(5), "other-worker", TimeSpan.FromMinutes(2))
+            .ConfigureAwait(false);
+        var reloaded = await claimant.Repo.GetAsync(task.Id).ConfigureAwait(false);
+
+        Assert.IsNotNull(reloaded);
+        Assert.AreEqual(CrawlerTaskStatus.Pending, reloaded!.Status);
+        Assert.AreEqual(retryAt, reloaded.ScheduledAt);
+        Assert.AreNotEqual(task.Id, claim?.Id, "未来调度任务不可被原子领取");
     }
 
     [TestMethod]

@@ -11,6 +11,7 @@ public sealed class CrawlerTask
     public CrawlerTaskStatus Status { get; private set; } = CrawlerTaskStatus.Pending;
     public int AttemptCount { get; private set; }
     public int MaxAttempts { get; private set; }
+    public DateTimeOffset? ScheduledAt { get; private set; }
     public string? LeaseOwner { get; private set; }
     public DateTimeOffset? LeaseExpiresAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -36,6 +37,7 @@ public sealed class CrawlerTask
             Id = Guid.NewGuid(),
             Payload = payload,
             MaxAttempts = maxAttempts,
+            ScheduledAt = now,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -44,7 +46,8 @@ public sealed class CrawlerTask
     /// <summary>测试/重建场景使用的完整构造。</summary>
     public static CrawlerTask Rehydrate(
         Guid id, CrawlPayload payload, CrawlerTaskStatus status, int attemptCount, int maxAttempts,
-        string? leaseOwner, DateTimeOffset? leaseExpiresAt, DateTimeOffset createdAt, DateTimeOffset updatedAt) =>
+        string? leaseOwner, DateTimeOffset? leaseExpiresAt, DateTimeOffset createdAt, DateTimeOffset updatedAt,
+        DateTimeOffset? scheduledAt = null) =>
         new()
         {
             Id = id,
@@ -52,15 +55,17 @@ public sealed class CrawlerTask
             Status = status,
             AttemptCount = attemptCount,
             MaxAttempts = maxAttempts,
+            ScheduledAt = scheduledAt,
             LeaseOwner = leaseOwner,
             LeaseExpiresAt = leaseExpiresAt,
             CreatedAt = createdAt,
             UpdatedAt = updatedAt,
         };
 
-    /// <summary>Pending 或租约已过期的 Leased/Running 任务可被新 worker 领取。</summary>
+    /// <summary>到达调度时间的 Pending 或租约已过期的 Leased/Running 任务可被新 worker 领取。</summary>
     public bool IsLeasable(DateTimeOffset now) =>
-        Status == CrawlerTaskStatus.Pending ||
+        (Status == CrawlerTaskStatus.Pending &&
+         (ScheduledAt is null || ScheduledAt <= now)) ||
         ((Status is CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) &&
          LeaseExpiresAt is { } expiry && expiry <= now);
 
@@ -72,6 +77,12 @@ public sealed class CrawlerTask
         }
 
         EnsureTransition(CrawlerTaskStatus.Leased);
+        if (Status == CrawlerTaskStatus.Pending && ScheduledAt is { } scheduledAt && scheduledAt > now)
+        {
+            throw new InvalidOperationException(
+                $"crawler task {Id} is scheduled for retry at {scheduledAt:O}.");
+        }
+
         if (Status == CrawlerTaskStatus.Pending)
         {
             // Pending → Leased：每次领取（含过期租约被回收后的重新领取）都计入尝试，
@@ -80,6 +91,7 @@ public sealed class CrawlerTask
         }
 
         Status = CrawlerTaskStatus.Leased;
+        ScheduledAt = null;
         LeaseOwner = owner;
         LeaseExpiresAt = now + leaseDuration;
         Touch(now);
@@ -96,6 +108,7 @@ public sealed class CrawlerTask
     {
         EnsureTransition(CrawlerTaskStatus.Completed);
         Status = CrawlerTaskStatus.Completed;
+        ScheduledAt = null;
         ClearLease();
         Touch(now);
     }
@@ -103,7 +116,7 @@ public sealed class CrawlerTask
     /// <summary>
     /// 标记失败。未达重试上限时回到 Pending 等待再次领取；达到上限进入死信终态。
     /// </summary>
-    public void Fail(DateTimeOffset now)
+    public void Fail(DateTimeOffset now, DateTimeOffset? nextAttemptAt = null)
     {
         EnsureTransition(CrawlerTaskStatus.Failed);
         ClearLease();
@@ -111,10 +124,12 @@ public sealed class CrawlerTask
         if (AttemptCount >= MaxAttempts)
         {
             Status = CrawlerTaskStatus.DeadLettered;
+            ScheduledAt = null;
         }
         else
         {
             Status = CrawlerTaskStatus.Pending;
+            ScheduledAt = nextAttemptAt ?? now;
         }
 
         Touch(now);
@@ -132,6 +147,7 @@ public sealed class CrawlerTask
 
         EnsureTransition(CrawlerTaskStatus.Pending);
         Status = CrawlerTaskStatus.Pending;
+        ScheduledAt = null;
         ClearLease();
         Touch(now);
     }

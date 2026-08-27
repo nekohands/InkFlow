@@ -46,6 +46,7 @@ builder.Services.AddScoped<ISourceHealthReader>(sp =>
     sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddScoped<ISourceHealthRecorder>(sp =>
     sp.GetRequiredService<SourceHealthService>());
+builder.Services.AddSingleton<RetryPolicy>();
 builder.Services.AddScoped<IMatchCandidateRepository, EfMatchCandidateRepository>();
 builder.Services.AddScoped<IChapterMappingRepository, EfChapterMappingRepository>();
 builder.Services.AddScoped<IContentVersionRepository, EfContentVersionRepository>();
@@ -98,7 +99,8 @@ internal sealed class CompositeTaskExecutor(
 /// </summary>
 internal sealed class TaskPollingService(
     IServiceScopeFactory scopeFactory,
-    TimeProvider clock) : BackgroundService
+    TimeProvider clock,
+    RetryPolicy retryPolicy) : BackgroundService
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
 
@@ -180,11 +182,15 @@ internal sealed class TaskPollingService(
             return;
         }
 
-        task.Fail(clock.GetUtcNow());
+        var now = clock.GetUtcNow();
+        DateTimeOffset? nextAttemptAt = task.AttemptCount < task.MaxAttempts
+            ? now + retryPolicy.DelayFor(task.AttemptCount)
+            : null;
+        task.Fail(now, nextAttemptAt);
         if (task.Status == CrawlerTaskStatus.DeadLettered)
         {
             await tasks.AddDeadLetterAsync(
-                DeadLetterTask.From(task, reason, clock.GetUtcNow()),
+                DeadLetterTask.From(task, reason, now),
                 stoppingToken).ConfigureAwait(false);
         }
 
