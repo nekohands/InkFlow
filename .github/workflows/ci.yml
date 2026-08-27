@@ -126,8 +126,12 @@ jobs:
             docker compose logs --no-color api
             exit 1
           }
-          echo "--- GET /reader (minimal web reader) ---"
-          curl --fail --silent http://localhost:8080/reader | grep -q "墨流" || {
+          echo "--- GET /reader (web reader v1) ---"
+          reader_page=$(curl --fail --silent http://localhost:8080/reader)
+          printf '%s' "$reader_page" | grep -q "墨流" &&
+          printf '%s' "$reader_page" | grep -q 'role="search"' &&
+          printf '%s' "$reader_page" | grep -q 'class="search-bar"' &&
+          printf '%s' "$reader_page" | grep -q 'prefers-reduced-motion' || {
             echo "reader page failed; dumping api logs:"
             docker compose logs --no-color api
             exit 1

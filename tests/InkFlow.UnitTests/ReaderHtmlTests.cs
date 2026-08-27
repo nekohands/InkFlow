@@ -23,6 +23,7 @@ public sealed class ReaderHtmlTests
 
         StringAssert.Contains(html, "viewport");
         StringAssert.Contains(html, "type=\"search\"");
+        StringAssert.Contains(html, "class=\"book-grid\"");
         StringAssert.Contains(html, "/reader/books/");
         StringAssert.Contains(html, "剑来");
         StringAssert.Contains(html, "烽火戏诸侯");
@@ -112,6 +113,35 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, $"reader/read/{nextId}");
         StringAssert.Contains(html, "上一章");
         StringAssert.Contains(html, "下一章");
+    }
+
+    [TestMethod]
+    public void Chapter_Page_Provides_Responsive_Reader_Settings()
+    {
+        var content = new ChapterContent(Guid.NewGuid(), Guid.NewGuid(), 0, "第一章", "private-source", ["正文"]);
+
+        var html = ReaderHtml.ChapterPage(content, previous: null, next: null, Guid.NewGuid(), "书");
+
+        StringAssert.Contains(html, "reader-toolbar");
+        StringAssert.Contains(html, "data-open-reader-settings");
+        StringAssert.Contains(html, "id=\"reader-settings\"");
+        StringAssert.Contains(html, "id=\"reader-theme\"");
+        StringAssert.Contains(html, "id=\"reader-font-size\"");
+        StringAssert.Contains(html, "id=\"reader-line-height\"");
+        StringAssert.Contains(html, "localStorage");
+        StringAssert.Contains(html, "prefers-reduced-motion");
+        Assert.IsFalse(html.Contains("private-source"), "阅读页面不得暴露内部 SourceId");
+    }
+
+    [TestMethod]
+    public void Chapter_Page_Renders_Empty_Content_State()
+    {
+        var content = new ChapterContent(Guid.NewGuid(), Guid.NewGuid(), 0, "第一章", "src", []);
+
+        var html = ReaderHtml.ChapterPage(content, previous: null, next: null, Guid.NewGuid(), "书");
+
+        StringAssert.Contains(html, "该章节暂时没有可显示的正文");
+        StringAssert.Contains(html, "role=\"status\"");
     }
 
     [TestMethod]

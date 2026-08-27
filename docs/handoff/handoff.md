@@ -72,7 +72,7 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端与 Personal Legado Token v1 已接入，公开修复中心仍待后续安全/运维工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效保留为人工验收。
+**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1 与 Web Reader v1 已接入，公开修复中心仍待后续安全/运维工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader 浏览器视觉验收保留为人工验收。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；Redis 分布式限流、查询/资源授权和更完整的权限/告警治理仍待后续工作包。
 
@@ -142,13 +142,23 @@ CI: GREEN (Run 32821162412)
 - 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 245/245、Architecture 1/1、Contract 2/2 PASS。本机 Identity PostgreSQL Testcontainers 3 个目标用例因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；远端 CI `33118314796` GREEN，Docker `33118314789` GREEN（四镜像）。
 - 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源切换；Personal 书源导入、Search → BookInfo → TOC → Content 与撤销后失效加入下方人工验收。
 
+### 4.21 Web Reader v1（本轮，2026-08-28）
+
+- 缺口：既有 `/reader` 三页面流只有极简 HTML，缺少长文阅读所需的设置入口、主题/字号/行高、响应式布局、可访问语义和状态反馈。
+- 实现：重做服务端 `ReaderHtml` 的书目列表、书籍详情和章节页；保留搜索→详情→开始阅读、目录、上一章/下一章路径，增加统一视觉 token、语义 landmark、skip link、滚动进度条、空正文状态和移动端触控布局。
+- 阅读设置：章节页提供 `dialog`，支持 System/Light/Sepia/Dark、字号和行高；匿名偏好以受限数值写入当前设备 `localStorage`，脚本不可用时正文和链接导航仍可用。
+- 安全/验收：所有业务文本 HTML 转义，不输出 SourceId 或上游 HTML；加入 reduced-motion、焦点和设置控件结构回归。Benchmark Note 记录了 Royal Road、Kobo Web Reader、Wuxiaworld 的官方阅读模式取舍。
+- 当前证据：本机 Unit 247/247、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS；CI smoke 已增加 `/reader` 语义结构检查。浏览器截图、移动/平板/桌面/宽屏视觉检查和长时间阅读仍未执行，按用户决定加入人工验收。
+- 边界：未实现 PWA 安装/离线缓存、服务端 Reading State 同步、评论/书签、分页阅读或真实设备验收。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
-3. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
-4. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
-5. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
-6. **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、区块部分失败展示和死信截断标记；本轮只完成自动化基线，未执行人工操作。
-7. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、Center UI、Security/Operations 与商业化能力。
+3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
+4. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
+5. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
+6. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
+7. **Operations Center 人工验收**：使用 Operator/Administrator 凭证验证 overview 读取、匿名拒绝、区块部分失败展示和死信截断标记；本轮只完成自动化基线，未执行人工操作。
+8. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、PWA/私人书库、Center UI、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -175,6 +185,7 @@ CI: GREEN (Run 32821162412)
 ✅ Source Health Operator Controls v1：来源能力查询 + Operator/Administrator 停用/恢复 + 命令审计（`49e0fc1`，CI `33110684551` / Docker `33110684410` 均 GREEN）
 ✅ Operations/Repair Center Read Model v1：统一只读快照 + 独立查询 policy + 区块异常隔离（`ff02c23`，CI `33112741068` / Docker `33112741039` 均 GREEN）
 ✅ Personal Legado Token v1：一次性原文签发 + Hash 持久化 + 独立 header 认证 + Personal API + 撤销审计（`fbe0c62`，CI `33118314796` / Docker `33118314789` 均 GREEN）
+✅ Web Reader v1：响应式书目/详情/章节页 + 主题/字号/行高本地设置 + 可访问章节导航（本轮候选提交待 CI）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -394,7 +405,7 @@ Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1 和 Operations Center Read Model v1 已完成，Center UI、自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
-- 用户身份基础、Reading State v1（书架、历史、进度、偏好后端）和 Personal Legado Token v1 已完成；Web/PWA Reader、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
+- 用户身份基础、Reading State v1（书架、历史、进度、偏好后端）、Personal Legado Token v1 和 Web Reader v1 已完成；PWA 安装/离线、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。
 
@@ -424,6 +435,7 @@ Phase 2 及以后：
 - [x] Phase 1A 自动化链路与 kanunu8 真实源端到端验证已在 `dev` 上重建并通过相应证据。
 - [ ] Legado 真机导入/阅读与真实追更仍待执行。
 - [x] Personal Legado Token v1 的自动化签发、Hash 持久化、header 认证、Personal API 与撤销审计已完成；阅读 3.0 导入、四步阅读和撤销后失效仍待人工执行。
+- [x] Web Reader v1 的服务端渲染、响应式结构、阅读设置与 HTML 安全回归已完成；浏览器四尺寸视觉、焦点、触控和长时间阅读仍待人工执行。
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
