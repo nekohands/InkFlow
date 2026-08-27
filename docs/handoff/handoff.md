@@ -76,7 +76,7 @@ CI: GREEN (Run 32821162412)
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
-随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。健康侧完成半开自动恢复与主动巡检探针(4.9);Web Reader 搜索也已接入发现流,三端(API/Legado/Reader)共用同一落库过滤语义(详见 4.10)。
+随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。健康侧完成半开自动恢复与主动巡检探针(4.9);Web Reader 搜索也已接入发现流,三端(API/Legado/Reader)共用同一落库过滤语义(详见 4.10)。冷却曲线参数已配置化(ADR 0005,详见 4.11):运营经 `SourceHealth` 配置节调整失败阈值与重探节奏,无 Schema 变更。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -96,6 +96,7 @@ CI: GREEN (Run 32821162412)
 ✅ 搜索发现接入：/api/v1/search 与 Legado search 可发现未入库书目并自动建档（`33069358438` / `33069358437`）
 ✅ 自适应健康自动恢复：Unhealthy 冷却后半开重探、指数退避封顶一天（`33070869295` / `33070869320`）
 ✅ 主动巡检探针 + Reader 接入发现流（Progress 表对应记录）
+✅ 冷却参数配置化：SourceHealth 配置节 → SourceHealthParameters，启动时装载（ADR 0005）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -172,6 +173,14 @@ CI: GREEN (Run 32821162412)
 - UX/frontend-design:双空态文案(空库引导 / 无结果建议换词)、命中计数、部分来源不可用的人话降级提示,SourceId 与异常细节零泄漏(单测断言),搜索词回显转义(单测断言)。
 - 自动化证据:Unit 175/175(+6)、Architecture 1/1、Contract 1/1(Legado DTO 未变)、Release Build 0 warnings / 0 errors。候选提交 `48c05a2`,CI/Docker 结论见 Progress 表。
 - 未含:排序/分页/全文检索(v2)、Discovery 异步化。
+
+### 4.11 冷却参数配置化（本轮，2026-08-29）
+
+- 缺口:探针冷却曲线(3 次/30 分钟/封顶一天)是编译期 const——调整失败容忍度或重探节奏必须改代码重发布(4.9/4.10 遗留项)。
+- 实现(无 Schema 变更、无 Migration、健康调用方零改动):曲线算法唯一实现移入 Domain record `SourceHealthParameters.ProbeCooldown`,`SourceHealthPolicy` 变为只读视图,组合根启动时 `Configure()` 装载。配置链:`SourceHealthOptions.FromConfiguration`(节 `SourceHealth`,环境变量 `SourceHealth__ProbeCooldownBaseMinutes` 等;缺省回退 v1,非法值启动快速失败)→ `ToParameters()` 扩展 → Api/Scheduler/Worker 三宿主装载。ADR 0005。
+- 细节:`Configure(null)` 恢复默认走编译期常量而非静态属性快照,规避静态初始化次序缺陷;`SourceHealthOptions` 是 BuildingBlocks.Application 的纯 POCO(仅依赖 Configuration.Abstractions),模块映射扩展在 Sources.Application,依赖方向不破坏。
+- 自动化证据:Unit 180/180(+5)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;本机 Integration 与基线一致(29 例 docker BLOCKED 不记为通过)。候选提交与 CI/Docker 结论见 Progress 表。
+- 未含:运行时热更新(仅启动时装载)、per-source 冷却粒度。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
@@ -279,7 +288,7 @@ Phase 1A / 1B 外部验收：
 
 Phase 2 及以后：
 
-- 自适应 Source Health 探测/恢复、跨源一致性和更强的 Repair/Replay；Capability Health v1 与健康感知切源已完成自动化基线。
+- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；跨源一致性和更强的 Repair/Replay 仍待实现。
 - 第三个稳定 Official Source、监控告警、备份恢复、安全扫描；限流已形成单实例基线，Redis 分布式配额、认证/授权和持久化审计仍待实现。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 

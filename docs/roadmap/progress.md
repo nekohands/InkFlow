@@ -318,6 +318,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据:Unit 163/163(冷却阶梯/边界含相等/深度增长不受阈值截断/服务级半开流程四向断言)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;既有 159 例零破坏。候选提交 `ac0de64` 的 CI `33070869295` 与 Docker `33070869320` 均 **GREEN**(含 Runtime Smoke 与四镜像)。
 - 本轮不含:主动巡检式探测(无自然流量时不发探针)、冷却参数配置化。
 
+**冷却参数配置化（本轮，2026-08-29）**：
+
+- 缺口:探针冷却曲线(3 次阈值/30 分钟起步/封顶一天)是编译期 const——linovelib 类 DNS 污染源的高频重试成本、低容忍场景的快速摘除,都要改代码重发布才能调整(4.9 明确记录的遗留)。
+- 实现(无 Schema 变更、无 Migration、健康相关调用方零改动):曲线算法唯一实现移入 Domain 不可变 record `SourceHealthParameters.ProbeCooldown`;`SourceHealthPolicy` 变为「当前装载参数」只读视图,组合根启动时经 `Configure()` 装载。配置链:BuildingBlocks.Application 新增 `SourceHealthOptions.FromConfiguration`(节 `SourceHealth`,环境变量如 `SourceHealth__ProbeCooldownBaseMinutes`;缺省回退 v1,非整数/越界/max<base 启动即快速失败)→ Sources.Application `ToParameters()` 映射扩展 → Api/Scheduler/Worker 三宿主组合根装载(ADR 0005)。
+- 持久化状态与 `source-health-v1` 算法版本不变;`Configure(null)` 经编译期常量(而非静态属性快照)恢复 v1 默认,规避「Default 捕获运行时快照」的静态初始化次序缺陷。
+- 自动化证据:Unit 180/180(基线 175 + 新增 5:默认曲线一致、配置读取/回退、非法值拒绝、Configure 装载与 null 还原、进程内服务半开节奏随配置变化)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;本机 Integration 与基线完全一致(29 例 docker_engine BLOCKED 不记为通过,6 通过 1 跳过)。候选提交的远端 CI/Docker 结论待回写。
+- 本轮不含:管理端运行时热更新(仅启动时装载一次)、per-source 冷却粒度。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -449,7 +457,7 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- Source Health / Capability Health 与 v1 健康感知切源已落地；自适应探测/自动恢复、跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
+- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度和单任务异常重试基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包），可观测告警仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
