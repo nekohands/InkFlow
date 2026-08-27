@@ -99,6 +99,14 @@ public sealed class UpdateScanServiceTests
             SourceCapability capability,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(false);
+
+        public Task<bool> HasConflictingTaskAsync(
+            string sourceId,
+            SourceCapability capability,
+            string variableName,
+            string variableValue,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
     }
 
     private sealed class InMemoryHealthReader(params string[] unavailable) : ISourceHealthReader

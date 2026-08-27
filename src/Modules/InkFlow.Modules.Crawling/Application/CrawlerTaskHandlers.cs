@@ -6,11 +6,13 @@ using InkFlow.Modules.Sources.Domain;
 namespace InkFlow.Modules.Crawling.Application;
 
 /// <summary>
-/// Toc 同步处理器:执行目录规则 → 来源章节落库 → (若书目已确认匹配)映射为正典章节。
+/// Toc 同步处理器:执行目录规则 → 来源章节落库 → (若书目已确认匹配)映射为正典章节
+/// → 为从未抓取过正文的新章节联动入队 Content 抓取任务(追更闭环)。
 /// </summary>
 public sealed class TocSyncTaskHandler(
     SourceCatalogService catalog,
-    CanonicalChapterMappingService mappingService) : ICrawlerTaskExecutor
+    CanonicalChapterMappingService mappingService,
+    ContentFetchChainService contentChain) : ICrawlerTaskExecutor
 {
     public async Task<CrawlOutcome> ExecuteAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
@@ -36,6 +38,12 @@ public sealed class TocSyncTaskHandler(
         {
             return CrawlOutcome.Fail(string.Join("; ", mapping.Errors));
         }
+
+        // 目录与映射落库后立即联动正文抓取:只补"该来源尚未抓取过"的章节,
+        // 已有产物/在途任务/死信的章节由链式服务按不变量跳过。
+        await contentChain
+            .EnqueuePendingContentFetchesAsync(task.Payload.SourceId, externalBookId, cancellationToken)
+            .ConfigureAwait(false);
 
         return CrawlOutcome.Ok();
     }

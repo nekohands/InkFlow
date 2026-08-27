@@ -130,6 +130,35 @@ public sealed class EfCrawlerTaskRepository(CrawlingDbContext db) : ICrawlerTask
             .ConfigureAwait(false);
     }
 
+    public async Task<bool> HasConflictingTaskAsync(
+        string sourceId,
+        SourceCapability capability,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default)
+    {
+        var blockingStatuses = new[]
+        {
+            (int)CrawlerTaskStatus.Pending,
+            (int)CrawlerTaskStatus.Leased,
+            (int)CrawlerTaskStatus.Running,
+            (int)CrawlerTaskStatus.DeadLettered,
+        };
+
+        // Variables 为 jsonb 字典,EF 无法翻译取值比较;先按 (source, capability, 状态)
+        // 服务端裁剪,再在内存中匹配变量。单来源单能力的任务量级有限。
+        var candidates = await db.Tasks
+            .Where(t => t.SourceId == sourceId &&
+                        t.Capability == (int)capability &&
+                        blockingStatuses.Contains(t.Status))
+            .Select(t => t.Variables)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return candidates.Any(variables =>
+            variables.TryGetValue(variableName, out var value) && value == variableValue);
+    }
+
     public async Task<IReadOnlyList<DeadLetterTask>> ListDeadLettersAsync(int limit, CancellationToken cancellationToken = default)
     {
         var entities = await db.DeadLetters

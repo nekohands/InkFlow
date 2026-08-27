@@ -40,4 +40,16 @@ public interface ICrawlerTaskRepository
     /// <summary>是否存在某来源某能力的活跃(Pending/Leased/Running)任务,用于入队去重。</summary>
     Task<bool> HasActiveTaskAsync(
         string sourceId, SourceCapability capability, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 是否存在同来源、同能力、且指定变量取值相同的"阻止性"任务
+    /// (Pending / Leased / Running / DeadLettered)。Completed 不算冲突。
+    /// 死信算冲突:防止周期扫描把已放弃的任务反复复活,死信只能走人工处理路径。
+    /// </summary>
+    Task<bool> HasConflictingTaskAsync(
+        string sourceId,
+        SourceCapability capability,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default);
 }

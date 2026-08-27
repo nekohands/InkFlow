@@ -44,6 +44,15 @@ public sealed class SourceContentServiceTests
                 Store.Where(a => a.SourceId == sourceId && a.ExternalChapterId == externalChapterId)
                     .OrderByDescending(a => a.FetchedAt)
                     .FirstOrDefault());
+
+        public Task<IReadOnlySet<string>> ListFetchedExternalChapterIdsAsync(
+            string sourceId,
+            IEnumerable<string> externalChapterIds,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlySet<string>>(
+                new HashSet<string>(
+                    Store.Where(a => a.SourceId == sourceId).Select(a => a.ExternalChapterId),
+                    StringComparer.Ordinal));
     }
 
     /// <summary>固定正文返回的适配器。</summary>

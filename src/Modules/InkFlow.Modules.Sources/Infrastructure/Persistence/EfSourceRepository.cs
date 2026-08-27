@@ -190,4 +190,25 @@ public sealed class EfFetchArtifactRepository(SourcesDbContext db) : IFetchArtif
                 entity.Id, entity.SourceId, entity.ExternalBookId, entity.ExternalChapterId,
                 entity.RawHash, entity.BodyLength, entity.FetchedAt);
     }
+
+    public async Task<IReadOnlySet<string>> ListFetchedExternalChapterIdsAsync(
+        string sourceId,
+        IEnumerable<string> externalChapterIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = externalChapterIds.ToArray();
+        if (ids.Length == 0)
+        {
+            return new HashSet<string>(StringComparer.Ordinal);
+        }
+
+        var fetched = await db.FetchArtifacts
+            .Where(a => a.SourceId == sourceId && ids.Contains(a.ExternalChapterId))
+            .Select(a => a.ExternalChapterId)
+            .Distinct()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new HashSet<string>(fetched, StringComparer.Ordinal);
+    }
 }

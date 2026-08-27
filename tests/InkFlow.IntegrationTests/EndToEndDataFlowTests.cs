@@ -254,5 +254,13 @@ public sealed class EndToEndDataFlowTests
                 Store.Where(a => a.SourceId == sourceId && a.ExternalChapterId == externalChapterId)
                     .OrderByDescending(a => a.FetchedAt)
                     .FirstOrDefault());
+        public Task<IReadOnlySet<string>> ListFetchedExternalChapterIdsAsync(
+            string sourceId,
+            IEnumerable<string> externalChapterIds,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlySet<string>>(
+                new HashSet<string>(
+                    Store.Where(a => a.SourceId == sourceId).Select(a => a.ExternalChapterId),
+                    StringComparer.Ordinal));
     }
 }

@@ -7,7 +7,8 @@ using DotNet.Testcontainers.Images;
 
 namespace InkFlow.IntegrationTests;
 
-/// <summary>FetchArtifact 仓储集成测试：真实 PostgreSQL 18 上验证迁移与最新产物查询。</summary>
+/// <summary>FetchArtifact 仓储集成测试：真实 PostgreSQL 18 上验证迁移、最新产物查询，
+/// 以及追更联动使用的批量存在性查询（只有"该来源已有产物"的章节会被排除）。</summary>
 [TestClass]
 public sealed class FetchArtifactRepositoryTests
 {
@@ -79,5 +80,37 @@ public sealed class FetchArtifactRepositoryTests
     {
         var repo = CreateRepository();
         Assert.IsNull(await repo.GetLatestAsync("src", "never-fetched").ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task ListFetchedExternalChapterIds_Returns_Only_Fetched_Chapters_Of_The_Source()
+    {
+        var repo = CreateRepository();
+
+        await repo.AddAsync(FetchArtifact.Capture("chain-src", "book-1", "ch-1", "正文一", T0)).ConfigureAwait(false);
+        // 同章节第二次抓取(内容修订)→ 新版本行,不改变存在性结论。
+        await repo.AddAsync(FetchArtifact.Capture("chain-src", "book-1", "ch-2", "正文二", T0.AddMinutes(1))).ConfigureAwait(false);
+        await repo.AddAsync(FetchArtifact.Capture("chain-src", "book-1", "ch-2", "正文二修订", T0.AddMinutes(2))).ConfigureAwait(false);
+        // 另一来源的同 ID 章节,不得影响 chain-src 的判定。
+        await repo.AddAsync(FetchArtifact.Capture("other-chain-src", "book-1", "ch-3", "别家正文", T0)).ConfigureAwait(false);
+
+        var fetched = await repo
+            .ListFetchedExternalChapterIdsAsync(
+                "chain-src", ["ch-1", "ch-2", "ch-3", "ch-new"])
+            .ConfigureAwait(false);
+
+        CollectionAssert.AreEquivalent(new[] { "ch-1", "ch-2" }, fetched.ToList());
+    }
+
+    [TestMethod]
+    public async Task ListFetchedExternalChapterIds_Empty_Input_Returns_Empty()
+    {
+        var repo = CreateRepository();
+
+        var fetched = await repo
+            .ListFetchedExternalChapterIdsAsync("any-src", Array.Empty<string>())
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(0, fetched.Count);
     }
 }

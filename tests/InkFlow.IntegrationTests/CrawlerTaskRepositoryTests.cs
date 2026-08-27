@@ -192,6 +192,54 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task HasConflictingTask_Respects_Blocking_Statuses_Variables_And_Capability()
+    {
+        var (_, repo) = CreateContext();
+
+        var pending = CrawlerTask.Create(
+            new CrawlPayload("src-conflict", SourceCapability.Content,
+                new Dictionary<string, string> { ["chapterId"] = "ch-active" }),
+            createdAt: T0);
+        await repo.AddAsync(pending).ConfigureAwait(false);
+
+        var completed = CrawlerTask.Create(
+            new CrawlPayload("src-conflict", SourceCapability.Content,
+                new Dictionary<string, string> { ["chapterId"] = "ch-done" }),
+            createdAt: T0);
+        completed.Lease("w", T0, TimeSpan.FromMinutes(1));
+        completed.MarkRunning(T0.AddSeconds(1));
+        completed.Complete(T0.AddSeconds(2));
+        await repo.AddAsync(completed).ConfigureAwait(false);
+
+        var deadLettered = CrawlerTask.Create(
+            new CrawlPayload("src-conflict", SourceCapability.Content,
+                new Dictionary<string, string> { ["chapterId"] = "ch-dead" }),
+            maxAttempts: 1,
+            createdAt: T0);
+        deadLettered.Lease("w", T0, TimeSpan.FromMinutes(1));
+        deadLettered.MarkRunning(T0.AddSeconds(1));
+        deadLettered.Fail(T0.AddSeconds(2)); // 尝试耗尽 → 死信
+        await repo.AddAsync(deadLettered).ConfigureAwait(false);
+
+        Assert.IsTrue(
+            await repo.HasConflictingTaskAsync("src-conflict", SourceCapability.Content, "chapterId", "ch-active")
+                .ConfigureAwait(false),
+            "在途任务必须阻止重复入队");
+        Assert.IsFalse(
+            await repo.HasConflictingTaskAsync("src-conflict", SourceCapability.Content, "chapterId", "ch-done")
+                .ConfigureAwait(false),
+            "已完成的章节允许重新入队(如上游重新出现未抓取状态)");
+        Assert.IsTrue(
+            await repo.HasConflictingTaskAsync("src-conflict", SourceCapability.Content, "chapterId", "ch-dead")
+                .ConfigureAwait(false),
+            "死信任务必须阻止周期扫描反复复活");
+        Assert.IsFalse(
+            await repo.HasConflictingTaskAsync("src-conflict", SourceCapability.Toc, "chapterId", "ch-active")
+                .ConfigureAwait(false),
+            "不同能力之间互不冲突");
+    }
+
+    [TestMethod]
     public async Task TryLease_Atomically_Allows_Only_One_Worker_To_Claim_A_Task()
     {
         var seed = CreateContext();

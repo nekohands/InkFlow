@@ -68,6 +68,7 @@ builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory
     [sp.GetRequiredService<KanunuSourceAdapter>()]));
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
+builder.Services.AddScoped<ContentFetchChainService>();
 builder.Services.AddScoped<CompositeTaskExecutor>();
 builder.Services.AddHostedService<TaskPollingService>();
 builder.Services.AddHostedService<SourceSeedService>();
@@ -123,6 +124,12 @@ internal sealed class TaskPollingService(
                 {
                     await ProcessTaskAsync(task, tasks, scope.ServiceProvider, stoppingToken)
                         .ConfigureAwait(false);
+
+                    // 追更联动一次可能入队整批正文任务;有活时短轮询尽快消化,
+                    // 空闲时才回到低成本长等待。
+                    await Task.Delay(TimeSpan.FromMilliseconds(250), stoppingToken)
+                        .ConfigureAwait(false);
+                    continue;
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
