@@ -49,8 +49,10 @@ public sealed class CrawlerTaskRepositoryTests
         return (db, new EfCrawlerTaskRepository(db));
     }
 
-    private static CrawlPayload Payload() =>
-        new("example-source", SourceCapability.Toc, new Dictionary<string, string> { ["bookId"] = "42" });
+    private static CrawlPayload Payload(
+        string sourceId = "example-source",
+        string bookId = "42") =>
+        new(sourceId, SourceCapability.Toc, new Dictionary<string, string> { ["bookId"] = bookId });
 
     [TestMethod]
     public async Task Migrations_Create_Crawler_Schema_On_Empty_Database()
@@ -330,7 +332,8 @@ public sealed class CrawlerTaskRepositoryTests
     public async Task Dead_Letter_Replay_Creates_New_Pending_Task_And_Is_Idempotent()
     {
         var (_, repo) = CreateContext();
-        var task = CrawlerTask.Create(Payload(), maxAttempts: 1, T0);
+        var payload = Payload("dead-letter-replay-idempotency-source");
+        var task = CrawlerTask.Create(payload, maxAttempts: 1, T0);
         await repo.AddAsync(task).ConfigureAwait(false);
 
         var loaded = (await repo.GetAsync(task.Id).ConfigureAwait(false))!;
@@ -383,10 +386,10 @@ public sealed class CrawlerTaskRepositoryTests
 
         Assert.IsFalse(
             await repo.HasConflictingTaskAsync(
-                    Payload().SourceId,
-                    Payload().Capability,
+                    payload.SourceId,
+                    payload.Capability,
                     "bookId",
-                    "42")
+                    payload.Variables["bookId"])
                 .ConfigureAwait(false),
             "已解决的原死信和已完成的重放任务不应永久阻塞后续入队");
     }
@@ -396,7 +399,8 @@ public sealed class CrawlerTaskRepositoryTests
     {
         var seed = CreateContext();
         await using var seedDb = seed.Db;
-        var task = CrawlerTask.Create(Payload(), maxAttempts: 1, T0);
+        var payload = Payload("dead-letter-replay-concurrency-source");
+        var task = CrawlerTask.Create(payload, maxAttempts: 1, T0);
         await seed.Repo.AddAsync(task).ConfigureAwait(false);
 
         var loaded = (await seed.Repo.GetAsync(task.Id).ConfigureAwait(false))!;
@@ -425,8 +429,8 @@ public sealed class CrawlerTaskRepositoryTests
             "并发请求必须返回同一个重放任务");
 
         var count = await firstDb.Tasks
-            .CountAsync(candidate => candidate.Id != task.Id)
+            .CountAsync(candidate => candidate.Id != task.Id && candidate.SourceId == payload.SourceId)
             .ConfigureAwait(false);
-        Assert.AreEqual(1, count, "并发重放不得创建多个新任务");
+        Assert.AreEqual(1, count, "并发重放不得为同一来源创建多个新任务");
     }
 }
