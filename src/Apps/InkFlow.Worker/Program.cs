@@ -50,6 +50,9 @@ builder.Services.AddScoped<ISourceHealthReader>(sp =>
 builder.Services.AddScoped<ISourceHealthRecorder>(sp =>
     sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddSingleton<RetryPolicy>();
+builder.Services.AddSingleton<ICrawlerFailureSink, LoggingCrawlerFailureSink>();
+builder.Services.AddSingleton<ICrawlerFailureSink, OpenTelemetryCrawlerFailureSink>();
+builder.Services.AddSingleton<CrawlerFailureReporter>();
 builder.Services.AddScoped<IMatchCandidateRepository, EfMatchCandidateRepository>();
 builder.Services.AddScoped<IChapterMappingRepository, EfChapterMappingRepository>();
 builder.Services.AddScoped<IContentVersionRepository, EfContentVersionRepository>();
@@ -144,7 +147,8 @@ internal sealed class MappingContentPublisher(
 internal sealed class TaskPollingService(
     IServiceScopeFactory scopeFactory,
     TimeProvider clock,
-    RetryPolicy retryPolicy) : BackgroundService
+    RetryPolicy retryPolicy,
+    CrawlerFailureReporter failureReporter) : BackgroundService
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
 
@@ -226,17 +230,36 @@ internal sealed class TaskPollingService(
         string reason,
         CancellationToken stoppingToken)
     {
-        Console.WriteLine($"task {task.Id} failed: {reason}");
+        var now = clock.GetUtcNow();
         if (task.Status != CrawlerTaskStatus.Running)
         {
+            failureReporter.Report(CrawlerFailureObservation.Create(
+                task.Id,
+                task.Payload.SourceId,
+                task.Payload.Capability.ToString(),
+                task.AttemptCount,
+                task.MaxAttempts,
+                CrawlerFailureDisposition.NotRunning,
+                reason,
+                now));
             return;
         }
 
-        var now = clock.GetUtcNow();
         DateTimeOffset? nextAttemptAt = task.AttemptCount < task.MaxAttempts
             ? now + retryPolicy.DelayFor(task.AttemptCount)
             : null;
         task.Fail(now, nextAttemptAt);
+        failureReporter.Report(CrawlerFailureObservation.Create(
+            task.Id,
+            task.Payload.SourceId,
+            task.Payload.Capability.ToString(),
+            task.AttemptCount,
+            task.MaxAttempts,
+            task.Status == CrawlerTaskStatus.DeadLettered
+                ? CrawlerFailureDisposition.DeadLetter
+                : CrawlerFailureDisposition.Retry,
+            reason,
+            now));
         if (task.Status == CrawlerTaskStatus.DeadLettered)
         {
             await tasks.AddDeadLetterAsync(

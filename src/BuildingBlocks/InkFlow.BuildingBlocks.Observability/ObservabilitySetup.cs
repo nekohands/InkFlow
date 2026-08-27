@@ -26,7 +26,8 @@ public static class ObservabilitySetup
 
         telemetry.WithMetrics(metrics => metrics
             .AddAspNetCoreInstrumentation()
-            .AddRuntimeInstrumentation());
+            .AddRuntimeInstrumentation()
+            .AddMeter(CrawlerFailureMetrics.MeterName));
 
         return builder;
     }
