@@ -73,6 +73,112 @@ public sealed class SourceCapabilityHealthTests
         Assert.AreEqual("maintenance", repository.Store.Single().LastFailureReason);
     }
 
+    [TestMethod]
+    public void Probe_Cooldown_Doubles_With_Failure_Depth_And_Caps_At_One_Day()
+    {
+        Assert.AreEqual(TimeSpan.FromMinutes(30),
+            SourceHealthPolicy.ProbeCooldown(3), "首次 Unhealthy 的基础冷却");
+        Assert.AreEqual(TimeSpan.FromMinutes(60),
+            SourceHealthPolicy.ProbeCooldown(4));
+        Assert.AreEqual(TimeSpan.FromMinutes(120),
+            SourceHealthPolicy.ProbeCooldown(5));
+        Assert.AreEqual(TimeSpan.FromDays(1),
+            SourceHealthPolicy.ProbeCooldown(20), "持续失败最多每天重试一次");
+
+        // 边界含相等:冷却期满的那一刻即视为到期。
+        var failures = 3;
+        var anchor = T0;
+        Assert.IsFalse(SourceHealthPolicy.IsProbeDue(failures, anchor, anchor.AddMinutes(29)));
+        Assert.IsTrue(SourceHealthPolicy.IsProbeDue(failures, anchor, anchor.AddMinutes(30)));
+    }
+
+    [TestMethod]
+    public void Unhealthy_Probe_Failure_Renews_Anchor_And_Extends_Cooldown()
+    {
+        var health = SourceCapabilityHealth.Create("official-a", SourceCapability.Toc, T0);
+        health.RecordFailure("upstream-503", T0);
+        health.RecordFailure("upstream-503", T0);
+        health.RecordFailure("upstream-503", T0);
+
+        Assert.AreEqual(SourceHealthStatus.Unhealthy, health.Status);
+        Assert.IsFalse(health.IsProbeDue(T0), "刚进入 Unhealthy 不应立刻重探");
+
+        // 探针到期并再次失败:锚点刷新、计数增长、冷却翻倍——自动恢复不会被误报成功。
+        health.RecordFailure("upstream-503", T0.AddMinutes(30));
+
+        Assert.AreEqual(4, health.ConsecutiveFailures);
+        Assert.AreEqual(SourceHealthStatus.Unhealthy, health.Status);
+        Assert.AreEqual(T0.AddMinutes(30), health.UpdatedAt);
+        Assert.IsFalse(health.IsProbeDue(T0.AddMinutes(30).AddMinutes(59)));
+        Assert.IsTrue(health.IsProbeDue(T0.AddMinutes(30).AddMinutes(60)),
+            "第 4 次失败的冷却应翻倍到 60 分钟");
+    }
+
+    [TestMethod]
+    public void Consecutive_Failure_Count_Grows_Beyond_The_Unhealthy_Threshold()
+    {
+        var health = SourceCapabilityHealth.Create("official-a", SourceCapability.Content, T0);
+        for (var i = 0; i < 7; i++)
+        {
+            health.RecordFailure("upstream-503", T0.AddMinutes(i));
+        }
+
+        Assert.AreEqual(7, health.ConsecutiveFailures, "失败深度是自适应退避的依据,不得封顶");
+        Assert.AreEqual(SourceHealthStatus.Unhealthy, health.Status);
+    }
+
+    private sealed class MutableClock(DateTimeOffset start) : TimeProvider
+    {
+        private DateTimeOffset _now = start;
+
+        public DateTimeOffset Now
+        {
+            get => _now;
+            set => _now = value;
+        }
+
+        public override DateTimeOffset GetUtcNow() => _now;
+    }
+
+    [TestMethod]
+    public async Task Service_Half_Opens_After_Cooldown_And_Recovers_On_Success()
+    {
+        var repository = new InMemoryHealthRepository();
+        var clock = new MutableClock(T0);
+        var service = new SourceHealthService(repository, clock);
+
+        await service.RecordFailureAsync("official-a", SourceCapability.Search, "adapter-exception");
+        await service.RecordFailureAsync("official-a", SourceCapability.Search, "adapter-exception");
+        await service.RecordFailureAsync("official-a", SourceCapability.Search, "adapter-exception");
+
+        // 失败在 T0..T0+2m 记录,第三次之后 UpdatedAt=T0+2m。
+        clock.Now = T0.AddMinutes(10);
+        Assert.IsFalse(await service.IsAvailableAsync("official-a", SourceCapability.Search),
+            "冷却期内保持不可用");
+
+        clock.Now = T0.AddMinutes(32);
+        Assert.IsTrue(await service.IsAvailableAsync("official-a", SourceCapability.Search),
+            "30 分钟冷却期满后放行一次探针尝试");
+
+        // 探针仍失败:冷却翻倍到 60 分钟(锚点已刷新到探针时刻)。
+        await service.RecordFailureAsync("official-a", SourceCapability.Search, "probe-failed");
+        clock.Now = T0.AddMinutes(40);
+        Assert.IsFalse(await service.IsAvailableAsync("official-a", SourceCapability.Search),
+            "探针失败后立即回到不可用且冷却延长");
+
+        clock.Now = T0.AddMinutes(92);
+        Assert.IsTrue(await service.IsAvailableAsync("official-a", SourceCapability.Search),
+            "二次冷却(60 分钟)同样会到期放行");
+
+        // 探针成功:直接回到 Healthy 并重置失败链。
+        await service.RecordSuccessAsync("official-a", SourceCapability.Search);
+        Assert.IsTrue(await service.IsAvailableAsync("official-a", SourceCapability.Search));
+        var health = await service.GetAsync("official-a", SourceCapability.Search);
+        Assert.IsNotNull(health);
+        Assert.AreEqual(SourceHealthStatus.Healthy, health!.Status);
+        Assert.AreEqual(0, health.ConsecutiveFailures);
+    }
+
     private sealed class InMemoryHealthRepository : ISourceHealthRepository
     {
         public List<SourceCapabilityHealth> Store { get; } = [];
