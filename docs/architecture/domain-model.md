@@ -16,6 +16,10 @@
 
 URL、第三方 ID、序号不得替代 InkFlow 业务身份。
 
+Identity v1 的 `User` 以邮箱规范化值保持唯一，账号状态控制是否可认证；`RefreshSession` 与
+`AccessToken` 分离保存，客户端只持有 opaque 原始 token，数据库只保存不可逆摘要。Refresh
+轮换在存储层以事务行锁保证一次性成功，登出可撤销会话及其访问令牌。
+
 ## Library
 
 ### CanonicalBook

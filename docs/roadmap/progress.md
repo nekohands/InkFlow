@@ -368,6 +368,16 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 194/194、Architecture 1/1、Contract 1/1 PASS；三宿主 `/health` 均返回 200。本机完整 Integration 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED（32 个类初始化失败、6 个通过、1 个跳过，退出码 1，不记为通过）；远端 CI `33099136084` GREEN（Integration 39 中 38 通过 + 1 跳过，含 Compose/Runtime smoke）；Docker `33099135992` GREEN（四镜像）。
 - 提交：`379cf79`。
 
+**Identity 认证/授权与受保护 Repair 基线（本轮，2026-08-28）**：
+
+- 缺口：Identity 模块此前只有空壳；Crawler 死信已有事务化 Repair/Replay seam，但没有可供运维使用、且受授权保护的入口。
+- 实现：新增 `User`、`RefreshSession`、`AccessToken` 聚合及 Identity Application seam；注册、登录、短期 opaque access token、refresh token 一次性轮换、登出撤销、当前用户查询均已接入 API。密码使用 PBKDF2-SHA256（带随机 salt 和迭代次数），数据库只保存密码/令牌摘要，不保存可复用的原始 token。
+- 持久化：新增 `identity` schema 的 users、sessions、access_tokens 表及官方 `AddIdentityFoundation` Migration；refresh 轮换在 PostgreSQL 行锁事务内完成，旧 refresh token 并发至多成功一次。Migrations App 已纳入 Identity context。
+- 授权与修复：自定义 opaque Bearer 认证建立 `sub`/`role`/`sid` 主体；`Operator` / `Administrator` 才能访问 `GET /api/v1/admin/crawler/dead-letters` 与 POST replay 入口。Replay 由认证主体提供操作者 ID，要求理由，并额外写入 `crawler.dead_letter.replay` 命令审计及死信/重放任务 reference；原死信仍保持 `DeadLettered`。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 209/209、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 `/api/v1/auth/me` 与 Repair 入口均返回 401。本机完整 Integration 42 项中 6 通过、1 跳过、35 项因 `npipe://./pipe/docker_engine` 不可用在 Testcontainers 初始化阶段 BLOCKED，不记为通过。修复 `refresh_token` JSON 字段契约后，远端 CI `33102831333` GREEN（含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33102831388` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
+- 提交：实现 `09ea265`；远端 Runtime 首跑发现并修复 `refresh_token` snake-case 绑定问题，修复提交 `9f9d5c7` 已重新通过远端验证。
+- 边界：本轮不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；公开 Repair/Consistency Center、Redis 分布式限流、用户/组织级权限管理和更完整 Operations 能力仍待后续。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -499,16 +509,16 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放基线已落地，跨源一致性、Repair Center/公开运维入口和更强 Repair/Consistency Check 仍属于后续工程工作。
-- API 限流当前为单实例 fixed-window 基线；审计持久化基线已落地，但 Redis 分布式配额、认证/授权、命令级高风险审计、查询授权、保留策略与告警仍待后续 Operations/Identity 工作包。
+- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放与受保护 Repair/replay 入口基线已落地，跨源一致性、Repair Center/更强 Repair/Consistency Check 仍属于后续工程工作。
+- API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，但 Redis 分布式配额、查询/资源授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
-- 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
+- 用户身份的基础认证/授权与受保护 Repair 入口已落地；书架、阅读历史、导入/导出仍尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 
 ## 7. 当前阻塞
 
-当前有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法执行；阅读 3.0 真机流程按用户决定延后。两项均不改变已通过的内存自动化证据，但在 CI/人工证据补齐前不得标记工作包 Completed。
+当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Identity/Repair 本轮的远端 CI、Compose、Runtime smoke 与 Docker 已补齐，但两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

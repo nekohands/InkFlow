@@ -16,16 +16,16 @@ Business code must not collapse these into checks such as `IsPremium`.
 
 Separate credential families:
 
-- Web Access Token: short-lived.
-- Refresh Token: session renewal with rotation/revocation.
+- Web Access Token: short-lived opaque bearer token, validated against a stored hash and revocable.
+- Refresh Token: session renewal with one-time rotation/revocation; only a secure hash is persisted.
 - Legado Access Token: long-lived, revocable, scoped.
 - Developer API Key: application credential with scope/quota/environment.
 
-Long-lived secrets are returned to users once. Database storage uses non-secret prefix + secure hash where validation semantics allow it; never store directly reusable complete tokens by default.
+Long-lived secrets are returned to users once. InkFlow's current Identity baseline uses PBKDF2-SHA256 password hashes with per-password salt and stores only SHA-256 hashes of opaque access/refresh tokens; never store directly reusable complete tokens by default.
 
 ## 3. RBAC and Resource Policy
 
-Administrative access uses Role -> Permission mapping. Sensitive operations such as Book Merge/Split, Source Rule Publish, Takedown, user suspension, billing and permission changes require explicit permission checks, reason/audit, and later may support re-auth/four-eyes approval.
+Administrative access uses Role -> Permission mapping. The current baseline protects crawler dead-letter listing/replay with `Operator` / `Administrator` roles; replay obtains the actor from the authenticated subject and requires a reason. Sensitive operations such as Book Merge/Split, Source Rule Publish, Takedown, user suspension, billing and permission changes require explicit permission checks, reason/audit, and later may support re-auth/four-eyes approval.
 
 Private/organization content additionally enforces ownership/resource policy.
 
@@ -102,7 +102,7 @@ Physical ContentBlob dedup never grants logical access.
 
 High-risk actions emit immutable/append-oriented AuditEvent data including actor, time, resource, action, before/after or reference, reason and TraceId where applicable.
 
-当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。高风险命令的 before/after 或脱敏 reference、保留策略、查询授权和告警仍需后续实现。
+当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。Crawler dead-letter replay 已额外写入带认证操作者、理由、结果和脱敏 reference 的命令级审计事件；更完整的 before/after、保留策略、查询授权和告警仍需后续实现。
 
 Ordinary administrators cannot silently edit audit history through normal CRUD APIs.
 

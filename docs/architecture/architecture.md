@@ -18,7 +18,7 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 
 目标模块：
 
-- Identity：账号、Session、凭证、Role/Permission。
+- Identity：账号、Session、短期 AccessToken、RefreshToken、凭证、Role/Permission。
 - Library：Canonical Book、Author、Chapter metadata、Alias、Matching/Alignment。
 - Sources：Source 定义、Rule、Rule Version、Credential Reference、Capability、Health Policy。
 - Crawling：Task、Lease、Retry、Dead Letter、Scheduler、Fetch Artifact、执行治理。
@@ -90,7 +90,7 @@ Task 支持：TaskId、Type、SourceId、Priority、Attempt、MaxAttempts、Sche
 
 所有任务必须幂等；错误分类决定 Retry、Backoff、Circuit Breaker 或人工介入。
 
-死信修复通过 Crawling.Application 的受控 Repair/Replay seam 进入，而不是手工修改数据库：PostgreSQL 事务锁定原死信和任务，原任务保持 `DeadLettered`，只创建新的 `Pending` 重放任务并追加可追溯的操作者、理由、时间和任务 ID。当前 seam 尚未暴露为公开 Admin API；认证、授权和命令级高风险审计完成前，不得将其视为对外运维入口。请求审计已具备 PostgreSQL 持久化基线，但不等同于完整的管理命令审计能力。
+死信修复通过 Crawling.Application 的受控 Repair/Replay seam 进入，而不是手工修改数据库：PostgreSQL 事务锁定原死信和任务，原任务保持 `DeadLettered`，只创建新的 `Pending` 重放任务并追加可追溯的操作者、理由、时间和任务 ID。当前 API 已通过 Identity opaque Bearer 认证和 `Operator` / `Administrator` policy 暴露受保护的死信列表与 replay 入口，命令额外写入 `crawler.dead_letter.replay` 审计事件。更完整的 Admin/Repair/Consistency Center、查询授权、权限管理与运维治理仍待后续实现；请求审计持久化基线不等同于完整的管理平台。
 
 ## 7. Messaging 与一致性
 
