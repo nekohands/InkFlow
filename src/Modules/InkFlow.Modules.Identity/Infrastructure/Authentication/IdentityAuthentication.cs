@@ -1,0 +1,84 @@
+using System.Net.Http.Headers;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using InkFlow.Modules.Identity.Application;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace InkFlow.Modules.Identity.Infrastructure.Authentication;
+
+public static class IdentityAuthenticationDefaults
+{
+    public const string Scheme = "InkFlowBearer";
+    public const string SessionIdClaim = "sid";
+}
+
+/// <summary>
+/// 数据库支持的 opaque Bearer 认证。短期访问令牌的摘要落库，因此登出/停用用户可立即失效，
+/// 不把可验证的完整长寿命秘密放进 JWT 或日志。
+/// </summary>
+public sealed class OpaqueBearerAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+{
+    private readonly IIdentityService _identity;
+
+    public OpaqueBearerAuthenticationHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder,
+        IIdentityService identity)
+        : base(options, logger, encoder)
+    {
+        _identity = identity;
+    }
+
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        var header = Request.Headers.Authorization.ToString();
+        if (string.IsNullOrWhiteSpace(header))
+        {
+            return AuthenticateResult.NoResult();
+        }
+
+        if (!AuthenticationHeaderValue.TryParse(header, out var authorization) ||
+            !string.Equals(authorization.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(authorization.Parameter) ||
+            authorization.Parameter.Length > 512)
+        {
+            return AuthenticateResult.Fail("invalid bearer token.");
+        }
+
+        try
+        {
+            var identity = await _identity
+                .ValidateAccessTokenAsync(authorization.Parameter, Context.RequestAborted)
+                .ConfigureAwait(false);
+            if (identity is null)
+            {
+                return AuthenticateResult.Fail("invalid bearer token.");
+            }
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, identity.UserId.ToString()),
+                new Claim("sub", identity.UserId.ToString()),
+                new Claim(ClaimTypes.Email, identity.Email),
+                new Claim("email", identity.Email),
+                new Claim(ClaimTypes.Role, identity.Role.ToString()),
+                new Claim("role", identity.Role.ToString()),
+                new Claim(IdentityAuthenticationDefaults.SessionIdClaim, identity.SessionId.ToString()),
+            };
+            var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
+            return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name));
+        }
+        catch (OperationCanceledException) when (Context.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "identity access-token validation failed");
+            return AuthenticateResult.Fail("authentication unavailable.");
+        }
+    }
+}

@@ -4,6 +4,7 @@
 // 进程必须以退出码 0 结束——compose 中 api/worker/scheduler 依赖 migrations 成功完成。
 using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
+using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.BuildingBlocks.Persistence;
@@ -16,6 +17,7 @@ var connectionString =
 // 各模块 DbContext 依次应用自己的迁移；迁移 ID 全局唯一，共享历史表不冲突。
 var contexts = new DbContext[]
 {
+    new IdentityDbContext(new DbContextOptionsBuilder<IdentityDbContext>().UseNpgsql(connectionString).Options),
     new AuditDbContext(new DbContextOptionsBuilder<AuditDbContext>().UseNpgsql(connectionString).Options),
     new CrawlingDbContext(new DbContextOptionsBuilder<CrawlingDbContext>().UseNpgsql(connectionString).Options),
     new LibraryDbContext(new DbContextOptionsBuilder<LibraryDbContext>().UseNpgsql(connectionString).Options),

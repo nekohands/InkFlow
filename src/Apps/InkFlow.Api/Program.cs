@@ -1,5 +1,6 @@
 // Public Content API:目录/内容端点只读(数据来自已落库正典数据),
 // /search 端点是唯一的写侧入口——触发来源发现(幂等导入+匹配),随后仍从落库数据返回。
+using System.Security.Claims;
 using InkFlow.Api;
 using InkFlow.BuildingBlocks.Application;
 using InkFlow.BuildingBlocks.Observability;
@@ -7,7 +8,13 @@ using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Crawling.Application;
+using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Legado.Application;
+using InkFlow.Modules.Identity.Application;
+using InkFlow.Modules.Identity.Domain;
+using InkFlow.Modules.Identity.Infrastructure.Authentication;
+using InkFlow.Modules.Identity.Infrastructure.Credentials;
+using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
@@ -31,9 +38,39 @@ var databaseConnectionString =
 
 builder.Services.AddDbContext<AuditDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
+builder.Services.AddDbContext<IdentityDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
+builder.Services.AddDbContext<CrawlingDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
 builder.Services.AddScoped<LoggingAuditEventSink>();
 builder.Services.AddScoped<PersistentAuditEventSink>();
 builder.Services.AddScoped<IAuditEventSink, CompositeAuditEventSink>();
+
+builder.Services.AddScoped<IUserRepository, EfUserRepository>();
+builder.Services.AddScoped<IIdentitySessionRepository, EfIdentitySessionRepository>();
+builder.Services.AddSingleton(IdentityOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+builder.Services.AddSingleton<IOpaqueTokenGenerator, SecureOpaqueTokenGenerator>();
+builder.Services.AddScoped<IIdentityService, IdentityService>();
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = IdentityAuthenticationDefaults.Scheme;
+        options.DefaultChallengeScheme = IdentityAuthenticationDefaults.Scheme;
+    })
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+        OpaqueBearerAuthenticationHandler>(IdentityAuthenticationDefaults.Scheme, _ => { });
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy(
+        IdentityPolicies.CrawlerRepair,
+        policy => policy.RequireRole(
+            UserRole.Operator.ToString(),
+            UserRole.Administrator.ToString())));
+
+builder.Services.AddScoped<EfCrawlerTaskRepository>();
+builder.Services.AddScoped<ICrawlerTaskRepository>(sp =>
+    sp.GetRequiredService<EfCrawlerTaskRepository>());
+builder.Services.AddScoped<ICrawlerTaskRepairRepository>(sp =>
+    sp.GetRequiredService<EfCrawlerTaskRepository>());
 
 builder.Services.AddDbContext<LibraryDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
@@ -86,14 +123,125 @@ builder.Services.AddScoped<LegadoContractService>();
 
 var app = builder.Build();
 
-// 审计包在限流包外层，确保 429 也进入请求轨迹；health 不进入业务审计。
+// 认证先于审计/限流，使审计 actor 与认证主体分桶均可用；health 不进入业务审计。
+app.UseAuthentication();
 app.UseMiddleware<RequestAuditMiddleware>();
 app.UseRateLimiter();
+app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Json(new { status = "healthy", service = "InkFlow.Api" }));
 
 var api = app.MapGroup("/api/v1")
     .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+var auth = api.MapGroup("/auth");
+
+auth.MapPost("/register", async (
+    RegisterRequest request,
+    IIdentityService identity,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    var result = await identity.RegisterAsync(
+        request.Email ?? string.Empty,
+        request.Password ?? string.Empty,
+        ct);
+    return AuthEndpointResults.FromIdentityResult(result, clock);
+});
+
+auth.MapPost("/login", async (
+    LoginRequest request,
+    IIdentityService identity,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    var result = await identity.LoginAsync(
+        request.Email ?? string.Empty,
+        request.Password ?? string.Empty,
+        ct);
+    return AuthEndpointResults.FromIdentityResult(result, clock);
+});
+
+auth.MapPost("/refresh", async (
+    RefreshRequest request,
+    IIdentityService identity,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    var result = await identity.RefreshAsync(request.RefreshToken ?? string.Empty, ct);
+    return AuthEndpointResults.FromIdentityResult(result, clock);
+});
+
+auth.MapPost("/logout", async (
+    ClaimsPrincipal principal,
+    IIdentityService identity,
+    CancellationToken ct) =>
+{
+    var rawSessionId = principal.FindFirstValue(IdentityAuthenticationDefaults.SessionIdClaim);
+    if (!Guid.TryParse(rawSessionId, out var sessionId))
+    {
+        return Results.Unauthorized();
+    }
+
+    await identity.LogoutAsync(sessionId, ct);
+    return Results.NoContent();
+}).RequireAuthorization();
+
+auth.MapGet("/me", (ClaimsPrincipal principal) =>
+    AuthEndpointResults.Current(principal)).RequireAuthorization();
+
+var repair = api.MapGroup("/admin")
+    .RequireAuthorization(IdentityPolicies.CrawlerRepair);
+
+repair.MapGet("/crawler/dead-letters", async (
+    int? limit,
+    ICrawlerTaskRepository tasks,
+    CancellationToken ct) =>
+{
+    var boundedLimit = Math.Clamp(limit ?? 50, 1, 100);
+    var deadLetters = await tasks.ListDeadLettersAsync(boundedLimit, ct);
+    return Results.Ok(deadLetters);
+});
+
+repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (
+    Guid deadLetterId,
+    ReplayDeadLetterRequest request,
+    ClaimsPrincipal principal,
+    ICrawlerTaskRepairRepository repairRepository,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    DeadLetterReplayCommand command;
+    try
+    {
+        command = DeadLetterReplayCommand.Create(
+            deadLetterId,
+            actorId,
+            request.Reason ?? string.Empty);
+    }
+    catch (ArgumentException)
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_replay_request" });
+    }
+
+    var result = await repairRepository.ReplayDeadLetterAsync(command, clock.GetUtcNow(), ct);
+    return RepairEndpointResults.Replay(
+        result,
+        deadLetterId,
+        actorId,
+        command.ReplayReason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
 
 api.MapGet("/books", async (CatalogQueryService catalog, CancellationToken ct) =>
 {

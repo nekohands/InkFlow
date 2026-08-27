@@ -46,6 +46,37 @@ jobs:
             docker compose logs --no-color api
             exit 1
           }
+          echo "--- authentication and authorization smoke ---"
+          unauthenticated_status=$(curl --silent --output /tmp/auth-me.json --write-out '%{http_code}' http://localhost:8080/api/v1/auth/me)
+          test "$unauthenticated_status" = "401"
+          registration=$(curl --fail --silent \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ci-auth@example.com","password":"correct horse battery staple"}' \
+            http://localhost:8080/api/v1/auth/register)
+          access_token=$(printf '%s' "$registration" | jq -er '.access_token')
+          refresh_token=$(printf '%s' "$registration" | jq -er '.refresh_token')
+          test -n "$access_token"
+          test -n "$refresh_token"
+          curl --fail --silent \
+            -H "Authorization: Bearer $access_token" \
+            http://localhost:8080/api/v1/auth/me | jq -e '.email == "ci-auth@example.com"'
+          rotated=$(curl --fail --silent \
+            -H 'Content-Type: application/json' \
+            -d "{\"refresh_token\":\"$refresh_token\"}" \
+            http://localhost:8080/api/v1/auth/refresh)
+          rotated_access_token=$(printf '%s' "$rotated" | jq -er '.access_token')
+          rotated_refresh_token=$(printf '%s' "$rotated" | jq -er '.refresh_token')
+          test "$rotated_refresh_token" != "$refresh_token"
+          curl --fail --silent \
+            -H "Authorization: Bearer $rotated_access_token" \
+            http://localhost:8080/api/v1/auth/me | jq -e '.role == "Reader"'
+          curl --fail --silent --request POST \
+            -H "Authorization: Bearer $rotated_access_token" \
+            http://localhost:8080/api/v1/auth/logout
+          logged_out_status=$(curl --silent --output /tmp/auth-me-after-logout.json --write-out '%{http_code}' \
+            -H "Authorization: Bearer $rotated_access_token" \
+            http://localhost:8080/api/v1/auth/me)
+          test "$logged_out_status" = "401"
           echo "--- GET /legado/book-source.json ---"
           curl --fail --silent http://localhost:8080/legado/book-source.json || {
             echo "legado manifest endpoint failed; dumping api logs:"
