@@ -98,7 +98,7 @@ CI: GREEN (Run 32821162412)
 - 实现：`IConsistencyCheckService` 提供单次报告接口，`IConsistencySnapshotReader` 提供可替换 Adapter seam；EF Adapter 从 Library、Sources、Content、Crawling 四个 schema 读取最小关系快照，正文只读取长度。纯检查器覆盖 Source/SourceBook/SourceChapter、FetchArtifact、MatchCandidate、ChapterMapping、ContentVersion、SelectionDecision、Crawler Task 与 DeadLetter 的孤儿、错配、重复、当前版本和可解释性问题。
 - 入口：新增受 `Operator` / `Administrator` policy 保护的 `GET /api/v1/admin/consistency`；报告稳定返回 `healthy` / `issues_found`、稳定错误码、资源 ID、解释消息和最多 1000 条 issue。扫描只读，不自动修复，不新增 Migration；请求继续由现有审计中间件记录。
 - 测试：Unit 212/212 覆盖健康快照、跨模块孤儿/错配和报告截断；新增 PostgreSQL Testcontainers 集成用例验证四 schema 快照与孤儿正文版本检测。
-- 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证身份和一致性入口均返回 401。完整 Integration 43 项中 6 通过、1 跳过、36 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过；候选提交前 CI 尚未触发。
+- 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 212/212、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证身份和一致性入口均返回 401。完整 Integration 43 项中 6 通过、1 跳过、36 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过。远端首跑 CI `33105564941` 仅暴露新增集成测试把 11 字符夹具误断言为 12 的测试问题；修复提交 `7dac6ce` 后 CI `33106044634` GREEN（43 项：42 通过、1 跳过，含 Compose 与 Runtime smoke），Docker `33106044677` GREEN（四镜像）。
 - 边界：本轮按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源故障切换；自动修复、完整 Repair Center UI、查询授权、告警、备份恢复和安全扫描仍待后续。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
@@ -126,7 +126,7 @@ CI: GREEN (Run 32821162412)
 ✅ 安全审计持久化：`audit.events` + 追加式触发器 + API/Legado 双写（`cc2a089`，`33096635143` / `33096635237`）
 ✅ SSRF 连接级约束：校验地址直连 + 端口/重定向限制 + 三宿主接线（`379cf79`，`33099136084` / `33099135992`）
 ✅ Identity 基础认证/授权 + refresh 轮换 + 受保护死信 Repair/replay（`09ea265` / `9f9d5c7`，`33102831333` / `33102831388`）
-✅ 跨模块 Consistency Check v1：只读四 schema 扫描 + 受保护 Admin 入口（本轮候选提交，CI 待确认）
+✅ 跨模块 Consistency Check v1：只读四 schema 扫描 + 受保护 Admin 入口（`7dac6ce`，CI `33106044634` / Docker `33106044677` 均 GREEN）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -340,7 +340,7 @@ Phase 1A / 1B 外部验收：
 - Scheduler/Worker 使用真实更新数据的追更验证。
 - 第二个真实 Official Source 与真实故障切源演练；当前只有确定性双来源夹具自动化证据。
 - linovelib 已完成 Search 规则的离线定义与回归，真实网络验证仍受 DNS 污染影响，待可用环境复验。
-- 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待 CI/可用容器环境复验；本轮一致性检查新增用例同样受此限制。
+- 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待本机可用容器环境复验；本轮一致性检查新增用例已在远端 CI PostgreSQL 容器中通过。
 
 Phase 2 及以后：
 

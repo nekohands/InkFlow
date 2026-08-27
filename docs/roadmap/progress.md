@@ -384,7 +384,7 @@ Phase 0 开发过程中真实发现并修复：
 - 实现：新增 `IConsistencyCheckService` 深接口和 `IConsistencySnapshotReader` Adapter seam；`EfConsistencySnapshotReader` 从 Library、Sources、Content、Crawling 四个 PostgreSQL schema 读取最小关系快照，正文只投影长度，不读取正文内容。`ConsistencyCheckValidator` 集中检查孤儿引用、父级错配、重复稳定身份、当前版本唯一性、Selection Decision 漂移、Source Health/Crawler 状态和死信重放引用。
 - 入口与安全：新增受 `Operator` / `Administrator` policy 保护的 `GET /api/v1/admin/consistency`，返回 `healthy` / `issues_found`、稳定错误码、资源定位、可解释信息和有上限的 issue 列表；不自动修复、不写数据库、不新增 Migration。现有请求审计覆盖该入口。
 - 测试：Unit 新增 3 例，覆盖健康快照、跨模块孤儿/错配、报告截断；Integration 新增真实 PostgreSQL 四 schema 快照投影与孤儿 `ContentVersion` 检查。
-- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 212/212、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 `/api/v1/auth/me` 与 `/api/v1/admin/consistency` 均返回 401。本机完整 Integration 43 项中 6 通过、1 跳过、36 项因 `npipe://./pipe/docker_engine` 不可用在 Testcontainers 初始化阶段 BLOCKED，不记为通过；本轮提交前远端 CI 尚未触发。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 212/212、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 `/api/v1/auth/me` 与 `/api/v1/admin/consistency` 均返回 401。本机完整 Integration 43 项中 6 通过、1 跳过、36 项因 `npipe://./pipe/docker_engine` 不可用在 Testcontainers 初始化阶段 BLOCKED，不记为通过；远端首跑 CI `33105564941` 仅因新增集成测试把 11 字符夹具误断言为 12 而失败，未涉及实现逻辑；修复提交 `7dac6ce` 后 CI `33106044634` GREEN（43 项：42 通过、1 跳过，含 Restore/Build/Compose/Runtime smoke/Diagnostics），Docker `33106044677` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：本轮不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；自动修复、完整 Repair Center UI、查询授权/保留策略、告警和备份恢复仍待后续。
 
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
@@ -527,7 +527,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Identity/Repair 与一致性检查本轮的远端 CI、Compose、Runtime smoke 与 Docker 需在候选提交后确认；两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
+当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Identity/Repair 与一致性检查本轮的远端 CI、Compose、Runtime smoke 与 Docker 已确认通过（CI `33106044634`、Docker `33106044677`）；两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
