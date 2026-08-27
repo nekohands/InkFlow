@@ -100,6 +100,16 @@ CI: GREEN (Run 32821162412)
 - 完整集成测试：本机 Docker 不可用，18 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。远端 CI `33052498887` 已通过 Test/Compose/Runtime smoke，Docker `33052498797` 的 4 个镜像构建也已通过。
 - EF 新迁移已用官方生成流程补齐 Designer，并由 `dotnet ef migrations list` 发现。
 
+### 4.2 待定事项（人工/真实环境，后续处理）
+
+> 本轮按用户决定不执行；完成后补充可复核证据，未完成前不关闭 Phase 1A/1B Release Gate。
+
+- [ ] **阅读 3.0 真机**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content，并记录结果。
+- [ ] **Web Reader 人工 UX/视觉验收**：移动端、桌面端、宽屏、长标题/缺封面/长作者、加载/空/错、键盘焦点、触控和上下章导航。
+- [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
+- [ ] **真实第二来源故障切换**：禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前 18 个用例为 BLOCKED，不记为通过。
+
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
 - 复杂站点(特殊编码/签名):实现 `ISourceAdapter`(参考 `KanunuSourceAdapter`)并在适配器工厂注册。

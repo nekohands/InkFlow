@@ -344,11 +344,23 @@ Official Source
 
 结论：Phase 1B 已建立可回归的双来源自动化基线，尚未标记 Completed；真实故障切源和运行时/真机证据仍是 Release Gate。
 
-## 6. 已知未完成项
+## 6. 待定事项（人工/真实环境，后续处理）
 
-- Legado 真机导入与 Search → BookInfo → TOC → Content 流程尚未执行（按用户决定后续人工测试）。
-- Scheduler/Worker 的真实 Official Source 追更闭环尚未用真实更新数据验收。
-- 第二个真实 Official Source 与真实故障切源演练尚未完成；当前 Phase 1B 使用确定性夹具覆盖自动化回归。
+> 以下事项本轮明确不执行，后续按清单逐项验收；自动化测试和 CI 绿灯不能替代这些证据。
+
+### 6.1 需要人工或真实业务环境验收
+
+- [ ] **阅读 3.0 真机导入与阅读**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content；记录截图、请求结果和异常。
+- [ ] **Web Reader 人工体验验收**：移动端、桌面端、宽屏正文宽度、长标题/缺封面/长作者、Loading/Empty/Error、键盘焦点、触控目标和阅读导航。
+- [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
+- [ ] **真实第二来源与故障切换**：补充第二个真实 Official Source；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
+
+### 6.2 需要可用环境复验
+
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 18 个用例因 `docker_engine` 不可用而 BLOCKED。
+
+### 6.3 后续工程事项（非本轮人工验收）
+
 - Source Health / Capability Health、自动故障切源与更强跨源内容一致性属于 Phase 2。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
