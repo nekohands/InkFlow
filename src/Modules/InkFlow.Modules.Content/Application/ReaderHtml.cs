@@ -39,7 +39,16 @@ public static class ReaderHtml
 
     private const string Tail = "</body></html>";
 
-    public static string BookListPage(IReadOnlyList<BookListItem> books, string? query)
+    /// <summary>
+    /// 书目列表页(含搜索)。searched=false 表示浏览全部书库;true 表示按 query 过滤,
+    /// 两种空态文案不同。sourceWarnings 是来源发现的部分失败提示——渲染为面向
+    /// 用户的人话(可能错过部分结果),不暴露 SourceId/内部异常等技术细节。
+    /// </summary>
+    public static string BookListPage(
+        IReadOnlyList<BookListItem> books,
+        string? query,
+        bool searched = false,
+        bool sourceDegraded = false)
     {
         var sb = new StringBuilder(Head);
         sb.Append("<main><h1>墨流 · InkFlow</h1>");
@@ -54,10 +63,17 @@ public static class ReaderHtml
 
         if (books.Count == 0)
         {
-            sb.Append("<p role=\"status\">没有找到匹配的书目。</p>");
+            sb.Append(searched
+                ? "<p role=\"status\">没有找到匹配「" + encodedQuery + "」的书目。换个关键词试试,或稍后再来——线上来源正在收录中。</p>"
+                : "<p role=\"status\">书库还是空的。在上方搜索一本书,会自动从已登记的线上来源查找并收录。</p>");
         }
         else
         {
+            if (searched)
+            {
+                sb.Append($"<p class=\"muted\" role=\"status\">找到 {books.Count} 本与「{encodedQuery}」相关的书。</p>");
+            }
+
             sb.Append("<ul>");
             foreach (var book in books)
             {
@@ -66,6 +82,12 @@ public static class ReaderHtml
             }
 
             sb.Append("</ul>");
+        }
+
+        // 部分来源本次不可用:结果可能不全,但页面仍可用。
+        if (sourceDegraded)
+        {
+            sb.Append("<p class=\"muted\">部分线上来源暂时无法访问,以上结果可能不完整。</p>");
         }
 
         sb.Append("</main>").Append(Tail);

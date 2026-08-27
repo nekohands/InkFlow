@@ -21,19 +21,22 @@ public sealed record LegadoContent(Guid ChapterId, string Title, string Content)
 public sealed class LegadoContractService(CatalogQueryService catalog)
 {
     /// <summary>按关键词过滤书名/作者(v1 内存过滤;全文检索属后续阶段)。空关键词返回全部书目。</summary>
-    public async Task<IReadOnlyList<LegadoSearchItem>> SearchAsync(
+    public Task<IReadOnlyList<LegadoSearchItem>> SearchAsync(
         string query, CancellationToken cancellationToken = default)
     {
-        var books = await catalog.ListBooksAsync(cancellationToken).ConfigureAwait(false);
+        // 复用只读查询服务的统一过滤语义,Legado 与公共 API/Reader 保持一致。
+        return MapAsync(catalog.SearchBooksAsync(query, cancellationToken));
 
-        return books
-            .Where(b => string.IsNullOrWhiteSpace(query)
-                        || b.Title.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase)
-                        || b.Author.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Select(b => new LegadoSearchItem(
-                b.Id, b.Title, b.Author,
-                $"/api/legado/v1/books/{b.Id}"))
-            .ToList();
+        static async Task<IReadOnlyList<LegadoSearchItem>> MapAsync(
+            Task<IReadOnlyList<BookListItem>> booksTask)
+        {
+            var books = await booksTask.ConfigureAwait(false);
+            return books
+                .Select(b => new LegadoSearchItem(
+                    b.Id, b.Title, b.Author,
+                    $"/api/legado/v1/books/{b.Id}"))
+                .ToList();
+        }
     }
 
     public async Task<LegadoBookInfo?> GetBookAsync(Guid bookId, CancellationToken cancellationToken = default)

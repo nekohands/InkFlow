@@ -40,6 +40,29 @@ public sealed class CatalogQueryService(
         return items;
     }
 
+    /// <summary>
+    /// 按关键词过滤落库正典书目:书名或作者大小写不敏感包含匹配(v1 内存过滤;
+    /// 全文检索属后续阶段)。空白关键词返回全部书目(浏览语义)。
+    /// 数据一律来自已落库 Canonical 数据——本服务不负责触发来源发现,
+    /// 发现编排由调用方(BookDiscoveryService)先行完成。
+    /// </summary>
+    public async Task<IReadOnlyList<BookListItem>> SearchBooksAsync(
+        string query, CancellationToken cancellationToken = default)
+    {
+        var books = await ListBooksAsync(cancellationToken).ConfigureAwait(false);
+
+        var keyword = query?.Trim() ?? string.Empty;
+        if (keyword.Length == 0)
+        {
+            return books;
+        }
+
+        return books
+            .Where(b => b.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                        || b.Author.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
     public async Task<BookDetail?> GetBookAsync(Guid bookId, CancellationToken cancellationToken = default)
     {
         var book = await bookRepository.GetAsync(bookId, cancellationToken).ConfigureAwait(false);

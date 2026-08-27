@@ -180,8 +180,8 @@ public sealed class SourceRepositoryTests
 
         var result = await repo.ListUnhealthyAsync().ConfigureAwait(false);
 
-        var row = result.Single();
-        Assert.AreEqual(SourceCapability.Search, row.Capability);
-        Assert.AreEqual(SourceHealthStatus.Unhealthy, row.Status);
+        var unhealthyRow = result.Single();
+        Assert.AreEqual(SourceCapability.Search, unhealthyRow.Capability);
+        Assert.AreEqual(SourceHealthStatus.Unhealthy, unhealthyRow.Status);
     }
 }

@@ -143,12 +143,33 @@ legado.MapGet("/chapters/{chapterId:guid}",
 
 // ---- Minimal Web Reader(服务端渲染 HTML)----
 
-app.MapGet("/reader", async (string? q, CatalogQueryService catalog, CancellationToken ct) =>
+app.MapGet("/reader", async (string? q, CatalogQueryService catalog, BookDiscoveryService discovery, CancellationToken ct) =>
 {
-    var books = await catalog.ListBooksAsync(ct);
+    var query = q?.Trim() ?? string.Empty;
+    var searched = query.Length > 0;
+
+    // 非空搜索先走来源发现(幂等导入+匹配,失败隔离为逐源 warning);
+    // 发现环节整体异常也不阻断页面——降级为"结果可能不完整"提示后仍从
+    // 落库正典数据过滤返回(阅读路径零实时抓取)。
+    var sourceDegraded = false;
+    if (searched)
+    {
+        try
+        {
+            var outcome = await discovery.DiscoverAsync(query, ct);
+            sourceDegraded = outcome.Warnings.Count > 0;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            sourceDegraded = true;
+        }
+    }
+
+    var books = await catalog.SearchBooksAsync(query, ct);
     return Results.Content(
-        ReaderHtml.BookListPage(books, q), contentType: "text/html; charset=utf-8");
-});
+        ReaderHtml.BookListPage(books, searched ? query : null, searched, sourceDegraded),
+        contentType: "text/html; charset=utf-8");
+}).RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
 
 app.MapGet("/reader/books/{bookId:guid}",
     async (Guid bookId, CatalogQueryService catalog, CancellationToken ct) =>

@@ -79,6 +79,43 @@ public sealed class CatalogQueryServiceTests
     }
 
     [TestMethod]
+    public async Task Search_Filters_By_Title_And_Author_Case_Insensitive()
+    {
+        var books = new InMemoryBookRepository();
+        await books.AddAsync(CreateBook("剑来", "烽火戏诸侯", withChapters: false));
+        await books.AddAsync(CreateBook("玉簟秋", "灵希", withChapters: false));
+
+        var service = new CatalogQueryService(books, new InMemoryVersionRepository());
+
+        // 书名包含匹配、作者包含匹配、大小写不敏感。
+        Assert.AreEqual(1, (await service.SearchBooksAsync("剑来")).Count);
+        Assert.AreEqual(1, (await service.SearchBooksAsync("灵希")).Count);
+
+        var bookA = CanonicalBook.Create("UPPER Title", "lower author", T0);
+        await books.AddAsync(bookA);
+        Assert.AreEqual(1, (await service.SearchBooksAsync("upper")).Count,
+            "书名匹配大小写不敏感");
+        Assert.AreEqual(1, (await service.SearchBooksAsync("AUTHOR")).Count,
+            "作者匹配大小写不敏感");
+
+        // 空白关键词 = 浏览语义,返回全部。
+        Assert.AreEqual(3, (await service.SearchBooksAsync("  ")).Count);
+    }
+
+    [TestMethod]
+    public async Task Search_No_Match_Returns_Empty_List()
+    {
+        var books = new InMemoryBookRepository();
+        await books.AddAsync(CreateBook("剑来", "烽火戏诸侯", withChapters: false));
+
+        var service = new CatalogQueryService(books, new InMemoryVersionRepository());
+
+        var hits = await service.SearchBooksAsync("不存在的书");
+
+        Assert.AreEqual(0, hits.Count);
+    }
+
+    [TestMethod]
     public async Task ListBooks_Returns_All_Books_With_Chapter_Counts()
     {
         var books = new InMemoryBookRepository();
@@ -134,5 +171,17 @@ public sealed class CatalogQueryServiceTests
     {
         var service = new CatalogQueryService(new InMemoryBookRepository(), new InMemoryVersionRepository());
         Assert.IsNull(await service.GetBookAsync(Guid.NewGuid()));
+    }
+
+    /// <summary>构造带可选章节的书目聚合(复用既有测试约定)。</summary>
+    private static CanonicalBook CreateBook(string title, string author, bool withChapters)
+    {
+        var book = CanonicalBook.Create(title, author, T0);
+        if (withChapters)
+        {
+            book.AddChapter(0, $"{title}·第一章", T0);
+        }
+
+        return book;
     }
 }

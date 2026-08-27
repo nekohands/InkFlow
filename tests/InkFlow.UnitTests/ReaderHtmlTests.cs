@@ -29,10 +29,45 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
-    public void BookList_Empty_State_Is_Explained()
+    public void BookList_Browse_Empty_State_Teaches_Discovery()
     {
-        var html = ReaderHtml.BookListPage([], query: "不存在");
-        StringAssert.Contains(html, "没有找到");
+        var html = ReaderHtml.BookListPage([], query: null);
+        StringAssert.Contains(html, "书库还是空的");
+        StringAssert.Contains(html, "自动从已登记的线上来源查找");
+    }
+
+    [TestMethod]
+    public void BookList_Searched_Empty_State_Suggests_Retry()
+    {
+        var html = ReaderHtml.BookListPage([], query: "不存在", searched: true);
+        StringAssert.Contains(html, "没有找到匹配「不存在」的书目");
+    }
+
+    [TestMethod]
+    public void BookList_Search_Hit_Shows_Result_Count()
+    {
+        var html = ReaderHtml.BookListPage([ListItem], query: "剑来", searched: true);
+        StringAssert.Contains(html, "找到 1 本与「剑来」相关的书");
+    }
+
+    [TestMethod]
+    public void BookList_Degraded_Notice_Is_User_Friendly_And_Leak_Free()
+    {
+        // SourceId 与内部异常细节不得出现在页面上。
+        var html = ReaderHtml.BookListPage([ListItem], query: "剑来", searched: true, sourceDegraded: true);
+
+        StringAssert.Contains(html, "部分线上来源暂时无法访问");
+        Assert.IsFalse(html.Contains("src-a"), "SourceId 不得泄漏到页面");
+        Assert.IsFalse(html.Contains("exception"), "内部异常词不得泄漏到页面");
+    }
+
+    [TestMethod]
+    public void BookList_Search_Query_Value_Is_Escaped()
+    {
+        var html = ReaderHtml.BookListPage([], query: "\"><script>alert(1)</script>", searched: true);
+
+        Assert.IsFalse(html.Contains("\"><script>alert(1)"), "搜索词回显必须转义");
+        StringAssert.Contains(html, "&lt;script&gt;");
     }
 
     [TestMethod]
