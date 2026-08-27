@@ -394,7 +394,7 @@ Phase 0 开发过程中真实发现并修复：
 - 持久化：新增 `content.policy_decisions` 与 `AddContentPolicyDecisions` Migration；数据库触发器拒绝 UPDATE/DELETE。Migrations App 会按既有 Content context 自动应用迁移。
 - 公开读取：`CatalogQueryService` 在书目列表、详情和章节正文路径统一门控；章节正文先读取当前版本关联的 `CanonicalBookId` 再加载正文；`/api/v1/search` 发现结果与 Legado 共用隐藏语义，Web Reader 通过 Catalog 继承门控。
 - 管理入口与安全：新增 Administrator-only `ContentModeration` policy；`GET /api/v1/admin/content/takedowns`、POST 下架与 POST 恢复均要求认证主体和理由，并写入 `content.policy.takedown` / `content.policy.restore` 命令审计。
-- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 219/219、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Content Policy 管理入口返回 401。本机新增 PostgreSQL Testcontainers 2 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过；远端 CI/Docker 尚待本轮候选提交后确认。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 219/219、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Content Policy 管理入口返回 401。本机完整 Integration 45 项中 6 通过、1 跳过、38 项因 `npipe://./pipe/docker_engine` 不可用而在 Testcontainers 初始化阶段 BLOCKED，不记为通过；远端 CI `33109068649` GREEN（45 项：44 通过、1 跳过，含 Restore/Build/Compose/Runtime smoke/Diagnostics），Docker `33109068630` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；Content Policy 管理命令的人工管理员验收加入第 6 节待定事项。
 
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
@@ -538,7 +538,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Identity/Repair 与一致性检查本轮的远端 CI、Compose、Runtime smoke 与 Docker 已确认通过（CI `33106044634`、Docker `33106044677`）；两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
+当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Content Policy、Identity/Repair 与一致性检查本轮的远端 CI、Compose、Runtime smoke 与 Docker 已确认通过（Content Policy CI `33109068649`、Docker `33109068630`）；两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

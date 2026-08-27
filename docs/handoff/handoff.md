@@ -106,7 +106,7 @@ CI: GREEN (Run 32821162412)
 - 缺口：公开目录、详情、章节正文和 Legado 输出没有统一的下架门控，也没有受保护的可追溯下架/恢复入口。
 - 实现：Content 增加书级不可变 `ContentPolicyDecision` 历史；最新决策派生公开状态，重复同状态命令幂等，操作者和理由经过领域校验。`CatalogQueryService` 在目录/详情/正文查询中统一门控，正文先取书籍 ID 再加载正文；API 搜索发现结果也过滤下架书，Legado/Web Reader 复用该语义。
 - 持久化与权限：新增 `content.policy_decisions` / `AddContentPolicyDecisions` Migration 和数据库追加式触发器；新增 Administrator-only `ContentModeration` policy、`GET /api/v1/admin/content/takedowns`、下架/恢复命令，并写入命令级审计。
-- 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 219/219、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Content Policy 管理入口 401。新增 PostgreSQL Testcontainers 2 项因本机 `npipe://./pipe/docker_engine` 不可用 BLOCKED；远端 CI/Docker 待候选提交后确认。
+- 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 219/219、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Content Policy 管理入口 401。本机完整 Integration 45 项中 6 通过、1 跳过、38 项因 `npipe://./pipe/docker_engine` 不可用而在 Testcontainers 初始化阶段 BLOCKED，不记为通过；远端 CI `33109068649` GREEN（45 项：44 通过、1 跳过，含 Restore/Build/Compose/Runtime smoke/Diagnostics），Docker `33109068630` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源故障切换；Content Policy 管理命令的 Administrator 人工验收已加入下方待定事项。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
@@ -136,6 +136,7 @@ CI: GREEN (Run 32821162412)
 ✅ SSRF 连接级约束：校验地址直连 + 端口/重定向限制 + 三宿主接线（`379cf79`，`33099136084` / `33099135992`）
 ✅ Identity 基础认证/授权 + refresh 轮换 + 受保护死信 Repair/replay（`09ea265` / `9f9d5c7`，`33102831333` / `33102831388`）
 ✅ 跨模块 Consistency Check v1：只读四 schema 扫描 + 受保护 Admin 入口（`7dac6ce`，CI `33106044634` / Docker `33106044677` 均 GREEN）
+✅ Content Policy / Takedown v1：公开读取门控 + Administrator 命令审计 + 追加式决策历史（`34c5c71`，CI `33109068649` / Docker `33109068630` 均 GREEN）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
