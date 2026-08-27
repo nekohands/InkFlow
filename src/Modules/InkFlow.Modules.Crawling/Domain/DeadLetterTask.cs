@@ -7,8 +7,14 @@ public sealed record DeadLetterTask(
     string SourceId,
     string Reason,
     int AttemptCount,
-    DateTimeOffset DeadLetteredAt)
+    DateTimeOffset DeadLetteredAt,
+    Guid? ReplayTaskId = null,
+    DateTimeOffset? ReplayedAt = null,
+    string? ReplayRequestedBy = null,
+    string? ReplayReason = null)
 {
+    public bool IsReplayed => ReplayTaskId is not null;
+
     public static DeadLetterTask From(CrawlerTask task, string reason, DateTimeOffset now)
     {
         if (task.Status != CrawlerTaskStatus.DeadLettered)

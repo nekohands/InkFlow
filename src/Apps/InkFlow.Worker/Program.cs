@@ -39,7 +39,11 @@ builder.Services.AddSingleton(TimeProvider.System);
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
-builder.Services.AddScoped<ICrawlerTaskRepository, EfCrawlerTaskRepository>();
+builder.Services.AddScoped<EfCrawlerTaskRepository>();
+builder.Services.AddScoped<ICrawlerTaskRepository>(sp =>
+    sp.GetRequiredService<EfCrawlerTaskRepository>());
+builder.Services.AddScoped<ICrawlerTaskRepairRepository>(sp =>
+    sp.GetRequiredService<EfCrawlerTaskRepository>());
 builder.Services.AddScoped<ISourceRepository, EfSourceRepository>();
 builder.Services.AddScoped<ISourceBookRepository, EfSourceBookRepository>();
 builder.Services.AddScoped<IFetchArtifactRepository, EfFetchArtifactRepository>();

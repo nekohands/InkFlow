@@ -71,6 +71,13 @@ public sealed class CrawlerTaskRepositoryTests
             .ToListAsync().ConfigureAwait(false);
 
         CollectionAssert.AreEquivalent(new[] { "tasks", "dead_letters" }, tables.ToList());
+
+        var deadLetterColumns = await db.Database.SqlQuery<string>(
+                $"""SELECT column_name AS "Value" FROM information_schema.columns WHERE table_schema = 'crawler' AND table_name = 'dead_letters'""")
+            .ToListAsync().ConfigureAwait(false);
+        CollectionAssert.IsSubsetOf(
+            new[] { "ReplayTaskId", "ReplayedAt", "ReplayRequestedBy", "ReplayReason" },
+            deadLetterColumns.ToList());
     }
 
     [TestMethod]
@@ -317,5 +324,109 @@ public sealed class CrawlerTaskRepositoryTests
         Assert.AreEqual(1, letters.Count);
         Assert.AreEqual(task.Id, letters[0].TaskId);
         Assert.AreEqual("upstream 503", letters[0].Reason);
+    }
+
+    [TestMethod]
+    public async Task Dead_Letter_Replay_Creates_New_Pending_Task_And_Is_Idempotent()
+    {
+        var (_, repo) = CreateContext();
+        var task = CrawlerTask.Create(Payload(), maxAttempts: 1, T0);
+        await repo.AddAsync(task).ConfigureAwait(false);
+
+        var loaded = (await repo.GetAsync(task.Id).ConfigureAwait(false))!;
+        loaded.Lease("w", T0, TimeSpan.FromMinutes(1));
+        loaded.MarkRunning(T0);
+        loaded.Fail(T0.AddMinutes(1));
+        await repo.SaveAsync(loaded).ConfigureAwait(false);
+
+        var deadLetter = DeadLetterTask.From(loaded, "upstream 503", T0.AddMinutes(2));
+        await repo.AddDeadLetterAsync(deadLetter).ConfigureAwait(false);
+
+        var command = DeadLetterReplayCommand.Create(
+            deadLetter.Id,
+            requestedBy: "operator-1",
+            replayReason: "upstream recovered");
+        var replayed = await repo
+            .ReplayDeadLetterAsync(command, T0.AddMinutes(3))
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(DeadLetterReplayStatus.Replayed, replayed.Status);
+        Assert.IsNotNull(replayed.ReplayTaskId);
+        Assert.AreNotEqual(task.Id, replayed.ReplayTaskId);
+
+        var original = await repo.GetAsync(task.Id).ConfigureAwait(false);
+        var replayTask = await repo.GetAsync(replayed.ReplayTaskId!.Value).ConfigureAwait(false);
+        Assert.AreEqual(CrawlerTaskStatus.DeadLettered, original!.Status);
+        Assert.AreEqual(CrawlerTaskStatus.Pending, replayTask!.Status);
+        Assert.AreEqual(0, replayTask.AttemptCount);
+        Assert.AreEqual(task.Payload.SourceId, replayTask.Payload.SourceId);
+        Assert.AreEqual(task.Payload.Variables["bookId"], replayTask.Payload.Variables["bookId"]);
+        Assert.AreEqual(T0.AddMinutes(3), replayTask.ScheduledAt);
+
+        var resolved = (await repo.ListDeadLettersAsync(10).ConfigureAwait(false))
+            .Single(letter => letter.Id == deadLetter.Id);
+        Assert.AreEqual(replayed.ReplayTaskId, resolved.ReplayTaskId);
+        Assert.AreEqual(T0.AddMinutes(3), resolved.ReplayedAt);
+        Assert.AreEqual("operator-1", resolved.ReplayRequestedBy);
+        Assert.AreEqual("upstream recovered", resolved.ReplayReason);
+
+        var repeated = await repo
+            .ReplayDeadLetterAsync(command, T0.AddMinutes(4))
+            .ConfigureAwait(false);
+        Assert.AreEqual(DeadLetterReplayStatus.AlreadyReplayed, repeated.Status);
+        Assert.AreEqual(replayed.ReplayTaskId, repeated.ReplayTaskId);
+
+        replayTask.Lease("w", T0.AddMinutes(5), TimeSpan.FromMinutes(1));
+        replayTask.MarkRunning(T0.AddMinutes(5));
+        replayTask.Complete(T0.AddMinutes(6));
+        await repo.SaveAsync(replayTask).ConfigureAwait(false);
+
+        Assert.IsFalse(
+            await repo.HasConflictingTaskAsync(
+                    Payload().SourceId,
+                    Payload().Capability,
+                    "bookId",
+                    "42")
+                .ConfigureAwait(false),
+            "已解决的原死信和已完成的重放任务不应永久阻塞后续入队");
+    }
+
+    [TestMethod]
+    public async Task Dead_Letter_Replay_Is_Atomic_Under_Concurrent_Requests()
+    {
+        var seed = CreateContext();
+        await using var seedDb = seed.Db;
+        var task = CrawlerTask.Create(Payload(), maxAttempts: 1, T0);
+        await seed.Repo.AddAsync(task).ConfigureAwait(false);
+
+        var loaded = (await seed.Repo.GetAsync(task.Id).ConfigureAwait(false))!;
+        loaded.Lease("w", T0, TimeSpan.FromMinutes(1));
+        loaded.MarkRunning(T0);
+        loaded.Fail(T0.AddMinutes(1));
+        await seed.Repo.SaveAsync(loaded).ConfigureAwait(false);
+        var deadLetter = DeadLetterTask.From(loaded, "upstream 503", T0.AddMinutes(2));
+        await seed.Repo.AddDeadLetterAsync(deadLetter).ConfigureAwait(false);
+
+        var first = CreateContext();
+        await using var firstDb = first.Db;
+        var second = CreateContext();
+        await using var secondDb = second.Db;
+        var command = DeadLetterReplayCommand.Create(deadLetter.Id, "operator-a", "retry once");
+
+        var results = await Task.WhenAll(
+            first.Repo.ReplayDeadLetterAsync(command, T0.AddMinutes(3)),
+            second.Repo.ReplayDeadLetterAsync(command, T0.AddMinutes(3)));
+
+        Assert.AreEqual(1, results.Count(result => result.Status == DeadLetterReplayStatus.Replayed));
+        Assert.AreEqual(1, results.Count(result => result.Status == DeadLetterReplayStatus.AlreadyReplayed));
+        Assert.AreEqual(
+            results[0].ReplayTaskId,
+            results[1].ReplayTaskId,
+            "并发请求必须返回同一个重放任务");
+
+        var count = await firstDb.Tasks
+            .CountAsync(candidate => candidate.Id != task.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, count, "并发重放不得创建多个新任务");
     }
 }

@@ -52,6 +52,9 @@ public sealed class DeadLetterEntityConfiguration : IEntityTypeConfiguration<Dea
         builder.HasIndex(d => d.TaskId).IsUnique();
         builder.Property(d => d.SourceId).HasMaxLength(128).IsRequired();
         builder.Property(d => d.Reason).HasMaxLength(2048).IsRequired();
+        builder.Property(d => d.ReplayRequestedBy).HasMaxLength(128);
+        builder.Property(d => d.ReplayReason).HasMaxLength(512);
+        builder.HasIndex(d => d.ReplayTaskId);
     }
 }
 

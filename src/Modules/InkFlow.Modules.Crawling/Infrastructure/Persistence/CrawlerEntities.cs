@@ -27,4 +27,8 @@ public sealed class DeadLetterEntity
     public string Reason { get; set; } = null!;
     public int AttemptCount { get; set; }
     public DateTimeOffset DeadLetteredAt { get; set; }
+    public Guid? ReplayTaskId { get; set; }
+    public DateTimeOffset? ReplayedAt { get; set; }
+    public string? ReplayRequestedBy { get; set; }
+    public string? ReplayReason { get; set; }
 }
