@@ -285,7 +285,7 @@ Phase 0 开发过程中真实发现并修复：
 
 - 过期 `Leased` 与 `Running` 任务现在会先回收为 `Pending` 再重新领取，重新领取计入新的尝试次数；持久化领取查询同步覆盖过期 `Running` 任务，避免 Worker 崩溃后任务永久卡住。
 - 注册 `CompositeTaskExecutor` 到 Worker DI；单个任务执行异常进入失败/重试/死信路径，不再中断整个轮询循环；停止信号仍按取消语义向上传递。
-- 自动化证据：新增租约恢复回归测试后 Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；Worker Release 进程烟测 `/health` 返回 200。完整 PostgreSQL 集成测试仍有 20 个因本机 Docker 不可用而 BLOCKED、1 个跳过；本轮候选提交后的远端 CI/Docker 尚待触发。
+- 自动化证据：新增租约恢复回归测试后 Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；Worker Release 进程烟测 `/health` 返回 200。完整 PostgreSQL 集成测试仍有 20 个因本机 Docker 不可用而 BLOCKED、1 个跳过；修复后的候选提交 `f0f0d81` 已通过远端 CI `33059140418` 与 Docker `33059140552`（均 GREEN）。
 
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
