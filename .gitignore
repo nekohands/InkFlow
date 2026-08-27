@@ -15,3 +15,6 @@ TestResults/
 artifacts/
 
 .codegraph/
+.codex/
+.reasonix/
+reasonix.toml
