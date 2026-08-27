@@ -2,7 +2,9 @@
   <ItemGroup>
     <ProjectReference Include="../InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="../InkFlow.BuildingBlocks.Security/InkFlow.BuildingBlocks.Security.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
   </ItemGroup>
 </Project>

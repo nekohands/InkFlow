@@ -3,6 +3,7 @@
 using InkFlow.Api;
 using InkFlow.BuildingBlocks.Application;
 using InkFlow.BuildingBlocks.Observability;
+using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Crawling.Application;
@@ -20,7 +21,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddInkFlowObservability("InkFlow.Api");
 builder.Services.AddInkFlowApiRateLimiting(
     ApiRateLimitOptions.FromConfiguration(builder.Configuration));
-builder.Services.AddSingleton<IAuditEventSink, LoggingAuditEventSink>();
 
 // 来源发现按需使用老站编码(kanunu8 GB18030 等)。
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
@@ -28,6 +28,12 @@ System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Inst
 var databaseConnectionString =
     builder.Configuration.GetConnectionString("Database")
     ?? "Host=localhost;Port=5432;Database=inkflow;Username=inkflow;Password=inkflow";
+
+builder.Services.AddDbContext<AuditDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
+builder.Services.AddScoped<LoggingAuditEventSink>();
+builder.Services.AddScoped<PersistentAuditEventSink>();
+builder.Services.AddScoped<IAuditEventSink, CompositeAuditEventSink>();
 
 builder.Services.AddDbContext<LibraryDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
 using InkFlow.BuildingBlocks.Security;
+using InkFlow.BuildingBlocks.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
@@ -291,5 +292,42 @@ public sealed class LoggingAuditEventSink(
             auditEvent.TraceId,
             auditEvent.Reference);
         return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>
+/// API 审计双写组合器：数据库提供持久化事实，结构化日志保留即时运维可见性。
+/// 持久化失败不改变请求结果，但会被记录并触发既有 sink 错误处理路径。
+/// </summary>
+public sealed class CompositeAuditEventSink(
+    PersistentAuditEventSink persistentSink,
+    LoggingAuditEventSink loggingSink,
+    ILogger<CompositeAuditEventSink> logger) : IAuditEventSink
+{
+    public async ValueTask AppendAsync(
+        AuditEvent auditEvent,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await persistentSink.AppendAsync(auditEvent, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                exception,
+                "persistent audit sink failed for {AuditEventId} ({Action} {Resource})",
+                auditEvent.Id,
+                auditEvent.Action,
+                auditEvent.Resource);
+        }
+
+        await loggingSink.AppendAsync(auditEvent, cancellationToken)
+            .ConfigureAwait(false);
     }
 }
