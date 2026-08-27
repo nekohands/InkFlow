@@ -103,8 +103,8 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
 
         var formBody = rule.Request.Method == RuleHttpMethod.Post && rule.Request.Form.Count > 0
             ? string.Join('&', rule.Request.Form.Select(p =>
-                $"{Uri.EscapeDataString(FillTemplate(prefix, p.Key, variables, errors))}=" +
-                $"{Uri.EscapeDataString(FillTemplate($"{prefix}.form['{p.Key}']", p.Value, variables, errors))}"))
+                $"{Uri.EscapeDataString(FillTemplate(prefix, p.Key, variables, errors, encodeValues: false))}=" +
+                $"{Uri.EscapeDataString(FillTemplate($"{prefix}.form['{p.Key}']", p.Value, variables, errors, encodeValues: false))}"))
             : null;
 
         if (errors.Count > 0)
@@ -126,7 +126,8 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
         string errorPrefix,
         string template,
         IReadOnlyDictionary<string, string> variables,
-        List<string> errors)
+        List<string> errors,
+        bool encodeValues = true)
     {
         return PlaceholderPattern.Replace(template, match =>
         {
@@ -137,8 +138,8 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
                 return match.Value;
             }
 
-            // 值在 URL 组装处统一编码；这里仅做转义防注入模板结构。
-            return Uri.EscapeDataString(value);
+            // 路径和查询模板先编码；表单在最终拼接时统一编码一次。
+            return encodeValues ? Uri.EscapeDataString(value) : value;
         });
     }
 
