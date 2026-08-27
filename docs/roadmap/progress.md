@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：Phase 1B — Dual Source Validation（自动化切源基线进行中）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最后更新日期：2026-08-27
+- 最后更新日期：2026-08-28
 
 ## 1. 总体状态
 
@@ -302,6 +302,16 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：Unit 137/137、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；远端 PostgreSQL 集成测试 30 个中 29 通过、1 个 live 用例跳过；Worker `/health` 本地返回 200。候选提交 `3372180` 的 CI `33062448255` 与 Docker `33062448243` 均 GREEN。
 - 本机完整测试因 Docker Engine 未运行有 23 个 Testcontainers 用例在初始化阶段 BLOCKED，6 个通过、1 个跳过；该环境限制不替代远端证据。MuMu/阅读 3.0、Web Reader、真实追更与真实第二来源仍按第 6 节待定。
 
+**追更正文闭环：目录联动正文抓取（本轮，2026-08-28）**：
+
+- 补齐"事件触发"缺口：`TocSyncTaskHandler` 在目录同步 + 正典映射成功后调用 `ContentFetchChainService`，为**该来源从未抓取过正文**的章节自动入队 Content 抓取任务——"检测新章 → 抓取 → 发布"不再依赖人工种子或额外扫描周期。
+- 入队判定四个不变量全部满足才触发：书目存在且有章节；Content 能力健康（不可用来源零上游请求）；该章节在该来源下无 FetchArtifact；无同 `(source, content, chapter)` 的阻止性任务。
+- 新增 `ICrawlerTaskRepository.HasConflictingTaskAsync`：Pending/Leased/Running 视为在途冲突去重，**DeadLettered 同样阻止**——死信任务不会被周期扫描反复复活，只能走人工处理路径；Completed 不阻止。EF 实现按 `(source, capability, 状态)` 服务端裁剪后内存匹配 jsonb 变量，无 Schema 变更、无新 Migration。
+- 新增 `IFetchArtifactRepository.ListFetchedExternalChapterIdsAsync` 批量存在性查询（单次往返甄别整本书的未抓章节）；修复了本轮开发中发现的新文件误覆盖既有 FetchArtifactRepositoryTests 的操作失误，原 3 个用例已按 HEAD 原样恢复。
+- Worker 轮询节奏配套：有任务时 250ms 短轮询尽快消化整批联动任务，空闲回退 15s 低成本等待。
+- 测试：新增链式服务 7 例 + Handler 编排 3 例（含重复同步不重复入队、映射缺失不联动）+ EF 语义集成 3 例（阻止态矩阵、批量存在性、跨源隔离）。Unit 147/147、Architecture 1/1、Contract 1/1、Integration 远端 33 中 32 通过 + 1 live 跳过、Release Build 0 warnings / 0 errors；Worker 进程烟测 `/health` 200（本机无库时轮询错误被捕获不崩进程）。本机 Integration 因 docker_engine 缺失 24 例 BLOCKED，不记为通过。候选提交 `94c8be9` CI `33065212994` 与 Docker `33065212936` 均 **GREEN**（含 Runtime Smoke 与四镜像构建）。
+- 本轮不含：上游已抓正文的修订重扫（RawHash 已有产物即跳过）、死信人工重放工具、多 Worker 并发消费。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
@@ -402,7 +412,7 @@ Official Source
 
 - Source Health / Capability Health 与 v1 健康感知切源已落地；自适应探测/自动恢复、跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
-- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度和单任务异常重试基线；事件触发和可观测告警仍待后续 Operations/Crawling 工作包。
+- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度和单任务异常重试基线；TOC 联动正文抓取的事件触发闭环已落地（见 4.x 追更正文闭环），上游修订重扫与可观测告警仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 

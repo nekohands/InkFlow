@@ -76,7 +76,7 @@ CI: GREEN (Run 32821162412)
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
-随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。事件触发仍未完成。
+随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。在此基础上追更"事件触发"缺口已闭环：Toc 同步 + 正典映射成功后由 `ContentFetchChainService` 自动为该来源从未抓取过正文的章节入队 Content 任务（死信不被周期扫描复活），Worker 有积压时短轮询消化（详见 4.6）。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -91,6 +91,7 @@ CI: GREEN (Run 32821162412)
 ✅ Capability Health v1：健康状态持久化 + 健康感知切源 + 选择审计
 ✅ CI/Docker 验证租约恢复与跨进程原子领取（`33060930049` / `33060930029`）
 ✅ CI/Docker 验证重试退避调度与 `ScheduledAt` Migration（`33062448255` / `33062448243`）
+✅ 追更正文闭环：TOC 联动正文入队、死信不复活、Worker 短轮询（`33065212994` / `33065212936`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -125,6 +126,14 @@ CI: GREEN (Run 32821162412)
 - `FindLeasableAsync` 与 `TryLeaseAsync` 都过滤未来调度的 Pending 任务；Worker 失败路径在 `SaveAsync` 前计算并保存下一次尝试时间。
 - 官方 Migration `AddCrawlerTaskScheduling` 增加可空 `crawler.tasks.ScheduledAt` 与 `(Status, ScheduledAt)` 索引，旧记录 `NULL` 保持立即可领取兼容性。
 - 自动化证据：Unit 137/137、Architecture 1/1、Contract 1/1；远端 PostgreSQL 集成测试 30 个中 29 通过、1 个 live 用例跳过；Release Build 0 warnings / 0 errors；Worker `/health` 本地返回 200。候选提交 `3372180` 的 CI `33062448255` 与 Docker `33062448243` 均 GREEN。
+
+### 4.6 追更正文闭环（本轮，2026-08-28）
+
+- 目录同步 + 正典映射成功后，`ContentFetchChainService` 为"该来源从未抓取过正文"的章节自动入队 Content 任务：判定 = 书目存在有章节 ∧ Content 能力健康 ∧ 无 FetchArtifact ∧ 无同 `(source, content, chapter)` 阻止性任务。
+- 新增 `ICrawlerTaskRepository.HasConflictingTaskAsync`（Pending/Leased/Running/DeadLettered 阻止、Completed 放行）与 `IFetchArtifactRepository.ListFetchedExternalChapterIdsAsync` 批量存在性查询；无 Schema 变更、无新 Migration。死信任务不会被周期扫描反复复活，重放仍是人工路径。
+- Worker 轮询节奏：有任务时 250ms 短轮询消化联动批次，空闲回退 15s。
+- 自动化证据：Unit 147/147（新增链式服务 7 例 + Handler 编排 3 例）、Architecture 1/1、Contract 1/1；远端 Integration 33 中 32 通过 + 1 live 跳过（新增 EF 阻止态矩阵与批量存在性用例全过）；Release Build 0 warnings / 0 errors；本机 docker_engine 缺失导致 24 例集成 BLOCKED，不记为通过；Worker `/health` 本地返回 200。候选提交 `94c8be9` 的 CI `33065212994` 与 Docker `33065212936` 均 GREEN。
+- 未含：已抓正文的修订重扫、死信人工重放工具、多 Worker 并发消费。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
