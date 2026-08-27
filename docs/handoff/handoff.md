@@ -97,7 +97,7 @@ CI: GREEN (Run 32821162412)
 - `ChapterMapping` 记录 `chapter-alignment-v1` 与对齐证据；`ContentVersion` 记录 `quality-v1` 与质量证据。
 - 低质量第二来源保存为独立候选，不替换已选正文；查询路径只读已落库当前版本。
 - Release Build：PASS（0 warnings / 0 errors）。Unit 118/118、Architecture 1/1、Contract 1/1、双来源夹具 2/2：PASS。
-- 完整集成测试：本机 Docker 不可用，18 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。
+- 完整集成测试：本机 Docker 不可用，18 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。远端 CI `33052498887` 已通过 Test/Compose/Runtime smoke，Docker `33052498797` 的 4 个镜像构建也已通过。
 - EF 新迁移已用官方生成流程补齐 Designer，并由 `dotnet ef migrations list` 发现。
 
 扩展新来源的方式(书源兼容层):

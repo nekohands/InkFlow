@@ -262,7 +262,7 @@ Phase 0 开发过程中真实发现并修复：
 - `ContentVersion` 持久化 `QualityAlgorithmVersion` 与 `QualityEvidence`；低质量第二来源形成独立候选但不会替换已选正文，阅读查询继续读取已落库当前版本。
 - 新增 EF 迁移并补齐 Designer 元数据；`dotnet ef migrations list` 已发现 Content 与 Library 新迁移。
 - 自动化证据：双来源集成夹具 2/2、Unit 118/118、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。
-- 真实设备 Legado 导入/阅读按用户决定暂缓，标记为后续人工验收；本机完整 PostgreSQL 集成测试因 Docker 不可用而未通过，远端 CI 仍是交付门槛。
+- 真实设备 Legado 导入/阅读按用户决定暂缓，标记为后续人工验收；本机完整 PostgreSQL 集成测试因 Docker 不可用而未通过。远端 CI `33052498887` 与 Docker `33052498797` 已全绿。
 
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
