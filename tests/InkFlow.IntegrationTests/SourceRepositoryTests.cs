@@ -120,15 +120,17 @@ public sealed class SourceRepositoryTests
     [TestMethod]
     public async Task List_Returns_All_Registered_Sources()
     {
+        // 共享容器下其他用例可能已有来源行,断言只针对本用例专属 ID 的存在性。
         var repo = CreateRepository();
         await repo.AddAsync(NewSourceWithRules("list-src-a")).ConfigureAwait(false);
         await repo.AddAsync(NewSourceWithRules("list-src-b")).ConfigureAwait(false);
 
         var all = await repo.ListAsync().ConfigureAwait(false);
+        var ids = all.Select(s => s.Id).ToList();
 
-        CollectionAssert.AreEquivalent(
-            new[] { "list-src-a", "list-src-b" },
-            all.Select(s => s.Id).ToList());
+        Assert.IsTrue(ids.Contains("list-src-a"), "List 必须包含新登记的 list-src-a");
+        Assert.IsTrue(ids.Contains("list-src-b"), "List 必须包含新登记的 list-src-b");
+        Assert.IsTrue(ids.Distinct().Count() == ids.Count, "List 不得返回重复来源");
     }
 
     [TestMethod]
