@@ -111,7 +111,7 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
-    public async Task FindLeasable_Returns_Pending_And_Expired_Only()
+    public async Task FindLeasable_Returns_Pending_And_Expired_Leased_Or_Running()
     {
         var (_, repo) = CreateContext();
 
@@ -131,10 +131,20 @@ public sealed class CrawlerTaskRepositoryTests
         leasedExpired.Lease("w", T0, TimeSpan.FromSeconds(30));
         await repo.SaveAsync(leasedExpired).ConfigureAwait(false); // 已过期
 
+        var runningExpired = CrawlerTask.Create(
+            new CrawlPayload("src-running-expired", SourceCapability.Toc, new Dictionary<string, string>()), createdAt: T0);
+        await repo.AddAsync(runningExpired).ConfigureAwait(false);
+        runningExpired.Lease("w", T0, TimeSpan.FromSeconds(30));
+        runningExpired.MarkRunning(T0.AddSeconds(1));
+        await repo.SaveAsync(runningExpired).ConfigureAwait(false); // Worker 崩溃后租约已过期
+
         var leasable = await repo.FindLeasableAsync(T0.AddMinutes(5), limit: 10).ConfigureAwait(false);
         var sources = leasable.Select(t => t.Payload.SourceId).OrderBy(s => s).ToList();
 
-        CollectionAssert.AreEquivalent(new[] { "src-pending", "src-expired" }, sources);
+        Assert.IsTrue(sources.Contains("src-pending"));
+        Assert.IsTrue(sources.Contains("src-expired"));
+        Assert.IsTrue(sources.Contains("src-running-expired"));
+        Assert.IsFalse(sources.Contains("src-fresh"));
     }
 
     [TestMethod]
