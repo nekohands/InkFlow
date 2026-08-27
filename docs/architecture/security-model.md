@@ -27,6 +27,8 @@ Long-lived secrets are returned to users once. InkFlow's current Identity baseli
 
 Administrative access uses Role -> Permission mapping. The current baseline protects crawler dead-letter listing/replay with `Operator` / `Administrator` roles; replay obtains the actor from the authenticated subject and requires a reason. Content Takedown/Restore is now protected by an Administrator-only `ContentModeration` policy, requires a reason, and writes an immutable policy decision plus command audit. Other sensitive operations such as Book Merge/Split, Source Rule Publish, user suspension, billing and permission changes require explicit permission checks, reason/audit, and later may support re-auth/four-eyes approval.
 
+Source capability operations use a separate `SourceOperations` policy for `Operator` / `Administrator` roles. The protected health view and explicit disable/enable commands operate on one `(SourceId, Capability)` row at a time, require a reason for each command, and record the authenticated actor, bounded reason, result and resource reference in the command audit trail.
+
 Private/organization content additionally enforces ownership/resource policy.
 
 ## 4. Community Source Threat Boundary
@@ -121,5 +123,7 @@ Operational controls must eventually support rapid containment:
 - block abusive user/organization/IP
 - suspend affected feature using Feature Flag
 - preserve evidence for investigation/postmortem
+
+The current baseline exposes the source capability health view and reasoned disable/enable operations through the protected Source Operations API. It does not silently alter rules, source identity or stored content; recovery still returns a capability to `Unknown` so a real probe must establish `Healthy`.
 
 Security functionality is implemented progressively, but SSRF protection, secret handling, content sanitization, audit foundations and credential separation are Phase 0/1 concerns, not post-launch additions.

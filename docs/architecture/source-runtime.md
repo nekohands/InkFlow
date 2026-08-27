@@ -29,6 +29,10 @@
 恢复或成功探测会清除失败连续计数。状态转移保存 `source-health-v1`、时间戳和受限失败原因，
 不把 Redis 或缓存当作事实来源。
 
+运维侧通过受 `Operator` / `Administrator` 保护的 Source Operations API 查看单来源能力健康，
+并以带理由的 disable/enable 命令控制单个 `(SourceId, Capability)`。停用立即阻止该能力进入
+调度/候选；恢复只回到 `Unknown`，必须由后续真实探针确认 `Healthy`，命令和操作者写入审计。
+
 Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在可用来源中按质量选优，
 全来源不可用时保留已落库当前版本；每次选择追加 `content.selection_decisions` 审计记录，
 保存算法版本、候选/排除数量、选中版本和来源及回退标志。读取路径仍只读取 Canonical Content，

@@ -109,6 +109,14 @@ CI: GREEN (Run 32821162412)
 - 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 219/219、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Content Policy 管理入口 401。本机完整 Integration 45 项中 6 通过、1 跳过、38 项因 `npipe://./pipe/docker_engine` 不可用而在 Testcontainers 初始化阶段 BLOCKED，不记为通过；远端 CI `33109068649` GREEN（45 项：44 通过、1 跳过，含 Restore/Build/Compose/Runtime smoke/Diagnostics），Docker `33109068630` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源故障切换；Content Policy 管理命令的 Administrator 人工验收已加入下方待定事项。
 
+### 4.17 Source Health Operator Controls v1（本轮，2026-08-28）
+
+- 缺口：Capability Health 已有自动状态机和持久化事实，但缺少受保护的运维查询与单能力人工停用/恢复入口。
+- 实现：新增 `ISourceHealthOperations` 深接口和独立 `SourceOperations` policy；`GET /api/v1/admin/sources/{sourceId}/health` 查看来源能力状态，POST disable/enable 控制单个能力。命令要求 `Operator` / `Administrator`、认证主体和非空理由；恢复回到 `Unknown` 等待真实探针，不直接伪造 `Healthy`。
+- 审计：命令写入 `source.health.disable` / `source.health.enable`，包含认证操作者、理由、来源/能力和状态 reference；不修改 Source 身份、Rule 或 Canonical Content。
+- 当前证据：本机 Release Build 0 warnings / 0 errors；Unit 221/221、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Source Operations 入口 401。完整 Integration 45 项中 6 通过、1 跳过、38 项因本机 Docker Engine 不可用而 BLOCKED；远端 CI `33110684551` GREEN（Unit 221、Integration 45 项 44 通过/1 跳过，含 Compose/Runtime smoke/Diagnostics），Docker `33110684410` GREEN（四镜像）。
+- 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源故障切换；Source Health 管理命令的人工实际操作、完整 Repair/Operations Center、告警和备份治理仍待后续。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
@@ -137,6 +145,7 @@ CI: GREEN (Run 32821162412)
 ✅ Identity 基础认证/授权 + refresh 轮换 + 受保护死信 Repair/replay（`09ea265` / `9f9d5c7`，`33102831333` / `33102831388`）
 ✅ 跨模块 Consistency Check v1：只读四 schema 扫描 + 受保护 Admin 入口（`7dac6ce`，CI `33106044634` / Docker `33106044677` 均 GREEN）
 ✅ Content Policy / Takedown v1：公开读取门控 + Administrator 命令审计 + 追加式决策历史（`34c5c71`，CI `33109068649` / Docker `33109068630` 均 GREEN）
+✅ Source Health Operator Controls v1：来源能力查询 + Operator/Administrator 停用/恢复 + 命令审计（`49e0fc1`，CI `33110684551` / Docker `33110684410` 均 GREEN）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收

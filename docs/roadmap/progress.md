@@ -397,6 +397,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 219/219、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 Content Policy 管理入口返回 401。本机完整 Integration 45 项中 6 通过、1 跳过、38 项因 `npipe://./pipe/docker_engine` 不可用而在 Testcontainers 初始化阶段 BLOCKED，不记为通过；远端 CI `33109068649` GREEN（45 项：44 通过、1 跳过，含 Restore/Build/Compose/Runtime smoke/Diagnostics），Docker `33109068630` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；Content Policy 管理命令的人工管理员验收加入第 6 节待定事项。
 
+**Source Health Operator Controls v1（本轮，2026-08-28）**：
+
+- 缺口：Capability Health 已有自动状态机和持久化事实，但缺少受保护的运维查询与单能力人工停用/恢复入口，故障处置只能依赖内部调用。
+- 实现：新增 `ISourceHealthOperations` 深接口和 API 组合根接线；`GET /api/v1/admin/sources/{sourceId}/health` 查看已记录能力状态，`POST .../{capability}/disable` 与 `POST .../{capability}/enable` 控制单个能力。所有命令要求 `Operator` / `Administrator`、认证 `sub` 和非空有界理由；停用由健康聚合阻止候选，恢复回到 `Unknown` 等待真实探针。
+- 安全与审计：新增独立 `SourceOperations` policy；响应只暴露受限健康字段，命令写入 `source.health.disable` / `source.health.enable` 审计及来源/能力 reference，不修改 Source 身份、Rule 或 Canonical 内容。
+- 自动化证据：本机 Release Build PASS（0 warnings / 0 errors）；Unit 221/221、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，新入口未认证返回 401；本机完整 Integration 45 项中 6 通过、1 跳过、38 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过。远端 CI `33110684551` GREEN（Unit 221、Integration 45 项 44 通过/1 跳过，含 Compose/Runtime smoke/Diagnostics），Docker `33110684410` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
+- 边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；管理员实际停用/恢复、告警路由、完整 Repair Center 和本机 Docker 集成复验继续列入待定/后续工程事项。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。

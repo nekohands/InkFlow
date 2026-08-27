@@ -97,6 +97,8 @@ Task 支持：TaskId、Type、SourceId、Priority、Attempt、MaxAttempts、Sche
 
 死信修复通过 Crawling.Application 的受控 Repair/Replay seam 进入，而不是手工修改数据库：PostgreSQL 事务锁定原死信和任务，原任务保持 `DeadLettered`，只创建新的 `Pending` 重放任务并追加可追溯的操作者、理由、时间和任务 ID。当前 API 已通过 Identity opaque Bearer 认证和 `Operator` / `Administrator` policy 暴露受保护的死信列表与 replay 入口，命令额外写入 `crawler.dead_letter.replay` 审计事件；同一 Admin 组新增只读 `GET /api/v1/admin/consistency`，由 API 组合根汇总四个模块 schema 的最小关系快照，返回稳定错误码和可解释一致性问题。更完整的 Admin/Repair/Consistency Center UI、自动修复、查询授权、权限管理与运维治理仍待后续实现；请求审计和一致性报告基线不等同于完整的管理平台。
 
+Source Health Operator Controls v1 已补齐受保护的来源能力健康查询以及带理由的单能力 disable/enable 命令；状态仍由 Sources 健康聚合和 PostgreSQL 事实表驱动，恢复只回到 `Unknown`，不绕过真实探针。更完整的 Repair/Operations Center、自动修复、告警、保留策略和备份治理仍待后续实现。
+
 ## 7. Messaging 与一致性
 
 采用 PostgreSQL Transaction + Transactional Outbox + Inbox：
