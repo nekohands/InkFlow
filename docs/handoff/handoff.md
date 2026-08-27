@@ -82,7 +82,9 @@ CI: GREEN (Run 32821162412)
 
 随后补齐 Worker 失败观测基线：`CrawlerFailureObservation` 将失败原因归类为低基数 `FailureKind`，`CrawlerFailureReporter` 通过 `ICrawlerFailureSink` 向结构化日志和 OpenTelemetry counters 扇出；失败路径明确记录 retry/dead-letter/not-running disposition，sink 异常与任务状态隔离。远端 CI `33091872440`、Docker `33091872458` 均 GREEN；本机 Docker 集成仍因环境不可用 BLOCKED。外部告警路由、阈值治理与持久化运维闭环留待后续 Operations/Crawling 工作包。
 
-本轮随后补齐 Crawler 死信受控重放：`ICrawlerTaskRepairRepository` 通过 PostgreSQL 事务与 `FOR UPDATE` 锁定死信/原任务，幂等创建新的 `Pending` 任务，并在原死信上追加操作者、理由、时间和重放任务 ID；重复/并发请求不会重复创建，已解决死信不再永久阻塞后续入队。实现提交 `20f75fb`、测试隔离修复 `c2d4aeb`；远端 CI `33094754193`、Docker `33094754210` GREEN，含 Runtime smoke。公开 Admin/Operations 入口、认证授权与持久化审计未在本轮实现。
+本轮随后补齐 Crawler 死信受控重放：`ICrawlerTaskRepairRepository` 通过 PostgreSQL 事务与 `FOR UPDATE` 锁定死信/原任务，幂等创建新的 `Pending` 任务，并在原死信上追加操作者、理由、时间和重放任务 ID；重复/并发请求不会重复创建，已解决死信不再永久阻塞后续入队。实现提交 `20f75fb`、测试隔离修复 `c2d4aeb`；远端 CI `33094754193`、Docker `33094754210` GREEN，含 Runtime smoke。公开 Admin/Operations 入口、认证授权与命令级审计未在本轮实现。
+
+随后补齐安全审计持久化基线：API/Legado 请求由 `CompositeAuditEventSink` 同时写入结构化日志和 PostgreSQL `audit.events`，Migration 安装数据库追加式触发器拒绝更新/删除；远端 CI `33096635143`、Docker `33096635237` GREEN，新增审计集成用例通过并在 Runtime diagnostics 观察到审计事件。认证授权、命令级 before/after 审计、查询授权、保留策略与告警仍待后续 Operations/Identity 工作包。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -106,6 +108,7 @@ CI: GREEN (Run 32821162412)
 ✅ linovelib Search 规则 + 中文表单编码/路径归一化离线回归（`33090147713` / `33090147561`）
 ✅ Crawler 失败结构化日志 + OTel counters（`2747e2b`，`33091872440` / `33091872458`）
 ✅ Crawler 死信受控重放：事务化、幂等、并发安全（`20f75fb` / `c2d4aeb`，`33094754193` / `33094754210`）
+✅ 安全审计持久化：`audit.events` + 追加式触发器 + API/Legado 双写（`cc2a089`，`33096635143` / `33096635237`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -124,7 +127,7 @@ CI: GREEN (Run 32821162412)
 ### 4.3 API 安全与可观测性基线
 
 - `ApiRateLimitOptions` / `ApiRateLimitPolicies`：公共 API 与 Legado 独立 fixed-window 策略，匿名按连接层 IP、认证主体按 `sub` / `client_id` 短哈希分桶；未配置可信代理前不信任 `X-Forwarded-For`。
-- `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`LoggingAuditEventSink` 只提供当前日志落点，持久化审计仍未完成。
+- `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志，数据库触发器保证普通路径追加式写入。高风险命令的 before/after、查询授权和保留策略仍未完成。
 - 自动化证据：新增安全测试使 Unit 达到 133/133；Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。API 本地烟测实际验证 `429` 与 `Retry-After: 60`；首次业务请求受本机 PostgreSQL 不可用影响返回 500。
 - 全量测试仍有 20 个 Testcontainers 用例因本机 Docker 不可用而 BLOCKED，1 个跳过；远端 CI `33057431574` 与 Docker `33057431610` 已 GREEN，具体以远端实际记录为准。
 
@@ -196,8 +199,16 @@ CI: GREEN (Run 32821162412)
 - 缺口：死信只能记录，无法通过受控的 Repair/Replay 流程恢复；正常修复不得依赖手工 SQL。
 - 实现：`DeadLetterReplayCommand` 校验操作者和理由；`ICrawlerTaskRepairRepository` 作为 Application seam；EF/Npgsql 在单事务内以 `FOR UPDATE` 锁定死信和原任务，创建新的 `Pending` 任务并复制原始 payload / `MaxAttempts`，原任务继续保持 `DeadLettered`。
 - 轨迹与幂等：原死信保留失败原因/尝试次数，并追加重放任务 ID、时间、操作者和理由；重复请求返回 `AlreadyReplayed`，并发请求只创建一个重放任务；已解决死信不再阻塞同变量后续任务。
-- 迁移/接线：官方生成 `AddDeadLetterReplay` Migration；Worker 将 `ICrawlerTaskRepository` 与 `ICrawlerTaskRepairRepository` 指向同一个 scoped EF 实现。当前没有公开 Admin API，因此认证授权、持久化审计和 Repair Center 尚未声称完成。
+- 迁移/接线：官方生成 `AddDeadLetterReplay` Migration；Worker 将 `ICrawlerTaskRepository` 与 `ICrawlerTaskRepairRepository` 指向同一个 scoped EF 实现。当前没有公开 Admin API，因此认证授权、命令级审计和 Repair Center 尚未声称完成；请求审计持久化基线已在后续 4.13 完成。
 - 证据：本机 Release Build 0 warnings / 0 errors、Unit 189/189、Architecture 1/1、Contract 1/1；本机 PostgreSQL Testcontainers 因 `docker_engine` 不可用 BLOCKED。远端 CI `33094754193`、Docker `33094754210` GREEN，包含 Test、Compose、Runtime smoke 和四镜像。
+
+### 4.13 安全审计持久化基线（本轮，2026-08-28）
+
+- `AuditDbContext` 在独立 `audit` schema 中持久化不可变 `AuditEvent` 行；`PersistentAuditEventSink` 负责追加写入，API 的 `CompositeAuditEventSink` 同时保留结构化日志可见性。
+- `AddAuditEvents` Migration 创建 `audit.events`、时间索引和数据库追加式触发器；更新/删除被拒绝，避免普通应用路径静默改写审计历史。
+- `RequestAuditMiddleware` 继续覆盖 `/api`、`/legado` 和 `429`，不记录 query string；持久化失败隔离于请求结果，并输出运维错误。
+- 证据：本机 Release Build 0 warnings / 0 errors、Unit 189/189、Architecture 1/1、Contract 1/1、API `/health` 200；本机 PostgreSQL Testcontainers 因 `docker_engine` 不可用 BLOCKED。远端 CI `33096635143`、Docker `33096635237` GREEN，审计集成测试通过、Runtime diagnostics 记录审计事件。
+- 未含：认证/授权、公开 Admin/Repair Center、命令级 before/after 审计、查询授权、保留策略、告警和 Redis 分布式限流。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
@@ -308,7 +319,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放基线已完成，跨源一致性、Repair Center/公开管理入口和更强 Repair/Consistency Check 仍待实现。
-- Crawler 失败结构化日志与 OpenTelemetry counters 已完成基线；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和持久化审计仍待实现。
+- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。

@@ -90,7 +90,7 @@ Task 支持：TaskId、Type、SourceId、Priority、Attempt、MaxAttempts、Sche
 
 所有任务必须幂等；错误分类决定 Retry、Backoff、Circuit Breaker 或人工介入。
 
-死信修复通过 Crawling.Application 的受控 Repair/Replay seam 进入，而不是手工修改数据库：PostgreSQL 事务锁定原死信和任务，原任务保持 `DeadLettered`，只创建新的 `Pending` 重放任务并追加可追溯的操作者、理由、时间和任务 ID。当前 seam 尚未暴露为公开 Admin API；认证、授权和持久化审计完成前，不得将其视为对外运维入口。
+死信修复通过 Crawling.Application 的受控 Repair/Replay seam 进入，而不是手工修改数据库：PostgreSQL 事务锁定原死信和任务，原任务保持 `DeadLettered`，只创建新的 `Pending` 重放任务并追加可追溯的操作者、理由、时间和任务 ID。当前 seam 尚未暴露为公开 Admin API；认证、授权和命令级高风险审计完成前，不得将其视为对外运维入口。请求审计已具备 PostgreSQL 持久化基线，但不等同于完整的管理命令审计能力。
 
 ## 7. Messaging 与一致性
 

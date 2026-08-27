@@ -97,7 +97,7 @@ Physical ContentBlob dedup never grants logical access.
 
 High-risk actions emit immutable/append-oriented AuditEvent data including actor, time, resource, action, before/after or reference, reason and TraceId where applicable.
 
-当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。现阶段默认 sink 写入结构化宿主日志，仅作为审计基础设施接缝，不等同于持久化的不可篡改审计存储；高风险命令的 before/after 或脱敏 reference、保留策略、查询授权和告警仍需后续实现。
+当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。高风险命令的 before/after 或脱敏 reference、保留策略、查询授权和告警仍需后续实现。
 
 Ordinary administrators cannot silently edit audit history through normal CRUD APIs.
 

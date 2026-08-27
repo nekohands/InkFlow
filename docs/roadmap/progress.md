@@ -347,9 +347,18 @@ Phase 0 开发过程中真实发现并修复：
 - 缺口：死信此前只能停留在记录层，无法通过受控修复流程恢复执行；按架构约定不得把手工 SQL 作为正常修复路径。
 - 实现：新增 `DeadLetterReplayCommand` / `DeadLetterReplayResult` 与 `ICrawlerTaskRepairRepository` seam；PostgreSQL 适配器在同一事务中锁定死信和原任务，创建全新的 `Pending` 重放任务，保留原死信失败事实，并追加 `ReplayTaskId`、`ReplayedAt`、`ReplayRequestedBy`、`ReplayReason` 修复轨迹。官方 Migration `AddDeadLetterReplay` 已生成并接入。
 - 并发与幂等：重复请求返回同一重放任务；并发请求最多创建一个新任务；原死信仍保持 `DeadLettered`，已解决的原死信不再永久阻止后续同变量任务。Worker DI 已同时暴露任务仓储与修复 seam 的同一 scoped 实现。
-- 边界：本轮提供 Application seam、EF 持久化与回归测试，不新增公开 Admin/Operations API；认证、授权、持久化审计和 Repair Center 仍属后续安全/运维工作。MuMu/阅读 3.0、真实来源和真实追更仍不执行。
+- 边界：本轮提供 Application seam、EF 持久化与回归测试，不新增公开 Admin/Operations API；认证、命令级审计和 Repair Center 仍属后续安全/运维工作，请求审计持久化基线已在后续工作包完成。MuMu/阅读 3.0、真实来源和真实追更仍不执行。
 - 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 189/189、Architecture 1/1、Contract 1/1 PASS；本机 PostgreSQL Testcontainers 目标用例因 `docker_engine` 不可用而 BLOCKED；远端 CI `33094754193` GREEN（Test、Compose 校验、Runtime smoke、Diagnostics 全通过）；Docker `33094754210` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 提交：实现 `20f75fb`，测试隔离修复 `c2d4aeb`。
+
+**安全审计持久化基线（本轮，2026-08-28）**：
+
+- 缺口：API/Legado 请求此前只写结构化宿主日志，无法在 PostgreSQL 中保留可查询、追加式的审计事实。
+- 实现：Persistence BuildingBlock 新增独立 `audit` schema 的 `AuditDbContext` / `audit.events` 表与 `PersistentAuditEventSink`；API 使用 `CompositeAuditEventSink` 同时写 PostgreSQL 和结构化日志，保留 `429`、错误和成功请求轨迹。Migrations App 已统一应用官方 `AddAuditEvents` Migration。
+- 安全边界：字段长度与换行已归一化，审计资源不包含 query string；数据库触发器拒绝 `UPDATE` / `DELETE`，保证普通应用路径只能追加。Token、Cookie、正文等秘密不进入事件；持久化失败不改变用户请求结果，但会记录运维错误。
+- 边界：本轮只完成请求审计持久化基线，不新增公开 Admin API；认证/授权、命令级 before/after 审计、查询授权、保留策略、告警和 Repair Center 仍待后续。MuMu/阅读 3.0、真实来源和真实追更仍不执行。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 189/189、Architecture 1/1、Contract 1/1 PASS；本机审计 PostgreSQL Testcontainers 因 `docker_engine` 不可用而 BLOCKED；远端 CI `33096635143` GREEN（审计集成测试通过，Integration 38 通过 + 1 跳过，含 Compose/Runtime smoke）；Docker `33096635237` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
+- 提交：`cc2a089`。
 
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
@@ -483,7 +492,7 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放基线已落地，跨源一致性、Repair Center/公开运维入口和更强 Repair/Consistency Check 仍属于后续工程工作。
-- API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
+- API 限流当前为单实例 fixed-window 基线；审计持久化基线已落地，但 Redis 分布式配额、认证/授权、命令级高风险审计、查询授权、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
