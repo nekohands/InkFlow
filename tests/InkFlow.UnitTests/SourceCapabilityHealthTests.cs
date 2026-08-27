@@ -207,6 +207,11 @@ public sealed class SourceCapabilityHealthTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SourceCapabilityHealth>>(
                 Store.Where(health => health.SourceId == sourceId).ToList());
+
+        public Task<IReadOnlyList<SourceCapabilityHealth>> ListUnhealthyAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SourceCapabilityHealth>>(
+                Store.Where(health => health.Status == SourceHealthStatus.Unhealthy).ToList());
     }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider

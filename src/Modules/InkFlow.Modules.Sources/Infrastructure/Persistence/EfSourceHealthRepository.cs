@@ -53,6 +53,19 @@ public sealed class EfSourceHealthRepository(SourcesDbContext db) : ISourceHealt
         return entities.Select(ToDomain).ToList();
     }
 
+    public async Task<IReadOnlyList<SourceCapabilityHealth>> ListUnhealthyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.CapabilityHealth
+            .Where(x => x.Status == SourceHealthStatus.Unhealthy)
+            .OrderBy(x => x.SourceId)
+            .ThenBy(x => x.Capability)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities.Select(ToDomain).ToList();
+    }
+
     private static SourceCapabilityHealthEntity ToEntity(SourceCapabilityHealth health) => new()
     {
         SourceId = health.SourceId,

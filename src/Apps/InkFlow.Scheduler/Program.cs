@@ -3,6 +3,7 @@ using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
+using InkFlow.Modules.Sources.Infrastructure;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.BuildingBlocks.Observability;
@@ -22,11 +23,26 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICrawlerTaskRepository, EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ISourceBookRepository, EfSourceBookRepository>();
 builder.Services.AddScoped<ISourceHealthRepository, EfSourceHealthRepository>();
+builder.Services.AddScoped<ISourceRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceRepository>();
 builder.Services.AddScoped<SourceHealthService>();
 builder.Services.AddScoped<ISourceHealthReader>(sp =>
     sp.GetRequiredService<SourceHealthService>());
+builder.Services.AddScoped<ISourceHealthRecorder>(sp =>
+    sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddScoped<UpdateScanService>();
+builder.Services.AddScoped<HealthProbeService>();
+builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>();
+builder.Services.AddHttpClient<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>();
+builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
+builder.Services.AddScoped<ISelectorEvaluator, InkFlow.Modules.Sources.Infrastructure.CssSelectorEvaluator>();
+builder.Services.AddScoped<RuleAdapter>();
+builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
+    sp.GetRequiredService<ISourceRepository>(),
+    sp.GetRequiredService<RuleAdapter>(),
+    sp.GetRequiredService<ISelectorEvaluator>(),
+    [sp.GetRequiredService<InkFlow.Sources.Adapters.Kanunu8.KanunuSourceAdapter>()]));
 builder.Services.AddHostedService<UpdateScanBackgroundService>();
+builder.Services.AddHostedService<HealthProbeBackgroundService>();
 
 var app = builder.Build();
 
@@ -61,6 +77,43 @@ internal sealed class UpdateScanBackgroundService(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Console.WriteLine($"update scan error: {ex.Message}");
+            }
+
+            await Task.Delay(Interval, stoppingToken);
+        }
+    }
+}
+
+/// <summary>
+/// 健康巡检后台服务:周期性对冷却期已满的 Unhealthy 能力主动发起轻量探针
+/// (Search/Toc),成败经既有健康上报裁定,让无自然流量的来源也能自动恢复。
+/// </summary>
+internal sealed class HealthProbeBackgroundService(
+    IServiceScopeFactory scopeFactory) : BackgroundService
+{
+    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(10);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(45), stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var prober = scope.ServiceProvider.GetRequiredService<HealthProbeService>();
+                var results = await prober.ProbeDueAsync(stoppingToken).ConfigureAwait(false);
+                foreach (var result in results)
+                {
+                    Console.WriteLine(
+                        $"health probe {result.SourceId}/{result.Capability}: " +
+                        (result.Recovered ? "recovered." : $"still failing ({result.FailureReason})."));
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Console.WriteLine($"health probe error: {ex.Message}");
             }
 
             await Task.Delay(Interval, stoppingToken);

@@ -21,4 +21,8 @@ public interface ISourceHealthRepository
     Task<IReadOnlyList<SourceCapabilityHealth>> ListForSourceAsync(
         string sourceId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>全部处于 Unhealthy 状态的能力行;主动巡检按此候选冷却期判定。</summary>
+    Task<IReadOnlyList<SourceCapabilityHealth>> ListUnhealthyAsync(
+        CancellationToken cancellationToken = default);
 }
