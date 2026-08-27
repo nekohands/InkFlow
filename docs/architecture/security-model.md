@@ -31,6 +31,8 @@ Source capability operations use a separate `SourceOperations` policy for `Opera
 
 Private/organization content additionally enforces ownership/resource policy.
 
+Reading State v1 is private user data. The `/api/v1/me/reading/*` endpoints require an authenticated opaque bearer token and derive the owner only from the verified `sub` claim; callers cannot select another `UserId` through the route or request body. Reading tables use user-scoped composite keys, and the application repository requires `UserId` on every read/write. Book, chapter and Content Policy checks still apply before writing progress, shelf or history. UI-level export/delete, Personal Legado Token scoping and richer resource permissions remain future work.
+
 ## 4. Community Source Threat Boundary
 
 Community Rule code runs in a restricted declaration runtime, not arbitrary application code.

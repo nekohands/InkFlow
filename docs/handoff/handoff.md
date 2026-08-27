@@ -72,7 +72,7 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，公开修复中心仍待后续安全/运维工作。
+**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端已接入，公开修复中心仍待后续安全/运维工作。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；Redis 分布式限流、查询/资源授权和更完整的权限/告警治理仍待后续工作包。
 
@@ -124,6 +124,14 @@ CI: GREEN (Run 32821162412)
 - 授权/韧性：新增 `OperationsRead` policy（`Operator` / `Administrator`），用于 overview、死信列表、一致性和 Source Health 查询；replay/disable/enable 继续使用独立命令 policy。每个区块隔离异常并返回稳定 `partial` / `unavailable` 状态，不泄漏内部异常细节。
 - 当前证据：本机 Release Build 0 warnings / 0 errors、Unit 223/223、Architecture 1/1、Contract 1/1；API `/health` 200，Operations overview、Consistency、Source Health 未认证请求均 401。远端 CI `33112741068` GREEN（含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33112741039` GREEN（四镜像）。真实设备/来源测试按用户决定跳过，本机 Docker 集成仍待环境恢复。
 - 边界：未实现 Center UI、自动修复、告警、备份治理和真实业务验收；人工 Operations Center 操作加入待定事项。
+
+### 4.19 Reading State v1（本轮，2026-08-28）
+
+- 缺口：认证主体已有基础能力，但书架、阅读进度、最近阅读历史和阅读器偏好缺少用户范围的数据模型、迁移和 API。
+- 实现：新增 `InkFlow.Modules.Reading` 领域/应用/EF 持久化；`reading` schema 下建立 shelf/progress/history/preferences 四张表；API 接入 `/api/v1/me/reading/*`，覆盖书架、历史、进度和偏好。
+- 关键约束：所有 Reading 查询/写入显式携带认证 `sub` 对应的 `UserId`；书籍和章节使用稳定 Canonical ID；写入前通过 Content Policy 可见性检查；进度与历史在一个事务内保存，PostgreSQL upsert 按时间戳拒绝旧请求回写。
+- 当前证据：本机 Release Build 0 warnings / 0 errors、Unit 230/230、Architecture 1/1、Contract 1/1；API `/health` 200，未认证 Reading 入口 401。远端 CI `33115433510` GREEN（Unit 230、Integration 48 项 47 通过/1 跳过，含 Reading migration/upsert、Compose、Runtime smoke/diagnostics），Docker `33115433490` GREEN（四镜像）。
+- 边界：没有实现 Web/PWA Reader UI、Personal Legado Token、私人书库、TXT/EPUB 导入导出或真实设备/真实来源验收；这些与阅读 3.0 真机、真实追更和真实切源一起保留在待定事项。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -375,7 +383,7 @@ Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1 和 Operations Center Read Model v1 已完成，Center UI、自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
-- 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
+- 用户身份基础与 Reading State v1（书架、历史、进度、偏好后端）已完成；Web/PWA Reader、Personal Legado Token、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。
 
