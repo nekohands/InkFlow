@@ -173,7 +173,7 @@ CI: GREEN (Run 32821162412)
 - 缺口：1.0 要求至少 3 个稳定 Official Source；此前第三来源只有路线和候选，没有进入三个宿主的适配器工厂与 Source 种子。
 - 实现：新增 `SeventeenKSourceAdapter` 独立插件，基于 17K API/Web JSON 覆盖 Search、BookInfo、TOC、Content；固定 allowlist 主机并在请求前执行 `SsrfGuard`，三宿主均使用 `SsrfSafeHttpMessageHandler` 和 20 秒超时。书籍 ID 只接受纯数字，章节 ID 采用 `bookId/chapterId` 自包含格式。
 - 版权/访问边界：上游标记为未购买的 VIP 章节返回 null，不绕过登录、订阅或自动购买地址；非 2xx、空响应和非法 JSON 不伪造正文。Worker 启动种子幂等登记 linovelib、kanunu8、17K，已有 Source 不覆盖。
-- Fixture 回归：覆盖 Search 去重、书目/目录/正文解析、稳定章节 ID、非法 ID 零触网和 VIP 不绕过。自动化证据为本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 258/258、Architecture 1/1、Contract 2/2 PASS；Integration 48 项实际为 6 通过、41 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过。
+- Fixture 回归：覆盖 Search 去重、书目/目录/正文解析、稳定章节 ID、非法 ID 零触网和 VIP 不绕过。自动化证据为本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 258/258、Architecture 1/1、Contract 2/2 PASS；Integration 48 项实际为 6 通过、41 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过。提交 `258e3c3` 的远端 CI `33127440930` 与 Docker `33127440917` 均 GREEN，包含 Restore/Build/Test、Compose、Runtime smoke/Diagnostics 和四镜像构建。
 - 边界：本轮没有触发真实 17K 或其他来源网络请求，不能宣称 17K 已稳定实测，也不能关闭真实第二来源故障切换 Release Gate；真实链路和多源切换继续待后续人工/可用环境验收。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
