@@ -323,7 +323,7 @@ Phase 0 开发过程中真实发现并修复：
 - 缺口:探针冷却曲线(3 次阈值/30 分钟起步/封顶一天)是编译期 const——linovelib 类 DNS 污染源的高频重试成本、低容忍场景的快速摘除,都要改代码重发布才能调整(4.9 明确记录的遗留)。
 - 实现(无 Schema 变更、无 Migration、健康相关调用方零改动):曲线算法唯一实现移入 Domain 不可变 record `SourceHealthParameters.ProbeCooldown`;`SourceHealthPolicy` 变为「当前装载参数」只读视图,组合根启动时经 `Configure()` 装载。配置链:BuildingBlocks.Application 新增 `SourceHealthOptions.FromConfiguration`(节 `SourceHealth`,环境变量如 `SourceHealth__ProbeCooldownBaseMinutes`;缺省回退 v1,非整数/越界/max<base 启动即快速失败)→ Sources.Application `ToParameters()` 映射扩展 → Api/Scheduler/Worker 三宿主组合根装载(ADR 0005)。
 - 持久化状态与 `source-health-v1` 算法版本不变;`Configure(null)` 经编译期常量(而非静态属性快照)恢复 v1 默认,规避「Default 捕获运行时快照」的静态初始化次序缺陷。
-- 自动化证据:Unit 180/180(基线 175 + 新增 5:默认曲线一致、配置读取/回退、非法值拒绝、Configure 装载与 null 还原、进程内服务半开节奏随配置变化)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;本机 Integration 与基线完全一致(29 例 docker_engine BLOCKED 不记为通过,6 通过 1 跳过)。候选提交的远端 CI/Docker 结论待回写。
+- 自动化证据:Unit 180/180(基线 175 + 新增 5:默认曲线一致、配置读取/回退、非法值拒绝、Configure 装载与 null 还原、进程内服务半开节奏随配置变化)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;本机 Integration 与基线完全一致(29 例 docker_engine BLOCKED 不记为通过,6 通过 1 跳过)。候选提交 `86c250e` 的 CI `33080357611` 与 Docker `33080357613` 均 **GREEN**(含 Runtime Smoke 与四镜像);文档提交 `223e71c` 的 CI/Docker 亦 **GREEN**。
 - 本轮不含:管理端运行时热更新(仅启动时装载一次)、per-source 冷却粒度。
 
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
