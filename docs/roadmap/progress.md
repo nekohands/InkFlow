@@ -318,6 +318,16 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据:Unit 163/163(冷却阶梯/边界含相等/深度增长不受阈值截断/服务级半开流程四向断言)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;既有 159 例零破坏。候选提交 `ac0de64` 的 CI `33070869295` 与 Docker `33070869320` 均 **GREEN**(含 Runtime Smoke 与四镜像)。
 - 本轮不含:主动巡检式探测(无自然流量时不发探针)、冷却参数配置化。
 
+**Reader 搜索接入发现流（本轮，2026-08-29）**：
+
+- 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
+- 实现:`GET /reader?q=` 非空时先经 `BookDiscoveryService` 幂等发现(逐源失败隔离),再从**落库正典数据**过滤返回——阅读路径零实时抓取不变量不破;过滤语义下沉为 `CatalogQueryService.SearchBooksAsync`(书名/作者大小写不敏感包含匹配,空白=浏览全部),`LegadoContractService.SearchAsync` 改为委托复用,三端共用同一过滤语义。
+- 用户体验(遵循 frontend-design.md):区分「书库为空」(引导搜索自动收录)与「搜索无结果」(建议换词)两种空态并附 `role="status"`;命中显示结果计数;来源部分失败渲染为人话降级提示「部分线上来源暂时无法访问」,**SourceId 与内部异常细节零泄漏**(单测断言);发现环节整体异常也只降级不阻断页面。
+- 安全:同步触网的 `/reader` 端点接入既有公共 fixed-window 限流策略(匿名按连接层 IP 分桶)。
+- 附带:提交了工作区中既有的 `ListUnhealthyAsync` 测试局部变量重命名残留(c8f7af0 未清理的暂存改动,语义无变化)。
+- 自动化证据:Unit 175/175(基线 169 + 新增 6:过滤语义×2、双空态/命中计数/降级零泄漏/搜索词转义等)、Architecture 1/1、Contract 1/1(Legado DTO 形态未变)、Release Build 0 warnings / 0 errors。本机 Integration 因 docker_engine 缺失不执行,以远端 CI 为准。候选提交 `48c05a2` 的 CI `33076415164` 与 Docker `33076415247` 已触发,状态见下轮记录。
+- 本轮不含:搜索排序/分页与全文检索(v2)、BookListPage 分页、Discovery 异步化。
+
 **搜索发现接入：冷启动主路径打通（上一轮，2026-08-29）**：
 
 
@@ -328,7 +338,7 @@ Phase 0 开发过程中真实发现并修复：
 - 组合根:ISourceRepository.ListAsync(EF 实现);Api 宿主补引 Sources/Crawling/Kanunu8 项目并注册适配器组合根。**Api 进程烟测实测抓到真实缺陷**:ProductionSafeSourceHttpClient 缺 IIpAddressResolver 注册导致 search 端点必然 DI 失败(与数据库无关)——补注册后复测通过,该缺陷若仅靠单测永远暴露不了。
 - 测试:发现服务 6 例(双源同名同作者归并+双 Confirmed、不健康跳过、异常隔离、无适配器跳过、重复发现幂等、空查询零触达)+ListAsync EF 集成用例;首次 CI 运行暴露 List 用例误按空库断言总数(共享容器跨用例数据残留的既有教训),改为专属 ID 存在性断言后复绿。
 - 自动化证据:Unit 159/159、Architecture 1/1、Contract 1/1(Legado DTO 未变)、Release Build 0 warnings / 0 errors;远端 Integration 35 中 34 通过 + 1 live 跳过;本机 docker_engine 缺失致 Integration 28 例 BLOCKED 不记为通过。候选提交 `66fc150` 初跑 CI RED(上述 List 断言),修复提交 `42ac47e` 的 CI `33069358438` 与 Docker `33069358437` 均 **GREEN**(Unit 159 Passed、Integration Total 35 Passed 34,含 Runtime Smoke 与四镜像)。
-- 本轮不含:搜索结果排序/分页与全文检索(v2 评分)、Discovery 的异步化(当前同步触网由限流保护)、Reader 页接入发现流。
+- 本轮不含:搜索结果排序/分页与全文检索(v2 评分)、Discovery 的异步化(当前同步触网由限流保护)、Reader 页接入发现流(已于下一轮补齐,见「Reader 搜索接入发现流」)。
 
 **追更正文闭环：目录联动正文抓取（上一轮，2026-08-28）**：
 

@@ -76,7 +76,7 @@ CI: GREEN (Run 32821162412)
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
-随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。
+随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。健康侧完成半开自动恢复与主动巡检探针(4.9);Web Reader 搜索也已接入发现流,三端(API/Legado/Reader)共用同一落库过滤语义(详见 4.10)。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -95,6 +95,7 @@ CI: GREEN (Run 32821162412)
 ✅ 抓取→发布桥 + 上游修订重扫：Content 任务产出 IsCurrent 版本、stale 复检保鲜（`33066966836` / `33066966966`）
 ✅ 搜索发现接入：/api/v1/search 与 Legado search 可发现未入库书目并自动建档（`33069358438` / `33069358437`）
 ✅ 自适应健康自动恢复：Unhealthy 冷却后半开重探、指数退避封顶一天（`33070869295` / `33070869320`）
+✅ 主动巡检探针 + Reader 接入发现流（Progress 表对应记录）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -163,6 +164,14 @@ CI: GREEN (Run 32821162412)
 - 现有调用方(追更扫描/搜索发现/发布桥)零改动即获得自动恢复;Disabled 仍为人工终态。
 - 自动化证据:Unit 163/163(冷却阶梯与边界、失败深度增长不受阈值截断、服务级半开流程:冷却内不可用→到期放行→探针失败冷却翻倍→二次到期→成功恢复)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。候选提交 `ac0de64`,远端 CI 结论见 Progress 表。
 - 未含:主动巡检式探测(Unhealthy 源在无自然流量时不会主动发探针)、冷却参数配置化。
+
+### 4.10 Reader 搜索接入发现流（本轮，2026-08-29）
+
+- 缺口:`/reader` 搜索表单不过滤、不触发发现——Web 端「搜索→详情→阅读」主路径断裂,4.8 的遗留项。公共 API/Legado 已接发现流而 Reader 未接。
+- 实现:`GET /reader?q=` 非空先经 `BookDiscoveryService` 幂等发现,再经新增 `CatalogQueryService.SearchBooksAsync`(书名/作者大小写不敏感过滤,空白=浏览全部)从落库正典数据返回;`LegadoContractService.SearchAsync` 委托同一方法,三端过滤语义统一。发现整体异常仅降级提示,页面不阻断;端点接入公共限流(可同步触网)。
+- UX/frontend-design:双空态文案(空库引导 / 无结果建议换词)、命中计数、部分来源不可用的人话降级提示,SourceId 与异常细节零泄漏(单测断言),搜索词回显转义(单测断言)。
+- 自动化证据:Unit 175/175(+6)、Architecture 1/1、Contract 1/1(Legado DTO 未变)、Release Build 0 warnings / 0 errors。候选提交 `48c05a2`,CI/Docker 结论见 Progress 表。
+- 未含:排序/分页/全文检索(v2)、Discovery 异步化。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
