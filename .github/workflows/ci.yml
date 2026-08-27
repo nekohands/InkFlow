@@ -49,6 +49,8 @@ jobs:
           echo "--- authentication and authorization smoke ---"
           unauthenticated_status=$(curl --silent --output /tmp/auth-me.json --write-out '%{http_code}' http://localhost:8080/api/v1/auth/me)
           test "$unauthenticated_status" = "401"
+          consistency_status=$(curl --silent --output /tmp/consistency.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/consistency)
+          test "$consistency_status" = "401"
           registration=$(curl --fail --silent \
             -H 'Content-Type: application/json' \
             -d '{"email":"ci-auth@example.com","password":"correct horse battery staple"}' \

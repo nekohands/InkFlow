@@ -378,6 +378,15 @@ Phase 0 开发过程中真实发现并修复：
 - 提交：实现 `09ea265`；远端 Runtime 首跑发现并修复 `refresh_token` snake-case 绑定问题，修复提交 `9f9d5c7` 已重新通过远端验证。
 - 边界：本轮不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；公开 Repair/Consistency Center、Redis 分布式限流、用户/组织级权限管理和更完整 Operations 能力仍待后续。
 
+**跨模块一致性检查 v1（本轮，2026-08-28）**：
+
+- 缺口：跨源映射、正文版本、选择审计和抓取死信此前只能依赖各模块局部约束，缺少一次性、可解释、只读的 Repair/Operations 一致性扫描入口。
+- 实现：新增 `IConsistencyCheckService` 深接口和 `IConsistencySnapshotReader` Adapter seam；`EfConsistencySnapshotReader` 从 Library、Sources、Content、Crawling 四个 PostgreSQL schema 读取最小关系快照，正文只投影长度，不读取正文内容。`ConsistencyCheckValidator` 集中检查孤儿引用、父级错配、重复稳定身份、当前版本唯一性、Selection Decision 漂移、Source Health/Crawler 状态和死信重放引用。
+- 入口与安全：新增受 `Operator` / `Administrator` policy 保护的 `GET /api/v1/admin/consistency`，返回 `healthy` / `issues_found`、稳定错误码、资源定位、可解释信息和有上限的 issue 列表；不自动修复、不写数据库、不新增 Migration。现有请求审计覆盖该入口。
+- 测试：Unit 新增 3 例，覆盖健康快照、跨模块孤儿/错配、报告截断；Integration 新增真实 PostgreSQL 四 schema 快照投影与孤儿 `ContentVersion` 检查。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 212/212、Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证 `/api/v1/auth/me` 与 `/api/v1/admin/consistency` 均返回 401。本机完整 Integration 43 项中 6 通过、1 跳过、36 项因 `npipe://./pipe/docker_engine` 不可用在 Testcontainers 初始化阶段 BLOCKED，不记为通过；本轮提交前远端 CI 尚未触发。
+- 边界：本轮不执行 MuMu/阅读 3.0 真机、真实来源、真实追更或真实第二来源故障切换；自动修复、完整 Repair Center UI、查询授权/保留策略、告警和备份恢复仍待后续。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -509,7 +518,7 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放与受保护 Repair/replay 入口基线已落地，跨源一致性、Repair Center/更强 Repair/Consistency Check 仍属于后续工程工作。
+- Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口与跨模块 Consistency Check v1 已落地，完整 Repair Center/自动修复与更强运维治理仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，但 Redis 分布式配额、查询/资源授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
@@ -518,7 +527,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Identity/Repair 本轮的远端 CI、Compose、Runtime smoke 与 Docker 已补齐，但两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
+当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Identity/Repair 与一致性检查本轮的远端 CI、Compose、Runtime smoke 与 Docker 需在候选提交后确认；两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

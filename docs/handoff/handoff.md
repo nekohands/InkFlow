@@ -92,10 +92,19 @@ CI: GREEN (Run 32821162412)
 
 本轮证据：本机 Release Build 0 warnings / 0 errors、Unit 209/209、Architecture 1/1、Contract 1/1；API `/health` 200，未认证身份/Repair 入口均返回 401。全量 Integration 42 项中 6 通过、1 跳过、35 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；远端 CI `33102831333` GREEN（含 refresh 轮换与登出 Runtime smoke），Docker `33102831388` GREEN（四镜像）。首次 Runtime 发现 `refresh_token` 字段绑定问题，已由提交 `9f9d5c7` 修复并复验；实现提交为 `09ea265`。
 
+### 4.15 跨模块一致性检查 v1（本轮，2026-08-28）
+
+- 缺口：跨源映射、正文版本、选择审计和抓取死信此前只有模块局部约束，缺少面向 Repair/Operations 的一次性一致性扫描。
+- 实现：`IConsistencyCheckService` 提供单次报告接口，`IConsistencySnapshotReader` 提供可替换 Adapter seam；EF Adapter 从 Library、Sources、Content、Crawling 四个 schema 读取最小关系快照，正文只读取长度。纯检查器覆盖 Source/SourceBook/SourceChapter、FetchArtifact、MatchCandidate、ChapterMapping、ContentVersion、SelectionDecision、Crawler Task 与 DeadLetter 的孤儿、错配、重复、当前版本和可解释性问题。
+- 入口：新增受 `Operator` / `Administrator` policy 保护的 `GET /api/v1/admin/consistency`；报告稳定返回 `healthy` / `issues_found`、稳定错误码、资源 ID、解释消息和最多 1000 条 issue。扫描只读，不自动修复，不新增 Migration；请求继续由现有审计中间件记录。
+- 测试：Unit 212/212 覆盖健康快照、跨模块孤儿/错配和报告截断；新增 PostgreSQL Testcontainers 集成用例验证四 schema 快照与孤儿正文版本检测。
+- 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；Architecture 1/1、Contract 1/1 PASS；API `/health` 200，未认证身份和一致性入口均返回 401。完整 Integration 43 项中 6 通过、1 跳过、36 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过；候选提交前 CI 尚未触发。
+- 边界：本轮按用户决定不执行 MuMu/阅读 3.0 真机、真实来源、真实追更和真实第二来源故障切换；自动修复、完整 Repair Center UI、查询授权、告警、备份恢复和安全扫描仍待后续。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
-4. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、跨源一致性、Repair/Consistency Center、Security/Operations 与商业化能力。
+4. **继续推进 1.0**：在上述证据基础上完善第三个稳定 Official Source、完整 Repair Center、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -117,6 +126,7 @@ CI: GREEN (Run 32821162412)
 ✅ 安全审计持久化：`audit.events` + 追加式触发器 + API/Legado 双写（`cc2a089`，`33096635143` / `33096635237`）
 ✅ SSRF 连接级约束：校验地址直连 + 端口/重定向限制 + 三宿主接线（`379cf79`，`33099136084` / `33099135992`）
 ✅ Identity 基础认证/授权 + refresh 轮换 + 受保护死信 Repair/replay（`09ea265` / `9f9d5c7`，`33102831333` / `33102831388`）
+✅ 跨模块 Consistency Check v1：只读四 schema 扫描 + 受保护 Admin 入口（本轮候选提交，CI 待确认）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -235,7 +245,7 @@ CI: GREEN (Run 32821162412)
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [ ] **linovelib 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → Content，并把该来源纳入真实第二来源/故障切换演练；本轮仅完成离线规则回归，未触网。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 42 项中 35 项因 `docker_engine` 不可用而 BLOCKED，不记为通过。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 43 项中 36 项因 `docker_engine` 不可用而 BLOCKED，不记为通过。
 
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
@@ -330,11 +340,11 @@ Phase 1A / 1B 外部验收：
 - Scheduler/Worker 使用真实更新数据的追更验证。
 - 第二个真实 Official Source 与真实故障切源演练；当前只有确定性双来源夹具自动化证据。
 - linovelib 已完成 Search 规则的离线定义与回归，真实网络验证仍受 DNS 污染影响，待可用环境复验。
-- 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待 CI/可用容器环境复验。
+- 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待 CI/可用容器环境复验；本轮一致性检查新增用例同样受此限制。
 
 Phase 2 及以后：
 
-- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放基线已完成，跨源一致性、Repair Center/公开管理入口和更强 Repair/Consistency Check 仍待实现。
+- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口和跨模块 Consistency Check v1 已完成，完整 Repair Center/公开修复中心、自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 

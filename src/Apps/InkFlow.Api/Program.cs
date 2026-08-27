@@ -7,6 +7,7 @@ using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
+using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Legado.Application;
@@ -118,6 +119,8 @@ builder.Services.AddScoped<InkFlow.Modules.Content.Infrastructure.Persistence.Co
             .Options));
 builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentVersionRepository,
     InkFlow.Modules.Content.Infrastructure.Persistence.EfContentVersionRepository>();
+builder.Services.AddScoped<IConsistencySnapshotReader, EfConsistencySnapshotReader>();
+builder.Services.AddScoped<IConsistencyCheckService, ConsistencyCheckService>();
 builder.Services.AddScoped<CatalogQueryService>();
 builder.Services.AddScoped<LegadoContractService>();
 
@@ -201,6 +204,14 @@ repair.MapGet("/crawler/dead-letters", async (
     var boundedLimit = Math.Clamp(limit ?? 50, 1, 100);
     var deadLetters = await tasks.ListDeadLettersAsync(boundedLimit, ct);
     return Results.Ok(deadLetters);
+});
+
+repair.MapGet("/consistency", async (
+    IConsistencyCheckService consistency,
+    CancellationToken ct) =>
+{
+    var report = await consistency.CheckAsync(ct);
+    return Results.Ok(report);
 });
 
 repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (

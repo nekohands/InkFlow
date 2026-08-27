@@ -7,6 +7,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MSTest" />
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <ProjectReference Include="../../src/Apps/InkFlow.Api/InkFlow.Api.csproj" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Identity/InkFlow.Modules.Identity.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
