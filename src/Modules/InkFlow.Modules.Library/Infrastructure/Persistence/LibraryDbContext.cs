@@ -60,6 +60,8 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
             b.HasKey(x => x.Id);
             b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
             b.Property(x => x.ExternalChapterId).HasMaxLength(512).IsRequired();
+            b.Property(x => x.AlignmentAlgorithmVersion).HasMaxLength(64).IsRequired();
+            b.Property(x => x.AlignmentEvidence).HasMaxLength(1024).IsRequired();
             // 不变量 1：同一来源章节至多一条映射。
             b.HasIndex(x => new { x.SourceId, x.ExternalChapterId }).IsUnique();
             b.HasIndex(x => x.CanonicalChapterId);

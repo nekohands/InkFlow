@@ -22,6 +22,8 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
             b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
             b.Property(x => x.CanonicalHash).HasMaxLength(64).IsRequired();
             b.Property(x => x.CanonicalText).IsRequired();
+            b.Property(x => x.QualityAlgorithmVersion).HasMaxLength(64).IsRequired();
+            b.Property(x => x.QualityEvidence).HasMaxLength(1024).IsRequired();
 
             // 不变量 2:同一章节下规范化内容唯一。
             b.HasIndex(x => new { x.CanonicalChapterId, x.CanonicalHash }).IsUnique();
@@ -34,7 +36,8 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
         ContentVersion.Rehydrate(
             e.Id, e.CanonicalBookId, e.CanonicalChapterId, e.SourceId,
             e.CanonicalHash, e.CanonicalText, e.ParagraphCount,
-            e.QualityScore, e.IsCurrent, e.CreatedAt);
+            e.QualityScore, e.IsCurrent, e.CreatedAt,
+            e.QualityAlgorithmVersion, e.QualityEvidence);
 }
 
 public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVersionRepository
@@ -51,6 +54,8 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
             CanonicalText = version.CanonicalText,
             ParagraphCount = version.ParagraphCount,
             QualityScore = version.QualityScore,
+            QualityAlgorithmVersion = version.QualityAlgorithmVersion,
+            QualityEvidence = version.QualityEvidence,
             IsCurrent = version.IsCurrent,
             CreatedAt = version.CreatedAt,
         });

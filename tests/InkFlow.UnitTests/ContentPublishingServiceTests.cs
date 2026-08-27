@@ -52,6 +52,8 @@ public sealed class ContentPublishingServiceTests
         Assert.IsFalse(outcome.Unchanged);
         Assert.AreEqual(1, repo.Store.Count);
         Assert.AreEqual(1, repo.SetCurrentCalls);
+        Assert.AreEqual(QualityEngine.AlgorithmVersion, outcome.Version!.QualityAlgorithmVersion);
+        StringAssert.Contains(outcome.Version.QualityEvidence, "paragraphs=2");
     }
 
     [TestMethod]

@@ -16,6 +16,8 @@ public sealed record QualityEvidence(int ParagraphCount, int TotalCharacters, do
 /// </summary>
 public static class QualityEngine
 {
+    public const string AlgorithmVersion = "quality-v1";
+
     private const int MinGoodParagraphs = 3;
     private const int MinGoodCharacters = 300;
 

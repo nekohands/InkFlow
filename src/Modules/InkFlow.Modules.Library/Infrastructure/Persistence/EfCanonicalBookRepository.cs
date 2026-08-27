@@ -182,6 +182,8 @@ public sealed class EfChapterMappingRepository(LibraryDbContext db) : IChapterMa
             CanonicalBookId = mapping.CanonicalBookId,
             CanonicalChapterId = mapping.CanonicalChapterId,
             CreatedAt = mapping.CreatedAt,
+            AlignmentAlgorithmVersion = mapping.AlignmentAlgorithmVersion,
+            AlignmentEvidence = mapping.AlignmentEvidence,
         });
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -200,6 +202,7 @@ public sealed class EfChapterMappingRepository(LibraryDbContext db) : IChapterMa
             ? null
             : new ChapterMapping(
                 entity.Id, entity.SourceId, entity.ExternalChapterId, entity.SourceChapterId,
-                entity.CanonicalBookId, entity.CanonicalChapterId, entity.CreatedAt);
+                entity.CanonicalBookId, entity.CanonicalChapterId, entity.CreatedAt,
+                entity.AlignmentAlgorithmVersion, entity.AlignmentEvidence);
     }
 }

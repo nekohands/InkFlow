@@ -3,7 +3,7 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：Phase 1A — Single Source Vertical Slice
+- 当前阶段：Phase 1B — Dual Source Validation（自动化基线进行中）
 - 当前工作分支：`dev`（2026-08-25 起）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-21；dev 骨架重建更新：2026-08-25
@@ -72,21 +72,33 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**Phase 1A 收尾状态（2026-08-27 更新）**：真实源端到端验证已通过——kanunu8 作为第一个 Official Source,经 `EndToEndDataFlowTests` 完成真实数据全链路验证(导入 → 目录 → 匹配 → 映射 → 发布 → 查询)。剩余外部依赖仅剩 **Legado 真机导入验证**(需阅读 3.0 客户端)。
+**当前状态（2026-08-27 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化基线，但尚未宣称完成真实故障切源验收。
 
-1. ~~真实 Official Source 接入~~ ✅ kanunu8 CodeAdapter(`KanunuSourceAdapter`),GB18030 解码 + SSRF 校验,live 测试 3/3。
-2. **Legado 真机验证**：在阅读 3.0 中导入 `/legado/book-source.json`,验证搜索/详情/目录/正文四步(契约端点已过容器 smoke)。
-3. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行,新章检测需真实源数据佐证。
+1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
+2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
+3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
+4. **继续推进 1.0**：在上述证据基础上完善 Source Health、第三个稳定 Official Source、Repair/Consistency、Security/Operations 与商业化能力。
 
-推荐顺序（当前进度）：
+当前推荐顺序：
 
 ```text
-✅ 真实源适配器(kanunu8)+ E2E 数据流验证
-→ Legado 真机接入验证（需阅读 3.0 客户端）
-→ 追更真实验证
-→ Phase 1A Completed
-→ Phase 1B: Dual Source Canonical Validation
+✅ kanunu8 真实源 + Source → Canonical → Content → Query E2E
+✅ 双来源确定性夹具：CanonicalBook/Chapter 复用 + Quality Selection
+→ CI 验证本轮候选提交
+→ Legado 真机导入/阅读（后续人工）
+→ 真实追更与真实第二来源切源演练
+→ Phase 1A / Phase 1B 分别完成外部验收
+→ 继续推进 1.0 Release Gates
 ```
+
+### 4.1 本轮 Phase 1B 自动化证据
+
+- `official-a` / `official-b` 确定性夹具复用一个 `CanonicalBook`，等价章节复用两个稳定 `CanonicalChapter`；每个正典章节有两个来源章节映射。
+- `ChapterMapping` 记录 `chapter-alignment-v1` 与对齐证据；`ContentVersion` 记录 `quality-v1` 与质量证据。
+- 低质量第二来源保存为独立候选，不替换已选正文；查询路径只读已落库当前版本。
+- Release Build：PASS（0 warnings / 0 errors）。Unit 118/118、Architecture 1/1、Contract 1/1、双来源夹具 2/2：PASS。
+- 完整集成测试：本机 Docker 不可用，18 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。
+- EF 新迁移已用官方生成流程补齐 Designer，并由 `dotnet ef migrations list` 发现。
 
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
@@ -175,17 +187,18 @@ GET /legado/book-source.json
 
 ## 10. 当前未完成
 
-Phase 1A：
+Phase 1A / 1B 外部验收：
 
-- CSS/XPath/JSONPath 具体 selector 引擎
-- Safe HTTP / SSRF enforcement
-- SourceBook / SourceChapter
-- Canonical matching / chapter alignment
-- Content AST / ContentVersion / Quality selection
-- Public Content API
-- Legado v1 Contract / Rule Generator
-- Web Reader
-- Auto update vertical slice
+- 阅读 3.0 导入 `/legado/book-source.json`，Search → BookInfo → TOC → Content 真机验证（按用户决定后续人工执行）。
+- Scheduler/Worker 使用真实更新数据的追更验证。
+- 第二个真实 Official Source 与真实故障切源演练；当前只有确定性双来源夹具自动化证据。
+- 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待 CI/可用容器环境复验。
+
+Phase 2 及以后：
+
+- Source Health / Capability Health、自动故障切源、跨源一致性和更强的 Repair/Replay。
+- 第三个稳定 Official Source、监控告警、备份恢复、安全扫描、限流与审计。
+- 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。
 
@@ -212,9 +225,11 @@ Phase 1A：
 ## 12. 开始下一阶段前检查
 
 - [x] `dev` 分支远端 CI（含 Runtime Smoke）首跑确认 GREEN（Run `32821162412`），骨架阶段 Completed。
-- [ ] Phase 1A 各工作包在 `dev` 上按第 4 节顺序重建，参考 `main` 历史实现与设计文档，不直接复制代码。
-- [ ] 当前 worktree/diff 无未确认冲突。
-- [ ] 阅读 `phase-1-acceptance.md`。
+- [x] Phase 1A 自动化链路与 kanunu8 真实源端到端验证已在 `dev` 上重建并通过相应证据。
+- [ ] Legado 真机导入/阅读与真实追更仍待执行。
+- [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
+- [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
+- [ ] 当前候选改动需完成 Docker/CI 验证后才能标记 Completed。
 - [ ] Source DSL v1 先定义可测试的最小 schema/AST，不提前做万能脚本语言。
 - [ ] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [ ] 新 Source 网络能力必须同步安全测试。

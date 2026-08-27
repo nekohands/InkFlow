@@ -17,6 +17,8 @@ public sealed class ContentVersion
     public string CanonicalText { get; private set; } = null!;
     public int ParagraphCount { get; private set; }
     public int QualityScore { get; private set; }
+    public string QualityAlgorithmVersion { get; private set; } = QualityEngine.AlgorithmVersion;
+    public string QualityEvidence { get; private set; } = null!;
     public bool IsCurrent { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -31,7 +33,7 @@ public sealed class ContentVersion
             throw new ArgumentException("cannot publish an empty content document.", nameof(document));
         }
 
-        var (score, _) = QualityEngine.Evaluate(document);
+        var (score, evidence) = QualityEngine.Evaluate(document);
 
         return new ContentVersion
         {
@@ -43,6 +45,8 @@ public sealed class ContentVersion
             CanonicalText = document.CanonicalText,
             ParagraphCount = document.Paragraphs.Count,
             QualityScore = score,
+            QualityAlgorithmVersion = QualityEngine.AlgorithmVersion,
+            QualityEvidence = evidence.Describe(),
             IsCurrent = false, // 由发布服务统一选优
             CreatedAt = now,
         };
@@ -52,7 +56,8 @@ public sealed class ContentVersion
     public static ContentVersion Rehydrate(
         Guid id, Guid canonicalBookId, Guid canonicalChapterId, string sourceId,
         string canonicalHash, string canonicalText, int paragraphCount,
-        int qualityScore, bool isCurrent, DateTimeOffset createdAt) =>
+        int qualityScore, bool isCurrent, DateTimeOffset createdAt,
+        string? qualityAlgorithmVersion = null, string? qualityEvidence = null) =>
         new()
         {
             Id = id,
@@ -63,6 +68,12 @@ public sealed class ContentVersion
             CanonicalText = canonicalText,
             ParagraphCount = paragraphCount,
             QualityScore = qualityScore,
+            QualityAlgorithmVersion = string.IsNullOrWhiteSpace(qualityAlgorithmVersion)
+                ? QualityEngine.AlgorithmVersion
+                : qualityAlgorithmVersion,
+            QualityEvidence = string.IsNullOrWhiteSpace(qualityEvidence)
+                ? "legacy"
+                : qualityEvidence,
             IsCurrent = isCurrent,
             CreatedAt = createdAt,
         };

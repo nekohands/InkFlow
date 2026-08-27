@@ -16,6 +16,8 @@ public sealed class ContentVersionEntity
     public string CanonicalText { get; set; } = null!;
     public int ParagraphCount { get; set; }
     public int QualityScore { get; set; }
+    public string QualityAlgorithmVersion { get; set; } = null!;
+    public string QualityEvidence { get; set; } = null!;
     public bool IsCurrent { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

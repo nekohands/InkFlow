@@ -49,12 +49,16 @@ public sealed class ChapterMappingRepositoryTests
         var (repo, _) = CreateRepository();
         var mapping = new ChapterMapping(
             Guid.NewGuid(), "example-source", "ch-001",
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), T0);
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), T0,
+            ChapterAlignmentAlgorithm.Version,
+            "source-index=0;canonical-index=0;normalized-title");
         await repo.AddAsync(mapping).ConfigureAwait(false);
 
         var loaded = await repo.FindAsync("example-source", "ch-001").ConfigureAwait(false);
         Assert.IsNotNull(loaded);
         Assert.AreEqual(mapping.CanonicalChapterId, loaded.CanonicalChapterId);
+        Assert.AreEqual(mapping.AlignmentAlgorithmVersion, loaded.AlignmentAlgorithmVersion);
+        Assert.AreEqual(mapping.AlignmentEvidence, loaded.AlignmentEvidence);
         Assert.IsNull(await repo.FindAsync("other-source", "ch-001").ConfigureAwait(false));
     }
 }

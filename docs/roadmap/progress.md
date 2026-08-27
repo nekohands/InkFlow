@@ -3,9 +3,9 @@
 > 持续进度账本。状态只以真实代码、测试、Runtime 和 CI 结果为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：Phase 1A — Single Source Vertical Slice
+- 当前阶段：Phase 1B — Dual Source Validation（自动化基线进行中）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最后更新日期：2026-08-25
+- 最后更新日期：2026-08-27
 
 ## 1. 总体状态
 
@@ -14,8 +14,8 @@
 | Grill Me / 产品与架构对齐 | ✅ Completed | 产品定位、核心领域、Legado、Source Runtime、安全、商业化和路线已文档化 |
 | Repository Bootstrap | ✅ Completed | .NET 10 基础仓库与最初 CI 已建立 |
 | Phase 0 — Foundation | ✅ Completed | 模块边界、Persistence、Migration、Outbox/Inbox、OTel、测试与 Runtime CI Gate 已验收 |
-| Phase 1A — Single Source Vertical Slice | 🚧 In Progress | Source DSL/Adapter → Crawl → Canonical → Content → API/Legado/Web。已完成的 DSL/Crawler 工作包实现暂存于 `main` 历史，`dev` 上按原顺序重建 |
-| Phase 1B — Dual Source Validation | ⏳ Not Started | 双来源匹配、内容版本、质量选优、故障切源 |
+| Phase 1A — Single Source Vertical Slice | 🚧 Ready for Real-Device Acceptance | 自动化链路与 kanunu8 真实源验证已完成；阅读 3.0 真机导入/阅读及真实追更仍待人工验收 |
+| Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、内容版本与质量选优；真实故障切源仍待后续验收 |
 | Phase 2 — Multi-Source Production | ⏳ Not Started | 多源生产化、健康评分、自适应追更、规则 Canary |
 | Phase 3 — User Product | ⏳ Not Started | Web Reader、账号、书架、历史、私人书库 |
 | Phase 4 — Commercial Platform | ⏳ Not Started | Entitlement、Developer API、Billing、Organization、Community Source |
@@ -255,6 +255,15 @@ Phase 0 开发过程中真实发现并修复：
 - **真实抓取验证 3/3 通过**(本机 `INKFLOW_LIVE_TESTS=1`):书目元数据(玉簟秋/灵希)、完整目录(12 章)、正文(13180 字符,GB18030 解码正确)。live 测试默认 opt-in,CI 环境自动跳过。
 - 站点探测记录:17K(阿里云 WAF)、bqg70(JS 混淆)、七猫(JS 渲染)不可纯 HTTP 抓取;bige7 详情页开放但目录/正文有 JS cookie 挑战。
 
+**Phase 1B 双来源正典验证（本轮，2026-08-27）**：
+
+- 新增确定性 `official-a` / `official-b` Official Source 夹具；同书元数据归一化后复用一个 `CanonicalBook`，等价章节标题复用稳定 `CanonicalChapter`。
+- `ChapterMapping` 持久化 `AlignmentAlgorithmVersion` 与 `AlignmentEvidence`，章节对齐采用章节序号 + 标题归一化，偏移时仅接受唯一标题匹配。
+- `ContentVersion` 持久化 `QualityAlgorithmVersion` 与 `QualityEvidence`；低质量第二来源形成独立候选但不会替换已选正文，阅读查询继续读取已落库当前版本。
+- 新增 EF 迁移并补齐 Designer 元数据；`dotnet ef migrations list` 已发现 Content 与 Library 新迁移。
+- 自动化证据：双来源集成夹具 2/2、Unit 118/118、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。
+- 真实设备 Legado 导入/阅读按用户决定暂缓，标记为后续人工验收；本机完整 PostgreSQL 集成测试因 Docker 不可用而未通过，远端 CI 仍是交付门槛。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
@@ -320,23 +329,33 @@ Official Source
 | 17 | Scheduler 自动检测更新 | ✅ 机制就绪 | 扫描入队 + Worker 消费闭环;真实数据验证依赖真实源接入 |
 | 18 | CI/Docker baseline green | ✅ | 全部工作包 CI GREEN |
 
-结论：**机制层验收通过**。两项外部依赖待完成——① 接入真实 Official Source(需提供站点);② Legado 真机导入验证(需阅读 3.0 客户端)。在此之前 Phase 1A 状态为 **Ready for Real-Source Acceptance**,不标记 Completed。
+结论：**机制层验收通过**。kanunu8 真实 Official Source 已完成；当前外部验收依赖为 Legado 真机导入/阅读与真实追更验证。在此之前 Phase 1A 状态为 **Ready for Real-Device Acceptance**,不标记 Completed。
+
+## 5.6 Phase 1B 双来源验收核对（2026-08-27）
+
+| 验收项 | 状态 | 证据 |
+| --- | --- | --- |
+| 一个 CanonicalBook 代表两个 SourceBook | ✅ 自动化 | `DualSourceCanonicalValidationTests.Two_SourceBooks_Reuse_CanonicalBook_And_CanonicalChapter_Identities` |
+| 同逻辑章节复用稳定 CanonicalChapter | ✅ 自动化 | 章节序号 + 标题归一化对齐；4 条映射归并到 2 个正典章节 |
+| 一个 CanonicalChapter 至少 2 个 SourceChapter 候选 | ✅ 自动化 | 每个正典章节均有 `official-a` / `official-b` 映射 |
+| 一个 CanonicalChapter 至少 2 个 ContentVersion 候选 | ✅ 自动化 | 同章节 2 个不同 CanonicalHash 版本 |
+| Quality Selection 有版本与证据 | ✅ 自动化 | `quality-v1` + 段落/字符/平均段长证据；低质量候选未替换当前版本 |
+| 真实来源故障切换 / Legado 端到端 | ⏳ 待验收 | 真机与真实运行时按后续人工流程执行；本轮不宣称完成 |
+
+结论：Phase 1B 已建立可回归的双来源自动化基线，尚未标记 Completed；真实故障切源和运行时/真机证据仍是 Release Gate。
 
 ## 6. 已知未完成项
 
-- CSS/XPath/JSONPath 具体 selector 引擎尚未实现。
-- Safe HTTP / SSRF 基础防线尚未实现。
-- SourceBook / SourceChapter 持久化尚未实现。
-- Canonical Matching / Chapter Alignment 尚未实现。
-- Content AST / ContentVersion / Quality Engine 尚未实现。
-- 正式 Legado API Contract 与 Rule Generator 尚未实现。
-- Web Reader 尚未实现。
-- 用户身份、书架、阅读历史尚未进入产品实现阶段。
-- Developer API / Plan / Entitlement / Billing / Organization 尚未实现。
+- Legado 真机导入与 Search → BookInfo → TOC → Content 流程尚未执行（按用户决定后续人工测试）。
+- Scheduler/Worker 的真实 Official Source 追更闭环尚未用真实更新数据验收。
+- 第二个真实 Official Source 与真实故障切源演练尚未完成；当前 Phase 1B 使用确定性夹具覆盖自动化回归。
+- Source Health / Capability Health、自动故障切源与更强跨源内容一致性属于 Phase 2。
+- 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
+- Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 
 ## 7. 当前阻塞
 
-当前无已知产品级阻塞。
+当前有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法执行；阅读 3.0 真机流程按用户决定延后。两项均不改变已通过的内存自动化证据，但在 CI/人工证据补齐前不得标记工作包 Completed。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

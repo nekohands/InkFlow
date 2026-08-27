@@ -10,4 +10,6 @@ public sealed class ChapterMappingEntity
     public Guid CanonicalBookId { get; set; }
     public Guid CanonicalChapterId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public string AlignmentAlgorithmVersion { get; set; } = null!;
+    public string AlignmentEvidence { get; set; } = null!;
 }
