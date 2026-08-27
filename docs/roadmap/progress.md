@@ -17,7 +17,7 @@
 | Phase 1A — Single Source Vertical Slice | 🚧 Ready for Real-Device Acceptance | 自动化链路与 kanunu8 真实源验证已完成；阅读 3.0 真机导入/阅读及真实追更仍待人工验收 |
 | Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优与健康感知切源；真实故障切源仍待后续验收 |
 | Phase 2 — Multi-Source Production | 🚧 In Progress | Capability Health v1 与 Worker 任务可靠性基础已落地；自适应追更、健康评分、规则 Canary 仍待推进 |
-| Phase 3 — User Product | 🚧 In Progress | Reading State v1 与 Web Reader v1 已落地；PWA、账号产品化、私人书库仍待推进 |
+| Phase 3 — User Product | 🚧 In Progress | Reading State v1、Web Reader v1 与 Reader/PWA 用户状态 v1 已落地；真实 PWA 验收、私人书库和导入导出仍待推进 |
 | Phase 4 — Commercial Platform | ⏳ Not Started | Entitlement、Developer API、Billing、Organization、Community Source |
 
 ## 2. Phase 0 验收记录
@@ -451,6 +451,14 @@ Phase 0 开发过程中真实发现并修复：
 - 测试与证据：新增 Reader HTML 结构、设置控件、空正文状态和 SourceId 不泄漏回归；本机 Restore、Unit 247/247、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS。候选提交 `a8d1c23` 的远端 CI `33120844695` GREEN（Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33120844685` GREEN（API、Migrations、Scheduler、Worker 四镜像）；CI smoke 已增加 `/reader` 搜索语义、Reader v1 样式和 reduced-motion 标记检查；浏览器截图、四尺寸人工视觉验收按用户决定保留待定。
 - 边界：本轮不实现 PWA 安装/离线缓存、服务端 Reading State 同步、评论/书签、分页阅读或真实设备验收；Web Reader 浏览器视觉与长时间阅读体验仍需人工验收。
 
+**Reader/PWA 用户状态 v1（本轮，2026-08-28）**：
+
+- 实现：Reader 共享导航接入账户、书架和历史入口；新增 `/reader/account`、`/reader/shelf`、`/reader/history`、`/reader/offline` 以及同源 Manifest、SVG 图标和 Service Worker 路由。登录/注册复用既有 Identity API，登录后渐进增强加载 Reading State 书架/历史，书籍详情可加入书架，章节页记录进度/历史并同步阅读偏好。
+- PWA 边界：Manifest 使用 `/reader` 作为启动入口，Service Worker 只缓存公开 Reader 壳和离线提示，导航网络失败时返回离线页；不缓存 `/api/v1/me/*`、认证响应、令牌或私人内容，注册失败不影响普通服务端页面阅读。
+- 会话与安全：当前标签页仅以 `sessionStorage` 保存短期 Web Access/Refresh Token；API 只用同源 `Authorization` Header，401 最多尝试一次刷新，失败即清理会话。该受限例外已记录在 ADR 0006 和 `security-model.md`，未新增 Migration 或改变 Legado 认证边界。
+- 自动化证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 252/252、Architecture 1/1、Contract 2/2 PASS。全量 `dotnet test InkFlow.sln -c Release --no-build` 的 IntegrationTests 为 48 项：6 通过、41 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过，进程因此 FAIL，不记为本机集成通过。候选提交 `b3561a2` 的远端 CI `33123325151` 与 Docker `33123325184` 均 GREEN，Runtime smoke 已覆盖 Manifest、Service Worker、账户、书架和历史公开路由。
+- 边界：PWA 实际安装、离线行为、登录/注册、跨页面刷新、书架/历史/进度和偏好同步的浏览器验收尚未执行；当前不承诺跨标签页/跨设备同步、离线私人正文、评论/书签、私人书库或 TXT/EPUB 导入导出，均列入第 6 节待定事项。
+
 **搜索发现接入：冷启动主路径打通（上一轮，2026-08-29）**：
 
 
@@ -563,6 +571,7 @@ Official Source
 - [ ] **阅读 3.0 真机导入与阅读**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content；记录截图、请求结果和异常。
 - [ ] **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证个人 Search → BookInfo → TOC → Content、令牌 header 传递，以及撤销后请求失效；本轮按用户决定不执行。
 - [ ] **Web Reader 人工体验验收**：在移动端、平板、桌面端、宽屏实际打开 `/reader` 三页面，检查正文宽度、长标题/长作者、Loading/Empty/Error、键盘焦点、触控目标、主题/字号/行高和上下章导航；自动化基线已完成，本轮未做浏览器截图/长时间阅读。
+- [ ] **Reader/PWA 用户状态人工验收**：在支持的浏览器中验证账户登录/注册、刷新后会话、书架加入/移除、历史、章节进度/偏好同步、401 刷新和登出；验证安装提示、Service Worker 注册与网络不可用时离线提示。本轮按用户决定不执行。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：补充第二个真实 Official Source；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
@@ -579,12 +588,12 @@ Official Source
 - API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
-- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端已提供书架、阅读历史、进度与阅读器偏好 API；Personal Legado Token v1 与 Web Reader v1 已落地。PWA 安装/离线、私人书库和导入/导出仍未完成。
+- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）已落地；Personal Legado Token v1 与 Web Reader v1 已落地。PWA 实际安装/离线/跨设备验收、私人书库和导入/导出仍未完成。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 
 ## 7. 当前阻塞
 
-当前仍有两项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后。Content Policy、Identity/Repair 与一致性检查本轮的远端 CI、Compose、Runtime smoke 与 Docker 已确认通过（Content Policy CI `33109068649`、Docker `33109068630`）；两项限制仍属于 Phase 1A/1B 的整体 Release Gate，不改变已通过的自动化证据。
+当前仍有三项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA 的实际安装、离线、账户和跨尺寸浏览器验收尚未执行。Content Policy、Identity/Repair、Reader/PWA 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已确认通过；这些限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
