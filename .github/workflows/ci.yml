@@ -51,6 +51,8 @@ jobs:
           test "$unauthenticated_status" = "401"
           consistency_status=$(curl --silent --output /tmp/consistency.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/consistency)
           test "$consistency_status" = "401"
+          source_health_status=$(curl --silent --output /tmp/source-health.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/sources/official-a/health)
+          test "$source_health_status" = "401"
           registration=$(curl --fail --silent \
             -H 'Content-Type: application/json' \
             -d '{"email":"ci-auth@example.com","password":"correct horse battery staple"}' \

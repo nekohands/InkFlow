@@ -71,6 +71,11 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(
         IdentityPolicies.ContentModeration,
         policy => policy.RequireRole(UserRole.Administrator.ToString()));
+    options.AddPolicy(
+        IdentityPolicies.SourceOperations,
+        policy => policy.RequireRole(
+            UserRole.Operator.ToString(),
+            UserRole.Administrator.ToString()));
 });
 
 builder.Services.AddScoped<EfCrawlerTaskRepository>();
@@ -95,6 +100,7 @@ builder.Services.AddSingleton(sourceHealthOptions);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
 builder.Services.AddScoped<SourceHealthService>();
 builder.Services.AddScoped<ISourceHealthReader>(sp => sp.GetRequiredService<SourceHealthService>());
+builder.Services.AddScoped<ISourceHealthOperations>(sp => sp.GetRequiredService<SourceHealthService>());
 
 // 规则型/代码型适配器组合根(与 Worker 同源):健康感知由 BookDiscoveryService 内部执行。
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
@@ -261,6 +267,113 @@ repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (
         deadLetterId,
         actorId,
         command.ReplayReason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
+var sourceOperations = api.MapGroup("/admin/sources")
+    .RequireAuthorization(IdentityPolicies.SourceOperations);
+
+sourceOperations.MapGet("/{sourceId}/health", async (
+    string sourceId,
+    ISourceRepository sources,
+    ISourceHealthOperations health,
+    CancellationToken ct) =>
+{
+    if (!SourceHealthEndpointResults.IsValidSourceId(sourceId))
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_source_id" });
+    }
+
+    if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+    {
+        return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    var rows = await health.ListForSourceAsync(sourceId, ct).ConfigureAwait(false);
+    return Results.Ok(rows.Select(SourceHealthEndpointResults.ToResponse));
+});
+
+sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/disable", async (
+    string sourceId,
+    string rawCapability,
+    SourceHealthCommandRequest? request,
+    ClaimsPrincipal principal,
+    ISourceRepository sources,
+    ISourceHealthOperations health,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+        !SourceHealthEndpointResults.TryParseCapability(rawCapability, out var capability) ||
+        request is null ||
+        !SourceHealthEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_source_health_request" });
+    }
+
+    if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+    {
+        return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    var updated = await health.DisableAsync(sourceId, capability, reason, ct).ConfigureAwait(false);
+    return SourceHealthEndpointResults.Command(
+        updated,
+        SourceHealthCommandAction.Disable,
+        actorId,
+        reason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
+sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/enable", async (
+    string sourceId,
+    string rawCapability,
+    SourceHealthCommandRequest? request,
+    ClaimsPrincipal principal,
+    ISourceRepository sources,
+    ISourceHealthOperations health,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+        !SourceHealthEndpointResults.TryParseCapability(rawCapability, out var capability) ||
+        request is null ||
+        !SourceHealthEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_source_health_request" });
+    }
+
+    if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+    {
+        return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    var updated = await health.EnableAsync(sourceId, capability, ct).ConfigureAwait(false);
+    return SourceHealthEndpointResults.Command(
+        updated,
+        SourceHealthCommandAction.Enable,
+        actorId,
+        reason,
         httpContext,
         auditSink,
         clock,
