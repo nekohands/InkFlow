@@ -9,8 +9,132 @@ namespace InkFlow.Modules.Content.Application;
 /// 页面流:搜索/书目 → 书详情(含"开始阅读") → 目录 → 正文 + 上一章/下一章。
 /// 阅读设置只保存在当前设备的 localStorage;正文仍只读取已落库的 Canonical Content。
 /// </summary>
-public static class ReaderHtml
+public static partial class ReaderHtml
 {
+    /// <summary>
+    /// 浏览器会话客户端：只处理同源认证 API，令牌保留在当前 tab 的 sessionStorage，
+    /// 不把凭据写入 URL、HTML 或长期 localStorage。未登录时调用方得到 null，
+    /// 使书库与正文继续保持匿名可读的渐进增强路径。
+    /// </summary>
+    private const string ReaderClientScript =
+        """
+        <script>
+        (() => {
+          const sessionKey = "inkflow.reader.session.v1";
+          const maxTokenLength = 512;
+          let refreshPromise = null;
+
+          const isToken = (value) => typeof value === "string" && value.length > 0 && value.length <= maxTokenLength;
+
+          const readSession = () => {
+            try {
+              const stored = JSON.parse(sessionStorage.getItem(sessionKey) || "null");
+              return isToken(stored?.accessToken) && isToken(stored?.refreshToken)
+                ? { accessToken: stored.accessToken, refreshToken: stored.refreshToken }
+                : null;
+            } catch {
+              return null;
+            }
+          };
+
+          const saveSession = (payload) => {
+            const accessToken = payload?.access_token;
+            const refreshToken = payload?.refresh_token;
+            if (!isToken(accessToken) || !isToken(refreshToken)) return false;
+            try {
+              sessionStorage.setItem(sessionKey, JSON.stringify({ accessToken, refreshToken }));
+              return true;
+            } catch {
+              return false;
+            }
+          };
+
+          const clearSession = () => {
+            try { sessionStorage.removeItem(sessionKey); } catch { /* storage may be unavailable */ }
+          };
+
+          const authFetch = async (path, options = {}) => {
+            if (typeof path !== "string" || !path.startsWith("/api/v1/auth/")) return null;
+            const headers = new Headers(options.headers || {});
+            headers.set("Accept", "application/json");
+            if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+            try {
+              return await fetch(path, { ...options, headers, credentials: "same-origin", cache: "no-store" });
+            } catch {
+              return null;
+            }
+          };
+
+          const refreshAccessToken = () => {
+            if (refreshPromise) return refreshPromise;
+            const session = readSession();
+            if (!session?.refreshToken) return Promise.resolve(false);
+
+            refreshPromise = (async () => {
+              try {
+                const response = await authFetch("/api/v1/auth/refresh", {
+                  method: "POST",
+                  body: JSON.stringify({ refresh_token: session.refreshToken })
+                });
+                const payload = response?.ok ? await response.json().catch(() => null) : null;
+                if (!saveSession(payload)) {
+                  clearSession();
+                  return false;
+                }
+                return true;
+              } catch {
+                clearSession();
+                return false;
+              } finally {
+                refreshPromise = null;
+              }
+            })();
+            return refreshPromise;
+          };
+
+          const apiFetch = async (path, options = {}) => {
+            if (typeof path !== "string" || !path.startsWith("/api/v1/")) return null;
+            const initial = readSession();
+            if (!initial?.accessToken) return null;
+
+            const request = async (accessToken) => {
+              const headers = new Headers(options.headers || {});
+              headers.set("Accept", "application/json");
+              headers.set("Authorization", `Bearer ${accessToken}`);
+              if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+              return fetch(path, { ...options, headers, credentials: "same-origin", cache: "no-store" });
+            };
+
+            let response;
+            try {
+              response = await request(initial.accessToken);
+            } catch {
+              return null;
+            }
+
+            if (response.status !== 401 || !initial.refreshToken || path === "/api/v1/auth/refresh") return response;
+            if (!await refreshAccessToken()) return response;
+
+            const refreshed = readSession();
+            if (!refreshed?.accessToken) return response;
+            try {
+              return await request(refreshed.accessToken);
+            } catch {
+              return null;
+            }
+          };
+
+          window.InkFlowReader = Object.freeze({
+            isSignedIn: () => Boolean(readSession()?.accessToken),
+            saveSession,
+            clearSession,
+            authFetch,
+            apiFetch
+          });
+        })();
+        </script>
+        """;
+
     private const string Head =
         """
         <!DOCTYPE html>
@@ -19,6 +143,8 @@ public static class ReaderHtml
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <meta name="theme-color" content="#f6f4ef">
+          <link rel="manifest" href="/reader/manifest.webmanifest">
+          <link rel="icon" href="/reader/icon-192.svg" type="image/svg+xml">
           <title>墨流 · InkFlow</title>
           <style>
             :root {
@@ -151,6 +277,20 @@ public static class ReaderHtml
             }
             .brand__name { font-size: 1.05rem; font-weight: 750; letter-spacing: 0.04em; }
             .brand__sub { color: var(--reader-muted); font-size: 0.8rem; }
+            .reader-nav { display: flex; align-items: center; justify-content: flex-end; gap: 0.2rem; flex-wrap: wrap; }
+            .reader-nav a, .reader-nav button {
+              min-height: 2.45rem;
+              padding: 0.45rem 0.7rem;
+              border: 0;
+              border-radius: 0.6rem;
+              background: transparent;
+              color: var(--reader-text);
+              font-size: 0.9rem;
+              text-decoration: none;
+              cursor: pointer;
+            }
+            .reader-nav a:hover, .reader-nav button:hover { background: var(--reader-bg); color: var(--reader-accent-strong); }
+            .reader-nav__install[hidden] { display: none; }
 
             .page-shell {
               width: min(calc(100% - 2rem), 72rem);
@@ -342,6 +482,33 @@ public static class ReaderHtml
             .reader-end { margin: 2rem 0; color: var(--reader-muted); font-size: 0.88rem; text-align: center; }
             .chapter-nav { display: flex; justify-content: space-between; gap: 0.7rem; margin-top: 2.5rem; padding-top: 1.15rem; border-top: 1px solid var(--reader-border); }
             .chapter-nav .button { min-width: 7rem; }
+            .reader-sync-status { margin-left: 0.15rem; color: var(--reader-muted); font-size: 0.78rem; white-space: nowrap; }
+
+            .dashboard-list { display: grid; gap: 0.8rem; padding: 0; margin: 0; list-style: none; }
+            .dashboard-item {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 1rem;
+              padding: 1rem 1.1rem;
+              border: 1px solid var(--reader-border);
+              border-radius: var(--reader-radius);
+              background: var(--reader-surface);
+            }
+            .dashboard-item__main { min-width: 0; }
+            .dashboard-item__title { display: block; margin-bottom: 0.25rem; font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
+            .dashboard-item__meta { color: var(--reader-muted); font-size: 0.88rem; overflow-wrap: anywhere; }
+            .dashboard-item__actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 0.45rem; }
+            .dashboard-item__actions .button { min-height: 2.55rem; }
+            .form-card { max-width: 32rem; padding: clamp(1.1rem, 3vw, 1.6rem); border: 1px solid var(--reader-border); border-radius: var(--reader-radius); background: var(--reader-surface); box-shadow: var(--reader-shadow); }
+            .form-card + .form-card { margin-top: 1rem; }
+            .form-card h2 { margin-bottom: 1rem; }
+            .form-field { display: grid; gap: 0.4rem; margin: 1rem 0; }
+            .form-field label { font-weight: 650; }
+            .form-field input { min-height: 2.8rem; padding: 0.65rem 0.75rem; border: 1px solid var(--reader-border); border-radius: 0.65rem; background: var(--reader-bg); color: var(--reader-text); }
+            .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; flex-wrap: wrap; }
+            .account-session { max-width: 32rem; }
+            [hidden] { display: none !important; }
 
             dialog {
               width: min(calc(100% - 2rem), 28rem);
@@ -368,6 +535,8 @@ public static class ReaderHtml
             @media (max-width: 640px) {
               .site-header__inner { padding-block: 0.8rem; }
               .brand__sub { display: none; }
+              .reader-nav { gap: 0; }
+              .reader-nav a, .reader-nav button { padding-inline: 0.45rem; font-size: 0.8rem; }
               .page-shell { width: min(calc(100% - 1rem), 72rem); padding-top: 1.25rem; }
               .search-bar { margin-bottom: 1.35rem; }
               .search-bar button { padding-inline: 0.85rem; }
@@ -378,6 +547,9 @@ public static class ReaderHtml
               .toolbar-button span:last-child { display: none; }
               .reader-content__body p { text-indent: 1.5em; }
               .chapter-nav .button { min-width: 0; flex: 1; }
+              .dashboard-item { align-items: flex-start; flex-direction: column; }
+              .dashboard-item__actions { width: 100%; justify-content: flex-start; }
+              .reader-sync-status { display: none; }
             }
 
             @media (prefers-reduced-motion: reduce) {
@@ -387,7 +559,7 @@ public static class ReaderHtml
         </head>
         <body>
         <a class="skip-link" href="#main-content">跳到主要内容</a>
-        """;
+        """ + ReaderClientScript;
 
     private const string ReaderScript =
         """
@@ -404,6 +576,7 @@ public static class ReaderHtml
           const lineHeightOutput = document.getElementById("reader-line-height-output");
           const status = document.getElementById("reader-settings-status");
           let lastTrigger = null;
+          let preferenceSyncTimer = null;
 
           const clamp = (value, min, max, fallback) => {
             const number = Number(value);
@@ -424,6 +597,10 @@ public static class ReaderHtml
           };
 
           let preferences = readPreferences();
+          const normaliseTheme = (value) => {
+            const candidate = String(value || defaults.theme).toLowerCase();
+            return ["system", "light", "sepia", "dark"].includes(candidate) ? candidate : defaults.theme;
+          };
 
           const applyPreferences = (announce) => {
             root.dataset.readerTheme = preferences.theme;
@@ -439,6 +616,41 @@ public static class ReaderHtml
 
           const savePreferences = () => {
             try { localStorage.setItem(storageKey, JSON.stringify(preferences)); } catch { /* private mode may deny storage */ }
+          };
+
+          const syncPreferencesFromServer = async () => {
+            const client = window.InkFlowReader;
+            if (!client?.isSignedIn()) return;
+            const response = await client.apiFetch("/api/v1/me/reading/preferences");
+            if (!response?.ok) return;
+            const remote = await response.json().catch(() => null);
+            if (!remote) return;
+            preferences = {
+              theme: normaliseTheme(remote.theme),
+              fontSize: clamp(remote.fontSizePercent, 90, 140, defaults.fontSize),
+              lineHeight: clamp(remote.lineHeightPercent, 150, 230, defaults.lineHeight)
+            };
+            savePreferences();
+            applyPreferences(false);
+          };
+
+          const syncPreferencesToServer = async () => {
+            const client = window.InkFlowReader;
+            if (!client?.isSignedIn()) return;
+            const response = await client.apiFetch("/api/v1/me/reading/preferences", {
+              method: "PUT",
+              body: JSON.stringify({
+                fontSizePercent: preferences.fontSize,
+                lineHeightPercent: preferences.lineHeight,
+                theme: preferences.theme
+              })
+            });
+            if (response?.ok && status) status.textContent = "阅读设置已同步";
+          };
+
+          const schedulePreferencesSync = () => {
+            window.clearTimeout(preferenceSyncTimer);
+            preferenceSyncTimer = window.setTimeout(() => void syncPreferencesToServer(), 350);
           };
 
           const openDialog = (trigger) => {
@@ -469,6 +681,7 @@ public static class ReaderHtml
             };
             savePreferences();
             applyPreferences(true);
+            schedulePreferencesSync();
           };
           document.getElementById("reader-settings-form")?.addEventListener("input", updateFromControls);
           document.getElementById("reader-settings-form")?.addEventListener("change", updateFromControls);
@@ -486,11 +699,61 @@ public static class ReaderHtml
 
           applyPreferences(false);
           updateProgress();
+          void syncPreferencesFromServer();
         })();
         </script>
         """;
 
-    private const string Tail = "</body></html>";
+    private const string ReaderHeader =
+        """
+        <header class="site-header">
+          <div class="site-header__inner">
+            <a class="brand" href="/reader" aria-label="返回 InkFlow 书库"><span class="brand__name">墨流</span><span class="brand__sub">InkFlow · 阅读</span></a>
+            <nav class="reader-nav" aria-label="读者导航">
+              <a href="/reader">书库</a>
+              <a href="/reader/shelf">书架</a>
+              <a href="/reader/history">历史</a>
+              <a data-reader-account-link href="/reader/account">账户</a>
+              <button id="reader-install" class="reader-nav__install" type="button" hidden>安装应用</button>
+            </nav>
+          </div>
+        </header>
+        """;
+
+    private const string ReaderPwaScript =
+        """
+        <script>
+        (() => {
+          const installButton = document.getElementById("reader-install");
+          let deferredPrompt = null;
+          const standalone = window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
+
+          if (installButton && !standalone) {
+            window.addEventListener("beforeinstallprompt", (event) => {
+              event.preventDefault();
+              deferredPrompt = event;
+              installButton.hidden = false;
+            });
+            installButton.addEventListener("click", async () => {
+              if (!deferredPrompt) return;
+              await deferredPrompt.prompt();
+              deferredPrompt = null;
+              installButton.hidden = true;
+            });
+            window.addEventListener("appinstalled", () => {
+              deferredPrompt = null;
+              installButton.hidden = true;
+            });
+          }
+
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/reader/sw.js", { scope: "/reader/" }).catch(() => { /* offline enhancement is optional */ });
+          }
+        })();
+        </script>
+        """;
+
+    private const string Tail = ReaderAccountScript + ReaderDashboardScript + ReaderPwaScript + "</body></html>";
 
     /// <summary>
     /// 书目列表页(含搜索)。searched=false 表示浏览全部书库;true 表示按 query 过滤,
@@ -504,13 +767,9 @@ public static class ReaderHtml
         bool sourceDegraded = false)
     {
         var sb = new StringBuilder(Head);
+        sb.Append(ReaderHeader);
         sb.Append(
             """
-            <header class="site-header">
-              <div class="site-header__inner">
-                <a class="brand" href="/reader" aria-label="返回 InkFlow 书库"><span class="brand__name">墨流</span><span class="brand__sub">InkFlow · 阅读</span></a>
-              </div>
-            </header>
             <main id="main-content" class="page-shell">
               <section class="page-intro" aria-labelledby="reader-page-title">
                 <p class="eyebrow">你的下一本书</p>
@@ -573,15 +832,8 @@ public static class ReaderHtml
         var title = WebUtility.HtmlEncode(book.Title);
         var author = WebUtility.HtmlEncode(book.Author);
 
-        sb.Append(
-            """
-            <header class="site-header">
-              <div class="site-header__inner">
-                <a class="brand" href="/reader" aria-label="返回 InkFlow 书库"><span class="brand__name">墨流</span><span class="brand__sub">InkFlow · 阅读</span></a>
-              </div>
-            </header>
-            <main id="main-content" class="page-shell">
-            """);
+        sb.Append(ReaderHeader);
+        sb.Append("<main id=\"main-content\" class=\"page-shell\">");
         sb.Append(
             $"""
             <nav class="breadcrumbs" aria-label="面包屑"><a href="/reader">书库</a><span aria-hidden="true">/</span><span aria-current="page">{title}</span></nav>
@@ -598,9 +850,12 @@ public static class ReaderHtml
             sb.Append($"<a class=\"button button--primary\" href=\"/reader/read/{book.Chapters[0].ChapterId}\">开始阅读</a>");
         }
 
+        sb.Append($"<button id=\"reader-shelf-toggle\" class=\"button\" type=\"button\" data-book-id=\"{book.Id:D}\" hidden>加入书架</button>");
+
         sb.Append(
             """
               </div>
+              <p id="reader-shelf-status" class="muted" role="status" aria-live="polite">登录后可同步书架。<a href="/reader/account">登录</a></p>
             </section>
             <section class="content-panel" aria-labelledby="toc-title">
               <h2 id="toc-title">目录</h2>
@@ -618,7 +873,7 @@ public static class ReaderHtml
             sb.Append("<li class=\"muted\" role=\"status\">目录尚未同步。</li>");
         }
 
-        sb.Append("</ol></section></main>").Append(Tail);
+        sb.Append("</ol></section></main>").Append(ReaderDetailScript).Append(Tail);
         return sb.ToString();
     }
 
@@ -635,13 +890,9 @@ public static class ReaderHtml
         var encodedBookTitle = WebUtility.HtmlEncode(bookTitle);
 
         sb.Append("<div class=\"reader-page\">");
+        sb.Append(ReaderHeader);
         sb.Append(
             """
-            <header class="site-header">
-              <div class="site-header__inner">
-                <a class="brand" href="/reader" aria-label="返回 InkFlow 书库"><span class="brand__name">墨流</span><span class="brand__sub">InkFlow · 阅读</span></a>
-              </div>
-            </header>
             <div id="reading-progress" class="reader-progress" role="progressbar" aria-label="阅读进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
             <main id="main-content" class="reader-shell">
             """);
@@ -651,6 +902,7 @@ public static class ReaderHtml
               <a class="toolbar-button" href="/reader/books/{bookId}#toc" aria-label="打开目录"><span aria-hidden="true">☰</span><span>目录</span></a>
               <button class="toolbar-button" type="button" data-open-reader-settings aria-label="打开阅读设置" aria-haspopup="dialog"><span aria-hidden="true">Aa</span><span>阅读设置</span></button>
               <span class="reader-chapter" aria-label="当前章节">第 {content.Index + 1} 章</span>
+              <span id="reader-sync-status" class="reader-sync-status" role="status" aria-live="polite"></span>
             </nav>
             <article id="reader-content" class="reader-content" tabindex="-1">
               <p class="eyebrow">第 {content.Index + 1} 章</p>
@@ -735,7 +987,10 @@ public static class ReaderHtml
             </dialog>
             <noscript><p class="notice" role="status">开启 JavaScript 后可使用阅读主题、字号和行高设置；正文与章节导航无需脚本即可使用。</p></noscript>
             """);
-        sb.Append(ReaderScript).Append("</div>").Append(Tail);
+        sb.Append(ReaderScript)
+            .Append(ReaderProgressScript(bookId, content.ChapterId))
+            .Append("</div>")
+            .Append(Tail);
         return sb.ToString();
     }
 }

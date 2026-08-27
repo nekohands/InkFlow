@@ -136,6 +136,42 @@ jobs:
             docker compose logs --no-color api
             exit 1
           }
+          echo "--- GET /reader PWA shell and account pages ---"
+          manifest=$(curl --fail --silent http://localhost:8080/reader/manifest.webmanifest)
+          printf '%s' "$manifest" | grep -q '"start_url": "/reader"' &&
+          printf '%s' "$manifest" | grep -q '"display": "standalone"' &&
+          printf '%s' "$manifest" | grep -q '192x192' &&
+          printf '%s' "$manifest" | grep -q '512x512' || {
+            echo "reader manifest failed; dumping api logs:"
+            docker compose logs --no-color api
+            exit 1
+          }
+          service_worker=$(curl --fail --silent http://localhost:8080/reader/sw.js)
+          printf '%s' "$service_worker" | grep -q 'inkflow-reader-shell-v1' &&
+          printf '%s' "$service_worker" | grep -q '/reader/offline' || {
+            echo "reader service worker failed; dumping api logs:"
+            docker compose logs --no-color api
+            exit 1
+          }
+          account_page=$(curl --fail --silent http://localhost:8080/reader/account)
+          printf '%s' "$account_page" | grep -q 'reader-login-form' &&
+          printf '%s' "$account_page" | grep -q 'reader-register-form' || {
+            echo "reader account page failed; dumping api logs:"
+            docker compose logs --no-color api
+            exit 1
+          }
+          shelf_page=$(curl --fail --silent http://localhost:8080/reader/shelf)
+          printf '%s' "$shelf_page" | grep -q 'data-reader-dashboard="shelf"' || {
+            echo "reader shelf page failed; dumping api logs:"
+            docker compose logs --no-color api
+            exit 1
+          }
+          history_page=$(curl --fail --silent http://localhost:8080/reader/history)
+          printf '%s' "$history_page" | grep -q 'data-reader-dashboard="history"' || {
+            echo "reader history page failed; dumping api logs:"
+            docker compose logs --no-color api
+            exit 1
+          }
 
       - name: Runtime diagnostics
         if: always()

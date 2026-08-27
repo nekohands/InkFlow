@@ -1,3 +1,4 @@
+using System.Text.Json;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Library.Application;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -83,6 +84,18 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Book_Detail_Offers_Authenticated_Shelf_Action_Without_Exposing_Tokens()
+    {
+        var html = ReaderHtml.BookDetailPage(Detail);
+
+        StringAssert.Contains(html, "reader-shelf-toggle");
+        StringAssert.Contains(html, "data-book-id=");
+        StringAssert.Contains(html, "/reader/account");
+        StringAssert.Contains(html, "sessionStorage");
+        Assert.IsFalse(html.Contains("X-InkFlow-Legado-Token"));
+    }
+
+    [TestMethod]
     public void Chapter_Page_Escapes_Html_In_Content_And_Titles()
     {
         var content = new ChapterContent(
@@ -134,6 +147,23 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Chapter_Page_Connects_Progress_And_Preference_Sync_Progressively()
+    {
+        var bookId = Guid.NewGuid();
+        var chapterId = Guid.NewGuid();
+        var content = new ChapterContent(chapterId, bookId, 0, "第一章", "src", ["正文"]);
+
+        var html = ReaderHtml.ChapterPage(content, previous: null, next: null, bookId, "书");
+
+        StringAssert.Contains(html, "/api/v1/me/reading/progress/");
+        StringAssert.Contains(html, "/api/v1/me/reading/preferences");
+        StringAssert.Contains(html, "reader-sync-status");
+        StringAssert.Contains(html, "sessionStorage");
+        StringAssert.Contains(html, chapterId.ToString("D"));
+        Assert.IsFalse(html.Contains("X-InkFlow-Legado-Token"));
+    }
+
+    [TestMethod]
     public void Chapter_Page_Renders_Empty_Content_State()
     {
         var content = new ChapterContent(Guid.NewGuid(), Guid.NewGuid(), 0, "第一章", "src", []);
@@ -152,5 +182,57 @@ public sealed class ReaderHtmlTests
 
         Assert.IsFalse(html.Contains("上一章"));
         StringAssert.Contains(html, "下一章");
+    }
+
+    [TestMethod]
+    public void Pwa_Manifest_Has_Same_Origin_Reader_Install_Contract()
+    {
+        using var document = JsonDocument.Parse(ReaderHtml.PwaManifest());
+        var root = document.RootElement;
+
+        Assert.AreEqual("/reader", root.GetProperty("start_url").GetString());
+        Assert.AreEqual("/reader/", root.GetProperty("scope").GetString());
+        Assert.AreEqual("standalone", root.GetProperty("display").GetString());
+        var icons = root.GetProperty("icons");
+        Assert.IsTrue(icons.EnumerateArray().Any(icon => icon.GetProperty("sizes").GetString() == "192x192"));
+        Assert.IsTrue(icons.EnumerateArray().Any(icon => icon.GetProperty("sizes").GetString() == "512x512"));
+        StringAssert.Contains(ReaderHtml.PwaIcon(), "<svg");
+    }
+
+    [TestMethod]
+    public void Pwa_Service_Worker_Caches_Only_Public_Shell_And_Provides_Offline_Fallback()
+    {
+        var script = ReaderHtml.ServiceWorker();
+
+        StringAssert.Contains(script, "inkflow-reader-shell-v1");
+        StringAssert.Contains(script, "/reader/offline");
+        StringAssert.Contains(script, "request.mode === \"navigate\"");
+        Assert.IsFalse(script.Contains("/api/v1/me/reading"), "service worker 不得缓存私人 Reading API");
+        Assert.IsFalse(script.Contains("auth/refresh"), "service worker 不得缓存认证响应");
+    }
+
+    [TestMethod]
+    public void Account_Shelf_And_History_Pages_Expose_Progressive_Reader_Shell()
+    {
+        var account = ReaderHtml.AccountPage();
+        var shelf = ReaderHtml.ShelfPage();
+        var history = ReaderHtml.HistoryPage();
+        var offline = ReaderHtml.OfflinePage();
+
+        StringAssert.Contains(account, "reader-login-form");
+        StringAssert.Contains(account, "reader-register-form");
+        StringAssert.Contains(account, "sessionStorage");
+        StringAssert.Contains(shelf, "data-reader-dashboard=\"shelf\"");
+        StringAssert.Contains(shelf, "reader-dashboard-list");
+        StringAssert.Contains(history, "data-reader-dashboard=\"history\"");
+        StringAssert.Contains(history, "reader-dashboard-list");
+        StringAssert.Contains(offline, "离线状态");
+        foreach (var page in new[] { account, shelf, history, offline })
+        {
+            StringAssert.Contains(page, "rel=\"manifest\"");
+            StringAssert.Contains(page, "/reader/sw.js");
+            StringAssert.Contains(page, "/reader/shelf");
+            StringAssert.Contains(page, "/reader/history");
+        }
     }
 }

@@ -883,7 +883,51 @@ personalLegado.MapGet("/chapters/{chapterId:guid}", async (
     return content is null ? Results.NotFound() : Results.Json(content);
 });
 
-// ---- Minimal Web Reader(服务端渲染 HTML)----
+// ---- Web Reader / PWA(服务端渲染 HTML + 渐进增强)----
+
+app.MapGet("/reader/manifest.webmanifest", () =>
+    Results.Text(
+        ReaderHtml.PwaManifest(),
+        contentType: "application/manifest+json; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+app.MapGet("/reader/sw.js", () =>
+    Results.Text(
+        ReaderHtml.ServiceWorker(),
+        contentType: "application/javascript; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+app.MapGet("/reader/icon-192.svg", () =>
+    Results.Text(ReaderHtml.PwaIcon(), contentType: "image/svg+xml; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+app.MapGet("/reader/icon-512.svg", () =>
+    Results.Text(ReaderHtml.PwaIcon(), contentType: "image/svg+xml; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+app.MapGet("/reader/offline", () =>
+    Results.Content(
+        ReaderHtml.OfflinePage(),
+        contentType: "text/html; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+app.MapGet("/reader/account", () =>
+    Results.Content(
+        ReaderHtml.AccountPage(),
+        contentType: "text/html; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+app.MapGet("/reader/shelf", () =>
+    Results.Content(
+        ReaderHtml.ShelfPage(),
+        contentType: "text/html; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
+app.MapGet("/reader/history", () =>
+    Results.Content(
+        ReaderHtml.HistoryPage(),
+        contentType: "text/html; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
 
 app.MapGet("/reader", async (string? q, CatalogQueryService catalog, BookDiscoveryService discovery, CancellationToken ct) =>
 {
