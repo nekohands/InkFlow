@@ -21,6 +21,53 @@ public sealed class EfCrawlerTaskRepository(CrawlingDbContext db) : ICrawlerTask
         return entity is null ? null : CrawlerTaskMapper.ToDomain(entity);
     }
 
+    public async Task<CrawlerTask?> TryLeaseAsync(
+        DateTimeOffset now,
+        string owner,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // PostgreSQL 在事务内锁定候选行并跳过已被其他 Worker 锁住的行，
+        // 使“筛选 + 状态流转”成为一个跨进程原子领取操作。
+        var candidates = await db.Tasks
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."tasks"
+                WHERE "Status" = {(int)CrawlerTaskStatus.Pending}
+                   OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
+                       AND "LeaseExpiresAt" IS NOT NULL
+                       AND "LeaseExpiresAt" <= {now})
+                ORDER BY "CreatedAt", "Id"
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+                """)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var entity = candidates.SingleOrDefault();
+        if (entity is null)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+
+        var task = CrawlerTaskMapper.ToDomain(entity);
+        if (task.Status is CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running)
+        {
+            task.ReleaseExpiredLease(now);
+        }
+
+        task.Lease(owner, now, leaseDuration);
+        CrawlerTaskMapper.ApplyDomain(task, entity);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return task;
+    }
+
     public async Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
         var entity = await db.Tasks.FindAsync([task.Id], cancellationToken).ConfigureAwait(false)

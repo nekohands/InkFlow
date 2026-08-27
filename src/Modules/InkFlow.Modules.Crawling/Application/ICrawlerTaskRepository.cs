@@ -13,12 +13,22 @@ public interface ICrawlerTaskRepository
 
     Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 在存储层原子领取一个任务。实现必须在数据库锁范围内完成候选筛选与租约写入，
+    /// 以保证多个 Worker 进程不会领取同一个任务。
+    /// </summary>
+    Task<CrawlerTask?> TryLeaseAsync(
+        DateTimeOffset now,
+        string owner,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default);
+
     /// <summary>把聚合的当前状态写回存储。</summary>
     Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 找出在 <paramref name="now"/> 时刻可领取（Pending，或 Leased/Running 租约已过期）的任务。
-    /// 实现必须保证同一批结果内不含重复任务；跨 worker 的互斥由租约语义 + 存储层约束共同保证。
+    /// 该方法用于候选发现；需要真正领取时必须调用 <see cref="TryLeaseAsync"/>。
     /// </summary>
     Task<IReadOnlyList<CrawlerTask>> FindLeasableAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken = default);
 

@@ -68,6 +68,13 @@ public sealed class UpdateScanServiceTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<CrawlerTask?>(Store.SingleOrDefault(task => task.Id == id));
 
+        public Task<CrawlerTask?> TryLeaseAsync(
+            DateTimeOffset now,
+            string owner,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CrawlerTask?>(null);
+
         public Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 

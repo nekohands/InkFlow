@@ -68,7 +68,6 @@ builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
 builder.Services.AddScoped<CompositeTaskExecutor>();
-builder.Services.AddSingleton<CrawlerLeaseService>();
 builder.Services.AddHostedService<TaskPollingService>();
 builder.Services.AddHostedService<SourceSeedService>();
 
@@ -99,9 +98,10 @@ internal sealed class CompositeTaskExecutor(
 /// </summary>
 internal sealed class TaskPollingService(
     IServiceScopeFactory scopeFactory,
-    CrawlerLeaseService leases,
     TimeProvider clock) : BackgroundService
 {
+    private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -111,15 +111,14 @@ internal sealed class TaskPollingService(
                 using var scope = scopeFactory.CreateScope();
                 var tasks = scope.ServiceProvider.GetRequiredService<ICrawlerTaskRepository>();
 
-                var leasable = await tasks.FindLeasableAsync(clock.GetUtcNow(), 1, stoppingToken)
+                var task = await tasks.TryLeaseAsync(
+                        clock.GetUtcNow(),
+                        "inkflow-worker",
+                        LeaseDuration,
+                        stoppingToken)
                     .ConfigureAwait(false);
-                foreach (var task in leasable)
+                if (task is not null)
                 {
-                    if (!leases.TryLease(task, "inkflow-worker"))
-                    {
-                        continue;
-                    }
-
                     await ProcessTaskAsync(task, tasks, scope.ServiceProvider, stoppingToken)
                         .ConfigureAwait(false);
                 }

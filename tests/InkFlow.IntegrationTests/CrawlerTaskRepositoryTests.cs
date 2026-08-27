@@ -148,6 +148,64 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task TryLease_Atomically_Allows_Only_One_Worker_To_Claim_A_Task()
+    {
+        var seed = CreateContext();
+        await using var seedDb = seed.Db;
+        var task = CrawlerTask.Create(
+            new CrawlPayload("src-concurrent", SourceCapability.Content, new Dictionary<string, string>()),
+            createdAt: T0.AddDays(-1));
+        await seed.Repo.AddAsync(task).ConfigureAwait(false);
+
+        var first = CreateContext();
+        await using var firstDb = first.Db;
+        var second = CreateContext();
+        await using var secondDb = second.Db;
+
+        var claims = await Task.WhenAll(
+            first.Repo.TryLeaseAsync(T0.AddMinutes(1), "worker-a", TimeSpan.FromMinutes(2)),
+            second.Repo.TryLeaseAsync(T0.AddMinutes(1), "worker-b", TimeSpan.FromMinutes(2)));
+
+        var claimed = claims.Where(candidate => candidate is not null).Select(candidate => candidate!).ToList();
+        Assert.AreEqual(1, claimed.Count, "同一任务只能由一个并发 worker 领取");
+        Assert.AreEqual(task.Id, claimed[0].Id);
+        Assert.AreEqual(CrawlerTaskStatus.Leased, claimed[0].Status);
+        Assert.AreEqual(1, claimed[0].AttemptCount);
+        Assert.IsTrue(new[] { "worker-a", "worker-b" }.Contains(claimed[0].LeaseOwner));
+    }
+
+    [TestMethod]
+    public async Task TryLease_Reclaims_An_Expired_Running_Task_And_Persists_New_Owner()
+    {
+        var seed = CreateContext();
+        await using var seedDb = seed.Db;
+        var task = CrawlerTask.Create(
+            new CrawlPayload("src-running-reclaim", SourceCapability.Content, new Dictionary<string, string>()),
+            maxAttempts: 3,
+            createdAt: T0.AddDays(-2));
+        task.Lease("worker-old", T0, TimeSpan.FromSeconds(30));
+        task.MarkRunning(T0.AddSeconds(1));
+        await seed.Repo.AddAsync(task).ConfigureAwait(false);
+
+        var context = CreateContext();
+        await using var db = context.Db;
+        var claimed = await context.Repo
+            .TryLeaseAsync(T0.AddMinutes(5), "worker-new", TimeSpan.FromMinutes(2))
+            .ConfigureAwait(false);
+
+        Assert.IsNotNull(claimed);
+        Assert.AreEqual(CrawlerTaskStatus.Leased, claimed!.Status);
+        Assert.AreEqual("worker-new", claimed.LeaseOwner);
+        Assert.AreEqual(2, claimed.AttemptCount);
+
+        var reloaded = await context.Repo.GetAsync(task.Id).ConfigureAwait(false);
+        Assert.IsNotNull(reloaded);
+        Assert.AreEqual(CrawlerTaskStatus.Leased, reloaded!.Status);
+        Assert.AreEqual("worker-new", reloaded.LeaseOwner);
+        Assert.AreEqual(2, reloaded.AttemptCount);
+    }
+
+    [TestMethod]
     public async Task Dead_Letter_Write_And_Read()
     {
         var (_, repo) = CreateContext();

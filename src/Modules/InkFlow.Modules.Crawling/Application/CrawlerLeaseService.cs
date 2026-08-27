@@ -3,8 +3,8 @@ using InkFlow.Modules.Crawling.Domain;
 namespace InkFlow.Modules.Crawling.Application;
 
 /// <summary>
-/// 租约服务：实现"同一任务同一时刻至多一个 worker 持有"的互斥语义。
-/// v1 为进程内单机语义；引入持久化后由数据库乐观并发/行锁保证同样的不变量。
+/// 领域层租约辅助服务：实现单个聚合内的租约状态流转。
+/// 持久化任务的跨进程互斥由 ICrawlerTaskRepository 的数据库事务/行锁领取路径保证。
 /// </summary>
 public sealed class CrawlerLeaseService(TimeProvider clock)
 {
