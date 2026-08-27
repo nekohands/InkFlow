@@ -1,0 +1,88 @@
+using InkFlow.Modules.Sources.Domain;
+
+namespace InkFlow.Modules.Sources.Application;
+
+/// <summary>
+/// 来源能力健康深模块：统一状态转移、阈值策略、手动禁用/恢复和可用性读取。
+/// 调用方不需要知道健康表结构或连续失败规则。
+/// </summary>
+public sealed class SourceHealthService(
+    ISourceHealthRepository repository,
+    TimeProvider clock) : ISourceHealthReader, ISourceHealthRecorder
+{
+    public Task<SourceCapabilityHealth?> GetAsync(
+        string sourceId,
+        SourceCapability capability,
+        CancellationToken cancellationToken = default) =>
+        repository.GetAsync(sourceId, capability, cancellationToken);
+
+    public async Task<bool> IsAvailableAsync(
+        string sourceId,
+        SourceCapability capability,
+        CancellationToken cancellationToken = default)
+    {
+        var health = await repository
+            .GetAsync(sourceId, capability, cancellationToken)
+            .ConfigureAwait(false);
+
+        // 没有探测记录的新来源默认可用，首次真实结果负责建立状态。
+        return health is null || health.IsAvailable;
+    }
+
+    public Task<SourceCapabilityHealth> RecordSuccessAsync(
+        string sourceId,
+        SourceCapability capability,
+        CancellationToken cancellationToken = default) =>
+        MutateAsync(sourceId, capability, health => health.RecordSuccess(clock.GetUtcNow()), cancellationToken);
+
+    public Task<SourceCapabilityHealth> RecordFailureAsync(
+        string sourceId,
+        SourceCapability capability,
+        string reason,
+        CancellationToken cancellationToken = default) =>
+        MutateAsync(
+            sourceId,
+            capability,
+            health => health.RecordFailure(reason, clock.GetUtcNow()),
+            cancellationToken);
+
+    public Task<SourceCapabilityHealth> DisableAsync(
+        string sourceId,
+        SourceCapability capability,
+        string reason,
+        CancellationToken cancellationToken = default) =>
+        MutateAsync(
+            sourceId,
+            capability,
+            health => health.Disable(reason, clock.GetUtcNow()),
+            cancellationToken);
+
+    public Task<SourceCapabilityHealth> EnableAsync(
+        string sourceId,
+        SourceCapability capability,
+        CancellationToken cancellationToken = default) =>
+        MutateAsync(sourceId, capability, health => health.Enable(clock.GetUtcNow()), cancellationToken);
+
+    private async Task<SourceCapabilityHealth> MutateAsync(
+        string sourceId,
+        SourceCapability capability,
+        Action<SourceCapabilityHealth> mutation,
+        CancellationToken cancellationToken)
+    {
+        var health = await repository
+            .GetAsync(sourceId, capability, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (health is null)
+        {
+            health = SourceCapabilityHealth.Create(sourceId, capability, clock.GetUtcNow());
+            mutation(health);
+            await repository.AddAsync(health, cancellationToken).ConfigureAwait(false);
+            return health;
+        }
+
+        mutation(health);
+        await repository.SaveAsync(health, cancellationToken).ConfigureAwait(false);
+        return health;
+    }
+}

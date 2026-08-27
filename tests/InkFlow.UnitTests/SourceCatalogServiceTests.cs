@@ -117,4 +117,42 @@ public sealed class SourceCatalogServiceTests
         Assert.IsFalse(outcome.IsSuccess);
         StringAssert.Contains(outcome.Errors[0], "does not exist or has no adapter");
     }
+
+    [TestMethod]
+    public async Task Empty_Toc_Records_A_Capability_Failure()
+    {
+        var adapter = new FakeAdapter { Toc = [] };
+        var health = new RecordingHealth();
+        var service = new SourceCatalogService(
+            new FixedAdapterFactory(adapter),
+            new InMemoryBookRepository(),
+            TimeProvider.System,
+            healthRecorder: health);
+
+        var outcome = await service.SyncChaptersAsync("example-source", "10001");
+
+        Assert.IsFalse(outcome.IsSuccess);
+        CollectionAssert.Contains(health.FailureReasons, "empty-toc");
+    }
+
+    private sealed class RecordingHealth : ISourceHealthRecorder
+    {
+        public List<string> FailureReasons { get; } = [];
+
+        public Task<SourceCapabilityHealth> RecordSuccessAsync(
+            string sourceId,
+            SourceCapability capability,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(SourceCapabilityHealth.Create(sourceId, capability, T0));
+
+        public Task<SourceCapabilityHealth> RecordFailureAsync(
+            string sourceId,
+            SourceCapability capability,
+            string reason,
+            CancellationToken cancellationToken = default)
+        {
+            FailureReasons.Add(reason);
+            return Task.FromResult(SourceCapabilityHealth.Create(sourceId, capability, T0));
+        }
+    }
 }

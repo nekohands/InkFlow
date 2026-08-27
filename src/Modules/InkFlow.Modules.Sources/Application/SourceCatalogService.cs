@@ -18,7 +18,9 @@ public sealed record ImportOutcome(
 public sealed class SourceCatalogService(
     ISourceAdapterFactory adapterFactory,
     ISourceBookRepository sourceBookRepository,
-    TimeProvider clock)
+    TimeProvider clock,
+    ISourceHealthReader? healthReader = null,
+    ISourceHealthRecorder? healthRecorder = null)
 {
     /// <summary>
     /// 抓取并导入一本书的元数据。已存在的书更新元数据，否则创建。
@@ -26,20 +28,50 @@ public sealed class SourceCatalogService(
     public async Task<ImportOutcome> ImportBookInfoAsync(
         string sourceId, string externalBookId, CancellationToken cancellationToken = default)
     {
+        if (!await IsAvailableAsync(sourceId, SourceCapability.BookInfo, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return ImportOutcome.Fail(
+                [$"source '{sourceId}' capability BookInfo is unavailable; retry later."]);
+        }
+
         var adapter = await RequireAdapterAsync(sourceId, cancellationToken).ConfigureAwait(false);
         if (adapter is null)
         {
             return ImportOutcome.Fail([$"source '{sourceId}' does not exist or has no adapter."]);
         }
 
-        var info = await adapter
-            .GetBookInfoAsync(externalBookId, cancellationToken)
-            .ConfigureAwait(false);
+        SourceBookInfo? info;
+        try
+        {
+            info = await adapter
+                .GetBookInfoAsync(externalBookId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            if (healthRecorder is not null)
+            {
+                await healthRecorder.RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.BookInfo,
+                    "adapter-exception",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return ImportOutcome.Fail(["catalog: source request failed for BookInfo."]);
+        }
 
         if (info is null)
         {
             return ImportOutcome.Fail(
                 [$"catalog: book '{sourceId}/{externalBookId}' was not found at the source."]);
+        }
+
+        if (healthRecorder is not null)
+        {
+            await healthRecorder.RecordSuccessAsync(
+                sourceId, SourceCapability.BookInfo, cancellationToken).ConfigureAwait(false);
         }
 
         var existing = await sourceBookRepository
@@ -62,20 +94,59 @@ public sealed class SourceCatalogService(
     public async Task<ImportOutcome> SyncChaptersAsync(
         string sourceId, string externalBookId, CancellationToken cancellationToken = default)
     {
+        if (!await IsAvailableAsync(sourceId, SourceCapability.Toc, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return ImportOutcome.Fail(
+                [$"source '{sourceId}' capability Toc is unavailable; retry later."]);
+        }
+
         var adapter = await RequireAdapterAsync(sourceId, cancellationToken).ConfigureAwait(false);
         if (adapter is null)
         {
             return ImportOutcome.Fail([$"source '{sourceId}' does not exist or has no adapter."]);
         }
 
-        var toc = await adapter
-            .GetTableOfContentsAsync(externalBookId, cancellationToken)
-            .ConfigureAwait(false);
+        IReadOnlyList<SourceTocEntry> toc;
+        try
+        {
+            toc = await adapter
+                .GetTableOfContentsAsync(externalBookId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            if (healthRecorder is not null)
+            {
+                await healthRecorder.RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.Toc,
+                    "adapter-exception",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return ImportOutcome.Fail(["catalog: source request failed for Toc."]);
+        }
 
         if (toc.Count == 0)
         {
+            if (healthRecorder is not null)
+            {
+                await healthRecorder.RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.Toc,
+                    "empty-toc",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             return ImportOutcome.Fail(
                 [$"catalog: no chapters returned for book '{sourceId}/{externalBookId}'."]);
+        }
+
+        if (healthRecorder is not null)
+        {
+            await healthRecorder.RecordSuccessAsync(
+                sourceId, SourceCapability.Toc, cancellationToken).ConfigureAwait(false);
         }
 
         var existing = await sourceBookRepository
@@ -93,6 +164,14 @@ public sealed class SourceCatalogService(
         await sourceBookRepository.SaveAsync(existing, cancellationToken).ConfigureAwait(false);
         return ImportOutcome.Ok(existing);
     }
+
+    private Task<bool> IsAvailableAsync(
+        string sourceId,
+        SourceCapability capability,
+        CancellationToken cancellationToken) =>
+        healthReader is null
+            ? Task.FromResult(true)
+            : healthReader.IsAvailableAsync(sourceId, capability, cancellationToken);
 
     private Task<ISourceAdapter?> RequireAdapterAsync(string sourceId, CancellationToken cancellationToken) =>
         adapterFactory.GetAdapterAsync(sourceId, cancellationToken);

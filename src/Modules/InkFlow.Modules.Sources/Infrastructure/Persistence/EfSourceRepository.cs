@@ -17,6 +17,7 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
     public DbSet<SourceBookEntity> SourceBooks => Set<SourceBookEntity>();
     public DbSet<SourceChapterEntity> SourceChapters => Set<SourceChapterEntity>();
     public DbSet<FetchArtifactEntity> FetchArtifacts => Set<FetchArtifactEntity>();
+    public DbSet<SourceCapabilityHealthEntity> CapabilityHealth => Set<SourceCapabilityHealthEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +69,19 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
             b.Property(x => x.RawHash).HasMaxLength(64).IsRequired();
             // "最新产物"查询路径：按来源章节倒序取第一条。
             b.HasIndex(x => new { x.SourceId, x.ExternalChapterId, x.FetchedAt });
+        });
+
+        modelBuilder.Entity<SourceCapabilityHealthEntity>(b =>
+        {
+            b.ToTable("capability_health");
+            b.HasKey(x => new { x.SourceId, x.Capability });
+            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.Capability).HasConversion<int>().IsRequired();
+            b.Property(x => x.Status).HasConversion<int>().IsRequired();
+            b.Property(x => x.LastFailureReason).HasMaxLength(SourceHealthPolicy.MaxFailureReasonLength);
+            b.Property(x => x.AlgorithmVersion).HasMaxLength(64).IsRequired();
+            b.Property(x => x.UpdatedAt).IsRequired();
+            b.HasIndex(x => x.Status);
         });
     }
 

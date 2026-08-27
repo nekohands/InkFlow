@@ -36,9 +36,19 @@ builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
 builder.Services.AddScoped<ICrawlerTaskRepository, EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ISourceRepository, EfSourceRepository>();
 builder.Services.AddScoped<ISourceBookRepository, EfSourceBookRepository>();
+builder.Services.AddScoped<IFetchArtifactRepository, EfFetchArtifactRepository>();
+builder.Services.AddScoped<ISourceHealthRepository, EfSourceHealthRepository>();
+builder.Services.AddScoped<SourceHealthService>();
+builder.Services.AddScoped<ISourceHealthReader>(sp =>
+    sp.GetRequiredService<SourceHealthService>());
+builder.Services.AddScoped<ISourceHealthRecorder>(sp =>
+    sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddScoped<IMatchCandidateRepository, EfMatchCandidateRepository>();
 builder.Services.AddScoped<IChapterMappingRepository, EfChapterMappingRepository>();
 builder.Services.AddScoped<IContentVersionRepository, EfContentVersionRepository>();
+builder.Services.AddScoped<IContentSelectionDecisionRepository, EfContentSelectionDecisionRepository>();
+builder.Services.AddScoped<IContentSelectionService, ContentSelectionService>();
+builder.Services.AddScoped<ContentPublishingService>();
 
 builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>();
 builder.Services.AddHttpClient<KanunuSourceAdapter>();

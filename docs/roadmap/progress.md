@@ -3,7 +3,7 @@
 > 持续进度账本。状态只以真实代码、测试、Runtime 和 CI 结果为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：Phase 1B — Dual Source Validation（自动化基线进行中）
+- 当前阶段：Phase 1B — Dual Source Validation（自动化切源基线进行中）
 - 当前工作分支：`dev`（2026-08-25 起）
 - 最后更新日期：2026-08-27
 
@@ -15,7 +15,7 @@
 | Repository Bootstrap | ✅ Completed | .NET 10 基础仓库与最初 CI 已建立 |
 | Phase 0 — Foundation | ✅ Completed | 模块边界、Persistence、Migration、Outbox/Inbox、OTel、测试与 Runtime CI Gate 已验收 |
 | Phase 1A — Single Source Vertical Slice | 🚧 Ready for Real-Device Acceptance | 自动化链路与 kanunu8 真实源验证已完成；阅读 3.0 真机导入/阅读及真实追更仍待人工验收 |
-| Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、内容版本与质量选优；真实故障切源仍待后续验收 |
+| Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优与健康感知切源；真实故障切源仍待后续验收 |
 | Phase 2 — Multi-Source Production | ⏳ Not Started | 多源生产化、健康评分、自适应追更、规则 Canary |
 | Phase 3 — User Product | ⏳ Not Started | Web Reader、账号、书架、历史、私人书库 |
 | Phase 4 — Commercial Platform | ⏳ Not Started | Entitlement、Developer API、Billing、Organization、Community Source |
@@ -264,6 +264,15 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：双来源集成夹具 2/2、Unit 118/118、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。
 - 真实设备 Legado 导入/阅读按用户决定暂缓，标记为后续人工验收；本机完整 PostgreSQL 集成测试因 Docker 不可用而未通过。远端 CI `33052498887` 与 Docker `33052498797` 已全绿。
 
+**Source Capability Health 与健康感知切源（本轮，2026-08-27）**：
+
+- `SourceCapabilityHealth` 按 `(SourceId, Capability)` 独立记录 `Unknown/Healthy/Degraded/Unhealthy/Disabled`，连续 3 次失败进入 `Unhealthy`；保存 `source-health-v1`、失败计数、时间戳和受限原因，并提供人工启用/禁用状态转移。
+- `SourceCatalogService`、`SourceContentService` 记录能力成功/失败；不可用的 Toc 来源不再由 Scheduler 入队，不可用的 Content 来源不触发上游正文请求。
+- `ContentSelectionService` 先排除 Content 能力不可用的版本，再按 `quality-v1` 选优；全来源不可用时保留已落库当前版本。每次选择追加 `content.selection_decisions`，保存 `content-selection-v1` 与候选/排除/回退证据。
+- 新增官方 EF 迁移：`AddSourceCapabilityHealth`、`AddContentSelectionDecisions`；`dotnet ef migrations list` 已发现两者。
+- 自动化证据：Unit 126/126、Architecture 1/1、Contract 1/1、双来源健康感知切源 2/2、Release Build 0 warnings / 0 errors。Sources/Content PostgreSQL 往返测试已加入，等待 Docker/CI 环境执行。
+- 真实第二来源、真实运行时故障切源和 Legado 真机仍不纳入本轮自动完成，继续按第 6 节待定事项管理。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
@@ -341,8 +350,9 @@ Official Source
 | 一个 CanonicalChapter 至少 2 个 ContentVersion 候选 | ✅ 自动化 | 同章节 2 个不同 CanonicalHash 版本 |
 | Quality Selection 有版本与证据 | ✅ 自动化 | `quality-v1` + 段落/字符/平均段长证据；低质量候选未替换当前版本 |
 | 真实来源故障切换 / Legado 端到端 | ⏳ 待验收 | 真机与真实运行时按后续人工流程执行；本轮不宣称完成 |
+| Capability Health 感知的自动切源 | ✅ 自动化 | `SourceCapabilityHealth` + `ContentSelectionService`；确定性测试覆盖禁用、切换、恢复和审计证据 |
 
-结论：Phase 1B 已建立可回归的双来源自动化基线，尚未标记 Completed；真实故障切源和运行时/真机证据仍是 Release Gate。
+结论：Phase 1B 已建立可回归的双来源自动化切源基线，尚未标记 Completed；真实故障切源和运行时/真机证据仍是 Release Gate。
 
 ## 6. 待定事项（人工/真实环境，后续处理）
 
@@ -357,11 +367,11 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 18 个用例因 `docker_engine` 不可用而 BLOCKED。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 20 个用例因 `docker_engine` 不可用而 BLOCKED（本轮总计 27 个，6 个通过、1 个跳过）。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- Source Health / Capability Health、自动故障切源与更强跨源内容一致性属于 Phase 2。
+- Source Health / Capability Health 与 v1 健康感知切源已落地；自适应探测/自动恢复、跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 

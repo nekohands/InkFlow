@@ -18,6 +18,10 @@ builder.Services.AddDbContext<CrawlingDbContext>(o => o.UseNpgsql(connectionStri
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ICrawlerTaskRepository, EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ISourceBookRepository, EfSourceBookRepository>();
+builder.Services.AddScoped<ISourceHealthRepository, EfSourceHealthRepository>();
+builder.Services.AddScoped<SourceHealthService>();
+builder.Services.AddScoped<ISourceHealthReader>(sp =>
+    sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddScoped<UpdateScanService>();
 builder.Services.AddHostedService<UpdateScanBackgroundService>();
 

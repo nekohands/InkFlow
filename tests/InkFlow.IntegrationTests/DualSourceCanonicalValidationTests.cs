@@ -98,7 +98,14 @@ public sealed class DualSourceCanonicalValidationTests
         await canonicalBooks.AddAsync(book);
 
         var versions = new InMemoryVersionRepository();
-        var publishing = new ContentPublishingService(versions);
+        var sourceHealth = new InMemorySourceHealthReader();
+        var decisions = new InMemoryDecisionRepository();
+        var selector = new ContentSelectionService(
+            versions,
+            sourceHealth,
+            decisions,
+            new FixedClock(T0.AddMinutes(10)));
+        var publishing = new ContentPublishingService(versions, selector);
         var good = await publishing.PublishAsync(
             book.Id,
             chapter.Id,
@@ -123,12 +130,30 @@ public sealed class DualSourceCanonicalValidationTests
         Assert.AreEqual(good.Version.Id, versions.CurrentVersionId,
             "低质量来源不得替换已选中的高质量正文");
 
-        var readable = await new CatalogQueryService(canonicalBooks, versions)
+        sourceHealth.Unavailable.Add("official-a");
+        var failover = await selector.SelectCurrentAsync(chapter.Id);
+        Assert.IsTrue(failover.IsSuccess, string.Join("; ", failover.Errors));
+        Assert.IsTrue(failover.Changed);
+        Assert.IsFalse(failover.UsedFallback);
+        Assert.AreEqual(degradedCandidate.Id, failover.SelectedVersion!.Id,
+            "高质量来源不可用时应切换到仍可用的第二来源");
+        StringAssert.Contains(failover.Evidence, "excludedSources=official-a");
+        Assert.AreEqual(degradedCandidate.Id, decisions.Store.Last().SelectedVersionId);
+
+        var query = new CatalogQueryService(canonicalBooks, versions);
+        var readable = await query
             .GetChapterContentAsync(chapter.Id);
         Assert.IsNotNull(readable, "来源暂时不可用时，阅读路径仍应读取已选 Canonical Content");
         Assert.AreEqual(
-            good.Version.CanonicalText,
+            degradedCandidate.CanonicalText,
             string.Join("\n\n", readable!.Paragraphs));
+
+        sourceHealth.Unavailable.Remove("official-a");
+        var recovery = await selector.SelectCurrentAsync(chapter.Id);
+        Assert.IsTrue(recovery.IsSuccess, string.Join("; ", recovery.Errors));
+        Assert.IsTrue(recovery.Changed);
+        Assert.AreEqual(good.Version.Id, recovery.SelectedVersion!.Id,
+            "来源恢复后应重新进入可用候选");
     }
 
     private static async Task ImportAndSyncAsync(
@@ -144,6 +169,43 @@ public sealed class DualSourceCanonicalValidationTests
         $"<p>{new string('字', 120)}</p>" +
         $"<p>{new string('字', 120)}</p>" +
         $"<p>{new string('字', 120)}</p>";
+
+    private sealed class InMemorySourceHealthReader : ISourceHealthReader
+    {
+        public HashSet<string> Unavailable { get; } = new(StringComparer.Ordinal);
+
+        public Task<bool> IsAvailableAsync(
+            string sourceId,
+            SourceCapability capability,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(!Unavailable.Contains(sourceId));
+    }
+
+    private sealed class InMemoryDecisionRepository : IContentSelectionDecisionRepository
+    {
+        public List<ContentSelectionDecision> Store { get; } = [];
+
+        public Task AddAsync(
+            ContentSelectionDecision decision,
+            CancellationToken cancellationToken = default)
+        {
+            Store.Add(decision);
+            return Task.CompletedTask;
+        }
+
+        public Task<ContentSelectionDecision?> GetLatestAsync(
+            Guid canonicalChapterId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<ContentSelectionDecision?>(Store
+                .Where(decision => decision.CanonicalChapterId == canonicalChapterId)
+                .OrderByDescending(decision => decision.CreatedAt)
+                .FirstOrDefault());
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
 
     private sealed class FixtureOfficialSourceAdapter(
         string sourceId,

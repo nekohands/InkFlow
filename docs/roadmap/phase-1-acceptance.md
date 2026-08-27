@@ -97,6 +97,11 @@ Add a second Official Source containing at least one book also present in Source
 6. Restore Source A.
 7. Verify it returns to health/candidate selection without creating duplicate canonical identities.
 
+The deterministic automated baseline now covers capability-specific health transitions,
+health-aware Content selection, selection evidence, keeping the stored current version when
+all candidates are unavailable, and recovery after Source A becomes available again. A real
+Official Source pair and the Web/Legado runtime steps above are still required for release acceptance.
+
 The Web UI must present failover as a stable reading experience. A normal user should not need to understand `ContentVersion`, `SourceChapter` or internal source IDs to keep reading. Advanced source selection, if exposed, must remain secondary to the normal Auto path.
 
 ### Quality failure drill

@@ -74,6 +74,17 @@ ContentVersion 不可通过新抓取覆盖；有效变化产生新版本。
 
 CanonicalChapter 的当前默认内容选择。自动 Quality Selection 可变，但选择历史和证据必须保留；人工 Lock 优先于自动选择。
 
+当前 v1 选择记录落在 `content.selection_decisions`，至少保存：
+
+- CanonicalChapterId
+- SelectedVersionId
+- AlgorithmVersion
+- Evidence（候选、排除来源、选中来源和 fallback）
+- CreatedAt
+
+Sources 的 Capability Health 以 `(SourceId, Capability)` 为独立事实，Content 选择只读取其可用性，
+不把来源健康状态混入 CanonicalBook/CanonicalChapter 或 ContentVersion 历史快照。
+
 ## Matching / Decision
 
 核心自动决策统一记录：

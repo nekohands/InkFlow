@@ -3,7 +3,7 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：Phase 1B — Dual Source Validation（自动化基线进行中）
+- 当前阶段：Phase 1B — Dual Source Validation（自动化切源基线进行中）
 - 当前工作分支：`dev`（2026-08-25 起）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-21；dev 骨架重建更新：2026-08-25
@@ -72,18 +72,19 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-27 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化基线，但尚未宣称完成真实故障切源验收。
+**当前状态（2026-08-27 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 3. **Phase 1B 真实切源验收**：补充第二个真实 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
-4. **继续推进 1.0**：在上述证据基础上完善 Source Health、第三个稳定 Official Source、Repair/Consistency、Security/Operations 与商业化能力。
+4. **继续推进 1.0**：在上述证据基础上完善自适应 Health、第三个稳定 Official Source、Repair/Consistency、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
 ```text
 ✅ kanunu8 真实源 + Source → Canonical → Content → Query E2E
 ✅ 双来源确定性夹具：CanonicalBook/Chapter 复用 + Quality Selection
+✅ Capability Health v1：健康状态持久化 + 健康感知切源 + 选择审计
 → CI 验证本轮候选提交
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
@@ -95,9 +96,9 @@ CI: GREEN (Run 32821162412)
 
 - `official-a` / `official-b` 确定性夹具复用一个 `CanonicalBook`，等价章节复用两个稳定 `CanonicalChapter`；每个正典章节有两个来源章节映射。
 - `ChapterMapping` 记录 `chapter-alignment-v1` 与对齐证据；`ContentVersion` 记录 `quality-v1` 与质量证据。
-- 低质量第二来源保存为独立候选，不替换已选正文；查询路径只读已落库当前版本。
-- Release Build：PASS（0 warnings / 0 errors）。Unit 118/118、Architecture 1/1、Contract 1/1、双来源夹具 2/2：PASS。
-- 完整集成测试：本机 Docker 不可用，18 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。远端 CI `33052498887` 已通过 Test/Compose/Runtime smoke，Docker `33052498797` 的 4 个镜像构建也已通过。
+- 低质量第二来源保存为独立候选，不替换已选正文；健康不可用时排除对应来源，全部不可用时保留当前版本；查询路径只读已落库当前版本。
+- Release Build：PASS（0 warnings / 0 errors）。Unit 126/126、Architecture 1/1、Contract 1/1、双来源健康感知切源 2/2：PASS。
+- 完整集成测试：本机 Docker 不可用，20 个 Testcontainers 用例在初始化阶段 BLOCKED；不得将其记为通过。远端 CI 需验证本轮新增迁移和持久化往返。
 - EF 新迁移已用官方生成流程补齐 Designer，并由 `dotnet ef migrations list` 发现。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
@@ -108,7 +109,7 @@ CI: GREEN (Run 32821162412)
 - [ ] **Web Reader 人工 UX/视觉验收**：移动端、桌面端、宽屏、长标题/缺封面/长作者、加载/空/错、键盘焦点、触控和上下章导航。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前 18 个用例为 BLOCKED，不记为通过。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前 20 个用例为 BLOCKED，不记为通过。
 
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
@@ -206,7 +207,7 @@ Phase 1A / 1B 外部验收：
 
 Phase 2 及以后：
 
-- Source Health / Capability Health、自动故障切源、跨源一致性和更强的 Repair/Replay。
+- 自适应 Source Health 探测/恢复、跨源一致性和更强的 Repair/Replay；Capability Health v1 与健康感知切源已完成自动化基线。
 - 第三个稳定 Official Source、监控告警、备份恢复、安全扫描、限流与审计。
 - 用户身份、书架、阅读历史、导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace。
 
@@ -238,6 +239,7 @@ Phase 2 及以后：
 - [x] Phase 1A 自动化链路与 kanunu8 真实源端到端验证已在 `dev` 上重建并通过相应证据。
 - [ ] Legado 真机导入/阅读与真实追更仍待执行。
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
+- [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [ ] 当前候选改动需完成 Docker/CI 验证后才能标记 Completed。
 - [ ] Source DSL v1 先定义可测试的最小 schema/AST，不提前做万能脚本语言。

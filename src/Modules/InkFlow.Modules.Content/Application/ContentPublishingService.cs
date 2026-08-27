@@ -17,7 +17,9 @@ public sealed record PublishOutcome(
 /// 质量评估 → 落库 → 选优当前版本。
 /// "正常阅读路径不得依赖同步实时抓取"这一不变量的数据基础即本服务产出的 IsCurrent 版本。
 /// </summary>
-public sealed class ContentPublishingService(IContentVersionRepository repository)
+public sealed class ContentPublishingService(
+    IContentVersionRepository repository,
+    IContentSelectionService? selectionService = null)
 {
     private readonly TimeProvider _clock = TimeProvider.System;
 
@@ -40,12 +42,32 @@ public sealed class ContentPublishingService(IContentVersionRepository repositor
 
         if (duplicate is not null)
         {
+            if (selectionService is not null)
+            {
+                var selection = await selectionService
+                    .SelectCurrentAsync(canonicalChapterId, cancellationToken)
+                    .ConfigureAwait(false);
+                return selection.IsSuccess
+                    ? PublishOutcome.Ok(selection.SelectedVersion ?? duplicate, unchanged: true)
+                    : new PublishOutcome(false, duplicate, true, selection.Errors);
+            }
+
             return PublishOutcome.Ok(duplicate, unchanged: true);
         }
 
         var version = ContentVersion.Create(
             canonicalBookId, canonicalChapterId, sourceId, document, _clock.GetUtcNow());
         await repository.AddAsync(version, cancellationToken).ConfigureAwait(false);
+
+        if (selectionService is not null)
+        {
+            var selection = await selectionService
+                .SelectCurrentAsync(canonicalChapterId, cancellationToken)
+                .ConfigureAwait(false);
+            return selection.IsSuccess
+                ? PublishOutcome.Ok(selection.SelectedVersion ?? version, unchanged: false)
+                : new PublishOutcome(false, version, false, selection.Errors);
+        }
 
         // 选优:新版本与既有版本(含自己)比较,胜者成为当前版本。
         var allVersions = await repository

@@ -10,6 +10,7 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
     : ModuleDbContext(options, ContentSchema.Name)
 {
     public DbSet<ContentVersionEntity> Versions => Set<ContentVersionEntity>();
+    public DbSet<ContentSelectionDecisionEntity> SelectionDecisions => Set<ContentSelectionDecisionEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,15 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
             // 当前版本查询路径。
             b.HasIndex(x => new { x.CanonicalChapterId, x.IsCurrent });
         });
+
+        modelBuilder.Entity<ContentSelectionDecisionEntity>(b =>
+        {
+            b.ToTable("selection_decisions");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.AlgorithmVersion).HasMaxLength(64).IsRequired();
+            b.Property(x => x.Evidence).HasMaxLength(ContentSelectionAlgorithm.MaxEvidenceLength).IsRequired();
+            b.HasIndex(x => new { x.CanonicalChapterId, x.CreatedAt });
+        });
     }
 
     internal static ContentVersion ToDomain(ContentVersionEntity e) =>
@@ -38,6 +48,49 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
             e.CanonicalHash, e.CanonicalText, e.ParagraphCount,
             e.QualityScore, e.IsCurrent, e.CreatedAt,
             e.QualityAlgorithmVersion, e.QualityEvidence);
+}
+
+public sealed class EfContentSelectionDecisionRepository(ContentDbContext db)
+    : IContentSelectionDecisionRepository
+{
+    public async Task AddAsync(
+        ContentSelectionDecision decision,
+        CancellationToken cancellationToken = default)
+    {
+        db.SelectionDecisions.Add(new ContentSelectionDecisionEntity
+        {
+            Id = decision.Id,
+            CanonicalChapterId = decision.CanonicalChapterId,
+            SelectedVersionId = decision.SelectedVersionId,
+            AlgorithmVersion = decision.AlgorithmVersion,
+            Evidence = decision.Evidence,
+            CreatedAt = decision.CreatedAt,
+        });
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ContentSelectionDecision?> GetLatestAsync(
+        Guid canonicalChapterId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.SelectionDecisions
+            .Where(x => x.CanonicalChapterId == canonicalChapterId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity is null
+            ? null
+            : ContentSelectionDecision.Rehydrate(
+                entity.Id,
+                entity.CanonicalChapterId,
+                entity.SelectedVersionId,
+                entity.AlgorithmVersion,
+                entity.Evidence,
+                entity.CreatedAt);
+    }
 }
 
 public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVersionRepository

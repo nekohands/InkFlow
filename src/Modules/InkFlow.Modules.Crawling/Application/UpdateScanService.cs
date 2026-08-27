@@ -11,7 +11,8 @@ namespace InkFlow.Modules.Crawling.Application;
 public sealed class UpdateScanService(
     ISourceBookRepository sourceBooks,
     ICrawlerTaskRepository taskRepository,
-    TimeProvider clock)
+    TimeProvider clock,
+    ISourceHealthReader? healthReader = null)
 {
     public async Task<int> EnqueueTocScansAsync(CancellationToken cancellationToken = default)
     {
@@ -21,6 +22,13 @@ public sealed class UpdateScanService(
 
         foreach (var book in allBooks)
         {
+            if (healthReader is not null && !await healthReader
+                    .IsAvailableAsync(book.SourceId, SourceCapability.Toc, cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                continue;
+            }
+
             if (await taskRepository.HasActiveTaskAsync(book.SourceId, SourceCapability.Toc, cancellationToken)
                     .ConfigureAwait(false))
             {

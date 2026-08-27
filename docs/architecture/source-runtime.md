@@ -23,6 +23,17 @@
 
 来源健康按 Capability 细分，例如 Search 可故障而 Content 仍健康。
 
+当前已落地的 Capability Health v1 保持在 `sources.capability_health`，以
+`(SourceId, Capability)` 为复合键。`Unknown`、`Healthy`、`Degraded` 默认仍可用；
+同一能力连续 3 次失败进入 `Unhealthy` 并暂时退出调度/正文候选，`Disabled` 支持运营侧主动停用，
+恢复或成功探测会清除失败连续计数。状态转移保存 `source-health-v1`、时间戳和受限失败原因，
+不把 Redis 或缓存当作事实来源。
+
+Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在可用来源中按质量选优，
+全来源不可用时保留已落库当前版本；每次选择追加 `content.selection_decisions` 审计记录，
+保存算法版本、候选/排除数量、选中版本和来源及回退标志。读取路径仍只读取 Canonical Content，
+不会因故障切源而实时访问第三方站点。
+
 ## 3. RuleAdapter DSL v1
 
 允许：

@@ -24,13 +24,23 @@ public sealed class SourceContentService(
     ISourceAdapterFactory adapterFactory,
     ISourceBookRepository sourceBookRepository,
     IFetchArtifactRepository artifactRepository,
-    TimeProvider clock)
+    TimeProvider clock,
+    ISourceHealthReader? healthReader = null,
+    ISourceHealthRecorder? healthRecorder = null)
 {
     public async Task<ContentFetchOutcome> FetchChapterContentAsync(
         string sourceId, string externalBookId, string externalChapterId,
         CancellationToken cancellationToken = default)
     {
         // 前置校验全部在触网前完成:适配器、书目、章节必须已存在。
+        if (healthReader is not null && !await healthReader
+                .IsAvailableAsync(sourceId, SourceCapability.Content, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return ContentFetchOutcome.Fail(
+                [$"source '{sourceId}' capability Content is unavailable; retry later."]);
+        }
+
         var adapter = await adapterFactory
             .GetAdapterAsync(sourceId, cancellationToken)
             .ConfigureAwait(false);
@@ -55,14 +65,46 @@ public sealed class SourceContentService(
                 [$"catalog: chapter '{externalChapterId}' is not part of book '{sourceId}/{externalBookId}'."]);
         }
 
-        var rawContent = await adapter
-            .GetChapterContentAsync(externalChapterId, cancellationToken)
-            .ConfigureAwait(false);
+        string? rawContent;
+        try
+        {
+            rawContent = await adapter
+                .GetChapterContentAsync(externalChapterId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            if (healthRecorder is not null)
+            {
+                await healthRecorder.RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.Content,
+                    "adapter-exception",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return ContentFetchOutcome.Fail(["content: source request failed for Content."]);
+        }
 
         if (string.IsNullOrWhiteSpace(rawContent))
         {
+            if (healthRecorder is not null)
+            {
+                await healthRecorder.RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.Content,
+                    "empty-content",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             return ContentFetchOutcome.Fail(
                 [$"content: chapter '{externalChapterId}' returned no content from the source."]);
+        }
+
+        if (healthRecorder is not null)
+        {
+            await healthRecorder.RecordSuccessAsync(
+                sourceId, SourceCapability.Content, cancellationToken).ConfigureAwait(false);
         }
 
         var artifact = FetchArtifact.Capture(sourceId, externalBookId, externalChapterId, rawContent, clock.GetUtcNow());

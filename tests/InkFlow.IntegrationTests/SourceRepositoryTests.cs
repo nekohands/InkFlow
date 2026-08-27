@@ -42,6 +42,17 @@ public sealed class SourceRepositoryTests
         return new EfSourceRepository(db);
     }
 
+    private static EfSourceHealthRepository CreateHealthRepository()
+    {
+        var options = new DbContextOptionsBuilder<SourcesDbContext>()
+            .UseNpgsql(_container!.GetConnectionString())
+            .Options;
+
+        var db = new SourcesDbContext(options);
+        db.Database.Migrate();
+        return new EfSourceHealthRepository(db);
+    }
+
     private static Source NewSourceWithRules(string sourceId) =>
         Source.Rehydrate(
             sourceId,
@@ -104,5 +115,26 @@ public sealed class SourceRepositoryTests
     {
         var repo = CreateRepository();
         Assert.IsNull(await repo.GetAsync("nope").ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task Capability_Health_Roundtrips_Status_And_Evidence()
+    {
+        var repo = CreateHealthRepository();
+        var health = SourceCapabilityHealth.Create(
+            "health-roundtrip-source", SourceCapability.Content, T0);
+        health.RecordFailure("adapter-exception", T0.AddMinutes(1));
+
+        await repo.AddAsync(health).ConfigureAwait(false);
+
+        var loaded = await repo
+            .GetAsync("health-roundtrip-source", SourceCapability.Content)
+            .ConfigureAwait(false);
+
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual(SourceHealthStatus.Degraded, loaded.Status);
+        Assert.AreEqual(1, loaded.ConsecutiveFailures);
+        Assert.AreEqual("adapter-exception", loaded.LastFailureReason);
+        Assert.AreEqual(SourceHealthPolicy.AlgorithmVersion, loaded.AlgorithmVersion);
     }
 }

@@ -51,6 +51,7 @@ public sealed class SourceContentServiceTests
     {
         public string SourceId => "example-source";
         public string? Content { get; set; } = content;
+        public int ContentCallCount { get; private set; }
 
         public Task<IReadOnlyList<SourceSearchResult>> SearchAsync(string keyword, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<SourceSearchResult>>([]);
@@ -62,10 +63,16 @@ public sealed class SourceContentServiceTests
             => Task.FromResult<IReadOnlyList<SourceTocEntry>>([]);
 
         public Task<string?> GetChapterContentAsync(string externalChapterId, CancellationToken cancellationToken = default)
-            => Task.FromResult<string?>(Content);
+        {
+            ContentCallCount++;
+            return Task.FromResult<string?>(Content);
+        }
     }
 
-    private static (SourceContentService Service, InMemoryArtifactRepository Artifacts, FixedAdapter Adapter) CreateService(string chapterBody)
+    private static (SourceContentService Service, InMemoryArtifactRepository Artifacts, FixedAdapter Adapter) CreateService(
+        string chapterBody,
+        ISourceHealthReader? healthReader = null,
+        ISourceHealthRecorder? healthRecorder = null)
     {
         var books = new InMemoryBookRepository();
         books.Book!.SyncChapters([("ch-001", "第一章")], T0);
@@ -73,7 +80,13 @@ public sealed class SourceContentServiceTests
         var artifacts = new InMemoryArtifactRepository();
         var adapter = new FixedAdapter(chapterBody);
         var factory = new FixedAdapterFactory(adapter);
-        var service = new SourceContentService(factory, books, artifacts, TimeProvider.System);
+        var service = new SourceContentService(
+            factory,
+            books,
+            artifacts,
+            TimeProvider.System,
+            healthReader,
+            healthRecorder);
         return (service, artifacts, adapter);
     }
 
@@ -142,5 +155,60 @@ public sealed class SourceContentServiceTests
 
         Assert.IsFalse(outcome.IsSuccess);
         StringAssert.Contains(outcome.Errors[0], "no content");
+    }
+
+    [TestMethod]
+    public async Task Content_Health_Is_Recorded_And_Unavailable_Source_Is_Not_Contacted()
+    {
+        var health = new RecordingHealth();
+        var (service, _, _) = CreateService("<p>正文</p>", healthRecorder: health);
+
+        var success = await service.FetchChapterContentAsync("example-source", "10001", "ch-001");
+
+        Assert.IsTrue(success.IsSuccess);
+        Assert.IsTrue(health.Calls.Any(call =>
+            call.Capability == SourceCapability.Content && call.Succeeded));
+
+        var blocked = new AlwaysUnavailableHealth();
+        var blockedParts = CreateService("<p>不会请求</p>", blocked);
+        var blockedService = blockedParts.Service;
+        var blockedOutcome = await blockedService
+            .FetchChapterContentAsync("example-source", "10001", "ch-001");
+
+        Assert.IsFalse(blockedOutcome.IsSuccess);
+        StringAssert.Contains(blockedOutcome.Errors[0], "unavailable");
+        Assert.AreEqual(0, blockedParts.Adapter.ContentCallCount, "被阻断的来源不应触发上游正文请求");
+    }
+
+    private sealed class RecordingHealth : ISourceHealthRecorder
+    {
+        public List<(SourceCapability Capability, bool Succeeded, string? Reason)> Calls { get; } = [];
+
+        public Task<SourceCapabilityHealth> RecordSuccessAsync(
+            string sourceId,
+            SourceCapability capability,
+            CancellationToken cancellationToken = default)
+        {
+            Calls.Add((capability, true, null));
+            return Task.FromResult(SourceCapabilityHealth.Create(sourceId, capability, T0));
+        }
+
+        public Task<SourceCapabilityHealth> RecordFailureAsync(
+            string sourceId,
+            SourceCapability capability,
+            string reason,
+            CancellationToken cancellationToken = default)
+        {
+            Calls.Add((capability, false, reason));
+            return Task.FromResult(SourceCapabilityHealth.Create(sourceId, capability, T0));
+        }
+    }
+
+    private sealed class AlwaysUnavailableHealth : ISourceHealthReader
+    {
+        public Task<bool> IsAvailableAsync(
+            string sourceId,
+            SourceCapability capability,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 }
