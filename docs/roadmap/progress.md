@@ -325,7 +325,7 @@ Phase 0 开发过程中真实发现并修复：
 - 用户体验(遵循 frontend-design.md):区分「书库为空」(引导搜索自动收录)与「搜索无结果」(建议换词)两种空态并附 `role="status"`;命中显示结果计数;来源部分失败渲染为人话降级提示「部分线上来源暂时无法访问」,**SourceId 与内部异常细节零泄漏**(单测断言);发现环节整体异常也只降级不阻断页面。
 - 安全:同步触网的 `/reader` 端点接入既有公共 fixed-window 限流策略(匿名按连接层 IP 分桶)。
 - 附带:提交了工作区中既有的 `ListUnhealthyAsync` 测试局部变量重命名残留(c8f7af0 未清理的暂存改动,语义无变化)。
-- 自动化证据:Unit 175/175(基线 169 + 新增 6:过滤语义×2、双空态/命中计数/降级零泄漏/搜索词转义等)、Architecture 1/1、Contract 1/1(Legado DTO 形态未变)、Release Build 0 warnings / 0 errors。本机 Integration 因 docker_engine 缺失不执行,以远端 CI 为准。候选提交 `48c05a2` 的 CI `33076415164` 与 Docker `33076415247` 已触发,状态见下轮记录。
+- 自动化证据:Unit 175/175(基线 169 + 新增 6:过滤语义×2、双空态/命中计数/降级零泄漏/搜索词转义等)、Architecture 1/1、Contract 1/1(Legado DTO 形态未变)、Release Build 0 warnings / 0 errors。本机 Integration 因 docker_engine 缺失不执行,以远端 CI 为准。候选提交 `48c05a2` 的 CI `33076415164` 与 Docker `33076415247` 均 **GREEN**(含 Runtime Smoke 与四镜像);文档提交 `94075c4` 的 CI `33076614633` 与 Docker `33076614570` 亦 **GREEN**。
 - 本轮不含:搜索排序/分页与全文检索(v2)、BookListPage 分页、Discovery 异步化。
 
 **搜索发现接入：冷启动主路径打通（上一轮，2026-08-29）**：
