@@ -294,6 +294,14 @@ Phase 0 开发过程中真实发现并修复：
 - 新增跨上下文并发领取与过期 `Running` 回收集成用例；`FindLeasableAsync` 明确作为候选发现接口，真正领取必须走原子接口；本轮无 Schema/Migration 变更。
 - 自动化证据：Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；远端 PostgreSQL 集成测试 29 个中 28 通过、1 个 live 用例跳过；候选提交 `445d0bc` 的 CI `33060930049` 与 Docker `33060930029` 均 GREEN。
 
+**Crawler Task 重试退避与持久化调度（本轮，2026-08-27）**：
+
+- `CrawlerTask.ScheduledAt` 成为下一次可领取时间：新任务立即可领取，失败且未耗尽尝试次数时写入 `RetryPolicy` 计算的全抖动指数退避时间，死信/完成/租约回收会清除调度时间。
+- `FindLeasableAsync` 与 PostgreSQL `TryLeaseAsync` 均排除尚未到 `ScheduledAt` 的 Pending 任务；Worker 失败路径使用当前尝试次数计算退避后再保存，避免失败任务立即重试。
+- 新增官方 EF Migration `AddCrawlerTaskScheduling`，为 `crawler.tasks` 增加可空 `ScheduledAt` 与 `(Status, ScheduledAt)` 索引；旧记录保持 `NULL`，按兼容规则立即可领取。
+- 自动化证据：Unit 137/137、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；远端 PostgreSQL 集成测试 30 个中 29 通过、1 个 live 用例跳过；Worker `/health` 本地返回 200。候选提交 `3372180` 的 CI `33062448255` 与 Docker `33062448243` 均 GREEN。
+- 本机完整测试因 Docker Engine 未运行有 23 个 Testcontainers 用例在初始化阶段 BLOCKED，6 个通过、1 个跳过；该环境限制不替代远端证据。MuMu/阅读 3.0、Web Reader、真实追更与真实第二来源仍按第 6 节待定。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
@@ -388,13 +396,13 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 22 个用例因 `docker_engine` 不可用而 BLOCKED（本轮总计 29 个，6 个通过、1 个跳过）。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 23 个用例因 `docker_engine` 不可用而 BLOCKED（本轮总计 30 个，6 个通过、1 个跳过）。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health 与 v1 健康感知切源已落地；自适应探测/自动恢复、跨源一致性与更强 Repair/Replay 仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；Redis 分布式配额、认证/授权、审计持久化与高风险命令审计仍待后续 Operations/Identity 工作包。
-- Worker 任务已具备过期租约恢复和单任务异常重试基线；跨进程数据库抢占的并发验证、退避调度、事件触发和可观测告警仍待后续 Operations/Crawling 工作包。
+- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度和单任务异常重试基线；事件触发和可观测告警仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 

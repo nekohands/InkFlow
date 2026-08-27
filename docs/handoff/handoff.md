@@ -72,11 +72,11 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-27 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。
+**当前状态（2026-08-27 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
-随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取。退避调度和事件触发仍未完成。
+随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。事件触发仍未完成。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -90,6 +90,7 @@ CI: GREEN (Run 32821162412)
 ✅ 双来源确定性夹具：CanonicalBook/Chapter 复用 + Quality Selection
 ✅ Capability Health v1：健康状态持久化 + 健康感知切源 + 选择审计
 ✅ CI/Docker 验证租约恢复与跨进程原子领取（`33060930049` / `33060930029`）
+✅ CI/Docker 验证重试退避调度与 `ScheduledAt` Migration（`33062448255` / `33062448243`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -116,7 +117,14 @@ CI: GREEN (Run 32821162412)
 
 - `CrawlerTask.IsLeasable` 与 `CrawlerLeaseService` 支持过期 `Leased`/`Running` 任务回收；重新领取会增加 `AttemptCount`，保留重试耗尽进入死信的不变量。
 - `EfCrawlerTaskRepository.TryLeaseAsync` 在事务内以 `FOR UPDATE SKIP LOCKED` 完成候选筛选与租约写入；`FindLeasableAsync` 仅用于候选发现。Worker 已注册 `CompositeTaskExecutor`，并对单任务异常执行 `Fail → Pending/DeadLettered`，避免异常逃逸到外层轮询后留下不可恢复状态。
-- 自动化证据：租约恢复回归测试 11/11；新增跨进程原子领取/过期 Running 回收集成用例 2/2；Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；Worker `/health` 本地返回 200。PostgreSQL Testcontainers 本机有 22 个用例因 Docker 不可用而 BLOCKED，1 个 live 用例跳过；候选提交 `445d0bc` 已通过远端 CI `33060930049` 与 Docker `33060930029`，均为 GREEN。
+- 自动化证据：租约恢复回归测试 11/11；新增跨进程原子领取/过期 Running 回收集成用例 2/2；Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；Worker `/health` 本地返回 200。PostgreSQL Testcontainers 本机有 22 个用例因 Docker 不可用而 BLOCKED，1 个 live 用例跳过；候选提交 `445d0bc` 已通过远端 CI `33060930049` 与 Docker `33060930029`，均为 GREEN。本节记录的是该历史工作包，最新重试调度证据见 4.5。
+
+### 4.5 Crawler Task 重试退避与持久化调度
+
+- `CrawlerTask.ScheduledAt` 表示下一次可领取时间：新任务立即可领取，失败且未耗尽尝试次数时使用 `RetryPolicy` 写入全抖动指数退避时间；完成、死信和租约回收清除调度时间。
+- `FindLeasableAsync` 与 `TryLeaseAsync` 都过滤未来调度的 Pending 任务；Worker 失败路径在 `SaveAsync` 前计算并保存下一次尝试时间。
+- 官方 Migration `AddCrawlerTaskScheduling` 增加可空 `crawler.tasks.ScheduledAt` 与 `(Status, ScheduledAt)` 索引，旧记录 `NULL` 保持立即可领取兼容性。
+- 自动化证据：Unit 137/137、Architecture 1/1、Contract 1/1；远端 PostgreSQL 集成测试 30 个中 29 通过、1 个 live 用例跳过；Release Build 0 warnings / 0 errors；Worker `/health` 本地返回 200。候选提交 `3372180` 的 CI `33062448255` 与 Docker `33062448243` 均 GREEN。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
@@ -126,7 +134,7 @@ CI: GREEN (Run 32821162412)
 - [ ] **Web Reader 人工 UX/视觉验收**：移动端、桌面端、宽屏、长标题/缺封面/长作者、加载/空/错、键盘焦点、触控和上下章导航。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前 22 个用例为 BLOCKED，不记为通过。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前 23 个用例为 BLOCKED，不记为通过。
 
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
