@@ -84,6 +84,12 @@ Community/Private Rule 的网络请求必须统一经过 SafeHttpClient：
 - 每次 Redirect 重新解析并校验目标。
 - 防 DNS rebinding，连接目标必须与已验证解析结果保持安全约束。
 
+当前 API、Worker、Scheduler 的来源 HTTP typed client 及 Kanunu8 adapter 均接入
+`SsrfSafeHttpMessageHandler`：关闭环境代理，在每次新 TCP 连接时重新解析并检查全部结果，
+再直接连接同一批已验证 IP；80/443 之外的端口拒绝，自动重定向最多 5 跳且每个新目标重新走
+连接级校验。`SsrfGuard` 的请求前字面量/DNS 检查保留为第一道防线，Handler 是防止默认
+`HttpClient` 再次解析造成 rebinding 的执行约束。
+
 外部 API 永远不能接受任意 URL 并将 InkFlow 变成公共代理。
 
 ## 7. 执行限制

@@ -74,7 +74,7 @@ CI: GREEN (Run 32821162412)
 
 **当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，公开修复中心仍待后续安全/运维工作。
 
-本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
+本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
 随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。健康侧完成半开自动恢复与主动巡检探针(4.9);Web Reader 搜索也已接入发现流,三端(API/Legado/Reader)共用同一落库过滤语义(详见 4.10)。冷却曲线参数已配置化(ADR 0005,详见 4.11):运营经 `SourceHealth` 配置节调整失败阈值与重探节奏,无 Schema 变更。
 
@@ -85,6 +85,8 @@ CI: GREEN (Run 32821162412)
 本轮随后补齐 Crawler 死信受控重放：`ICrawlerTaskRepairRepository` 通过 PostgreSQL 事务与 `FOR UPDATE` 锁定死信/原任务，幂等创建新的 `Pending` 任务，并在原死信上追加操作者、理由、时间和重放任务 ID；重复/并发请求不会重复创建，已解决死信不再永久阻塞后续入队。实现提交 `20f75fb`、测试隔离修复 `c2d4aeb`；远端 CI `33094754193`、Docker `33094754210` GREEN，含 Runtime smoke。公开 Admin/Operations 入口、认证授权与命令级审计未在本轮实现。
 
 随后补齐安全审计持久化基线：API/Legado 请求由 `CompositeAuditEventSink` 同时写入结构化日志和 PostgreSQL `audit.events`，Migration 安装数据库追加式触发器拒绝更新/删除；远端 CI `33096635143`、Docker `33096635237` GREEN，新增审计集成用例通过并在 Runtime diagnostics 观察到审计事件。认证授权、命令级 before/after 审计、查询授权、保留策略与告警仍待后续 Operations/Identity 工作包。
+
+随后补齐 SSRF / SafeHttpClient 连接级约束：`SsrfSafeHttpMessageHandler` 在每次新连接时使用同一批经过校验的 DNS 地址建立 TCP，关闭环境代理，限制端口与重定向次数；API、Worker、Scheduler 及 Kanunu8 生产接线均已更新。远端 CI `33099136084`、Docker `33099135992` GREEN，新增 5 个连接回调回归用例通过；本机三宿主 `/health` 均 200，但完整 Testcontainers 因 `docker_engine` 不可用 BLOCKED。真实来源/真机验收仍待后续人工执行。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -109,6 +111,7 @@ CI: GREEN (Run 32821162412)
 ✅ Crawler 失败结构化日志 + OTel counters（`2747e2b`，`33091872440` / `33091872458`）
 ✅ Crawler 死信受控重放：事务化、幂等、并发安全（`20f75fb` / `c2d4aeb`，`33094754193` / `33094754210`）
 ✅ 安全审计持久化：`audit.events` + 追加式触发器 + API/Legado 双写（`cc2a089`，`33096635143` / `33096635237`）
+✅ SSRF 连接级约束：校验地址直连 + 端口/重定向限制 + 三宿主接线（`379cf79`，`33099136084` / `33099135992`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -128,6 +131,7 @@ CI: GREEN (Run 32821162412)
 
 - `ApiRateLimitOptions` / `ApiRateLimitPolicies`：公共 API 与 Legado 独立 fixed-window 策略，匿名按连接层 IP、认证主体按 `sub` / `client_id` 短哈希分桶；未配置可信代理前不信任 `X-Forwarded-For`。
 - `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志，数据库触发器保证普通路径追加式写入。高风险命令的 before/after、查询授权和保留策略仍未完成。
+- `SsrfGuard` / `SsrfSafeHttpMessageHandler`：来源请求先做字面量与 DNS 全结果检查，再由连接回调直接连接同一批已校验地址；环境代理关闭，80/443 之外端口和超过 5 跳的自动重定向被拒绝。真实网络策略扫描和 live 来源证据仍未完成。
 - 自动化证据：新增安全测试使 Unit 达到 133/133；Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。API 本地烟测实际验证 `429` 与 `Retry-After: 60`；首次业务请求受本机 PostgreSQL 不可用影响返回 500。
 - 全量测试仍有 20 个 Testcontainers 用例因本机 Docker 不可用而 BLOCKED，1 个跳过；远端 CI `33057431574` 与 Docker `33057431610` 已 GREEN，具体以远端实际记录为准。
 
@@ -209,6 +213,13 @@ CI: GREEN (Run 32821162412)
 - `RequestAuditMiddleware` 继续覆盖 `/api`、`/legado` 和 `429`，不记录 query string；持久化失败隔离于请求结果，并输出运维错误。
 - 证据：本机 Release Build 0 warnings / 0 errors、Unit 189/189、Architecture 1/1、Contract 1/1、API `/health` 200；本机 PostgreSQL Testcontainers 因 `docker_engine` 不可用 BLOCKED。远端 CI `33096635143`、Docker `33096635237` GREEN，审计集成测试通过、Runtime diagnostics 记录审计事件。
 - 未含：认证/授权、公开 Admin/Repair Center、命令级 before/after 审计、查询授权、保留策略、告警和 Redis 分布式限流。
+
+### 4.14 SSRF / SafeHttpClient 连接级约束（本轮，2026-08-28）
+
+- `SsrfSafeHttpMessageHandler` 是来源 HTTP 的连接级安全 Adapter：每次建立连接时重新解析 DNS，全部解析结果必须通过 `IpAddressClassification`，然后用已验证 IP 建立 `Socket`，避免“预检查后由默认 DNS 再解析”的 rebinding 窗口。
+- 关闭环境代理，限制目标端口为 80/443，允许自动重定向但最多 5 跳；目标字面量与重定向目标的连接均经过同一连接回调校验。API、Worker、Scheduler 的 `ISourceHttpClient` 与 Kanunu8 typed client 已接入。
+- 证据：本机 Release Build 0 warnings / 0 errors、Unit 194/194、Architecture 1/1、Contract 1/1、API/Worker/Scheduler `/health` 均 200；本机 Integration 因 `docker_engine` 不可用 BLOCKED（32 个类初始化失败、6 个通过、1 个跳过）。远端 CI `33099136084` 与 Docker `33099135992` GREEN，新增 5 个 Handler 回归用例通过，Runtime smoke 完成。
+- 未含：真实来源网络验证、真实重定向服务演练、阅读 3.0 真机验收；这些继续保留在人工/真实环境待定事项。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 

@@ -360,6 +360,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 189/189、Architecture 1/1、Contract 1/1 PASS；本机审计 PostgreSQL Testcontainers 因 `docker_engine` 不可用而 BLOCKED；远端 CI `33096635143` GREEN（审计集成测试通过，Integration 38 通过 + 1 跳过，含 Compose/Runtime smoke）；Docker `33096635237` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 提交：`cc2a089`。
 
+**SSRF / SafeHttpClient 连接级约束（本轮，2026-08-28）**：
+
+- 缺口：原实现只在请求前单独解析并检查 DNS 结果，随后仍交给默认 `HttpClient` 自行解析；自动重定向也没有在执行器层明确绑定校验后的目标，不能充分证明防 DNS rebinding 和重定向绕过。
+- 实现：Security BuildingBlock 新增 `SsrfSafeHttpMessageHandler`，关闭环境代理，在每次新 TCP 连接时解析并检查全部地址，拒绝任一私网/环回/link-local/ULA/映射地址，直接连接同一批已校验 IP；限制 80/443 端口并将自动重定向限制为 5 跳，每个重定向连接重复校验。API、Worker、Scheduler 的来源 HTTP typed client 与 Kanunu8 客户端均接入该 Handler。
+- 测试边界：新增 5 个确定性回归用例，覆盖私网地址、混合公网+私网 DNS 答案、私网字面量绕过、非标准端口和 DNS 失败；真实来源网络/阅读 3.0 真机仍按用户决定跳过，留待人工验收。
+- 自动化证据：本机 Restore PASS；Release Build PASS（0 warnings / 0 errors）；Unit 194/194、Architecture 1/1、Contract 1/1 PASS；三宿主 `/health` 均返回 200。本机完整 Integration 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED（32 个类初始化失败、6 个通过、1 个跳过，退出码 1，不记为通过）；远端 CI `33099136084` GREEN（Integration 39 中 38 通过 + 1 跳过，含 Compose/Runtime smoke）；Docker `33099135992` GREEN（四镜像）。
+- 提交：`379cf79`。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -493,6 +501,7 @@ Official Source
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放基线已落地，跨源一致性、Repair Center/公开运维入口和更强 Repair/Consistency Check 仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；审计持久化基线已落地，但 Redis 分布式配额、认证/授权、命令级高风险审计、查询授权、保留策略与告警仍待后续 Operations/Identity 工作包。
+- Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份、书架、阅读历史、导入/导出尚未进入产品实现阶段。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。

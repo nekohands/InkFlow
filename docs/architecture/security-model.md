@@ -43,6 +43,11 @@ Required controls:
 - regex timeout / non-backtracking where applicable
 - no process/filesystem/reflection/dynamic code/arbitrary socket
 
+当前来源请求由 `SsrfGuard` 做字面量与 DNS 全结果校验，并由
+`SsrfSafeHttpMessageHandler` 在真实 TCP 连接回调中直接连接同一批已验证地址；环境代理关闭，
+端口限制为 80/443，自动重定向最多 5 跳。API、Worker、Scheduler 的来源 HTTP typed client
+均已接入该 Handler。真实网络重定向演练和生产策略扫描仍是独立验收项。
+
 ## 5. Network Isolation
 
 Separate trust zones conceptually and in production deployment where possible:
