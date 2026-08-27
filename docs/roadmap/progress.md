@@ -287,6 +287,13 @@ Phase 0 开发过程中真实发现并修复：
 - 注册 `CompositeTaskExecutor` 到 Worker DI；单个任务执行异常进入失败/重试/死信路径，不再中断整个轮询循环；停止信号仍按取消语义向上传递。
 - 自动化证据：新增租约恢复回归测试后 Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；Worker Release 进程烟测 `/health` 返回 200。完整 PostgreSQL 集成测试仍有 20 个因本机 Docker 不可用而 BLOCKED、1 个跳过；修复后的候选提交 `f0f0d81` 已通过远端 CI `33059140418` 与 Docker `33059140552`（均 GREEN）。
 
+**Worker 跨进程原子领取（本轮，2026-08-27）**：
+
+- 新增 `ICrawlerTaskRepository.TryLeaseAsync`，把候选筛选、过期租约回收和新租约写入收敛为仓储操作；Worker 不再使用“先查询、再进程内领取、再保存”的竞态路径。
+- PostgreSQL 仓储在事务内使用 `FOR UPDATE SKIP LOCKED` 锁定最早可领取任务；仍通过 `CrawlerTask` 完成状态流转，保留租约过期回收、尝试次数递增和失败/死信不变量。
+- 新增跨上下文并发领取与过期 `Running` 回收集成用例；`FindLeasableAsync` 明确作为候选发现接口，真正领取必须走原子接口；本轮无 Schema/Migration 变更。
+- 自动化证据：Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；远端 PostgreSQL 集成测试 29 个中 28 通过、1 个 live 用例跳过；候选提交 `445d0bc` 的 CI `33060930049` 与 Docker `33060930029` 均 GREEN。
+
 **Crawler Task / Lease / Retry / DeadLetter**（旧 main 记录，已由上方条目取代）：
 
 - Domain：`CrawlerTask` 状态机、`CrawlerTaskStatus`。
@@ -381,7 +388,7 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 20 个用例因 `docker_engine` 不可用而 BLOCKED（本轮总计 27 个，6 个通过、1 个跳过）。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前 22 个用例因 `docker_engine` 不可用而 BLOCKED（本轮总计 29 个，6 个通过、1 个跳过）。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 

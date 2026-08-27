@@ -76,7 +76,7 @@ CI: GREEN (Run 32821162412)
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置单实例限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。当前默认审计 sink 为结构化日志，不把它视为持久化不可篡改审计存储；Redis 分布式限流、认证/授权和高风险命令审计仍待后续工作包。
 
-随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径。跨进程并发抢占、退避调度和事件触发仍未完成。
+随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取。退避调度和事件触发仍未完成。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
@@ -89,7 +89,7 @@ CI: GREEN (Run 32821162412)
 ✅ kanunu8 真实源 + Source → Canonical → Content → Query E2E
 ✅ 双来源确定性夹具：CanonicalBook/Chapter 复用 + Quality Selection
 ✅ Capability Health v1：健康状态持久化 + 健康感知切源 + 选择审计
-✅ CI/Docker 验证租约恢复候选提交（`33059140418` / `33059140552`）
+✅ CI/Docker 验证租约恢复与跨进程原子领取（`33060930049` / `33060930029`）
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
@@ -112,11 +112,11 @@ CI: GREEN (Run 32821162412)
 - 自动化证据：新增安全测试使 Unit 达到 133/133；Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。API 本地烟测实际验证 `429` 与 `Retry-After: 60`；首次业务请求受本机 PostgreSQL 不可用影响返回 500。
 - 全量测试仍有 20 个 Testcontainers 用例因本机 Docker 不可用而 BLOCKED，1 个跳过；远端 CI `33057431574` 与 Docker `33057431610` 已 GREEN，具体以远端实际记录为准。
 
-### 4.4 Worker 租约恢复与任务可靠性基础
+### 4.4 Worker 租约恢复、原子领取与任务可靠性基础
 
 - `CrawlerTask.IsLeasable` 与 `CrawlerLeaseService` 支持过期 `Leased`/`Running` 任务回收；重新领取会增加 `AttemptCount`，保留重试耗尽进入死信的不变量。
-- `EfCrawlerTaskRepository.FindLeasableAsync` 查询过期 `Running`；Worker 已注册 `CompositeTaskExecutor`，并对单任务异常执行 `Fail → Pending/DeadLettered`，避免异常逃逸到外层轮询后留下不可恢复状态。
-- 自动化证据：租约恢复回归测试 11/11；Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；Worker `/health` 本地返回 200。PostgreSQL Testcontainers 的 20 个用例仍因本机 Docker 不可用而 BLOCKED，1 个 live 用例跳过。修复后的候选提交 `f0f0d81` 已通过远端 CI `33059140418` 与 Docker `33059140552`，均为 GREEN。
+- `EfCrawlerTaskRepository.TryLeaseAsync` 在事务内以 `FOR UPDATE SKIP LOCKED` 完成候选筛选与租约写入；`FindLeasableAsync` 仅用于候选发现。Worker 已注册 `CompositeTaskExecutor`，并对单任务异常执行 `Fail → Pending/DeadLettered`，避免异常逃逸到外层轮询后留下不可恢复状态。
+- 自动化证据：租约恢复回归测试 11/11；新增跨进程原子领取/过期 Running 回收集成用例 2/2；Unit 136/136、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；Worker `/health` 本地返回 200。PostgreSQL Testcontainers 本机有 22 个用例因 Docker 不可用而 BLOCKED，1 个 live 用例跳过；候选提交 `445d0bc` 已通过远端 CI `33060930049` 与 Docker `33060930029`，均为 GREEN。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
@@ -126,7 +126,7 @@ CI: GREEN (Run 32821162412)
 - [ ] **Web Reader 人工 UX/视觉验收**：移动端、桌面端、宽屏、长标题/缺封面/长作者、加载/空/错、键盘焦点、触控和上下章导航。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前 20 个用例为 BLOCKED，不记为通过。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前 22 个用例为 BLOCKED，不记为通过。
 
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;
@@ -258,7 +258,7 @@ Phase 2 及以后：
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
-- [x] 当前租约恢复候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
+- [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
 - [ ] Source DSL v1 先定义可测试的最小 schema/AST，不提前做万能脚本语言。
 - [ ] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [ ] 新 Source 网络能力必须同步安全测试。
