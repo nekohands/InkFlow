@@ -326,6 +326,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据:Unit 180/180(基线 175 + 新增 5:默认曲线一致、配置读取/回退、非法值拒绝、Configure 装载与 null 还原、进程内服务半开节奏随配置变化)、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors;本机 Integration 与基线完全一致(29 例 docker_engine BLOCKED 不记为通过,6 通过 1 跳过)。候选提交 `86c250e` 的 CI `33080357611` 与 Docker `33080357613` 均 **GREEN**(含 Runtime Smoke 与四镜像);文档提交 `223e71c` 的 CI/Docker 亦 **GREEN**。
 - 本轮不含:管理端运行时热更新(仅启动时装载一次)、per-source 冷却粒度。
 
+**linovelib Search 规则与离线回归（本轮，2026-08-27）**：
+
+- 补齐真实来源接入的确定性缺口：新增 `LinovelibSourceDefinition`，Search 使用 `POST /S6/` + 表单字段 `searchkey={key}` + 列表绑定；BookInfo、TOC、Content 三项既有能力保持不变。
+- 修正来源链接 ID 归一化：Search/TOC 统一剥离 `/novel/` 与 `.html`，搜索结果可直接进入 BookInfo，章节 ID 可直接填充 Content 路径；原 TOC 规则的重复 `/novel/` 路径风险由回归测试锁定。
+- 修正 `RuleAdapter` 表单模板编码：占位符先做原值替换，再在最终表单拼接处只编码一次，中文关键词不会产生 `%25` 重复编码。
+- 自动化证据：本机 Unit 183/183、Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors；本机 Integration 36 中 29 项因 `docker_engine` 不可用而 BLOCKED、6 通过、1 跳过；Worker `/health` 本地返回 200（数据库链路因本机无 PostgreSQL 未执行）。候选提交 `52c36a4` 的 CI `33090147713` **GREEN**（Unit 183、Integration 35 通过 + 1 live 跳过、Compose 与 Runtime smoke 全通过），Docker `33090147561` **GREEN**（四镜像）。
+- 本轮不含：linovelib 真实网络/搜索/BookInfo/TOC/Content 验证、阅读 3.0 真机导入、Web Reader 人工体验、真实追更与真实第二来源故障切换。
+
 **Reader 搜索接入发现流（本轮，2026-08-29）**：
 
 - 缺口（上一轮明确记录的遗留）:`/reader` 的搜索表单不过滤结果也不触发来源发现——Web 阅读路径搜任何书都返回全库列表或空手而归,「搜索→详情→阅读」主路径在 Web 端是断的,与已接发现流的公共 API/Legado 不一致。
@@ -453,7 +461,7 @@ Official Source
 ### 6.2 需要可用环境复验
 
 - [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前因 `docker_engine` 不可用而 BLOCKED 的用例不记为通过。
-- [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环;种子规则已有 BookInfo/Toc/Content 三能力、**缺 Search 规则**(规则型 SearchAsync 已支持 List 绑定抽取,补一条 CapabilityRule 即可)。待网络环境可用时按 live 流程验证并补齐搜索规则——它仍是"第二个真实源+真实切源验收"的最短路径候选。
+- [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
