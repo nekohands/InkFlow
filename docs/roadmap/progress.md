@@ -509,7 +509,7 @@ Phase 0 开发过程中真实发现并修复：
 - 实现：新增受保护数据渐进加载的 /admin/operations 静态页面；登录后先验证 Operator / Administrator 角色，再读取有限的 admin operations overview 快照。页面分组呈现整体状态、来源能力、死信和一致性问题，区分 ready / partial / unavailable、合法空状态、401/403 和稳定错误。
 - 受控操作：来源能力停用/恢复和死信重放使用可访问确认对话框，要求 1–512 字符理由，结果展示 Replayed / AlreadyReplayed、重放任务 ID 或恢复后的待探测语义；服务端 policy、审计和状态机仍是最终边界。
 - 安全与体验：动态数据只通过 DOM textContent 写入；不缓存管理数据，不显示凭据引用、任务 Variables 或正文载荷；支持键盘焦点、语义标题/表格、aria-live、颜色之外的文字状态、窄屏布局和 prefers-reduced-motion。基准记录见 docs/engineering/benchmarks/operations-center-v1.md。
-- 测试与证据：ReaderHtml 回归 19/19；本机 Unit 254/254、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS。API 运行时静态页面 200、/health 200、未认证 overview 401；本机全量 Integration 48 项为 6 通过、41 项因 docker_engine 不可用而 BLOCKED、1 项跳过，不记为集成通过。
+- 测试与证据：ReaderHtml 回归 19/19；本机 Unit 254/254、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS。API 运行时静态页面 200、/health 200、未认证 overview 401；本机全量 Integration 48 项为 6 通过、41 项因 docker_engine 不可用而 BLOCKED、1 项跳过，不记为集成通过。远端 CI 33125476460 GREEN（Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker 33125476441 GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：本轮未执行 Operator/Administrator 浏览器操作、跨尺寸视觉、键盘/对比度截图和真实修复命令；这些人工验收继续列入第 6 节。自动修复、告警、备份治理、私人书库和真实来源验收仍未实现。
 
 ## 5. Phase 1A 核心验收链路
@@ -602,7 +602,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有四项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA 与 Operations Center 的实际安装、操作、跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Content Policy、Identity/Repair、Reader/PWA、Operations Center 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 需在提交后以实际结果确认；这些限制仍属于整体 Release Gate，不改变已通过的自动化证据。
+当前仍有四项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA 与 Operations Center 的实际安装、操作、跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Content Policy、Identity/Repair、Reader/PWA、Operations Center 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

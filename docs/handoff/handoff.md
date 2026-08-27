@@ -165,7 +165,7 @@ CI: GREEN (Run 32821162412)
 - 实现：新增 /admin/operations 静态管理壳；浏览器先用当前 tab 会话验证 Operator / Administrator，再通过受保护的 overview API 读取有限快照。页面按区块呈现 ready / partial / unavailable、合法空状态、生成时间和可解释问题。
 - 受控操作：来源能力停用/恢复与死信重放均通过确认对话框提交非空理由，成功/冲突结果展示服务端状态；UI 不绕过既有 policy、审计、状态机和重放幂等约束。
 - 安全与可访问性：动态字段只进入 textContent，不缓存运维 API，不显示凭据引用、任务 Variables 或正文；页面具备语义标题/表格、aria-live、键盘焦点、文字状态、窄屏布局和 reduced-motion 基线。基准记录为 docs/engineering/benchmarks/operations-center-v1.md。
-- 自动化证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 254/254、Architecture 1/1、Contract 2/2 PASS。API 静态页面 200、/health 200、未认证 overview 401；全量 Integration 48 项为 6 通过、41 项因本机 Docker Engine 不可用而 BLOCKED、1 项跳过，不记为本机集成通过。
+- 自动化证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 254/254、Architecture 1/1、Contract 2/2 PASS。API 静态页面 200、/health 200、未认证 overview 401；全量 Integration 48 项为 6 通过、41 项因本机 Docker Engine 不可用而 BLOCKED、1 项跳过，不记为本机集成通过。提交 ed0ff8c 的远端 CI 33125476460 GREEN（Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker 33125476441 GREEN（四镜像）。
 - 边界：未执行 Operator/Administrator 实际浏览器操作、跨尺寸视觉/对比度/键盘截图和真实修复命令；自动修复、告警、备份治理、私人书库和真实来源验收仍未完成。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
@@ -205,6 +205,7 @@ CI: GREEN (Run 32821162412)
 ✅ Personal Legado Token v1：一次性原文签发 + Hash 持久化 + 独立 header 认证 + Personal API + 撤销审计（`fbe0c62`，CI `33118314796` / Docker `33118314789` 均 GREEN）
 ✅ Web Reader v1：响应式书目/详情/章节页 + 主题/字号/行高本地设置 + 可访问章节导航（`a8d1c23`，CI `33120844695` / Docker `33120844685` 均 GREEN）
 ✅ Reader/PWA 用户状态 v1：账户/书架/历史/进度/偏好渐进增强 + 公开 PWA 壳（`b3561a2`，CI `33123325151` / Docker `33123325184` 均 GREEN）
+✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Legado 真机导入/阅读（后续人工）
 → 真实追更与真实第二来源切源演练
@@ -424,7 +425,7 @@ Phase 1A / 1B 外部验收：
 
 Phase 2 及以后：
 
-- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1 和 Operations Center Read Model v1 已完成，Center UI、自动修复和更强运维治理仍待实现。
+- Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
 - 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1 和 Web Reader v1 已完成；PWA 实际安装/离线/跨设备验收、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
 
