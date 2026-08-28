@@ -13,6 +13,7 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
 {
     public DbSet<CanonicalBookEntity> Books => Set<CanonicalBookEntity>();
     public DbSet<CanonicalChapterEntity> Chapters => Set<CanonicalChapterEntity>();
+    public DbSet<PrivateBookEntity> PrivateBooks => Set<PrivateBookEntity>();
     public DbSet<MatchCandidateEntity> MatchCandidates => Set<MatchCandidateEntity>();
     public DbSet<ChapterMappingEntity> ChapterMappings => Set<ChapterMappingEntity>();
 
@@ -40,6 +41,16 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
                 .WithMany()
                 .HasForeignKey(x => x.BookId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PrivateBookEntity>(b =>
+        {
+            b.ToTable("private_books");
+            b.HasKey(x => new { x.UserId, x.Id });
+            b.Property(x => x.Title).HasMaxLength(512).IsRequired();
+            b.Property(x => x.Author).HasMaxLength(256);
+            // 私有书目必须按所有者过滤；Id 本身不赋予跨用户访问权。
+            b.HasIndex(x => new { x.UserId, x.CreatedAt, x.Id });
         });
 
         modelBuilder.Entity<MatchCandidateEntity>(b =>

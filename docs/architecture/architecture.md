@@ -19,7 +19,7 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 目标模块：
 
 - Identity：账号、Session、短期 AccessToken、RefreshToken、凭证、Role/Permission。
-- Library：Canonical Book、Author、Chapter metadata、Alias、Matching/Alignment。
+- Library：Canonical Book、Author、Chapter metadata、Private Book、Alias、Matching/Alignment。
 - Sources：Source 定义、Rule、Rule Version、Credential Reference、Capability、Health Policy。
 - Crawling：Task、Lease、Retry、Dead Letter、Scheduler、Fetch Artifact、执行治理。
 - Content：Content AST、Blob、Version、Quality、Selection、Normalization、Policy。
@@ -51,6 +51,12 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 Canonical Chapter 与 Source Chapter 通过 Mapping 关联。数据模型允许 1:N / N:1，为缺章、插章、番外、拆章/合章保留空间。
 
 Phase 1 先使用章节号、标准化标题和序列上下文；Phase 2 再加入内容指纹与跨源序列对齐。
+
+### Private Library
+
+Private Book 是绑定单一 UserId 的用户私有书目元数据，使用独立的 PrivateBookId，不进入 CanonicalBook、公共搜索、Legado、Source Match 或公共 Reading Shelf。所有读取和变更都以认证主体为范围；私有书目缺失与非所有者访问统一返回未找到。
+
+当前 v1 只提供书目元数据 CRUD。私有正文、TXT/EPUB 导入导出、恢复策略和将私有内容发布为公共 Canonical 内容，需在保持该边界的前提下另行设计。
 
 ## 4. Content Pipeline
 

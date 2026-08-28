@@ -17,7 +17,7 @@
 | Phase 1A — Single Source Vertical Slice | 🚧 Ready for Real-Device Acceptance | 自动化链路与 kanunu8 真实源验证已完成；阅读 3.0 真机导入/阅读及真实追更仍待人工验收 |
 | Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优与健康感知切源；真实故障切源仍待后续验收 |
 | Phase 2 — Multi-Source Production | 🚧 In Progress | Capability Health v1 与 Worker 任务可靠性基础已落地；自适应追更、健康评分、规则 Canary 仍待推进 |
-| Phase 3 — User Product | 🚧 In Progress | Reading State v1、Web Reader v1 与 Reader/PWA 用户状态 v1 已落地；真实 PWA 验收、私人书库和导入导出仍待推进 |
+| Phase 3 — User Product | 🚧 In Progress | Reading State v1、Web Reader v1、Reader/PWA 用户状态 v1 与 Private Library 元数据基础已落地；真实 PWA 验收、私有正文和导入导出仍待推进 |
 | Phase 4 — Commercial Platform | ⏳ Not Started | Entitlement、Developer API、Billing、Organization、Community Source |
 
 ## 2. Phase 0 验收记录
@@ -573,6 +573,16 @@ Phase 0 开发过程中真实发现并修复：
 - 远端验收：提交 `aae5295` 的 CI `33138900850`、Docker `33138900845`、Security `33138900869` 均 **GREEN**；CI 的 Runtime smoke、Redis 分布式限流、PostgreSQL 备份恢复和 Diagnostics，Docker 四镜像发布前扫描，以及 Security 的 NuGet/SBOM/Trivy/CodeQL 均通过。Security 仅有既有 Actions Node 20 弃用提示与仓库未启用 Code Scanning 的非阻断告警。
 - 验收边界：本轮未执行 MuMu/阅读 3.0、真实来源、真实 HTTP 客户端导入或人工验收；这些仍按第 6 节待定。Profile/Contract Gate 自动化通过不等于 Phase 1A/1B 外部验收或 1.0 完成。
 
+**Private Library v1 后端基础（本轮，2026-08-28）**：
+
+- 缺口：用户身份和 Reading State 已有基础能力，但没有与公共 Canonical Library 隔离的私人书目实体、迁移和用户范围 API。
+- 实现：Library 新增独立 `PrivateBook` 聚合和 `private_books` 表；PrivateBookId 与公共 BookId 分离，复合主键包含 UserId，所有仓储读取/更新/删除显式按认证主体范围执行。非所有者与不存在记录统一返回 NotFound。
+- API：新增受认证保护的 `GET/POST/GET/{id}/PUT/{id}/DELETE/{id} /api/v1/me/private-library/books`；仅允许书名和可选作者元数据，创建/更新输入有界，删除为当前元数据阶段的所有者直接删除。
+- 边界：本轮不把私有书目写入 Canonical、公共搜索、Legado、Content Policy 或公共 Reading Shelf；TXT/EPUB 导入、私有正文/章节、导出恢复、浏览器 UI 和人工验收另行处理。领域词汇见根目录 `CONTEXT.md`，边界决策见 ADR 0007。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 289/289、Architecture 1/1、Contract 5/5 PASS。全量 Integration 54 项中 6 通过、46 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；新增 PrivateBook PostgreSQL 集成 3 项已编译并实际尝试，未获得容器执行证据。
+- Runtime：API `/health` 200；私有书库路由已注册并命中匿名认证门控，但本机 Redis/PostgreSQL 不可用导致受限请求等待/审计失败，未宣称完整端到端 Runtime 通过。
+- 验收边界：本轮按用户决定不执行 MuMu/阅读 3.0、真实来源/切源、真实追更和人工操作；Private Library API 的登录、跨用户隔离、创建/更新/删除及不进入公共路径仍列入第 6 节人工验收。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -651,6 +661,7 @@ Official Source
 - [ ] **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证个人 Search → BookInfo → TOC → Content、令牌 header 传递，以及撤销后请求失效；本轮按用户决定不执行。
 - [ ] **Web Reader 人工体验验收**：在移动端、平板、桌面端、宽屏实际打开 `/reader` 三页面，检查正文宽度、长标题/长作者、Loading/Empty/Error、键盘焦点、触控目标、主题/字号/行高和上下章导航；自动化基线已完成，本轮未做浏览器截图/长时间阅读。
 - [ ] **Reader/PWA 用户状态人工验收**：在支持的浏览器中验证账户登录/注册、刷新后会话、书架加入/移除、历史、章节进度/偏好同步、401 刷新和登出；验证安装提示、Service Worker 注册与网络不可用时离线提示。本轮按用户决定不执行。
+- [ ] **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；确认私有书目不会出现在公共 Catalog、搜索、Legado 或公共 Reading Shelf。当前只有后端自动化基线，未执行人工操作。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
@@ -660,7 +671,7 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前因 `docker_engine` 不可用而 BLOCKED 的用例不记为通过。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 54 项中 46 项因 `docker_engine` 不可用而 BLOCKED）；Private Library 新增迁移/隔离/删除用例也必须取得真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
@@ -673,12 +684,12 @@ Official Source
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照与阈值基线已落地，外部告警路由、历史/去重、保留策略和完整运维闭环仍待后续 Operations/Crawling 工作包。
-- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）已落地；Personal Legado Token v1 与 Web Reader v1 已落地。PWA 实际安装/离线/跨设备验收、私人书库和导入/导出仍未完成。
+- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1 书目元数据基础已落地。PWA 实际安装/离线/跨设备验收、私有正文、TXT/EPUB 导入/导出和 Private Library 人工端到端验收仍未完成。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 
 ## 7. 当前阻塞
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library 元数据自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 仍需以本轮候选提交的实际结果确认；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

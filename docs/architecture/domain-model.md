@@ -11,6 +11,7 @@
 - SourceChapterId
 - ContentVersionId
 - UserId
+- PrivateBookId
 - OrganizationId
 - TaskId
 
@@ -47,6 +48,12 @@ Identity v1 的 `User` 以邮箱规范化值保持唯一，账号状态控制是
 SourceChapter 属于 SourceBook。通过 ChapterMapping 与 CanonicalChapter 建立关系。
 
 数据模型允许 1:N / N:1，以处理番外、插章、缺章、拆章与合章。
+
+### PrivateBook
+
+PrivateBook 是单一 User 所有的私有书目元数据，使用独立的 PrivateBookId；它不是 CanonicalBook，也不拥有公共 BookId/ChapterId 的语义。
+
+私有书目查询和变更必须以认证主体 UserId 为范围。PrivateBook v1 只覆盖书目元数据；正文、导入导出、私有阅读内容和发布为公共 Canonical 内容另行建模。
 
 ## Author
 

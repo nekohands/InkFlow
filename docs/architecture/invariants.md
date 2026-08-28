@@ -17,6 +17,7 @@
 13. Published Source Rule、Parser/Normalizer Algorithm Version 不可变；修改产生新版本。
 14. Source URL 不是业务主键；优先保留外部稳定 ID，并维护历史 URL。
 15. EF Core、Redis、ASP.NET 等基础设施依赖不得进入纯 Domain 模型。
+16. PrivateBook 必须与 CanonicalBook 使用独立身份，并且所有私有数据访问都必须绑定认证主体 UserId。
 16. Authoritative Data 与 Projection/Cache/Search Index 分离，Derived Data 必须可重建。
 17. 外部调用均视为不可靠，必须考虑 Timeout、Retry、Backoff、Circuit Breaker 和 Idempotency。
 18. 公共 API Contract 与内部 Entity/DTO 分离，`/api/v1` 默认向后兼容。

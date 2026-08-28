@@ -233,6 +233,15 @@ CI: GREEN (Run 32821162412)
 - 远端证据：提交 `aae5295` 的 CI `33138900850`、Docker `33138900845`、Security `33138900869` 均 GREEN；Runtime smoke、Redis 分布式限流、PostgreSQL 备份恢复、Diagnostics、四镜像扫描以及 NuGet/SBOM/Trivy/CodeQL 均通过。Security 仅有 Node 20 弃用和未启用 Code Scanning 的非阻断告警。
 - 边界：完整 Integration 本机仍为 51 项中 6 通过、43 项因 Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；本轮不执行真实来源、阅读 3.0 真机、HTTP 客户端导入或人工验收。该门禁自动化通过不替代外部 Release Gate。
 
+### 4.32 Private Library v1 后端基础（本轮，2026-08-28）
+
+- 缺口：用户身份和 Reading State 已有基础能力，但没有与公共 Canonical Library 隔离的私人书目实体、迁移和用户范围 API。
+- 实现：Library 新增独立 `PrivateBook` 聚合与 `private_books` 表；PrivateBookId 与公共 BookId 分离，复合主键包含 UserId；仓储所有读取/更新/删除显式按认证主体范围执行，非所有者与不存在记录统一为 NotFound。领域词汇见根目录 `CONTEXT.md`，边界决策见 ADR 0007。
+- API：新增受保护的 `GET/POST/GET/{id}/PUT/{id}/DELETE/{id} /api/v1/me/private-library/books`，覆盖书名与可选作者元数据 CRUD；输入有界，删除为当前无正文阶段的所有者直接删除。
+- 边界：本轮不进入 Canonical、公共搜索、Legado、Content Policy 或公共 Reading Shelf；TXT/EPUB 导入、私有正文/章节、导出恢复、浏览器 UI 和人工验收另行处理。
+- 当前证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 289/289、Architecture 1/1、Contract 5/5 PASS。全量 Integration 54 项中 6 通过、46 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；新增 PostgreSQL 集成用例已编译并实际尝试但未取得容器证据。API `/health` 200；受限私有路由命中匿名认证门控，但本机 Redis/PostgreSQL 不可用，未宣称完整端到端 Runtime 通过。
+- 验收边界：按用户决定不执行 MuMu/阅读 3.0、真实来源/切源、真实追更和人工操作；Private Library 的真实账户、跨用户隔离、公共路径不泄漏和删除语义仍列入待定事项。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -244,7 +253,8 @@ CI: GREEN (Run 32821162412)
 9. **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询授权、时间范围/精确过滤/游标、空结果、稳定错误和响应脱敏；本轮只完成自动化基线，未执行人工操作。
 10. **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未执行真实凭据操作。
 11. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
-12. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收，并继续推进私人书库、Security/Operations 与商业化能力。
+12. **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；确认不进入公共 Catalog、搜索、Legado 或公共 Reading Shelf。本轮只完成后端自动化基线。
+13. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收，并继续推进私有正文/导入导出、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -280,9 +290,11 @@ CI: GREEN (Run 32821162412)
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
+✅ Private Library v1 后端基础：独立 PrivateBook/PrivateBookId + UserId 范围仓储 + 迁移 + 受保护元数据 CRUD（本轮；真实账户/公共路径隔离人工验收待定）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
+→ Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）
 → 17K 真实 Search/BookInfo/TOC/Content 验收
 → 真实追更与真实第二来源切源演练

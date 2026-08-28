@@ -122,6 +122,8 @@ builder.Services.AddDbContext<InkFlow.Modules.Sources.Infrastructure.Persistence
     options.UseNpgsql(databaseConnectionString));
 
 builder.Services.AddScoped<ICanonicalBookRepository, EfCanonicalBookRepository>();
+builder.Services.AddScoped<IPrivateBookRepository, EfPrivateBookRepository>();
+builder.Services.AddScoped<IPrivateLibraryService, PrivateLibraryService>();
 builder.Services.AddScoped<IMatchCandidateRepository, InkFlow.Modules.Library.Infrastructure.Persistence.EfMatchCandidateRepository>();
 builder.Services.AddScoped<ISourceRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceRepository>();
 builder.Services.AddScoped<ISourceBookRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceBookRepository>();
@@ -345,6 +347,8 @@ personalLegadoTokens.MapDelete("/tokens/{tokenId:guid}", async (
 
 var reading = api.MapGroup("/me/reading")
     .RequireAuthorization();
+
+api.MapPrivateLibraryEndpoints();
 
 reading.MapGet("/shelf", async (
     int? limit,

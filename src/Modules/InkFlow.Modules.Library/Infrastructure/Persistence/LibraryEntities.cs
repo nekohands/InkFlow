@@ -17,3 +17,13 @@ public sealed class CanonicalChapterEntity
     public string Title { get; set; } = null!;
     public DateTimeOffset CreatedAt { get; set; }
 }
+
+public sealed class PrivateBookEntity
+{
+    public Guid UserId { get; set; }
+    public Guid Id { get; set; }
+    public string Title { get; set; } = null!;
+    public string? Author { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
