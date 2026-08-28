@@ -176,6 +176,14 @@ CI: GREEN (Run 32821162412)
 - Fixture 回归：覆盖 Search 去重、书目/目录/正文解析、稳定章节 ID、非法 ID 零触网和 VIP 不绕过。自动化证据为本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 258/258、Architecture 1/1、Contract 2/2 PASS；Integration 48 项实际为 6 通过、41 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过。提交 `258e3c3` 的远端 CI `33127440930` 与 Docker `33127440917` 均 GREEN，包含 Restore/Build/Test、Compose、Runtime smoke/Diagnostics 和四镜像构建。
 - 边界：本轮没有触发真实 17K 或其他来源网络请求，不能宣称 17K 已稳定实测，也不能关闭真实第二来源故障切换 Release Gate；真实链路和多源切换继续待后续人工/可用环境验收。
 
+### 4.25 Admin Audit Read v1（本轮，2026-08-28）
+
+- 缺口：`audit.events` 已是追加式持久化事实，但此前没有受保护的查询读端，无法在 Operations/Security 场景按条件复核事件。
+- 实现：新增 `IAuditEventReader` / `EfAuditEventReader` 和 `GET /api/v1/admin/audit/events`；端点使用独立 `AuditRead` policy（`Operator` / `Administrator`），支持 `from`、`to`、`action`、`outcome`、`actorId` 精确过滤，默认 50、最多 100 条，并以时间戳+事件 ID 不透明游标分页。查询只读、无跟踪、无 CRUD 更新/删除入口，异常返回稳定 `audit_unavailable`。
+- 安全：游标重新校验时间戳和非空 Guid；过滤器拒绝控制字符和超长值；读端不改变既有数据库追加式触发器、请求审计和命令审计边界。
+- 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 263/263、Architecture 1/1、Contract 2/2 PASS；API `/health` 200、未认证审计查询 401；本机 Integration 49 项为 6 通过、42 项因 Docker Engine 不可用而 BLOCKED、1 项跳过。候选提交 `29a723c` 的远端 CI `33128764947` GREEN（48 通过、1 跳过，含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33128764869` GREEN（四镜像）。
+- 边界：本轮未执行带 Operator/Administrator 凭证的人工查询、资源级授权、保留/清理策略、告警和真实运维演练；这些事项继续作为后续 Release Gate 留在待定清单。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -184,7 +192,8 @@ CI: GREEN (Run 32821162412)
 6. **Phase 1B 真实切源验收**：从已接入来源中选择可稳定访问的真实第二 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
 7. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
 8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
-9. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收，并继续推进私人书库、Security/Operations 与商业化能力。
+9. **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询授权、时间范围/精确过滤/游标、空结果、稳定错误和响应脱敏；本轮只完成自动化基线，未执行人工操作。
+10. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收，并继续推进私人书库、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -213,6 +222,7 @@ CI: GREEN (Run 32821162412)
 ✅ Personal Legado Token v1：一次性原文签发 + Hash 持久化 + 独立 header 认证 + Personal API + 撤销审计（`fbe0c62`，CI `33118314796` / Docker `33118314789` 均 GREEN）
 ✅ Web Reader v1：响应式书目/详情/章节页 + 主题/字号/行高本地设置 + 可访问章节导航（`a8d1c23`，CI `33120844695` / Docker `33120844685` 均 GREEN）
 ✅ Reader/PWA 用户状态 v1：账户/书架/历史/进度/偏好渐进增强 + 公开 PWA 壳（`b3561a2`，CI `33123325151` / Docker `33123325184` 均 GREEN）
+✅ Admin Audit Read v1：独立 AuditRead policy + 有界精确过滤 + 稳定不透明游标（`29a723c`，CI `33128764947` / Docker `33128764869` 均 GREEN）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
@@ -437,7 +447,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
-- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、认证/授权和命令级高风险审计仍待实现。
+- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询和已落地高风险命令审计基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、资源级授权、权限管理和更完整的审计保留治理仍待实现。
 - 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1 和 Web Reader v1 已完成；PWA 实际安装/离线/跨设备验收、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。

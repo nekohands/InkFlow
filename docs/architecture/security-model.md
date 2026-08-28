@@ -110,7 +110,7 @@ Physical ContentBlob dedup never grants logical access.
 
 High-risk actions emit immutable/append-oriented AuditEvent data including actor, time, resource, action, before/after or reference, reason and TraceId where applicable.
 
-当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。Crawler dead-letter replay、Content Policy Takedown/Restore 与 Personal Legado Token issue/revoke 已额外写入带认证操作者、理由、结果和资源 reference 的命令级审计事件；Personal 令牌审计只记录脱敏 token reference，不记录原文。更完整的 before/after、保留策略、查询授权和告警仍需后续实现。
+当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。Crawler dead-letter replay、Content Policy Takedown/Restore 与 Personal Legado Token issue/revoke 已额外写入带认证操作者、理由、结果和资源 reference 的命令级审计事件；Personal 令牌审计只记录脱敏 token reference，不记录原文。现在另有受独立 `AuditRead` policy 保护的 `GET /api/v1/admin/audit/events` 有界只读查询：支持时间范围、精确 action/outcome/actorId 过滤和时间戳+事件 ID 不透明游标，单页最多 100 条，查询异常只返回稳定错误码，不提供更新/删除路径。该 policy 当前仍是 Operator/Administrator 粗粒度角色边界；更细的资源级授权、保留策略和告警仍需后续实现。
 
 Ordinary administrators cannot silently edit audit history through normal CRUD APIs.
 

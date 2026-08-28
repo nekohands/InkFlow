@@ -512,6 +512,14 @@ Phase 0 开发过程中真实发现并修复：
 - 测试与证据：ReaderHtml 回归 19/19；本机 Unit 254/254、Architecture 1/1、Contract 2/2、Release Build 0 warnings / 0 errors PASS。API 运行时静态页面 200、/health 200、未认证 overview 401；本机全量 Integration 48 项为 6 通过、41 项因 docker_engine 不可用而 BLOCKED、1 项跳过，不记为集成通过。远端 CI 33125476460 GREEN（Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker 33125476441 GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：本轮未执行 Operator/Administrator 浏览器操作、跨尺寸视觉、键盘/对比度截图和真实修复命令；这些人工验收继续列入第 6 节。自动修复、告警、备份治理、私人书库和真实来源验收仍未实现。
 
+**Admin Audit Read v1（本轮，2026-08-28）**：
+
+- 缺口：审计事实已经通过 PostgreSQL 追加式 sink 持久化，但此前没有受保护的读端，Operations/Security 无法按条件复核事件；查询也缺少有界分页和稳定游标约束。
+- 实现：Persistence BuildingBlock 新增 `IAuditEventReader` / `EfAuditEventReader`，只读使用 `AsNoTracking`、精确过滤、最多 `limit + 1` 取数和 `(OccurredAt, Id)` 稳定游标；API 新增 `GET /api/v1/admin/audit/events`，使用独立 `AuditRead` policy（`Operator` / `Administrator`），默认 50、最多 100 条，支持 `from`、`to`、`action`、`outcome`、`actorId`、`cursor`，异常映射为 `audit_unavailable`。
+- 安全边界：游标为不透明 Base64Url 值并重新校验时间戳/事件 ID；过滤器拒绝控制字符和超长输入；读端没有 CRUD 更新/删除能力，数据库追加式触发器仍是最终不可篡改边界。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 263/263、Architecture 1/1、Contract 2/2 PASS。API `/health` 200，未认证审计查询返回 401；本机完整 Integration 49 项为 6 通过、42 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过，不记为本机集成通过。远端 CI `33128764947` GREEN（Restore/Build/Test：48 通过、1 跳过，Compose/Runtime smoke/Diagnostics 全部通过），Docker `33128764869` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
+- 边界：本轮未使用 Operator/Administrator 凭证执行审计查询人工验收；资源级授权、保留/清理策略、告警路由和真实运维演练仍待后续工作包，不能据此宣称 Security/Operations Release Gate 完整关闭。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -594,6 +602,7 @@ Official Source
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
+- [ ] **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询 200、Reader/匿名请求 401/403、时间范围/精确过滤/游标翻页、空结果和服务不可用时的稳定错误；确认响应不暴露秘密或正文，并保留截图/请求证据。本轮只完成自动化基线。
 
 ### 6.2 需要可用环境复验
 
@@ -604,7 +613,7 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流当前为单实例 fixed-window 基线；审计持久化与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
+- API 限流当前为单实例 fixed-window 基线；审计持久化、独立 `AuditRead` 有界查询与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）已落地；Personal Legado Token v1 与 Web Reader v1 已落地。PWA 实际安装/离线/跨设备验收、私人书库和导入/导出仍未完成。
@@ -612,7 +621,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有四项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA 与 Operations Center 的实际安装、操作、跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Content Policy、Identity/Repair、Reader/PWA、Operations Center 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
+当前仍有五项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Operations Center 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Admin Audit Read 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
