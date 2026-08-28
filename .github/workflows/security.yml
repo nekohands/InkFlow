@@ -78,6 +78,7 @@ jobs:
         with:
           category: /language:csharp
           upload: never
+          upload-database: false
           output: ${{ runner.temp }}/inkflow-codeql-results
 
       - name: Upload CodeQL results
