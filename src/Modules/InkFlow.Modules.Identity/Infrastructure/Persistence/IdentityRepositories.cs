@@ -95,6 +95,29 @@ public static class IdentityMapper
             entity.CreatedAt,
             entity.ExpiresAt,
             entity.RevokedAt);
+
+    public static PermissionGrantEntity ToEntity(PermissionGrant grant) => new()
+    {
+        Id = grant.Id,
+        UserId = grant.UserId,
+        Permission = grant.Permission,
+        ResourceType = grant.ResourceType,
+        ResourceId = grant.ResourceId,
+        GrantedBy = grant.GrantedBy,
+        GrantedAt = grant.GrantedAt,
+        RevokedAt = grant.RevokedAt,
+    };
+
+    public static PermissionGrant ToDomain(PermissionGrantEntity entity) =>
+        PermissionGrant.Rehydrate(
+            entity.Id,
+            entity.UserId,
+            entity.Permission,
+            entity.ResourceType,
+            entity.ResourceId,
+            entity.GrantedBy,
+            entity.GrantedAt,
+            entity.RevokedAt);
 }
 
 public sealed class EfUserRepository(IdentityDbContext db) : IUserRepository
@@ -301,5 +324,120 @@ public sealed class EfLegadoAccessTokenRepository(IdentityDbContext db)
         entity.RevokedAt ??= now;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return true;
+    }
+}
+
+public sealed class EfResourcePermissionRepository(IdentityDbContext db)
+    : IResourcePermissionRepository
+{
+    public async Task<PermissionGrant?> GetAsync(
+        Guid grantId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.PermissionGrants
+            .SingleOrDefaultAsync(grant => grant.Id == grantId, cancellationToken)
+            .ConfigureAwait(false);
+        return entity is null ? null : IdentityMapper.ToDomain(entity);
+    }
+
+    public async Task<PermissionGrant?> FindActiveAsync(
+        Guid userId,
+        string resourceType,
+        string resourceId,
+        string permission,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.PermissionGrants
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                grant => grant.UserId == userId &&
+                         grant.ResourceType == resourceType &&
+                         grant.ResourceId == resourceId &&
+                         grant.Permission == permission &&
+                         grant.RevokedAt == null,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return entity is null ? null : IdentityMapper.ToDomain(entity);
+    }
+
+    public async Task<IReadOnlyList<PermissionGrant>> ListActiveForResourceAsync(
+        string resourceType,
+        string resourceId,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.PermissionGrants
+            .AsNoTracking()
+            .Where(grant => grant.ResourceType == resourceType &&
+                            grant.ResourceId == resourceId &&
+                            grant.RevokedAt == null)
+            .OrderByDescending(grant => grant.GrantedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return entities.Select(IdentityMapper.ToDomain).ToList();
+    }
+
+    public async Task<IReadOnlyList<PermissionGrant>> ListActiveForUserResourceAsync(
+        Guid userId,
+        string resourceType,
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.PermissionGrants
+            .AsNoTracking()
+            .Where(grant => grant.UserId == userId &&
+                            grant.ResourceType == resourceType &&
+                            grant.ResourceId == resourceId &&
+                            grant.RevokedAt == null)
+            .OrderByDescending(grant => grant.GrantedAt)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return entities.Select(IdentityMapper.ToDomain).ToList();
+    }
+
+    public async Task<IReadOnlyList<PermissionGrant>> ListActiveForUserAsync(
+        Guid userId,
+        string resourceType,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.PermissionGrants
+            .AsNoTracking()
+            .Where(grant => grant.UserId == userId &&
+                            grant.ResourceType == resourceType &&
+                            grant.RevokedAt == null)
+            .OrderByDescending(grant => grant.GrantedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return entities.Select(IdentityMapper.ToDomain).ToList();
+    }
+
+    public async Task AddAsync(
+        PermissionGrant grant,
+        CancellationToken cancellationToken = default)
+    {
+        db.PermissionGrants.Add(IdentityMapper.ToEntity(grant));
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task SaveAsync(
+        PermissionGrant grant,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.PermissionGrants
+            .SingleOrDefaultAsync(candidate => candidate.Id == grant.Id, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"permission grant {grant.Id} does not exist.");
+
+        entity.UserId = grant.UserId;
+        entity.Permission = grant.Permission;
+        entity.ResourceType = grant.ResourceType;
+        entity.ResourceId = grant.ResourceId;
+        entity.GrantedBy = grant.GrantedBy;
+        entity.GrantedAt = grant.GrantedAt;
+        entity.RevokedAt = grant.RevokedAt;
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }

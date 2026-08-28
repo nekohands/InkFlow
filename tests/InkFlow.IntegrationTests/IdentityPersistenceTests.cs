@@ -47,8 +47,68 @@ public sealed class IdentityPersistenceTests
             .ToListAsync()
             .ConfigureAwait(false);
         CollectionAssert.AreEquivalent(
-            new[] { "users", "sessions", "access_tokens", "legado_tokens" },
+            new[] { "users", "sessions", "access_tokens", "legado_tokens", "permission_grants" },
             tables.ToList());
+    }
+
+    [TestMethod]
+    public async Task Permission_Grants_Roundtrip_And_Regrant_After_Revocation()
+    {
+        await using var db = CreateDb();
+        var users = new EfUserRepository(db);
+        var permissions = new EfResourcePermissionRepository(db);
+        var operatorUser = User.Rehydrate(
+            Guid.CreateVersion7(),
+            "operator@example.com",
+            "operator@example.com",
+            "$hash$only",
+            UserRole.Operator,
+            UserStatus.Active,
+            T0,
+            T0);
+        await users.AddAsync(operatorUser).ConfigureAwait(false);
+
+        var first = PermissionGrant.Create(
+            operatorUser.Id,
+            IdentityPermissions.SourceRead,
+            IdentityResourceTypes.Source,
+            "official-a",
+            operatorUser.Id,
+            T0);
+        await permissions.AddAsync(first).ConfigureAwait(false);
+
+        var loaded = await permissions.GetAsync(first.Id).ConfigureAwait(false);
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual(first.Id, loaded!.Id);
+        Assert.IsTrue((await permissions.ListActiveForResourceAsync(
+            IdentityResourceTypes.Source,
+            "official-a",
+            10)).Single().IsActive);
+
+        loaded.Revoke(T0.AddMinutes(1));
+        await permissions.SaveAsync(loaded).ConfigureAwait(false);
+        Assert.AreEqual(
+            0,
+            (await permissions.ListActiveForUserResourceAsync(
+                operatorUser.Id,
+                IdentityResourceTypes.Source,
+                "official-a")).Count);
+
+        var second = PermissionGrant.Create(
+            operatorUser.Id,
+            IdentityPermissions.SourceRead,
+            IdentityResourceTypes.Source,
+            "official-a",
+            operatorUser.Id,
+            T0.AddMinutes(2));
+        await permissions.AddAsync(second).ConfigureAwait(false);
+
+        Assert.AreEqual(
+            second.Id,
+            (await permissions.ListActiveForUserResourceAsync(
+                operatorUser.Id,
+                IdentityResourceTypes.Source,
+                "official-a")).Single().Id);
     }
 
     [TestMethod]

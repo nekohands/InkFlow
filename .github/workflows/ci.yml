@@ -53,6 +53,8 @@ jobs:
           test "$consistency_status" = "401"
           source_health_status=$(curl --silent --output /tmp/source-health.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/sources/official-a/health)
           test "$source_health_status" = "401"
+          source_permissions_status=$(curl --silent --output /tmp/source-permissions.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/sources/official-a/permissions)
+          test "$source_permissions_status" = "401"
           operations_overview_status=$(curl --silent --output /tmp/operations-overview.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/operations/overview)
           test "$operations_overview_status" = "401"
           operations_alerts_status=$(curl --silent --output /tmp/operations-alerts.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/operations/alerts)

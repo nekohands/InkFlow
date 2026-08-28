@@ -115,6 +115,38 @@ public sealed class OperationsCenterTests
         Assert.IsFalse(serialized.Contains("sensitive exception", StringComparison.OrdinalIgnoreCase));
     }
 
+    [TestMethod]
+    public async Task ReadForSourcesAsync_Filters_Source_Health_To_Allowed_Resources()
+    {
+        var sourceA = Source.Create("official-a", "Official A", "https://official-a.example", T0);
+        var sourceB = Source.Create("official-b", "Official B", "https://official-b.example", T0);
+        var health = new FakeSourceHealthOperations();
+        health.Rows[sourceA.Id] =
+        [
+            SourceCapabilityHealth.Create(sourceA.Id, SourceCapability.Content, T0),
+        ];
+        health.Rows[sourceB.Id] =
+        [
+            SourceCapabilityHealth.Create(sourceB.Id, SourceCapability.Content, T0),
+        ];
+        var reader = new OperationsCenterReader(
+            new FakeSourceRepository([sourceA, sourceB]),
+            health,
+            new FakeCrawlerTaskRepository([]),
+            new FakeConsistencyCheckService(
+                new ConsistencyCheckReport(T0, "healthy", 0, 0, false, [])),
+            new FixedClock(T0));
+
+        var response = await reader.ReadForSourcesAsync(
+            limit: 10,
+            new HashSet<string>([sourceB.Id], StringComparer.Ordinal));
+
+        Assert.AreEqual("ready", response.Sources.Status);
+        Assert.AreEqual(1, response.Sources.Data!.Count);
+        Assert.AreEqual(sourceB.Id, response.Sources.Data[0].SourceId);
+        Assert.AreEqual(sourceB.Id, response.Sources.Data[0].Capabilities.Single().SourceId);
+    }
+
     private sealed class FakeSourceRepository(IReadOnlyList<Source> sources) : ISourceRepository
     {
         public Task AddAsync(Source source, CancellationToken cancellationToken = default) =>

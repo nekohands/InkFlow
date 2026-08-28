@@ -59,6 +59,11 @@ public interface IOperationsCenterReader
     Task<OperationsCenterResponse> ReadAsync(
         int limit,
         CancellationToken cancellationToken = default);
+
+    Task<OperationsCenterResponse> ReadForSourcesAsync(
+        int limit,
+        IReadOnlySet<string> allowedSourceIds,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class OperationsCenterReader(
@@ -75,8 +80,27 @@ public sealed class OperationsCenterReader(
         int limit,
         CancellationToken cancellationToken = default)
     {
+        return await ReadCoreAsync(limit, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<OperationsCenterResponse> ReadForSourcesAsync(
+        int limit,
+        IReadOnlySet<string> allowedSourceIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(allowedSourceIds);
+        return await ReadCoreAsync(limit, allowedSourceIds, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<OperationsCenterResponse> ReadCoreAsync(
+        int limit,
+        IReadOnlySet<string>? allowedSourceIds,
+        CancellationToken cancellationToken)
+    {
         var boundedLimit = Math.Clamp(limit, 1, MaxLimit);
-        var sources = await ReadSourcesAsync(cancellationToken).ConfigureAwait(false);
+        var sources = await ReadSourcesAsync(allowedSourceIds, cancellationToken)
+            .ConfigureAwait(false);
         var crawler = await ReadCrawlerAsync(boundedLimit, cancellationToken).ConfigureAwait(false);
         var consistencyReport = await ReadConsistencyAsync(cancellationToken).ConfigureAwait(false);
         var status = sources.Status == "ready" &&
@@ -94,6 +118,7 @@ public sealed class OperationsCenterReader(
     }
 
     private async Task<OperationsSection<IReadOnlyList<OperationsSourceView>>> ReadSourcesAsync(
+        IReadOnlySet<string>? allowedSourceIds,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<InkFlow.Modules.Sources.Domain.Source> sources;
@@ -107,8 +132,11 @@ public sealed class OperationsCenterReader(
                 .Unavailable("sources_unavailable");
         }
 
-        var views = new List<OperationsSourceView>(sources.Count);
-        foreach (var source in sources)
+        var visibleSources = allowedSourceIds is null
+            ? sources
+            : sources.Where(source => allowedSourceIds.Contains(source.Id)).ToList();
+        var views = new List<OperationsSourceView>(visibleSources.Count);
+        foreach (var source in visibleSources)
         {
             try
             {

@@ -189,6 +189,15 @@ public sealed class OperationsAlertTests
             RequestedLimit = limit;
             return Task.FromResult(response);
         }
+
+        public Task<OperationsCenterResponse> ReadForSourcesAsync(
+            int limit,
+            IReadOnlySet<string> allowedSourceIds,
+            CancellationToken cancellationToken = default)
+        {
+            RequestedLimit = limit;
+            return Task.FromResult(response);
+        }
     }
 
     private sealed class FixedRateLimitHealthReader(RateLimitStoreHealthSnapshot snapshot)

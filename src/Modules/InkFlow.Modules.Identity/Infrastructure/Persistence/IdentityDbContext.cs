@@ -11,6 +11,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<RefreshSessionEntity> Sessions => Set<RefreshSessionEntity>();
     public DbSet<AccessTokenEntity> AccessTokens => Set<AccessTokenEntity>();
     public DbSet<LegadoAccessTokenEntity> LegadoTokens => Set<LegadoAccessTokenEntity>();
+    public DbSet<PermissionGrantEntity> PermissionGrants => Set<PermissionGrantEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -72,6 +73,38 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             b.HasOne<UserEntity>()
                 .WithMany()
                 .HasForeignKey(token => token.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PermissionGrantEntity>(b =>
+        {
+            b.ToTable("permission_grants");
+            b.HasKey(grant => grant.Id);
+            b.Property(grant => grant.Permission).HasMaxLength(128).IsRequired();
+            b.Property(grant => grant.ResourceType).HasMaxLength(64).IsRequired();
+            b.Property(grant => grant.ResourceId).HasMaxLength(256).IsRequired();
+            b.Property(grant => grant.GrantedBy).IsRequired();
+            b.Property(grant => grant.GrantedAt).IsRequired();
+            b.HasIndex(grant => new
+            {
+                grant.UserId,
+                grant.ResourceType,
+                grant.ResourceId,
+                grant.Permission,
+                grant.RevokedAt,
+            });
+            b.HasIndex(grant => new
+                {
+                    grant.UserId,
+                    grant.ResourceType,
+                    grant.ResourceId,
+                    grant.Permission,
+                })
+                .IsUnique()
+                .HasFilter("\"RevokedAt\" IS NULL");
+            b.HasOne<UserEntity>()
+                .WithMany()
+                .HasForeignKey(grant => grant.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

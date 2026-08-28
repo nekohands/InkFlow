@@ -55,11 +55,14 @@ builder.Services.AddScoped<IAuditEventReader, EfAuditEventReader>();
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<IIdentitySessionRepository, EfIdentitySessionRepository>();
 builder.Services.AddScoped<ILegadoAccessTokenRepository, EfLegadoAccessTokenRepository>();
+builder.Services.AddScoped<IResourcePermissionRepository, EfResourcePermissionRepository>();
 builder.Services.AddSingleton(IdentityOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IOpaqueTokenGenerator, SecureOpaqueTokenGenerator>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<ILegadoAccessTokenService, LegadoAccessTokenService>();
+builder.Services.AddScoped<IResourcePermissionService, ResourcePermissionService>();
+builder.Services.AddScoped<IResourceAuthorizationService, ResourceAuthorizationService>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = IdentityAuthenticationDefaults.Scheme;
@@ -94,6 +97,9 @@ builder.Services.AddAuthorization(options =>
         policy => policy.RequireRole(
             UserRole.Operator.ToString(),
             UserRole.Administrator.ToString()));
+    options.AddPolicy(
+        IdentityPolicies.PermissionManagement,
+        policy => policy.RequireRole(UserRole.Administrator.ToString()));
     options.AddPolicy(
         IdentityPolicies.LegadoRead,
         policy => policy
@@ -550,23 +556,63 @@ operationsRead.MapGet("/consistency", async (
 
 operationsRead.MapGet("/operations/overview", async (
     int? limit,
+    ClaimsPrincipal principal,
     IOperationsCenterReader operations,
+    IResourceAuthorizationService authorization,
     CancellationToken ct) =>
 {
-    var snapshot = await operations.ReadAsync(
-        limit ?? OperationsCenterReader.DefaultLimit,
-        ct);
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var userId,
+            out var role))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var boundedLimit = limit ?? OperationsCenterReader.DefaultLimit;
+    var snapshot = role == UserRole.Administrator
+        ? await operations.ReadAsync(boundedLimit, ct).ConfigureAwait(false)
+        : await operations.ReadForSourcesAsync(
+                boundedLimit,
+                await authorization.ListAllowedResourceIdsAsync(
+                    userId,
+                    role,
+                    IdentityPermissions.SourceRead,
+                    IdentityResourceTypes.Source,
+                    ct).ConfigureAwait(false),
+                ct)
+            .ConfigureAwait(false);
     return Results.Ok(snapshot);
 });
 
 operationsRead.MapGet("/operations/alerts", async (
     int? limit,
+    ClaimsPrincipal principal,
     IOperationsAlertReader alerts,
+    IResourceAuthorizationService authorization,
     CancellationToken ct) =>
 {
-    var snapshot = await alerts.ReadAsync(
-        limit ?? OperationsAlertReader.DefaultLimit,
-        ct);
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var userId,
+            out var role))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var boundedLimit = limit ?? OperationsAlertReader.DefaultLimit;
+    var snapshot = role == UserRole.Administrator
+        ? await alerts.ReadAsync(boundedLimit, ct).ConfigureAwait(false)
+        : await alerts.ReadForSourcesAsync(
+                boundedLimit,
+                await authorization.ListAllowedResourceIdsAsync(
+                    userId,
+                    role,
+                    IdentityPermissions.SourceRead,
+                    IdentityResourceTypes.Source,
+                    ct).ConfigureAwait(false),
+                ct)
+            .ConfigureAwait(false);
     return Results.Ok(snapshot);
 });
 
@@ -618,8 +664,10 @@ var sourceOperationsRead = api.MapGroup("/admin/sources")
 
 sourceOperationsRead.MapGet("/{sourceId}/health", async (
     string sourceId,
+    ClaimsPrincipal principal,
     ISourceRepository sources,
     ISourceHealthOperations health,
+    IResourceAuthorizationService authorization,
     CancellationToken ct) =>
 {
     if (!SourceHealthEndpointResults.IsValidSourceId(sourceId))
@@ -630,6 +678,25 @@ sourceOperationsRead.MapGet("/{sourceId}/health", async (
     if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
     {
         return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var userId,
+            out var role))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    if (!await authorization.CanAccessAsync(
+            userId,
+            role,
+            IdentityPermissions.SourceRead,
+            IdentityResourceTypes.Source,
+            sourceId,
+            ct).ConfigureAwait(false))
+    {
+        return (IResult)Results.Forbid();
     }
 
     var rows = await health.ListForSourceAsync(sourceId, ct).ConfigureAwait(false);
@@ -646,15 +713,20 @@ sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/disable", async (
     ClaimsPrincipal principal,
     ISourceRepository sources,
     ISourceHealthOperations health,
+    IResourceAuthorizationService authorization,
     HttpContext httpContext,
     IAuditEventSink auditSink,
     TimeProvider clock,
     CancellationToken ct) =>
 {
-    if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var actorUserId,
+            out var actorRole))
     {
         return (IResult)Results.Unauthorized();
     }
+    var actorId = actorUserId.ToString("D");
 
     if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
         !SourceHealthEndpointResults.TryParseCapability(rawCapability, out var capability) ||
@@ -667,6 +739,17 @@ sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/disable", async (
     if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
     {
         return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    if (!await authorization.CanAccessAsync(
+            actorUserId,
+            actorRole,
+            IdentityPermissions.SourceManage,
+            IdentityResourceTypes.Source,
+            sourceId,
+            ct).ConfigureAwait(false))
+    {
+        return (IResult)Results.Forbid();
     }
 
     var updated = await health.DisableAsync(sourceId, capability, reason, ct).ConfigureAwait(false);
@@ -688,15 +771,20 @@ sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/enable", async (
     ClaimsPrincipal principal,
     ISourceRepository sources,
     ISourceHealthOperations health,
+    IResourceAuthorizationService authorization,
     HttpContext httpContext,
     IAuditEventSink auditSink,
     TimeProvider clock,
     CancellationToken ct) =>
 {
-    if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var actorUserId,
+            out var actorRole))
     {
         return (IResult)Results.Unauthorized();
     }
+    var actorId = actorUserId.ToString("D");
 
     if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
         !SourceHealthEndpointResults.TryParseCapability(rawCapability, out var capability) ||
@@ -711,10 +799,169 @@ sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/enable", async (
         return (IResult)Results.NotFound(new { error = "source_not_found" });
     }
 
+    if (!await authorization.CanAccessAsync(
+            actorUserId,
+            actorRole,
+            IdentityPermissions.SourceManage,
+            IdentityResourceTypes.Source,
+            sourceId,
+            ct).ConfigureAwait(false))
+    {
+        return (IResult)Results.Forbid();
+    }
+
     var updated = await health.EnableAsync(sourceId, capability, ct).ConfigureAwait(false);
     return SourceHealthEndpointResults.Command(
         updated,
         SourceHealthCommandAction.Enable,
+        actorId,
+        reason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
+var sourcePermissionManagement = api.MapGroup("/admin/sources")
+    .RequireAuthorization(IdentityPolicies.PermissionManagement);
+
+sourcePermissionManagement.MapGet("/{sourceId}/permissions", async (
+    string sourceId,
+    int? limit,
+    ClaimsPrincipal principal,
+    ISourceRepository sources,
+    IResourcePermissionService permissions,
+    CancellationToken ct) =>
+{
+    if (!SourceHealthEndpointResults.IsValidSourceId(sourceId))
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_source_id" });
+    }
+
+    if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+    {
+        return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var actorId,
+            out var actorRole))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var result = await permissions.ListAsync(
+        actorId,
+        actorRole,
+        IdentityResourceTypes.Source,
+        sourceId,
+        limit ?? ResourcePermissionService.MaxListLimit,
+        ct).ConfigureAwait(false);
+    return result.Status switch
+    {
+        ResourcePermissionListStatus.Success =>
+            Results.Ok(result.Grants),
+        ResourcePermissionListStatus.ActorNotAllowed =>
+            Results.Forbid(),
+        _ => Results.BadRequest(new { error = "invalid_permission_request" }),
+    };
+});
+
+sourcePermissionManagement.MapPost("/{sourceId}/permissions", async (
+    string sourceId,
+    SourcePermissionGrantRequest? request,
+    ClaimsPrincipal principal,
+    ISourceRepository sources,
+    IResourcePermissionService permissions,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+        request is null ||
+        !ResourcePermissionEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_permission_request" });
+    }
+
+    if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+    {
+        return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var actorId,
+            out var actorRole))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var result = await permissions.GrantAsync(
+        actorId,
+        actorRole,
+        request.UserId,
+        IdentityResourceTypes.Source,
+        sourceId,
+        request.Permission,
+        ct).ConfigureAwait(false);
+    return ResourcePermissionEndpointResults.AuditedOperation(
+        result,
+        "identity.resource_permission.grant",
+        sourceId,
+        actorId,
+        reason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
+sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", async (
+    string sourceId,
+    Guid grantId,
+    SourcePermissionRevokeRequest? request,
+    ClaimsPrincipal principal,
+    ISourceRepository sources,
+    IResourcePermissionService permissions,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+        request is null ||
+        !ResourcePermissionEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_permission_request" });
+    }
+
+    if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+    {
+        return (IResult)Results.NotFound(new { error = "source_not_found" });
+    }
+
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var actorId,
+            out var actorRole))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var result = await permissions.RevokeAsync(
+        actorId,
+        actorRole,
+        grantId,
+        IdentityResourceTypes.Source,
+        sourceId,
+        ct).ConfigureAwait(false);
+    return ResourcePermissionEndpointResults.AuditedOperation(
+        result,
+        "identity.resource_permission.revoke",
+        sourceId,
         actorId,
         reason,
         httpContext,

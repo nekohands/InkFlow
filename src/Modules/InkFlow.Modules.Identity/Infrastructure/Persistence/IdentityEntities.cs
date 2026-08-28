@@ -51,3 +51,15 @@ public sealed class LegadoAccessTokenEntity
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
 }
+
+public sealed class PermissionGrantEntity
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string Permission { get; set; } = null!;
+    public string ResourceType { get; set; } = null!;
+    public string ResourceId { get; set; } = null!;
+    public Guid GrantedBy { get; set; }
+    public DateTimeOffset GrantedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}

@@ -112,6 +112,11 @@ public interface IOperationsAlertReader
     Task<OperationsAlertSnapshot> ReadAsync(
         int limit,
         CancellationToken cancellationToken = default);
+
+    Task<OperationsAlertSnapshot> ReadForSourcesAsync(
+        int limit,
+        IReadOnlySet<string> allowedSourceIds,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -132,10 +137,33 @@ public sealed class OperationsAlertReader(
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var boundedLimit = Math.Clamp(limit, 1, _options.MaxReturnedAlerts);
-        var operationsSnapshot = await operations
-            .ReadAsync(OperationsCenterReader.MaxLimit, cancellationToken)
+        return await ReadCoreAsync(limit, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<OperationsAlertSnapshot> ReadForSourcesAsync(
+        int limit,
+        IReadOnlySet<string> allowedSourceIds,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(allowedSourceIds);
+        return await ReadCoreAsync(limit, allowedSourceIds, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    private async Task<OperationsAlertSnapshot> ReadCoreAsync(
+        int limit,
+        IReadOnlySet<string>? allowedSourceIds,
+        CancellationToken cancellationToken)
+    {
+        var boundedLimit = Math.Clamp(limit, 1, _options.MaxReturnedAlerts);
+        var operationsSnapshot = allowedSourceIds is null
+            ? await operations.ReadAsync(OperationsCenterReader.MaxLimit, cancellationToken)
+                .ConfigureAwait(false)
+            : await operations.ReadForSourcesAsync(
+                    OperationsCenterReader.MaxLimit,
+                    allowedSourceIds,
+                    cancellationToken)
+                .ConfigureAwait(false);
         var alerts = OperationsAlertEvaluator.Evaluate(
             operationsSnapshot,
             rateLimitHealth.GetSnapshot(),
