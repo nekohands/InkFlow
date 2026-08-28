@@ -518,7 +518,7 @@ Phase 0 开发过程中真实发现并修复：
 - 实现：Persistence BuildingBlock 新增 `IAuditEventReader` / `EfAuditEventReader`，只读使用 `AsNoTracking`、精确过滤、最多 `limit + 1` 取数和 `(OccurredAt, Id)` 稳定游标；API 新增 `GET /api/v1/admin/audit/events`，使用独立 `AuditRead` policy（`Operator` / `Administrator`），默认 50、最多 100 条，支持 `from`、`to`、`action`、`outcome`、`actorId`、`cursor`，异常映射为 `audit_unavailable`。
 - 安全边界：游标为不透明 Base64Url 值并重新校验时间戳/事件 ID；过滤器拒绝控制字符和超长输入；读端没有 CRUD 更新/删除能力，数据库追加式触发器仍是最终不可篡改边界。
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 263/263、Architecture 1/1、Contract 2/2 PASS。API `/health` 200，未认证审计查询返回 401；本机完整 Integration 49 项为 6 通过、42 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过，不记为本机集成通过。远端 CI `33128764947` GREEN（Restore/Build/Test：48 通过、1 跳过，Compose/Runtime smoke/Diagnostics 全部通过），Docker `33128764869` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
-- 边界：本轮未使用 Operator/Administrator 凭证执行审计查询人工验收；资源级授权、保留/清理策略、告警路由和真实运维演练仍待后续工作包，不能据此宣称 Security/Operations Release Gate 完整关闭。
+- 边界：本轮未使用 Operator/Administrator 凭证执行审计查询和来源授权人工验收；组织/更广泛资源权限、保留/清理策略、告警路由和真实运维演练仍待后续工作包，不能据此宣称 Security/Operations Release Gate 完整关闭。
 
 **PostgreSQL Backup/Restore Drill v1（本轮，2026-08-28）**：
 
@@ -553,6 +553,16 @@ Phase 0 开发过程中真实发现并修复：
 - 发布保护：`.github/workflows/docker.yml` 先构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描，全部通过后才推送所有镜像标签。
 - 远端验收：提交 `f58599b` 的 CI `33134804300` **GREEN**，Security `33134804292` 的 Source SBOM、Filesystem security scan、NuGet dependency audit 和 CodeQL SAST 全部通过，Docker `33134804238` **GREEN**（四镜像均完成发布前扫描与发布）。
 - 边界：本轮不宣称生产镜像准入、扫描报告长期保留、Secret 轮换、动作版本治理或部署环境策略已完成；`ignore-unfixed` 仅使不可修复漏洞不阻塞当前基线。真实来源、真机/阅读 3.0 和人工验收继续按第 6 节待定清单执行。
+
+**Resource-level Source Authorization v1（本轮，2026-08-28）**：
+
+- 缺口：原有 `OperationsRead` / `SourceOperations` 只能表达 Operator/Administrator 的平台级角色边界，无法限制 Operator 只能读取或控制被明确授权的来源，也缺少授权变更的可追溯管理入口。
+- 实现：Identity 新增 `PermissionGrant` 聚合、`permission_grants` 表及官方 EF Migration；新增管理员专用的来源授权列表/授予/撤销 API。授权仅面向 active Operator，支持 `source.read` 与 `source.manage`，active `source.manage` 隐含 `source.read`；撤销保留历史，active grant 由部分唯一索引保证幂等。
+- 接入边界：直接来源健康查询、来源能力停用/恢复，以及 Operations overview/alerts 中的来源健康区块均执行来源级授权；Administrator 绕过授权。Crawler 与 consistency 区块在 v1 仍按现有 `OperationsRead` 作为平台级视图，不伪装成来源级过滤；组织、租户、计费和通用私有资源权限不在本轮范围。
+- 审计/安全：授权授予、撤销和拒绝结果记录认证操作者、来源、理由、结果和资源 reference；输入理由有界并拒绝控制字符，响应不返回密钥、凭据或正文。匿名、Reader 以及没有对应 active grant 的 Operator 均不能读取或管理目标来源。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 279/279、Architecture 1/1、Contract 3/3 PASS。完整 Integration 51 项中 6 通过、43 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过，不记为本机集成通过；本轮未执行带凭据的本地 Runtime/人工验收。
+- 远端验收：修复后的提交 `a663cef` 的 CI `33137358470`、Docker `33137358485`、Security `33137358428` 均 **GREEN**；CI 含 Runtime smoke、Redis 分布式限流集成、PostgreSQL 备份恢复演练和 Diagnostics，Docker 完成四镜像发布前扫描，Security 的 NuGet、SBOM、Trivy 和 CodeQL 全部通过。
+- 边界：本轮完成来源级授权机制和自动化验证，但 MuMu/阅读 3.0、真实来源/故障切换、Operations/授权凭据人工验收仍按第 6 节待定；更广泛资源、组织/租户权限治理和审计保留策略仍未完成。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -636,6 +646,7 @@ Official Source
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
+- [ ] **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块按来源过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未使用真实凭据操作。
 - [ ] **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询 200、Reader/匿名请求 401/403、时间范围/精确过滤/游标翻页、空结果和服务不可用时的稳定错误；确认响应不暴露秘密或正文，并保留截图/请求证据。本轮只完成自动化基线。
 
 ### 6.2 需要可用环境复验
@@ -648,7 +659,7 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Operations 已提供 Redis/来源健康/死信/一致性告警快照与配置化阈值。动态用户/组织配额、加权成本、外部告警路由、资源级授权、权限管理与审计保留策略仍待后续 Operations/Identity 工作包。
+- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Operations 已提供 Redis/来源健康/死信/一致性告警快照与配置化阈值；来源级授权 v1 已落地并接入来源查询/控制及授权审计。动态用户/组织配额、加权成本、组织/更广泛资源权限治理、外部告警路由和审计保留策略仍待后续 Operations/Identity 工作包。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
@@ -658,7 +669,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有五项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Operations Center 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Admin Audit Read 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
