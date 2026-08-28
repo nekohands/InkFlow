@@ -29,3 +29,15 @@ _Avoid_: accepting an owner identifier from request payloads or route parameters
 **Reading Shelf Entry**: a User-scoped reading-state record that points at a public Canonical Book; it is not a private book record.
 
 _Avoid_: using the Reading Shelf as a second storage location for private-library metadata.
+
+**Private Chapter**: an ordered chapter owned by one Private Book and identified by an independent PrivateChapterId; its text belongs only to that book's owner.
+
+_Avoid_: exposing a Private Chapter as a public ChapterId or treating its text as a Canonical ContentVersion.
+
+**Private Content Document**: the normalized paragraph sequence stored for a Private Chapter and used by private reading and export formats.
+
+_Avoid_: storing raw uploaded HTML/EPUB markup as the private reading document or assuming an exported file is a public content source.
+
+**Import Snapshot**: a newly created Private Book and its immutable imported chapters produced by one accepted TXT or EPUB file.
+
+_Avoid_: silently overwriting an existing Private Book when a file is imported again.

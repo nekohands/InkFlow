@@ -31,4 +31,17 @@ public sealed class PrivateLibraryEndpointTests
 
         Assert.AreEqual(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
     }
+
+    [TestMethod]
+    public void Oversized_Import_Is_Mapped_To_Payload_Too_Large()
+    {
+        var result = PrivateLibraryEndpointResults.FromContentOperation(
+            new InkFlow.Modules.Library.Application.PrivateLibraryOperationResult<string>(
+                InkFlow.Modules.Library.Application.PrivateLibraryResultStatus.FileTooLarge,
+                null));
+
+        Assert.AreEqual(
+            StatusCodes.Status413PayloadTooLarge,
+            ((IStatusCodeHttpResult)result).StatusCode);
+    }
 }

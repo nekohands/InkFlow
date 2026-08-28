@@ -124,6 +124,8 @@ builder.Services.AddDbContext<InkFlow.Modules.Sources.Infrastructure.Persistence
 builder.Services.AddScoped<ICanonicalBookRepository, EfCanonicalBookRepository>();
 builder.Services.AddScoped<IPrivateBookRepository, EfPrivateBookRepository>();
 builder.Services.AddScoped<IPrivateLibraryService, PrivateLibraryService>();
+builder.Services.AddScoped<IPrivateBookImportParser, PrivateBookImportParser>();
+builder.Services.AddScoped<IPrivateLibraryContentService, PrivateLibraryContentService>();
 builder.Services.AddScoped<IMatchCandidateRepository, InkFlow.Modules.Library.Infrastructure.Persistence.EfMatchCandidateRepository>();
 builder.Services.AddScoped<ISourceRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceRepository>();
 builder.Services.AddScoped<ISourceBookRepository, InkFlow.Modules.Sources.Infrastructure.Persistence.EfSourceBookRepository>();

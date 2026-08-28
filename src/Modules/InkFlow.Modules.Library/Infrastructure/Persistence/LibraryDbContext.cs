@@ -1,4 +1,5 @@
 using InkFlow.BuildingBlocks.Persistence;
+using InkFlow.Modules.Library.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace InkFlow.Modules.Library.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
     public DbSet<CanonicalBookEntity> Books => Set<CanonicalBookEntity>();
     public DbSet<CanonicalChapterEntity> Chapters => Set<CanonicalChapterEntity>();
     public DbSet<PrivateBookEntity> PrivateBooks => Set<PrivateBookEntity>();
+    public DbSet<PrivateChapterEntity> PrivateChapters => Set<PrivateChapterEntity>();
     public DbSet<MatchCandidateEntity> MatchCandidates => Set<MatchCandidateEntity>();
     public DbSet<ChapterMappingEntity> ChapterMappings => Set<ChapterMappingEntity>();
 
@@ -51,6 +53,22 @@ public sealed class LibraryDbContext(DbContextOptions<LibraryDbContext> options)
             b.Property(x => x.Author).HasMaxLength(256);
             // 私有书目必须按所有者过滤；Id 本身不赋予跨用户访问权。
             b.HasIndex(x => new { x.UserId, x.CreatedAt, x.Id });
+        });
+
+        modelBuilder.Entity<PrivateChapterEntity>(b =>
+        {
+            b.ToTable("private_chapters");
+            b.HasKey(x => new { x.UserId, x.Id });
+            b.Property(x => x.Title).HasMaxLength(PrivateChapter.MaxTitleLength).IsRequired();
+            b.Property(x => x.ContentText).IsRequired();
+            b.Property(x => x.ContentHash).HasMaxLength(64).IsRequired();
+            b.Property(x => x.ParagraphCount).IsRequired();
+            b.HasIndex(x => new { x.UserId, x.PrivateBookId, x.ChapterIndex }).IsUnique();
+            b.HasOne<PrivateBookEntity>()
+                .WithMany()
+                .HasForeignKey(x => new { x.UserId, x.PrivateBookId })
+                .HasPrincipalKey(x => new { x.UserId, x.Id })
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<MatchCandidateEntity>(b =>

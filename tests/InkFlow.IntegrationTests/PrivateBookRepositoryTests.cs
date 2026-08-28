@@ -39,6 +39,7 @@ public sealed class PrivateBookRepositoryTests
             .ConfigureAwait(false);
 
         CollectionAssert.Contains(tables.ToList(), "private_books");
+        CollectionAssert.Contains(tables.ToList(), "private_chapters");
         Assert.IsFalse((await db.Database.GetPendingMigrationsAsync().ConfigureAwait(false)).Any());
     }
 
@@ -81,6 +82,39 @@ public sealed class PrivateBookRepositoryTests
         Assert.IsFalse(await repository.DeleteAsync(userB, book.Id).ConfigureAwait(false));
         Assert.IsTrue(await repository.DeleteAsync(userA, book.Id).ConfigureAwait(false));
         Assert.IsNull(await repository.GetAsync(userA, book.Id).ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task Imported_Chapters_Roundtrip_And_Require_Book_Owner()
+    {
+        await using var db = CreateDb();
+        var repository = new EfPrivateBookRepository(db);
+        var userA = Guid.CreateVersion7();
+        var userB = Guid.CreateVersion7();
+        var book = PrivateBook.Create(userA, "导入书", "作者", T0);
+        var chapter = PrivateChapter.Create(
+            userA,
+            book.Id,
+            0,
+            "第一章",
+            PrivateContentDocument.FromParagraphs(["第一段", "第二段"]),
+            T0);
+
+        await repository.AddWithChaptersAsync(book, [chapter]).ConfigureAwait(false);
+
+        var chapters = await repository
+            .ListChaptersAsync(userA, book.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, chapters.Count);
+        Assert.AreEqual("第一段\n\n第二段", chapters[0].ContentText);
+        Assert.IsNull(await repository
+            .GetChapterAsync(userB, book.Id, chapter.Id)
+            .ConfigureAwait(false));
+
+        Assert.IsTrue(await repository.DeleteAsync(userA, book.Id).ConfigureAwait(false));
+        Assert.AreEqual(0, (await repository
+            .ListChaptersAsync(userA, book.Id)
+            .ConfigureAwait(false)).Count);
     }
 
     private static LibraryDbContext CreateDb()

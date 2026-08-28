@@ -37,6 +37,8 @@ Resource-level Source Authorization v1 adds an explicit active grant boundary fo
 
 Private/organization content additionally enforces ownership/resource policy.
 
+Private Library content uses a separate user-scoped delivery path. TXT/EPUB imports are bounded by upload, archive-entry, decompressed-size, chapter-count and normalized-text limits; EPUB paths are validated without extracting files, XML DTD/external resolution is disabled, and imported markup is reduced to plain paragraphs. Private chapter and export responses use `private, no-store` cache semantics, and export generation never publishes a private file through public catalog, Legado, CDN or shared content paths.
+
 Reading State v1 is private user data. The `/api/v1/me/reading/*` endpoints require an authenticated opaque bearer token and derive the owner only from the verified `sub` claim; callers cannot select another `UserId` through the route or request body. Reading tables use user-scoped composite keys, and the application repository requires `UserId` on every read/write. Book, chapter and Content Policy checks still apply before writing progress, shelf or history. UI-level export/delete and richer resource permissions remain future work; Personal Legado Token scoping is defined above and is independently enforced by the dedicated Legado scheme/policy.
 
 ## 4. Community Source Threat Boundary

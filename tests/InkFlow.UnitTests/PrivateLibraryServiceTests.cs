@@ -71,6 +71,7 @@ public sealed class PrivateLibraryServiceTests
     private sealed class InMemoryPrivateBookRepository : IPrivateBookRepository
     {
         private readonly Dictionary<(Guid UserId, Guid BookId), PrivateBook> _books = [];
+        private readonly Dictionary<(Guid UserId, Guid BookId, Guid ChapterId), PrivateChapter> _chapters = [];
 
         public Guid LastReadUserId { get; private set; }
 
@@ -123,7 +124,54 @@ public sealed class PrivateLibraryServiceTests
             CancellationToken cancellationToken = default)
         {
             LastReadUserId = userId;
-            return Task.FromResult(_books.Remove((userId, privateBookId)));
+            var removed = _books.Remove((userId, privateBookId));
+            foreach (var key in _chapters.Keys
+                         .Where(key => key.UserId == userId && key.BookId == privateBookId)
+                         .ToList())
+            {
+                _chapters.Remove(key);
+            }
+
+            return Task.FromResult(removed);
+        }
+
+        public Task AddWithChaptersAsync(
+            PrivateBook book,
+            IReadOnlyCollection<PrivateChapter> chapters,
+            CancellationToken cancellationToken = default)
+        {
+            _books[(book.UserId, book.Id)] = book;
+            foreach (var chapter in chapters)
+            {
+                _chapters[(chapter.UserId, chapter.PrivateBookId, chapter.Id)] = chapter;
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<PrivateChapter>> ListChaptersAsync(
+            Guid userId,
+            Guid privateBookId,
+            CancellationToken cancellationToken = default)
+        {
+            LastReadUserId = userId;
+            IReadOnlyList<PrivateChapter> result = _chapters
+                .Where(pair => pair.Key.UserId == userId && pair.Key.BookId == privateBookId)
+                .Select(pair => pair.Value)
+                .OrderBy(chapter => chapter.Index)
+                .ToList();
+            return Task.FromResult(result);
+        }
+
+        public Task<PrivateChapter?> GetChapterAsync(
+            Guid userId,
+            Guid privateBookId,
+            Guid privateChapterId,
+            CancellationToken cancellationToken = default)
+        {
+            LastReadUserId = userId;
+            _chapters.TryGetValue((userId, privateBookId, privateChapterId), out var chapter);
+            return Task.FromResult(chapter);
         }
     }
 }

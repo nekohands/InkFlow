@@ -56,7 +56,7 @@ Phase 1 先使用章节号、标准化标题和序列上下文；Phase 2 再加�
 
 Private Book 是绑定单一 UserId 的用户私有书目元数据，使用独立的 PrivateBookId，不进入 CanonicalBook、公共搜索、Legado、Source Match 或公共 Reading Shelf。所有读取和变更都以认证主体为范围；私有书目缺失与非所有者访问统一返回未找到。
 
-当前 v1 只提供书目元数据 CRUD。私有正文、TXT/EPUB 导入导出、恢复策略和将私有内容发布为公共 Canonical 内容，需在保持该边界的前提下另行设计。
+当前 v1 提供书目元数据 CRUD；本轮补充私有 `PrivateChapter` 和规范化段落正文。TXT/EPUB 导入会原子创建新的私有书籍快照，导出只从用户范围的私有数据生成，不覆盖既有书籍，也不进入公共 Canonical 内容、搜索、Legado 或公共 Reading Shelf；正文编辑、版本恢复和发布为公共内容仍需另行设计。
 
 ## 4. Content Pipeline
 
