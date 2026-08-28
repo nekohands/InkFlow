@@ -72,7 +72,7 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1 与 Reader/PWA 用户状态 v1 已接入，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
+**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1 书目元数据基础已接入，私有正文/导入导出仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数、受保护的 Operations 告警快照与阈值基线，以及来源级资源授权 v1。授权管理、来源过滤和撤销审计已接入；外部通知路由、告警历史/去重和更完整的组织/资源权限治理仍待后续工作包。
 
@@ -240,6 +240,7 @@ CI: GREEN (Run 32821162412)
 - API：新增受保护的 `GET/POST/GET/{id}/PUT/{id}/DELETE/{id} /api/v1/me/private-library/books`，覆盖书名与可选作者元数据 CRUD；输入有界，删除为当前无正文阶段的所有者直接删除。
 - 边界：本轮不进入 Canonical、公共搜索、Legado、Content Policy 或公共 Reading Shelf；TXT/EPUB 导入、私有正文/章节、导出恢复、浏览器 UI 和人工验收另行处理。
 - 当前证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 289/289、Architecture 1/1、Contract 5/5 PASS。全量 Integration 54 项中 6 通过、46 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；新增 PostgreSQL 集成用例已编译并实际尝试但未取得容器证据。API `/health` 200；受限私有路由命中匿名认证门控，但本机 Redis/PostgreSQL 不可用，未宣称完整端到端 Runtime 通过。
+- 远端证据：提交 `204c651` 的 CI `33150804876`、Docker `33150804885`、Security `33150804900` 均 GREEN；CI 的 Restore/Build/Test、Compose、Runtime smoke、Redis 限流、PostgreSQL 备份恢复和 Runtime diagnostics，Docker 的四镜像构建/扫描，以及 Security 的 NuGet、Trivy、CodeQL 和 SBOM 均通过。
 - 验收边界：按用户决定不执行 MuMu/阅读 3.0、真实来源/切源、真实追更和人工操作；Private Library 的真实账户、跨用户隔离、公共路径不泄漏和删除语义仍列入待定事项。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。

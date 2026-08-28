@@ -581,6 +581,7 @@ Phase 0 开发过程中真实发现并修复：
 - 边界：本轮不把私有书目写入 Canonical、公共搜索、Legado、Content Policy 或公共 Reading Shelf；TXT/EPUB 导入、私有正文/章节、导出恢复、浏览器 UI 和人工验收另行处理。领域词汇见根目录 `CONTEXT.md`，边界决策见 ADR 0007。
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 289/289、Architecture 1/1、Contract 5/5 PASS。全量 Integration 54 项中 6 通过、46 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；新增 PrivateBook PostgreSQL 集成 3 项已编译并实际尝试，未获得容器执行证据。
 - Runtime：API `/health` 200；私有书库路由已注册并命中匿名认证门控，但本机 Redis/PostgreSQL 不可用导致受限请求等待/审计失败，未宣称完整端到端 Runtime 通过。
+- 远端验收：提交 `204c651` 的 CI `33150804876`、Docker `33150804885`、Security `33150804900` 均 **GREEN**；CI 实际通过 Restore/Build/Test、Compose、Runtime smoke、Redis 限流、PostgreSQL 备份恢复和 Runtime diagnostics，Docker 完成四镜像构建/扫描，Security 完成 NuGet、Trivy、CodeQL 和 SBOM。
 - 验收边界：本轮按用户决定不执行 MuMu/阅读 3.0、真实来源/切源、真实追更和人工操作；Private Library API 的登录、跨用户隔离、创建/更新/删除及不进入公共路径仍列入第 6 节人工验收。
 
 ## 5. Phase 1A 核心验收链路
@@ -689,7 +690,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library 元数据自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 仍需以本轮候选提交的实际结果确认；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library 元数据自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已取得本轮提交 `204c651` 的实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
