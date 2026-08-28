@@ -163,6 +163,12 @@ Web Reader 入口:`http://<主机>:8080/reader`。Legado 书源:`http://<主机>
 
 CI 在 Runtime smoke 产生审计数据后执行 `scripts/backup-restore-drill.sh`：以 custom format 导出当前 PostgreSQL，恢复到隔离数据库，并比较所有非系统表的行数签名及 `audit.events` 数量。也可在已启动源码 Compose 且数据库中已有审计事件时手动运行；该演练验证恢复可用性，不替代生产异地备份、保留策略或 RPO/RTO 演练。
 
+### CI 安全扫描基线
+
+`.github/workflows/security.yml` 在 `main` / `dev` 的 push 和 Pull Request 上执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞与 Secret/Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM，并将审计、扫描、SAST 与 SBOM 报告作为构建产物保留。当前仓库未启用 GitHub Code Scanning API，因此 CodeQL/Trivy 结果不上传到代码扫描面板，而以可下载报告作为证据。
+
+`.github/workflows/docker.yml` 会先构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描；全部通过后才推送各镜像标签。该基线不替代生产镜像准入、报告保留、Secret 轮换和部署环境策略治理。
+
 ### 生产注意事项
 
 - 通过反向代理(Nginx/Caddy)提供 HTTPS,api 容器只暴露给内网;

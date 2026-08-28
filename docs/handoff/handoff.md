@@ -72,7 +72,7 @@ CI: GREEN (Run 32821162412)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1 与 Reader/PWA 用户状态 v1 已接入，公开修复中心仍待后续安全/运维工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
+**当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1 与 Reader/PWA 用户状态 v1 已接入，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；生产安全治理、资源级授权、外部告警路由和备份治理仍待后续工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数，并新增受保护的 Operations 告警快照与阈值基线；查询/资源授权、外部通知路由、告警历史/去重和更完整的权限治理仍待后续工作包。
 
@@ -207,6 +207,14 @@ CI: GREEN (Run 32821162412)
 - 当前验证：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 272/272、Architecture 1/1、Contract 3/3 PASS。完整 Integration 50 项中 6 通过、42 项因本机 Docker Engine 不可用而 BLOCKED、2 项按环境跳过。提交 `7e03def` 的远端 CI `33132755108` GREEN（Unit 272/272、Architecture 1/1、Contract 3/3、Integration 48 通过/2 跳过，Runtime smoke、Redis 1/1、备份恢复和 Diagnostics 均通过）；Docker `33132755124` GREEN（四镜像）。
 - 边界：外部通知路由、告警历史/去重、保留策略、生产渠道与 RPO/RTO 关联仍未实现；本轮不执行 MuMu/阅读 3.0、真实来源、真实切源和人工验收。
 
+### 4.29 CI Security Scan 基线 v1（本轮，2026-08-28）
+
+- 缺口：1.0 要求依赖漏洞、Secret、SAST、容器扫描和 SBOM 证据，但此前没有独立安全扫描工作流，也没有发布前镜像阻断。
+- 实现：新增 `.github/workflows/security.yml`，执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞、Secret 与 Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM；审计、Trivy、CodeQL 和 SBOM 结果作为工作流产物保留。由于仓库未启用 GitHub Code Scanning API，结果不上传到代码扫描面板。
+- 发布保护：`.github/workflows/docker.yml` 先构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描，全部通过后才推送所有镜像标签。
+- 远端证据：`f58599b` 的 CI `33134804300`、Security `33134804292`、Docker `33134804238` 均完成且通过；CodeQL、NuGet、Trivy、SBOM、Runtime smoke、Redis 限流、备份恢复、Diagnostics 和四镜像发布前扫描均有成功作业证据。后续文档提交会再次触发同一组 CI/Security/Docker 验证。
+- 边界：`ignore-unfixed` 使不可修复漏洞不阻塞当前基线；生产镜像准入、扫描报告长期保留、Secret 轮换、动作版本治理、资源级授权和外部告警仍未完成。真实来源、阅读 3.0、MuMu、真机和人工验收继续按待定清单执行。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -250,6 +258,7 @@ CI: GREEN (Run 32821162412)
 ✅ PostgreSQL Backup/Restore Drill v1：custom-format dump/restore + 隔离库全表行数签名校验（`29c2c5f`，CI `33129734525` / Docker `33129734604` 均 GREEN）
 ✅ Redis Distributed Rate Limit v1：Redis Lua 原子 fixed-window + 独立连接集成验证 + 有界本地降级（`2bace7d`，CI `33131258779` / Docker `33131258754` 均 GREEN）
 ✅ Operations Alert Snapshot v1：来源健康/死信/一致性/Redis 告警快照 + 配置化阈值 + OperationsRead 保护（本工作包）
+✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收

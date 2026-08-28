@@ -546,6 +546,14 @@ Phase 0 开发过程中真实发现并修复：
 - 远端验收：提交 `7e03def` 的 CI `33132755108` **GREEN**；Test 分项目为 Unit 272/272、Architecture 1/1、Contract 3/3、Integration 50 项中 48 通过/2 跳过；Runtime smoke、Redis distributed rate-limit integration（真实 Redis 1/1）和 PostgreSQL backup/restore（`archive=49249 bytes, audit_events=24`）全部通过。Docker `33132755124` **GREEN**（API、Migrations、Scheduler、Worker 四镜像）。
 - 工作包状态：告警快照和阈值治理基线已完成；外部通知路由、历史/去重、保留策略、生产告警渠道和完整人工 Operations 验收仍待后续 1.0 Operations Gate。
 
+**CI Security Scan 基线 v1（本轮，2026-08-28）**：
+
+- 缺口：1.0 已要求依赖漏洞、Secret、SAST、容器扫描和 SBOM 证据，但此前只有构建/测试/Compose 验证，没有独立的安全扫描工作流，也没有发布前镜像阻断。
+- 实现：新增 `.github/workflows/security.yml`，执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞、Secret 与 Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM；审计结果、Trivy SARIF、CodeQL 结果和 SBOM 均作为工作流产物保留。由于仓库未启用 GitHub Code Scanning API，结果不上传到代码扫描面板。
+- 发布保护：`.github/workflows/docker.yml` 先构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描，全部通过后才推送所有镜像标签。
+- 远端验收：提交 `f58599b` 的 CI `33134804300` **GREEN**，Security `33134804292` 的 Source SBOM、Filesystem security scan、NuGet dependency audit 和 CodeQL SAST 全部通过，Docker `33134804238` **GREEN**（四镜像均完成发布前扫描与发布）。
+- 边界：本轮不宣称生产镜像准入、扫描报告长期保留、Secret 轮换、动作版本治理或部署环境策略已完成；`ignore-unfixed` 仅使不可修复漏洞不阻塞当前基线。真实来源、真机/阅读 3.0 和人工验收继续按第 6 节待定清单执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -641,6 +649,7 @@ Official Source
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
 - API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Operations 已提供 Redis/来源健康/死信/一致性告警快照与配置化阈值。动态用户/组织配额、加权成本、外部告警路由、资源级授权、权限管理与审计保留策略仍待后续 Operations/Identity 工作包。
+- CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照与阈值基线已落地，外部告警路由、历史/去重、保留策略和完整运维闭环仍待后续 Operations/Crawling 工作包。
@@ -649,7 +658,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有五项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Operations Center 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Admin Audit Read 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
+当前仍有五项验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Operations Center 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Admin Audit Read 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已有实际绿灯证据；这些人工/环境限制仍属于整体 Release Gate，不改变已通过的自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
