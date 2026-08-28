@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Security/InkFlow.BuildingBlocks.Security.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Observability/InkFlow.BuildingBlocks.Observability.csproj" />

@@ -183,6 +183,14 @@ jobs:
             exit 1
           }
 
+      - name: Redis distributed rate-limit integration
+        env:
+          INKFLOW_REDIS_CONNECTION: "localhost:6379,abortConnect=false"
+        run: >-
+          dotnet test tests/InkFlow.IntegrationTests/InkFlow.IntegrationTests.csproj
+          --configuration Release --no-build --verbosity normal
+          --filter FullyQualifiedName~RedisRateLimitingIntegrationTests
+
       - name: PostgreSQL backup and restore drill
         run: |
           chmod +x scripts/backup-restore-drill.sh

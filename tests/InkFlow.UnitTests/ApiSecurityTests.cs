@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using InkFlow.Api;
 using InkFlow.BuildingBlocks.Security;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -69,6 +70,67 @@ public sealed class ApiSecurityTests
         var options = new ApiRateLimitOptions { PublicPermitLimit = 0 };
 
         Assert.ThrowsExactly<InvalidOperationException>(() => options.Validate());
+    }
+
+    [TestMethod]
+    public void Rate_Limit_Options_Read_Redis_Connection_From_Configuration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Redis"] = "redis.example:6379,abortConnect=false",
+                ["RateLimiting:RedisKeyPrefix"] = "inkflow:test-rate-limit",
+            })
+            .Build();
+
+        var options = ApiRateLimitOptions.FromConfiguration(configuration);
+
+        Assert.AreEqual("redis.example:6379,abortConnect=false", options.RedisConnectionString);
+        Assert.AreEqual("inkflow:test-rate-limit", options.RedisKeyPrefix);
+    }
+
+    [TestMethod]
+    public async Task Redis_Rate_Limit_Is_Shared_By_Separate_Limiter_Instances()
+    {
+        var counter = new InMemoryDistributedRateLimitCounter();
+        using var first = CreateRedisLimiter(counter, "shared-key");
+        using var second = CreateRedisLimiter(counter, "shared-key");
+
+        using var firstLease = await first.AcquireAsync();
+        using var secondLease = await second.AcquireAsync();
+
+        Assert.IsTrue(firstLease.IsAcquired);
+        Assert.IsFalse(secondLease.IsAcquired);
+        Assert.IsTrue(secondLease.TryGetMetadata(
+            MetadataName.RetryAfter,
+            out TimeSpan retryAfter));
+        Assert.IsTrue(retryAfter > TimeSpan.Zero);
+    }
+
+    [TestMethod]
+    public async Task Redis_Rate_Limit_Uses_Bounded_Local_Fallback_When_Store_Is_Unavailable()
+    {
+        using var limiter = CreateRedisLimiter(new UnavailableRateLimitCounter(), "fallback-key");
+
+        using var firstLease = await limiter.AcquireAsync();
+        using var secondLease = await limiter.AcquireAsync();
+
+        Assert.IsTrue(firstLease.IsAcquired);
+        Assert.IsFalse(secondLease.IsAcquired);
+    }
+
+    [TestMethod]
+    public void Redis_Rate_Limit_Key_Does_Not_Expose_Client_Identity()
+    {
+        const string partitionKey = "api-public:ip:203.0.113.10";
+
+        var key = RedisRateLimiterFactory.BuildRedisKey(
+            "inkflow:rate-limit",
+            ApiRateLimitPolicies.PublicPolicyName,
+            partitionKey);
+
+        Assert.IsFalse(key.Contains(partitionKey, StringComparison.Ordinal));
+        StringAssert.StartsWith(key, "inkflow:rate-limit:api-public:");
     }
 
     [TestMethod]
@@ -154,5 +216,82 @@ public sealed class ApiSecurityTests
             Events.Add(auditEvent);
             return ValueTask.CompletedTask;
         }
+    }
+
+    private static RedisFixedWindowRateLimiter CreateRedisLimiter(
+        IDistributedRateLimitCounter counter,
+        string key) =>
+        new(
+            counter,
+            key,
+            permitLimit: 1,
+            window: TimeSpan.FromMinutes(1),
+            queueLimit: 0,
+            NullLogger<RedisFixedWindowRateLimiter>.Instance);
+
+    private sealed class InMemoryDistributedRateLimitCounter : IDistributedRateLimitCounter
+    {
+        private readonly Dictionary<string, (long Count, DateTimeOffset ExpiresAt)> _counts = [];
+        private readonly object _gate = new();
+
+        public RateLimitCounterResult TryAcquire(
+            string key,
+            int permitCount,
+            int permitLimit,
+            TimeSpan window)
+        {
+            lock (_gate)
+            {
+                var now = DateTimeOffset.UtcNow;
+                if (_counts.TryGetValue(key, out var current) && current.ExpiresAt <= now)
+                {
+                    _counts.Remove(key);
+                    current = default;
+                }
+
+                var retryAfter = current.ExpiresAt > now
+                    ? current.ExpiresAt - now
+                    : window;
+                if (current.Count + permitCount > permitLimit)
+                {
+                    return new RateLimitCounterResult(false, current.Count, retryAfter);
+                }
+
+                var next = current with
+                {
+                    Count = current.Count + permitCount,
+                    ExpiresAt = current.ExpiresAt > now ? current.ExpiresAt : now + window,
+                };
+                _counts[key] = next;
+                return new RateLimitCounterResult(true, next.Count, next.ExpiresAt - now);
+            }
+        }
+
+        public ValueTask<RateLimitCounterResult> TryAcquireAsync(
+            string key,
+            int permitCount,
+            int permitLimit,
+            TimeSpan window,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(TryAcquire(key, permitCount, permitLimit, window));
+    }
+
+    private sealed class UnavailableRateLimitCounter : IDistributedRateLimitCounter
+    {
+        public RateLimitCounterResult TryAcquire(
+            string key,
+            int permitCount,
+            int permitLimit,
+            TimeSpan window) =>
+            throw new RateLimitStoreUnavailableException(new IOException("test outage"));
+
+        public ValueTask<RateLimitCounterResult> TryAcquireAsync(
+            string key,
+            int permitCount,
+            int permitLimit,
+            TimeSpan window,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromException<RateLimitCounterResult>(
+                new RateLimitStoreUnavailableException(new IOException("test outage")));
     }
 }

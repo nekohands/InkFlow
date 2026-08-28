@@ -54,6 +54,7 @@ services:
       dockerfile: deploy/docker/Dockerfile.api
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
     ports:
       - "8080:8080"
     depends_on:

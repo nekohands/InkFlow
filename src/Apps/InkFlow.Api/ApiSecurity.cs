@@ -9,12 +9,14 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace InkFlow.Api;
 
 /// <summary>
-/// API v1 的单实例限流默认值。未来接入 Redis 时保留同一个 policy/key seam，
-/// 不让业务端点直接依赖具体限流存储。
+/// API v1 的限流默认值。策略仍由 ASP.NET Core 管线承载，配额计数通过
+/// Redis seam 在多个 API 实例间共享；Redis 暂时不可用时由适配器使用同样
+/// 窗口/配额的有界本地降级，不会无界放行请求。
 /// </summary>
 public sealed class ApiRateLimitOptions
 {
@@ -25,6 +27,8 @@ public sealed class ApiRateLimitOptions
     public int LegadoPermitLimit { get; init; } = 60;
     public int LegadoWindowSeconds { get; init; } = 60;
     public int QueueLimit { get; init; }
+    public string RedisConnectionString { get; init; } = "localhost:6379,abortConnect=false";
+    public string RedisKeyPrefix { get; init; } = "inkflow:rate-limit";
 
     public TimeSpan PublicWindow => TimeSpan.FromSeconds(PublicWindowSeconds);
     public TimeSpan LegadoWindow => TimeSpan.FromSeconds(LegadoWindowSeconds);
@@ -39,6 +43,12 @@ public sealed class ApiRateLimitOptions
             LegadoPermitLimit = ReadInt(section, nameof(LegadoPermitLimit), 60),
             LegadoWindowSeconds = ReadInt(section, nameof(LegadoWindowSeconds), 60),
             QueueLimit = ReadInt(section, nameof(QueueLimit), 0),
+            RedisConnectionString = ReadString(
+                section[nameof(RedisConnectionString)]
+                ?? configuration.GetConnectionString("Redis")
+                ?? "localhost:6379,abortConnect=false"),
+            RedisKeyPrefix = ReadString(
+                section[nameof(RedisKeyPrefix)] ?? "inkflow:rate-limit"),
         };
         options.Validate();
         return options;
@@ -51,6 +61,18 @@ public sealed class ApiRateLimitOptions
         ValidateRange(LegadoPermitLimit, 1, 100_000, nameof(LegadoPermitLimit));
         ValidateRange(LegadoWindowSeconds, 1, 3_600, nameof(LegadoWindowSeconds));
         ValidateRange(QueueLimit, 0, 100, nameof(QueueLimit));
+        if (string.IsNullOrWhiteSpace(RedisConnectionString))
+        {
+            throw new InvalidOperationException(
+                "RateLimiting:RedisConnectionString must not be empty.");
+        }
+
+        if (RedisKeyPrefix.Length is < 1 or > 128
+            || RedisKeyPrefix.Any(char.IsControl))
+        {
+            throw new InvalidOperationException(
+                "RateLimiting:RedisKeyPrefix must contain 1-128 non-control characters.");
+        }
     }
 
     private static int ReadInt(IConfiguration section, string key, int defaultValue)
@@ -69,6 +91,8 @@ public sealed class ApiRateLimitOptions
 
         return value;
     }
+
+    private static string ReadString(string value) => value.Trim();
 
     private static void ValidateRange(int value, int minimum, int maximum, string name)
     {
@@ -91,14 +115,22 @@ public static class ApiRateLimitPolicies
     {
         options.Validate();
         services.AddSingleton(options);
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+            ConnectionMultiplexer.Connect(options.RedisConnectionString));
+        services.AddSingleton<IDistributedRateLimitCounter, RedisRateLimitCounter>();
+        services.AddSingleton<RedisRateLimiterFactory>();
         services.AddRateLimiter(rateLimiterOptions =>
         {
             rateLimiterOptions.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             rateLimiterOptions.OnRejected = (context, _) =>
             {
-                var retryAfterSeconds = Math.Max(
-                    options.PublicWindowSeconds,
-                    options.LegadoWindowSeconds);
+                var retryAfterSeconds = context.Lease.TryGetMetadata(
+                    MetadataName.RetryAfter,
+                    out TimeSpan retryAfter)
+                    ? Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
+                    : Math.Max(
+                        options.PublicWindowSeconds,
+                        options.LegadoWindowSeconds);
                 context.HttpContext.Response.Headers["Retry-After"] =
                     retryAfterSeconds.ToString(CultureInfo.InvariantCulture);
                 return ValueTask.CompletedTask;
@@ -106,20 +138,24 @@ public static class ApiRateLimitPolicies
 
             rateLimiterOptions.AddPolicy(
                 PublicPolicyName,
-                context => CreatePartition(
-                    context,
-                    PublicPolicyName,
-                    options.PublicPermitLimit,
-                    options.PublicWindow,
-                    options.QueueLimit));
+                context => context.RequestServices
+                    .GetRequiredService<RedisRateLimiterFactory>()
+                    .CreatePartition(
+                        context,
+                        PublicPolicyName,
+                        options.PublicPermitLimit,
+                        options.PublicWindow,
+                        options.QueueLimit));
             rateLimiterOptions.AddPolicy(
                 LegadoPolicyName,
-                context => CreatePartition(
-                    context,
-                    LegadoPolicyName,
-                    options.LegadoPermitLimit,
-                    options.LegadoWindow,
-                    options.QueueLimit));
+                context => context.RequestServices
+                    .GetRequiredService<RedisRateLimiterFactory>()
+                    .CreatePartition(
+                        context,
+                        LegadoPolicyName,
+                        options.LegadoPermitLimit,
+                        options.LegadoWindow,
+                        options.QueueLimit));
         });
 
         return services;
