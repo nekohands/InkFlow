@@ -184,6 +184,13 @@ CI: GREEN (Run 32821162412)
 - 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 263/263、Architecture 1/1、Contract 2/2 PASS；API `/health` 200、未认证审计查询 401；本机 Integration 49 项为 6 通过、42 项因 Docker Engine 不可用而 BLOCKED、1 项跳过。候选提交 `29a723c` 的远端 CI `33128764947` GREEN（48 通过、1 跳过，含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics），Docker `33128764869` GREEN（四镜像）。
 - 边界：本轮未执行带 Operator/Administrator 凭证的人工查询、资源级授权、保留/清理策略、告警和真实运维演练；这些事项继续作为后续 Release Gate 留在待定清单。
 
+### 4.26 PostgreSQL Backup/Restore Drill v1（本轮，2026-08-28）
+
+- 缺口：现有 Compose/Migrations 能初始化 PostgreSQL，但此前没有在真实运行数据上形成可复核的备份恢复证据。
+- 实现：新增 `scripts/backup-restore-drill.sh` 并接入 CI Runtime smoke 之后；脚本使用 custom-format `pg_dump`，在隔离数据库执行 `pg_restore`，比较所有非系统基础表的行数签名和 `audit.events` 数量，最后清理隔离库与临时文件。数据库标识符严格校验，源库不被修改。
+- 当前证据：本机 `bash -n` PASS；本机 Docker/Compose 不可用，实际演练 BLOCKED。候选提交 `29c2c5f` 的远端 CI `33129734525` GREEN（48 通过、1 跳过，Restore/Build/Test/Compose/Runtime smoke/备份恢复/Diagnostics 全部通过），演练日志为 `archive=49125 bytes, audit_events=22`；Docker `33129734604` GREEN（四镜像）。
+- 边界：该证据只覆盖 CI 环境中的恢复可用性，不等同于生产异地备份、加密、保留策略、恢复授权、RPO/RTO 和告警治理；这些继续保留为后续 Operations Gate。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -193,7 +200,8 @@ CI: GREEN (Run 32821162412)
 7. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
 8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
 9. **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询授权、时间范围/精确过滤/游标、空结果、稳定错误和响应脱敏；本轮只完成自动化基线，未执行人工操作。
-10. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收，并继续推进私人书库、Security/Operations 与商业化能力。
+10. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
+11. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收，并继续推进私人书库、Security/Operations 与商业化能力。
 
 当前推荐顺序：
 
@@ -223,6 +231,7 @@ CI: GREEN (Run 32821162412)
 ✅ Web Reader v1：响应式书目/详情/章节页 + 主题/字号/行高本地设置 + 可访问章节导航（`a8d1c23`，CI `33120844695` / Docker `33120844685` 均 GREEN）
 ✅ Reader/PWA 用户状态 v1：账户/书架/历史/进度/偏好渐进增强 + 公开 PWA 壳（`b3561a2`，CI `33123325151` / Docker `33123325184` 均 GREEN）
 ✅ Admin Audit Read v1：独立 AuditRead policy + 有界精确过滤 + 稳定不透明游标（`29a723c`，CI `33128764947` / Docker `33128764869` 均 GREEN）
+✅ PostgreSQL Backup/Restore Drill v1：custom-format dump/restore + 隔离库全表行数签名校验（`29c2c5f`，CI `33129734525` / Docker `33129734604` 均 GREEN）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
@@ -447,7 +456,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
-- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询和已落地高风险命令审计基线已完成；外部告警路由、阈值治理、备份恢复、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、资源级授权、权限管理和更完整的审计保留治理仍待实现。
+- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练和已落地高风险命令审计基线已完成；外部告警路由、阈值治理、生产异地备份/保留/RPO-RTO、安全扫描仍待实现。限流已形成单实例基线，Redis 分布式配额、资源级授权、权限管理和更完整的审计保留治理仍待实现。
 - 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1 和 Web Reader v1 已完成；PWA 实际安装/离线/跨设备验收、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。

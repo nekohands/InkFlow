@@ -520,6 +520,14 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 263/263、Architecture 1/1、Contract 2/2 PASS。API `/health` 200，未认证审计查询返回 401；本机完整 Integration 49 项为 6 通过、42 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、1 项跳过，不记为本机集成通过。远端 CI `33128764947` GREEN（Restore/Build/Test：48 通过、1 跳过，Compose/Runtime smoke/Diagnostics 全部通过），Docker `33128764869` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：本轮未使用 Operator/Administrator 凭证执行审计查询人工验收；资源级授权、保留/清理策略、告警路由和真实运维演练仍待后续工作包，不能据此宣称 Security/Operations Release Gate 完整关闭。
 
+**PostgreSQL Backup/Restore Drill v1（本轮，2026-08-28）**：
+
+- 缺口：Compose 已提供 PostgreSQL 与独立 Migrations App，但此前没有在 CI 中对真实运行数据执行可复核的备份恢复验证；“有备份命令”不能替代恢复证据。
+- 实现：新增 `scripts/backup-restore-drill.sh`，在 Runtime smoke 后使用 PostgreSQL custom format 导出当前数据库，创建隔离恢复库并执行 `pg_restore`；脚本枚举所有非系统基础表比较行数签名，同时强制确认 `audit.events` 非空且恢复后数量一致，结束时删除隔离库和临时归档。CI 在 Runtime smoke 后接入该步骤，并继续执行统一 Diagnostics 清理。
+- 安全/边界：数据库名、用户和恢复库标识符经过严格校验；导出/恢复使用 `--no-owner --no-acl`，不打印连接串或归档内容；脚本不修改源数据库。该步骤验证可恢复性，不声明生产异地备份、加密、保留策略、RPO/RTO 或告警已完成。
+- 自动化证据：本机 `bash -n scripts/backup-restore-drill.sh` PASS；本机实际 Docker/Compose 演练因 `docker` 命令不可用 BLOCKED，不记为通过。远端 CI `33129734525` GREEN，Test 48 通过、1 跳过，Runtime smoke、PostgreSQL backup and restore drill、Diagnostics 全部通过；演练日志记录 `archive=49125 bytes, audit_events=22`。Docker `33129734604` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
+- 边界：生产备份调度、异地存储/加密、备份保留与删除治理、恢复授权、RPO/RTO 目标和告警仍是后续 1.0 Operations 工作；本轮只关闭 CI 级恢复可用性证据。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -609,11 +617,13 @@ Official Source
 - [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试；当前因 `docker_engine` 不可用而 BLOCKED 的用例不记为通过。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
+- [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
 - API 限流当前为单实例 fixed-window 基线；审计持久化、独立 `AuditRead` 有界查询与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
+- PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）已落地；Personal Legado Token v1 与 Web Reader v1 已落地。PWA 实际安装/离线/跨设备验收、私人书库和导入/导出仍未完成。

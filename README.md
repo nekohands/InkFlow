@@ -145,6 +145,10 @@ curl --fail --silent http://localhost:8080/reader          # Web Reader(HTML)
 
 Web Reader 入口:`http://<主机>:8080/reader`。Legado 书源:`http://<主机>:8080/legado/book-source.json`(baseUrl 自动取请求地址)。
 
+### PostgreSQL 备份恢复演练
+
+CI 在 Runtime smoke 产生审计数据后执行 `scripts/backup-restore-drill.sh`：以 custom format 导出当前 PostgreSQL，恢复到隔离数据库，并比较所有非系统表的行数签名及 `audit.events` 数量。也可在已启动源码 Compose 且数据库中已有审计事件时手动运行；该演练验证恢复可用性，不替代生产异地备份、保留策略或 RPO/RTO 演练。
+
 ### 生产注意事项
 
 - 通过反向代理(Nginx/Caddy)提供 HTTPS,api 容器只暴露给内网;

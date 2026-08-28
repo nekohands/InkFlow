@@ -135,3 +135,5 @@ Projection 必须可重建。
 统一 OpenTelemetry，贯穿 Scheduler -> Queue -> Worker -> HTTP -> Parser -> DB -> Quality Engine。
 
 核心指标覆盖 API、Legado、Crawler、Source Health、内容质量与用户体验。第三方来源自身不可用不直接计入 InkFlow API 自身 SLA。
+
+当前 CI 在 Runtime smoke 产生真实审计数据后执行 PostgreSQL custom-format 备份恢复演练：恢复到隔离数据库，并比较所有非系统表的行数签名与 `audit.events` 数量。该验证证明数据库归档可恢复，不等同于生产异地备份、保留策略、RPO/RTO 或告警治理。
