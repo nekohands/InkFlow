@@ -542,8 +542,9 @@ Phase 0 开发过程中真实发现并修复：
 - 缺口：已有失败 counters、来源能力健康、死信和一致性读模型，但没有统一、受保护且可被外部监控轮询的当前告警入口；Redis 限流存储故障也没有可读取的健康状态。
 - 实现：新增 `OperationsAlertReader` / `OperationsAlertEvaluator` 与 `GET /api/v1/admin/operations/alerts`；按配置化阈值汇总来源能力不可用、死信、一致性问题、Operations 区块不可用和 Redis 限流存储不可用，结果包含稳定 code/severity/resource、总数和截断标记。
 - 安全/边界：入口复用 `OperationsRead`（仅 Operator/Administrator）；告警只返回稳定错误描述，不返回异常文本、连接串、Token、IP 或来源失败原文。快照不执行修复、不写业务事实、不保存历史、不去重、不发送外部通知。
-- 验证：本机 Release Build 0 warnings / 0 errors；新增告警规则、阈值、脱敏和 Redis 健康状态单元测试 5 项通过；API Contract 测试待随本工作包完整验证。CI Runtime smoke 新增匿名 401 与 Reader 403 守卫。
-- 工作包状态：告警快照和阈值治理基线已实现；外部通知路由、历史/去重、保留策略、生产告警渠道和完整人工 Operations 验收仍待后续 1.0 Operations Gate。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 272/272、Architecture 1/1、Contract 3/3 PASS；本机完整 Integration 50 项中 6 通过、42 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项按环境跳过，不记为本机集成通过。CI Runtime smoke 新增匿名 401 与 Reader 403 守卫。
+- 远端验收：提交 `7e03def` 的 CI `33132755108` **GREEN**；Test 分项目为 Unit 272/272、Architecture 1/1、Contract 3/3、Integration 50 项中 48 通过/2 跳过；Runtime smoke、Redis distributed rate-limit integration（真实 Redis 1/1）和 PostgreSQL backup/restore（`archive=49249 bytes, audit_events=24`）全部通过。Docker `33132755124` **GREEN**（API、Migrations、Scheduler、Worker 四镜像）。
+- 工作包状态：告警快照和阈值治理基线已完成；外部通知路由、历史/去重、保留策略、生产告警渠道和完整人工 Operations 验收仍待后续 1.0 Operations Gate。
 
 ## 5. Phase 1A 核心验收链路
 

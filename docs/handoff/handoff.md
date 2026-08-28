@@ -204,7 +204,7 @@ CI: GREEN (Run 32821162412)
 - 缺口：来源健康、Crawler 死信、一致性检查和 Redis 限流故障此前各自可观测，但没有统一的当前告警快照和配置化阈值入口。
 - 实现：新增 `OperationsAlertOptions`、`OperationsAlertEvaluator`、`OperationsAlertReader` 和受 `OperationsRead` policy 保护的 `GET /api/v1/admin/operations/alerts`；返回有界告警列表、稳定 code/severity/resource、总数和截断状态。Redis 限流计数器现在同步记录进程内可重建健康快照。
 - 安全/边界：告警只使用稳定错误描述，不带异常原文、Token、IP、连接串或来源失败原因；只读快照不修复、不持久化历史、不去重、不发送通知。Reader/匿名请求分别应为 403/401；Operator/Administrator 的实际浏览器/接口验收仍按待定事项执行。
-- 当前验证：本机 Release Build 0 warnings / 0 errors；告警/阈值/脱敏/健康状态单元测试 5 项通过，Operations alert contract test 已加入；目标 CI/Docker 需在本工作包候选提交上重新确认。
+- 当前验证：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 272/272、Architecture 1/1、Contract 3/3 PASS。完整 Integration 50 项中 6 通过、42 项因本机 Docker Engine 不可用而 BLOCKED、2 项按环境跳过。提交 `7e03def` 的远端 CI `33132755108` GREEN（Unit 272/272、Architecture 1/1、Contract 3/3、Integration 48 通过/2 跳过，Runtime smoke、Redis 1/1、备份恢复和 Diagnostics 均通过）；Docker `33132755124` GREEN（四镜像）。
 - 边界：外部通知路由、告警历史/去重、保留策略、生产渠道与 RPO/RTO 关联仍未实现；本轮不执行 MuMu/阅读 3.0、真实来源、真实切源和人工验收。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
