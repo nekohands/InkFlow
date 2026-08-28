@@ -225,6 +225,13 @@ CI: GREEN (Run 32821162412)
 - 远端证据：修复后的提交 `a663cef` 的 CI `33137358470`、Docker `33137358485`、Security `33137358428` 均 GREEN；CI 的 Runtime smoke、Redis 分布式限流、PostgreSQL 备份恢复和 Diagnostics，Docker 四镜像发布前扫描，以及 Security 的 NuGet/SBOM/Trivy/CodeQL 均通过。
 - 边界：本轮不宣称完成 MuMu/阅读 3.0、真实来源/故障切换或带真实凭据的来源授权/Operations 人工验收；更广泛资源、组织/租户权限治理和审计保留策略仍待后续。
 
+### 4.31 Legado Contract Release Gate v1（本轮，2026-08-28）
+
+- 缺口：已有 Legado DTO/端点和书源生成逻辑，但 ContractTests 之前只验证程序集加载与 Personal header，未独立锁定 `Generate Rule → JSON Validate → Search → BookInfo → TOC → Content` 发布门禁。
+- 实现：新增 `LegadoCompatibilityProfile` 与 `ILegadoRuleGenerator`/`LegadoRuleGenerator`；API 公共书源清单和 Personal Token 签发统一经过生成器 seam，静态 `LegadoBookSourceManifest.Generate` 保留为兼容入口。
+- 验证：`LegadoContractReleaseGateTests` 使用已落库正典内存夹具，检查生成规则/JSONPath、Web JSON 字段、稳定 ID 和 Search → BookInfo → TOC → Content 连续读取；Contract 5/5、Unit 279/279、Architecture 1/1、Release Build 0 warnings / 0 errors PASS。
+- 边界：完整 Integration 本机仍为 51 项中 6 通过、43 项因 Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；本轮不执行真实来源、阅读 3.0 真机、HTTP 客户端导入或人工验收。该门禁自动化通过不替代外部 Release Gate。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -271,6 +278,7 @@ CI: GREEN (Run 32821162412)
 ✅ Operations Alert Snapshot v1：来源健康/死信/一致性/Redis 告警快照 + 配置化阈值 + OperationsRead 保护（本工作包）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
+✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收

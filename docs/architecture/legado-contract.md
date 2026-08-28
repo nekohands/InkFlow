@@ -79,3 +79,8 @@ Book/TOC/Content 可以使用 ETag/Revision 降低重复传输。
 Legado Contract Test 失败时禁止生产发布。
 
 兼容性变更需要 `LegadoCompatibilityProfile`，记录 SchemaVersion、MinSupportedVersion、TestedVersion、Capabilities 和 DeprecatedAt。
+
+当前已发布 Profile 为 `legado-book-source-v1`：最低/已测试客户端版本均为 `3.0`，Capabilities 为
+`search`、`book-info`、`toc`、`content` 和 `personal-token`。规则由 `ILegadoRuleGenerator` 生成，
+Contract Gate 使用已落库正典夹具验证 JSON 结构和四步读取链路；该自动化证据不替代真实来源、
+阅读 3.0 真机或人工验收。

@@ -187,6 +187,7 @@ builder.Services.AddScoped<IReadingStateRepository, EfReadingStateRepository>();
 builder.Services.AddScoped<IReadingStateService, ReadingStateService>();
 builder.Services.AddScoped<CatalogQueryService>();
 builder.Services.AddScoped<LegadoContractService>();
+builder.Services.AddSingleton<ILegadoRuleGenerator, LegadoRuleGenerator>();
 
 var app = builder.Build();
 
@@ -266,6 +267,7 @@ personalLegadoTokens.MapPost("/tokens", async (
     CreateLegadoTokenRequest? request,
     ClaimsPrincipal principal,
     ILegadoAccessTokenService tokens,
+    ILegadoRuleGenerator legadoRuleGenerator,
     HttpContext httpContext,
     IAuditEventSink auditSink,
     TimeProvider clock,
@@ -284,7 +286,7 @@ personalLegadoTokens.MapPost("/tokens", async (
 
     var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
     using var document = JsonDocument.Parse(
-        LegadoBookSourceManifest.Generate(baseUrl, result.Issue.RawToken));
+        legadoRuleGenerator.Generate(baseUrl, result.Issue.RawToken));
     var response = LegadoTokenEndpointResults.ToIssueResponse(
         result.Issue,
         document.RootElement.Clone());
@@ -1323,11 +1325,11 @@ app.MapGet("/reader/read/{chapterId:guid}",
 });
 
 // 书源清单:由代码生成,baseUrl 取请求自身的 scheme+host。
-app.MapGet("/legado/book-source.json", (HttpContext http) =>
+app.MapGet("/legado/book-source.json", (HttpContext http, ILegadoRuleGenerator legadoRuleGenerator) =>
 {
     var baseUrl = $"{http.Request.Scheme}://{http.Request.Host}";
     return Results.Text(
-        LegadoBookSourceManifest.Generate(baseUrl),
+        legadoRuleGenerator.Generate(baseUrl),
         contentType: "application/json; charset=utf-8");
 }).RequireRateLimiting(ApiRateLimitPolicies.LegadoPolicyName);
 
