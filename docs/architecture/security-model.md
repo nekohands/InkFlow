@@ -86,7 +86,7 @@ Rate limiting can combine:
 
 Expensive endpoints use weighted quota rather than treating all requests equally. APIs return proper 429/Retry-After semantics; Legado/API clients are not forced through interactive CAPTCHA.
 
-当前 API 基线已通过可替换的 policy/key seam 接入 ASP.NET Core fixed-window 限流：公共 API 与 Legado API 使用独立策略，匿名请求按连接层 IP 分桶，认证主体按 `sub` / `client_id` 的不可逆短哈希分桶；尚未配置可信代理前不信任 `X-Forwarded-For`。计数由 Redis Lua 脚本原子完成检查、递增和过期，多个 API 实例共享同一配额；拒绝请求返回 `429` 并带 Redis 窗口剩余时间的 `Retry-After`。Redis 暂时不可用时只使用相同配额/窗口的本地 fixed-window 降级并记录恢复感知日志，不会无界放行，但降级期间不提供跨实例全局一致性。按用户/组织的动态配额、加权成本和更完整的 Redis 告警治理仍待后续 Operations/Identity 能力接入。
+当前 API 基线已通过可替换的 policy/key seam 接入 ASP.NET Core fixed-window 限流：公共 API 与 Legado API 使用独立策略，匿名请求按连接层 IP 分桶，认证主体按 `sub` / `client_id` 的不可逆短哈希分桶；尚未配置可信代理前不信任 `X-Forwarded-For`。计数由 Redis Lua 脚本原子完成检查、递增和过期，多个 API 实例共享同一配额；拒绝请求返回 `429` 并带 Redis 窗口剩余时间的 `Retry-After`。Redis 暂时不可用时只使用相同配额/窗口的本地 fixed-window 降级并记录恢复感知日志，不会无界放行，但降级期间不提供跨实例全局一致性。当前另有受 OperationsRead policy 保护的 `GET /api/v1/admin/operations/alerts` 告警快照，汇总 Redis 存储不可用、来源能力不可用、死信和一致性问题；阈值配置化且结果有界，但不负责外部通知、历史去重或保留治理。按用户/组织的动态配额和加权成本仍待后续 Operations/Identity 能力接入。
 
 ## 8. No Open Proxy
 
@@ -110,7 +110,7 @@ Physical ContentBlob dedup never grants logical access.
 
 High-risk actions emit immutable/append-oriented AuditEvent data including actor, time, resource, action, before/after or reference, reason and TraceId where applicable.
 
-当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。Crawler dead-letter replay、Content Policy Takedown/Restore 与 Personal Legado Token issue/revoke 已额外写入带认证操作者、理由、结果和资源 reference 的命令级审计事件；Personal 令牌审计只记录脱敏 token reference，不记录原文。现在另有受独立 `AuditRead` policy 保护的 `GET /api/v1/admin/audit/events` 有界只读查询：支持时间范围、精确 action/outcome/actorId 过滤和时间戳+事件 ID 不透明游标，单页最多 100 条，查询异常只返回稳定错误码，不提供更新/删除路径。该 policy 当前仍是 Operator/Administrator 粗粒度角色边界；更细的资源级授权、保留策略和告警仍需后续实现。
+当前已提供 `AuditEvent` 不可变数据模型、`IAuditEventSink` 追加写入端口和 API 请求审计中间件；审计范围为 `/api` 与 `/legado`，不记录 query string，且 `429` 等拒绝结果也进入轨迹。API 通过 `CompositeAuditEventSink` 同时写入结构化宿主日志与 PostgreSQL `audit.events`，`AddAuditEvents` Migration 安装数据库追加式触发器拒绝更新/删除；持久化失败不改变请求结果。Crawler dead-letter replay、Content Policy Takedown/Restore 与 Personal Legado Token issue/revoke 已额外写入带认证操作者、理由、结果和资源 reference 的命令级审计事件；Personal 令牌审计只记录脱敏 token reference，不记录原文。现在另有受独立 `AuditRead` policy 保护的 `GET /api/v1/admin/audit/events` 有界只读查询：支持时间范围、精确 action/outcome/actorId 过滤和时间戳+事件 ID 不透明游标，单页最多 100 条，查询异常只返回稳定错误码，不提供更新/删除路径。告警快照只读入口另受 `OperationsRead` policy 保护；该 policy 当前仍是 Operator/Administrator 粗粒度角色边界，更细的资源级授权、保留策略、外部告警路由和去重仍需后续实现。
 
 Ordinary administrators cannot silently edit audit history through normal CRUD APIs.
 

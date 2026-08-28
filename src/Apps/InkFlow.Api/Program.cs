@@ -174,6 +174,9 @@ builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicyRea
 builder.Services.AddScoped<IConsistencySnapshotReader, EfConsistencySnapshotReader>();
 builder.Services.AddScoped<IConsistencyCheckService, ConsistencyCheckService>();
 builder.Services.AddScoped<IOperationsCenterReader, OperationsCenterReader>();
+builder.Services.AddSingleton(
+    OperationsAlertOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddScoped<IOperationsAlertReader, OperationsAlertReader>();
 builder.Services.AddScoped<IReadingStateRepository, EfReadingStateRepository>();
 builder.Services.AddScoped<IReadingStateService, ReadingStateService>();
 builder.Services.AddScoped<CatalogQueryService>();
@@ -552,6 +555,17 @@ operationsRead.MapGet("/operations/overview", async (
 {
     var snapshot = await operations.ReadAsync(
         limit ?? OperationsCenterReader.DefaultLimit,
+        ct);
+    return Results.Ok(snapshot);
+});
+
+operationsRead.MapGet("/operations/alerts", async (
+    int? limit,
+    IOperationsAlertReader alerts,
+    CancellationToken ct) =>
+{
+    var snapshot = await alerts.ReadAsync(
+        limit ?? OperationsAlertReader.DefaultLimit,
         ct);
     return Results.Ok(snapshot);
 });

@@ -6,6 +6,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MSTest" />
+    <ProjectReference Include="../../src/Apps/InkFlow.Api/InkFlow.Api.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Legado/InkFlow.Modules.Legado.csproj" />
   </ItemGroup>
 </Project>

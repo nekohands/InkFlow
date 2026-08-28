@@ -55,6 +55,8 @@ jobs:
           test "$source_health_status" = "401"
           operations_overview_status=$(curl --silent --output /tmp/operations-overview.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/operations/overview)
           test "$operations_overview_status" = "401"
+          operations_alerts_status=$(curl --silent --output /tmp/operations-alerts.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/operations/alerts)
+          test "$operations_alerts_status" = "401"
           audit_read_status=$(curl --silent --output /tmp/audit-read.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/audit/events)
           test "$audit_read_status" = "401"
           reading_status=$(curl --silent --output /tmp/reading-shelf.json --write-out '%{http_code}' http://localhost:8080/api/v1/me/reading/shelf)
@@ -80,6 +82,10 @@ jobs:
           curl --fail --silent \
             -H "Authorization: Bearer $rotated_access_token" \
             http://localhost:8080/api/v1/auth/me | jq -e '.role == "Reader"'
+          reader_operations_alerts_status=$(curl --silent --output /tmp/reader-operations-alerts.json --write-out '%{http_code}' \
+            -H "Authorization: Bearer $rotated_access_token" \
+            http://localhost:8080/api/v1/admin/operations/alerts)
+          test "$reader_operations_alerts_status" = "403"
           curl --fail --silent \
             -H "Authorization: Bearer $rotated_access_token" \
             http://localhost:8080/api/v1/me/reading/preferences | jq -e '.theme == "System" and .fontSizePercent == 100'

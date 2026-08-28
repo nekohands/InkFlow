@@ -55,7 +55,9 @@ public sealed class RateLimitStoreUnavailableException : Exception
 /// performs read/check/increment/expiry as one server-side operation, which
 /// keeps two API instances on the same global quota.
 /// </summary>
-public sealed class RedisRateLimitCounter(IConnectionMultiplexer connection)
+public sealed class RedisRateLimitCounter(
+    IConnectionMultiplexer connection,
+    IRateLimitStoreHealthRecorder? health = null)
     : IDistributedRateLimitCounter
 {
     private const string AcquireScript = """
@@ -92,6 +94,7 @@ public sealed class RedisRateLimitCounter(IConnectionMultiplexer connection)
         """;
 
     private readonly IDatabase _database = connection.GetDatabase();
+    private readonly IRateLimitStoreHealthRecorder? _health = health;
 
     public RateLimitCounterResult TryAcquire(
         string key,
@@ -108,10 +111,13 @@ public sealed class RedisRateLimitCounter(IConnectionMultiplexer connection)
                 [new RedisKey(key)],
                 CreateArguments(permitCount, permitLimit, window),
                 CommandFlags.DemandMaster);
-            return ParseResult(result);
+            var parsed = ParseResult(result);
+            _health?.RecordSuccess();
+            return parsed;
         }
         catch (Exception exception)
         {
+            _health?.RecordFailure();
             throw new RateLimitStoreUnavailableException(exception);
         }
     }
@@ -135,7 +141,9 @@ public sealed class RedisRateLimitCounter(IConnectionMultiplexer connection)
                     CommandFlags.DemandMaster)
                 .WaitAsync(cancellationToken)
                 .ConfigureAwait(false);
-            return ParseResult(result);
+            var parsed = ParseResult(result);
+            _health?.RecordSuccess();
+            return parsed;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -143,6 +151,7 @@ public sealed class RedisRateLimitCounter(IConnectionMultiplexer connection)
         }
         catch (Exception exception)
         {
+            _health?.RecordFailure();
             throw new RateLimitStoreUnavailableException(exception);
         }
     }

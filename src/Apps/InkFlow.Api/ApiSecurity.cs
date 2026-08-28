@@ -115,6 +115,11 @@ public static class ApiRateLimitPolicies
     {
         options.Validate();
         services.AddSingleton(options);
+        services.AddSingleton<RateLimitStoreHealth>();
+        services.AddSingleton<IRateLimitStoreHealthReader>(sp =>
+            sp.GetRequiredService<RateLimitStoreHealth>());
+        services.AddSingleton<IRateLimitStoreHealthRecorder>(sp =>
+            sp.GetRequiredService<RateLimitStoreHealth>());
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(options.RedisConnectionString));
         services.AddSingleton<IDistributedRateLimitCounter, RedisRateLimitCounter>();

@@ -74,7 +74,7 @@ CI: GREEN (Run 32821162412)
 
 **当前状态（2026-08-28 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1 与 Reader/PWA 用户状态 v1 已接入，公开修复中心仍待后续安全/运维工作。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
 
-本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；本轮随后补齐 Redis 分布式计数，查询/资源授权和更完整的权限/告警治理仍待后续工作包。
+本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数，并新增受保护的 Operations 告警快照与阈值基线；查询/资源授权、外部通知路由、告警历史/去重和更完整的权限治理仍待后续工作包。
 
 随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。健康侧完成半开自动恢复与主动巡检探针(4.9);Web Reader 搜索也已接入发现流,三端(API/Legado/Reader)共用同一落库过滤语义(详见 4.10)。冷却曲线参数已配置化(ADR 0005,详见 4.11):运营经 `SourceHealth` 配置节调整失败阈值与重探节奏,无 Schema 变更。
 
@@ -199,6 +199,14 @@ CI: GREEN (Run 32821162412)
 - 自动化：Unit 267/267、Architecture 1/1、Contract 2/2 与 Release Build 0 warnings / 0 errors 本机通过；本机 Docker/Redis 不可用，完整本机 Integration 仍有 42 项 BLOCKED、真实 Redis 用例本地跳过。提交 `2bace7d` 的 CI `33131258779` GREEN：完整 Test 50 项中 48 通过、2 跳过，独立 Redis Integration 真实两连接 1/1 通过，Runtime smoke、备份恢复与 Diagnostics 通过；Docker `33131258754` GREEN（四镜像）。
 - 边界：本轮不执行 MuMu/阅读 3.0、真实来源、真实故障切源或人工验收；Redis 故障降级期间不宣称跨实例全局一致性。
 
+### 4.28 Operations Alert Snapshot v1（本轮，2026-08-28）
+
+- 缺口：来源健康、Crawler 死信、一致性检查和 Redis 限流故障此前各自可观测，但没有统一的当前告警快照和配置化阈值入口。
+- 实现：新增 `OperationsAlertOptions`、`OperationsAlertEvaluator`、`OperationsAlertReader` 和受 `OperationsRead` policy 保护的 `GET /api/v1/admin/operations/alerts`；返回有界告警列表、稳定 code/severity/resource、总数和截断状态。Redis 限流计数器现在同步记录进程内可重建健康快照。
+- 安全/边界：告警只使用稳定错误描述，不带异常原文、Token、IP、连接串或来源失败原因；只读快照不修复、不持久化历史、不去重、不发送通知。Reader/匿名请求分别应为 403/401；Operator/Administrator 的实际浏览器/接口验收仍按待定事项执行。
+- 当前验证：本机 Release Build 0 warnings / 0 errors；告警/阈值/脱敏/健康状态单元测试 5 项通过，Operations alert contract test 已加入；目标 CI/Docker 需在本工作包候选提交上重新确认。
+- 边界：外部通知路由、告警历史/去重、保留策略、生产渠道与 RPO/RTO 关联仍未实现；本轮不执行 MuMu/阅读 3.0、真实来源、真实切源和人工验收。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -241,6 +249,7 @@ CI: GREEN (Run 32821162412)
 ✅ Admin Audit Read v1：独立 AuditRead policy + 有界精确过滤 + 稳定不透明游标（`29a723c`，CI `33128764947` / Docker `33128764869` 均 GREEN）
 ✅ PostgreSQL Backup/Restore Drill v1：custom-format dump/restore + 隔离库全表行数签名校验（`29c2c5f`，CI `33129734525` / Docker `33129734604` 均 GREEN）
 ✅ Redis Distributed Rate Limit v1：Redis Lua 原子 fixed-window + 独立连接集成验证 + 有界本地降级（`2bace7d`，CI `33131258779` / Docker `33131258754` 均 GREEN）
+✅ Operations Alert Snapshot v1：来源健康/死信/一致性/Redis 告警快照 + 配置化阈值 + OperationsRead 保护（本工作包）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
@@ -465,7 +474,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
-- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练和已落地高风险命令审计基线已完成；外部告警路由、阈值治理、生产异地备份/保留/RPO-RTO、安全扫描仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级；动态配额、资源级授权、权限管理和更完整的审计保留治理仍待实现。
+- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练、告警快照/阈值和已落地高风险命令审计基线已完成；外部告警路由、历史/去重、生产异地备份/保留/RPO-RTO、安全扫描仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级；动态配额、资源级授权、权限管理和更完整的审计保留治理仍待实现。
 - 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1 和 Web Reader v1 已完成；PWA 实际安装/离线/跨设备验收、私人书库、TXT/EPUB 导入/导出、Developer API、Entitlement、Billing、Organization、Community Marketplace 仍未实现。
 
 更后阶段：Identity product、Bookshelf、History、Local Import/Export、Developer API、Entitlement、Billing、Organization、Community Marketplace、Enterprise Deployment。

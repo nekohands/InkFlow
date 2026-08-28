@@ -101,6 +101,8 @@ Source Health Operator Controls v1 已补齐受保护的来源能力健康查询
 
 API 公共/Legado 限流由 ASP.NET Core policy 承载，计数通过 Redis Lua 原子脚本共享到多个 API 实例；Redis 连接故障时使用相同配额/窗口的有界本地降级并记录恢复转折，避免故障时无界放行。Redis 只保存可重建的限流计数，不承载任何业务事实；动态用户/组织配额、加权成本和 Redis 告警仍不在本版本范围内。
 
+Operations Center 提供受 `Operator` / `Administrator` 保护的告警快照读端口：它从来源能力健康、死信、一致性检查和 Redis 限流存储健康汇总当前告警，并以配置化阈值和有界结果输出稳定代码。该快照是可重建的观测投影，不执行修复、不写入业务事实；外部通知、告警历史/去重、保留策略和生产路由仍由后续运维集成负责。
+
 ## 7. Messaging 与一致性
 
 采用 PostgreSQL Transaction + Transactional Outbox + Inbox：

@@ -537,6 +537,14 @@ Phase 0 开发过程中真实发现并修复：
 - 远端验收：提交 `2bace7d` 的 CI `33131258779` **GREEN**；完整 Test 为 50 项、48 通过、2 跳过，Runtime smoke、Redis distributed rate-limit integration（真实 Redis 两条独立连接，1/1 通过）、PostgreSQL backup/restore 与 Diagnostics 全部通过；备份日志为 `archive=49204 bytes, audit_events=23`。Docker `33131258754` **GREEN**（API、Migrations、Scheduler、Worker 四镜像）。
 - 工作包状态：Redis 分布式 fixed-window 计数与真实 Compose 验收已完成；动态用户/组织配额、加权成本、Redis 告警与故障降级期间的跨实例全局一致性仍不在本版本范围内。
 
+**Operations Alert Snapshot v1（本轮，2026-08-28）**：
+
+- 缺口：已有失败 counters、来源能力健康、死信和一致性读模型，但没有统一、受保护且可被外部监控轮询的当前告警入口；Redis 限流存储故障也没有可读取的健康状态。
+- 实现：新增 `OperationsAlertReader` / `OperationsAlertEvaluator` 与 `GET /api/v1/admin/operations/alerts`；按配置化阈值汇总来源能力不可用、死信、一致性问题、Operations 区块不可用和 Redis 限流存储不可用，结果包含稳定 code/severity/resource、总数和截断标记。
+- 安全/边界：入口复用 `OperationsRead`（仅 Operator/Administrator）；告警只返回稳定错误描述，不返回异常文本、连接串、Token、IP 或来源失败原文。快照不执行修复、不写业务事实、不保存历史、不去重、不发送外部通知。
+- 验证：本机 Release Build 0 warnings / 0 errors；新增告警规则、阈值、脱敏和 Redis 健康状态单元测试 5 项通过；API Contract 测试待随本工作包完整验证。CI Runtime smoke 新增匿名 401 与 Reader 403 守卫。
+- 工作包状态：告警快照和阈值治理基线已实现；外部通知路由、历史/去重、保留策略、生产告警渠道和完整人工 Operations 验收仍待后续 1.0 Operations Gate。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -631,10 +639,10 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；动态用户/组织配额、加权成本、Redis 可用性告警、资源级授权、权限管理与审计保留策略仍待后续 Operations/Identity 工作包。
+- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Operations 已提供 Redis/来源健康/死信/一致性告警快照与配置化阈值。动态用户/组织配额、加权成本、外部告警路由、资源级授权、权限管理与审计保留策略仍待后续 Operations/Identity 工作包。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
-- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。
+- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照与阈值基线已落地，外部告警路由、历史/去重、保留策略和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）已落地；Personal Legado Token v1 与 Web Reader v1 已落地。PWA 实际安装/离线/跨设备验收、私人书库和导入/导出仍未完成。
 - Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
 
