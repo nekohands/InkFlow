@@ -11,8 +11,6 @@ public sealed record SourcePermissionGrantRequest(
     string? Permission,
     string? Reason);
 
-public sealed record SourcePermissionRevokeRequest(string? Reason);
-
 /// <summary>来源级授权 API 的身份、输入和审计结果适配器。</summary>
 public static class ResourcePermissionEndpointResults
 {

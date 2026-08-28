@@ -922,7 +922,7 @@ sourcePermissionManagement.MapPost("/{sourceId}/permissions", async (
 sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", async (
     string sourceId,
     Guid grantId,
-    SourcePermissionRevokeRequest? request,
+    string? reason,
     ClaimsPrincipal principal,
     ISourceRepository sources,
     IResourcePermissionService permissions,
@@ -932,8 +932,7 @@ sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", a
     CancellationToken ct) =>
 {
     if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
-        request is null ||
-        !ResourcePermissionEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+        !ResourcePermissionEndpointResults.TryNormalizeReason(reason, out var normalizedReason))
     {
         return (IResult)Results.BadRequest(new { error = "invalid_permission_request" });
     }
@@ -963,7 +962,7 @@ sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", a
         "identity.resource_permission.revoke",
         sourceId,
         actorId,
-        reason,
+        normalizedReason,
         httpContext,
         auditSink,
         clock,
