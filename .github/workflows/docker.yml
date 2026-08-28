@@ -57,7 +57,7 @@ jobs:
       - name: Scan pushed image for high-severity vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}/inkflow-${{ matrix.name }}:sha-${{ github.sha }}
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[1] }}
           scanners: vuln
           vuln-type: os,library
           severity: HIGH,CRITICAL
