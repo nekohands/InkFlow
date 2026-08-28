@@ -1,0 +1,138 @@
+name: Security
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: NuGet dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore InkFlow.sln
+
+      - name: Scan transitive packages for known vulnerabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="${RUNNER_TEMP}/inkflow-nuget-vulnerabilities.json"
+          dotnet list InkFlow.sln package --vulnerable --include-transitive --format json > "$report"
+          jq . "$report"
+          vulnerabilities=$(jq '[.. | objects | (.vulnerabilities? // [])[]] | length' "$report")
+          if [ "$vulnerabilities" -ne 0 ]; then
+            echo "NuGet vulnerability scan found $vulnerabilities vulnerable package advisories."
+            exit 1
+          fi
+
+      - name: Upload dependency audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkflow-nuget-vulnerability-report
+          path: ${{ runner.temp }}/inkflow-nuget-vulnerabilities.json
+          if-no-files-found: error
+          retention-days: 30
+
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          build-mode: manual
+
+      - name: Restore
+        run: dotnet restore InkFlow.sln
+
+      - name: Build for CodeQL
+        run: dotnet build InkFlow.sln --configuration Release --no-restore
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:csharp
+
+  filesystem-scan:
+    name: Filesystem security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Scan source, configuration and dependencies
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-results.sarif
+          limit-severities-for-sarif: true
+          exit-code: '1'
+
+      - name: Upload Trivy findings
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-filesystem
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkflow-trivy-filesystem-report
+          path: trivy-results.sarif
+          if-no-files-found: error
+          retention-days: 30
+
+  source-sbom:
+    name: Source SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: inkflow-source-sbom.cdx.json
+          upload-artifact-retention: 30
+          upload-release-assets: false
