@@ -570,6 +570,7 @@ Phase 0 开发过程中真实发现并修复：
 - 实现：新增 `LegadoCompatibilityProfile`（`legado-book-source-v1`、客户端 3.0、能力集合）和 `ILegadoRuleGenerator`/`LegadoRuleGenerator` seam；API 书源清单及 Personal Token 签发均通过该生成器生成，保留旧静态入口兼容已有调用方。
 - Contract Gate：新增 `LegadoContractReleaseGateTests`，按 `Generate Rule → JSON Validate → Search → BookInfo → TOC → Content` 顺序验证规则字段/JSONPath、HTTP Web JSON 命名形态、稳定 BookId/ChapterId、链接前缀、正文内容和当前版本读取；夹具只使用内存中的已落库正典数据，不触网。
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Contract 5/5、Unit 279/279、Architecture 1/1 PASS。完整 Integration 51 项中 6 通过、43 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；本次全量 Test 命令因该环境阻塞返回非零，不视为业务逻辑失败。
+- 远端验收：提交 `aae5295` 的 CI `33138900850`、Docker `33138900845`、Security `33138900869` 均 **GREEN**；CI 的 Runtime smoke、Redis 分布式限流、PostgreSQL 备份恢复和 Diagnostics，Docker 四镜像发布前扫描，以及 Security 的 NuGet/SBOM/Trivy/CodeQL 均通过。Security 仅有既有 Actions Node 20 弃用提示与仓库未启用 Code Scanning 的非阻断告警。
 - 验收边界：本轮未执行 MuMu/阅读 3.0、真实来源、真实 HTTP 客户端导入或人工验收；这些仍按第 6 节待定。Profile/Contract Gate 自动化通过不等于 Phase 1A/1B 外部验收或 1.0 完成。
 
 ## 5. Phase 1A 核心验收链路

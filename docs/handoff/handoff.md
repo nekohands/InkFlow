@@ -230,6 +230,7 @@ CI: GREEN (Run 32821162412)
 - 缺口：已有 Legado DTO/端点和书源生成逻辑，但 ContractTests 之前只验证程序集加载与 Personal header，未独立锁定 `Generate Rule → JSON Validate → Search → BookInfo → TOC → Content` 发布门禁。
 - 实现：新增 `LegadoCompatibilityProfile` 与 `ILegadoRuleGenerator`/`LegadoRuleGenerator`；API 公共书源清单和 Personal Token 签发统一经过生成器 seam，静态 `LegadoBookSourceManifest.Generate` 保留为兼容入口。
 - 验证：`LegadoContractReleaseGateTests` 使用已落库正典内存夹具，检查生成规则/JSONPath、Web JSON 字段、稳定 ID 和 Search → BookInfo → TOC → Content 连续读取；Contract 5/5、Unit 279/279、Architecture 1/1、Release Build 0 warnings / 0 errors PASS。
+- 远端证据：提交 `aae5295` 的 CI `33138900850`、Docker `33138900845`、Security `33138900869` 均 GREEN；Runtime smoke、Redis 分布式限流、PostgreSQL 备份恢复、Diagnostics、四镜像扫描以及 NuGet/SBOM/Trivy/CodeQL 均通过。Security 仅有 Node 20 弃用和未启用 Code Scanning 的非阻断告警。
 - 边界：完整 Integration 本机仍为 51 项中 6 通过、43 项因 Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；本轮不执行真实来源、阅读 3.0 真机、HTTP 客户端导入或人工验收。该门禁自动化通过不替代外部 Release Gate。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
