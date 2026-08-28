@@ -99,6 +99,8 @@ Task 支持：TaskId、Type、SourceId、Priority、Attempt、MaxAttempts、Sche
 
 Source Health Operator Controls v1 已补齐受保护的来源能力健康查询以及带理由的单能力 disable/enable 命令；状态仍由 Sources 健康聚合和 PostgreSQL 事实表驱动，恢复只回到 `Unknown`，不绕过真实探针。Operations Center Read Model v1 已提供独立查询授权和有界聚合视图；完整 Center UI、自动修复、告警、保留策略和备份治理仍待后续实现。
 
+API 公共/Legado 限流由 ASP.NET Core policy 承载，计数通过 Redis Lua 原子脚本共享到多个 API 实例；Redis 连接故障时使用相同配额/窗口的有界本地降级并记录恢复转折，避免故障时无界放行。Redis 只保存可重建的限流计数，不承载任何业务事实；动态用户/组织配额、加权成本和 Redis 告警仍不在本版本范围内。
+
 ## 7. Messaging 与一致性
 
 采用 PostgreSQL Transaction + Transactional Outbox + Inbox：

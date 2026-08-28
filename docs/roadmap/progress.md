@@ -528,6 +528,15 @@ Phase 0 开发过程中真实发现并修复：
 - 自动化证据：本机 `bash -n scripts/backup-restore-drill.sh` PASS；本机实际 Docker/Compose 演练因 `docker` 命令不可用 BLOCKED，不记为通过。远端 CI `33129734525` GREEN，Test 48 通过、1 跳过，Runtime smoke、PostgreSQL backup and restore drill、Diagnostics 全部通过；演练日志记录 `archive=49125 bytes, audit_events=22`。Docker `33129734604` GREEN（API、Migrations、Scheduler、Worker 四镜像）。
 - 边界：生产备份调度、异地存储/加密、备份保留与删除治理、恢复授权、RPO/RTO 目标和告警仍是后续 1.0 Operations 工作；本轮只关闭 CI 级恢复可用性证据。
 
+**Redis Distributed Rate Limit v1（本轮，2026-08-28）**：
+
+- 缺口：API/Legado 原有 fixed-window 仅存在于单个 API 进程内，多个实例会各自放大配额，不能满足 1.0 的 Rate Limit Release Gate。
+- 实现：新增 `RedisRateLimitCounter` 与 `RedisFixedWindowRateLimiter`；Redis Lua 脚本在服务端原子执行读取、配额判断、递增和过期，公共 API/Legado policy 保持原有边界。Compose API 显式注入 `ConnectionStrings__Redis`，客户端身份只以短哈希进入 Redis key，不写入原始 token 或 IP。
+- 故障边界：Redis 暂不可用时切换到同配额/窗口的本地 fixed-window limiter，并以恢复感知日志记录，不无界放行；该降级期间不保证跨实例全局一致性。动态用户/组织配额、加权成本和 Redis 告警不属于本轮。
+- 自动化证据：本机 Restore PASS；Release Build 0 warnings / 0 errors PASS；API 安全单元测试 11/11 PASS，包含跨 limiter 共享计数、限流键脱敏和有界降级；新增真实 Redis Integration 用例在未提供 `INKFLOW_REDIS_CONNECTION` 时明确跳过。本机完整测试为 Unit 267/267、Architecture 1/1、Contract 2/2 PASS；Integration 50 项中 6 通过、42 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过，不记为本机 Redis 集成通过。
+- 远端验收：提交 `2bace7d` 的 CI `33131258779` **GREEN**；完整 Test 为 50 项、48 通过、2 跳过，Runtime smoke、Redis distributed rate-limit integration（真实 Redis 两条独立连接，1/1 通过）、PostgreSQL backup/restore 与 Diagnostics 全部通过；备份日志为 `archive=49204 bytes, audit_events=23`。Docker `33131258754` **GREEN**（API、Migrations、Scheduler、Worker 四镜像）。
+- 工作包状态：Redis 分布式 fixed-window 计数与真实 Compose 验收已完成；动态用户/组织配额、加权成本、Redis 告警与故障降级期间的跨实例全局一致性仍不在本版本范围内。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -622,7 +631,7 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流当前为单实例 fixed-window 基线；审计持久化、独立 `AuditRead` 有界查询与死信重放命令审计基线已落地，Operations Center 已补齐粗粒度查询 policy，但 Redis 分布式配额、资源级授权、权限管理、保留策略与告警仍待后续 Operations/Identity 工作包。
+- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；动态用户/组织配额、加权成本、Redis 可用性告警、资源级授权、权限管理与审计保留策略仍待后续 Operations/Identity 工作包。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。外部告警路由、阈值治理和运维闭环仍待后续 Operations/Crawling 工作包。

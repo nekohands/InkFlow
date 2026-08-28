@@ -134,6 +134,8 @@ docker compose -f docker-compose.build.yml up -d --build
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `INKFLOW_DB_PASSWORD` | `inkflow` | PostgreSQL 密码，生产环境务必修改 |
+| `ConnectionStrings__Redis` | `redis:6379,abortConnect=false`（Compose） | API 分布式限流计数连接；生产环境应配置认证/TLS 连接串 |
+| `RateLimiting__RedisKeyPrefix` | `inkflow:rate-limit` | Redis 限流键前缀；客户端身份只以短哈希进入键名 |
 
 ### 部署验证
 
@@ -144,6 +146,10 @@ curl --fail --silent http://localhost:8080/reader          # Web Reader(HTML)
 ```
 
 Web Reader 入口:`http://<主机>:8080/reader`。Legado 书源:`http://<主机>:8080/legado/book-source.json`(baseUrl 自动取请求地址)。
+
+### API 分布式限流
+
+公共 API 与 Legado API 使用独立 fixed-window 策略，计数由 Redis Lua 原子脚本在多个 API 实例间共享；匿名请求按连接层 IP、认证请求按主体短哈希分桶，拒绝返回 `429/Retry-After`。Redis 临时不可用时只切换到同配额的本地有界限流，不会无界放行；该降级不等同于跨实例全局配额，生产环境仍需监控 Redis 可用性并配置告警。
 
 ### PostgreSQL 备份恢复演练
 

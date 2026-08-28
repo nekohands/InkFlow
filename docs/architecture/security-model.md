@@ -86,7 +86,7 @@ Rate limiting can combine:
 
 Expensive endpoints use weighted quota rather than treating all requests equally. APIs return proper 429/Retry-After semantics; Legado/API clients are not forced through interactive CAPTCHA.
 
-当前 API 基线已通过可替换的 policy/key seam 接入 ASP.NET Core fixed-window 限流：公共 API 与 Legado API 使用独立策略，匿名请求按连接层 IP 分桶，认证主体按 `sub` / `client_id` 的不可逆短哈希分桶；尚未配置可信代理前不信任 `X-Forwarded-For`。拒绝请求返回 `429` 并带 `Retry-After`。当前为单实例实现，Redis 分布式计数、按用户/组织的动态配额和加权成本仍待后续 Operations/Identity 能力接入。
+当前 API 基线已通过可替换的 policy/key seam 接入 ASP.NET Core fixed-window 限流：公共 API 与 Legado API 使用独立策略，匿名请求按连接层 IP 分桶，认证主体按 `sub` / `client_id` 的不可逆短哈希分桶；尚未配置可信代理前不信任 `X-Forwarded-For`。计数由 Redis Lua 脚本原子完成检查、递增和过期，多个 API 实例共享同一配额；拒绝请求返回 `429` 并带 Redis 窗口剩余时间的 `Retry-After`。Redis 暂时不可用时只使用相同配额/窗口的本地 fixed-window 降级并记录恢复感知日志，不会无界放行，但降级期间不提供跨实例全局一致性。按用户/组织的动态配额、加权成本和更完整的 Redis 告警治理仍待后续 Operations/Identity 能力接入。
 
 ## 8. No Open Proxy
 
