@@ -82,6 +82,7 @@ public enum IdentityResultStatus
 public static class IdentityPolicies
 {
     public const string OperationsRead = "identity-operations-read";
+    public const string AuditRead = "identity-audit-read";
     public const string CrawlerRepair = "identity-crawler-repair";
     public const string ContentModeration = "identity-content-moderation";
     public const string SourceOperations = "identity-source-operations";

@@ -50,6 +50,7 @@ builder.Services.AddDbContext<CrawlingDbContext>(options =>
 builder.Services.AddScoped<LoggingAuditEventSink>();
 builder.Services.AddScoped<PersistentAuditEventSink>();
 builder.Services.AddScoped<IAuditEventSink, CompositeAuditEventSink>();
+builder.Services.AddScoped<IAuditEventReader, EfAuditEventReader>();
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<IIdentitySessionRepository, EfIdentitySessionRepository>();
@@ -77,6 +78,11 @@ builder.Services.AddAuthorization(options =>
             UserRole.Administrator.ToString()));
     options.AddPolicy(
         IdentityPolicies.OperationsRead,
+        policy => policy.RequireRole(
+            UserRole.Operator.ToString(),
+            UserRole.Administrator.ToString()));
+    options.AddPolicy(
+        IdentityPolicies.AuditRead,
         policy => policy.RequireRole(
             UserRole.Operator.ToString(),
             UserRole.Administrator.ToString()));
@@ -479,6 +485,47 @@ reading.MapPut("/preferences", async (
 
 var operationsRead = api.MapGroup("/admin")
     .RequireAuthorization(IdentityPolicies.OperationsRead);
+
+var auditRead = api.MapGroup("/admin")
+    .RequireAuthorization(IdentityPolicies.AuditRead);
+
+auditRead.MapGet("/audit/events", async (
+    string? from,
+    string? to,
+    string? action,
+    string? outcome,
+    string? actorId,
+    string? cursor,
+    int? limit,
+    IAuditEventReader auditReader,
+    CancellationToken ct) =>
+{
+    if (!AuditEndpointResults.TryCreateQuery(
+            from,
+            to,
+            action,
+            outcome,
+            actorId,
+            cursor,
+            limit,
+            out var query,
+            out var error))
+    {
+        return (IResult)Results.BadRequest(new { error });
+    }
+
+    try
+    {
+        var page = await auditReader.QueryAsync(query!, ct).ConfigureAwait(false);
+        return Results.Ok(AuditEndpointResults.ToResponse(page));
+    }
+    catch (Exception) when (!ct.IsCancellationRequested)
+    {
+        return Results.Json(
+            new { error = "audit_unavailable" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 operationsRead.MapGet("/crawler/dead-letters", async (
     int? limit,

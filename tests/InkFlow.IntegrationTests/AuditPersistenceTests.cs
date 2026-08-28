@@ -87,6 +87,58 @@ public sealed class AuditPersistenceTests
         Assert.AreEqual("success", unchanged.Outcome);
     }
 
+    [TestMethod]
+    public async Task Audit_Reader_Uses_Stable_Bounded_Cursor_And_Exact_Filters()
+    {
+        await using var db = CreateContext();
+        const string action = "test.audit.reader";
+        const string actorId = "audit-reader-operator";
+        var sink = new PersistentAuditEventSink(db);
+
+        for (var index = 0; index < 3; index++)
+        {
+            await sink.AppendAsync(AuditEvent.Create(
+                action,
+                $"/test/audit/{index}",
+                "success",
+                200,
+                T0.AddMinutes(index),
+                actorType: "authenticated",
+                actorId: actorId)).ConfigureAwait(false);
+        }
+
+        var reader = new EfAuditEventReader(db);
+        var firstPage = await reader.QueryAsync(
+            new AuditEventQuery(
+                From: T0,
+                To: T0.AddMinutes(2),
+                Action: action,
+                Outcome: "success",
+                ActorId: actorId,
+                Before: null,
+                Limit: 2)).ConfigureAwait(false);
+
+        Assert.AreEqual(2, firstPage.Events.Count);
+        Assert.IsNotNull(firstPage.NextCursor);
+        Assert.AreEqual("/test/audit/2", firstPage.Events[0].Resource);
+        Assert.AreEqual("/test/audit/1", firstPage.Events[1].Resource);
+
+        var secondPage = await reader.QueryAsync(
+            new AuditEventQuery(
+                From: T0,
+                To: T0.AddMinutes(2),
+                Action: action,
+                Outcome: "success",
+                ActorId: actorId,
+                Before: firstPage.NextCursor,
+                Limit: 2)).ConfigureAwait(false);
+
+        Assert.AreEqual(1, secondPage.Events.Count);
+        Assert.AreEqual("/test/audit/0", secondPage.Events[0].Resource);
+        Assert.IsNull(secondPage.NextCursor);
+        Assert.IsFalse(firstPage.Events.Select(row => row.Id).Contains(secondPage.Events[0].Id));
+    }
+
     private static AuditDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AuditDbContext>()
