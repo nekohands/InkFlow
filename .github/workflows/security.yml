@@ -54,7 +54,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v7
 
@@ -63,7 +62,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: csharp
           build-mode: manual
@@ -75,9 +74,20 @@ jobs:
         run: dotnet build InkFlow.sln --configuration Release --no-restore
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: /language:csharp
+          upload: never
+          output: ${{ runner.temp }}/inkflow-codeql-results
+
+      - name: Upload CodeQL results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkflow-codeql-results
+          path: ${{ runner.temp }}/inkflow-codeql-results
+          if-no-files-found: warn
+          retention-days: 30
 
   filesystem-scan:
     name: Filesystem security scan
@@ -85,7 +95,6 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v7
 
@@ -102,13 +111,6 @@ jobs:
           output: trivy-results.sarif
           limit-severities-for-sarif: true
           exit-code: '1'
-
-      - name: Upload Trivy findings
-        if: always() && hashFiles('trivy-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
-          category: trivy-filesystem
 
       - name: Upload Trivy report
         if: always()
