@@ -449,6 +449,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：候选提交 `6f52719` 已推送；[CI 33271405103](https://github.com/nekohands/InkFlow/actions/runs/33271405103)、[Docker 33271405122](https://github.com/nekohands/InkFlow/actions/runs/33271405122)、[Security 33271405107](https://github.com/nekohands/InkFlow/actions/runs/33271405107) 均为 GREEN，包含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics、四镜像构建和 SBOM/Filesystem/CodeQL/NuGet 检查。
 - 当前状态：受控 response-cookie Session 为已通过候选门禁的 `Implemented` 基线，不等同 `Accepted/Completed`；CredentialReference 初始认证/持久会话、真实来源/切源、阅读 3.0 和人工验收仍待后续。
 
+### 4.55 Source Rule 有界请求模板变量（本轮，2026-08-30）
+
+- 缺口：此前 Header 值不支持执行期模板，路径之外的模板花括号校验不统一，调用方变量上下文也没有统一的资源边界。
+- 实现：路径、Header、Query、Form 模板值统一支持 `{name}` 占位符；`RuleAdapter` 在 HTTP seam 前渲染 Header 值并保持 Header 原值语义；`SourceRuleExecutionLimits` 新增变量数量、名称长度、单值长度和累计 UTF-8 字节预算。
+- 安全/失败关闭：变量名符合 `[A-Za-z_][A-Za-z0-9_]*`，默认最多 32 个变量、单名 128 字符、单值 2,048 字符、累计 16 KiB；变量值和渲染 Header 名/值拒绝控制字符，发布期/执行期拒绝残留花括号，错误不回显变量值，边界检查均早于 HTTP seam。
+- 回归：新增 Header 渲染、控制字符、变量数量/名称/单值/总字节预算、发布校验及失败不出网测试；本地 Unit 418/418、Architecture 1/1、Contract 10/10 通过。
+- 非目标：不实现响应派生变量、CredentialReference/ISecretProvider 初始认证或持久会话、递归/通用多请求、完整 XPath/JSONPath 语法；真实来源/切源、阅读 3.0 和人工验收仍按待定清单处理。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 418/418、Architecture 1/1、Contract 10/10 PASS；完整 Integration 80 项 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 语法、API `/health` 200 和 `git diff --check` PASS。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未完成执行。
+- 远端证据：候选提交 `dd39396` 已推送；[CI 33272774115](https://github.com/nekohands/InkFlow/actions/runs/33272774115)、[Docker 33272774105](https://github.com/nekohands/InkFlow/actions/runs/33272774105)、[Security 33272774138](https://github.com/nekohands/InkFlow/actions/runs/33272774138) 均 GREEN。CI 真实测试为 Unit 418/418、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成迁移、Compose、Runtime smoke、Core SLO、Redis、PostgreSQL 备份恢复和 diagnostics；Docker 四业务镜像/Collector 扫描发布及 Security NuGet/Filesystem/CodeQL/SBOM 均通过。
+- 当前状态：有界请求模板变量为通过候选门禁的 `Implemented` 基线，不等同 `Accepted/Completed`；响应派生变量、Credential 初始认证、真实来源/切源、阅读 3.0 和人工验收仍待后续。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -517,6 +528,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 ✅ Source Rule page-number/cursor Pagination：声明式 query/form 参数注入 + 有界执行/失败关闭（`0e9164b`；CI `33269606086` / Docker `33269606076` / Security `33269606147` GREEN；真实来源与人工验收待定）
+✅ Source Rule 有界请求模板变量：路径/Header/Query/Form 占位符 + 变量上下文预算 + 控制字符/语法失败关闭（`dd39396`；CI `33272774115` / Docker `33272774105` / Security `33272774138` GREEN；真实来源与人工验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）
@@ -778,6 +790,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination 和受控 response-cookie Session；完整语法、CredentialReference 驱动的初始认证/持久会话、通用变量及三种受控分页之外的多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session 和有界请求模板变量；完整语法、CredentialReference 驱动的初始认证/持久会话、响应派生变量及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。
