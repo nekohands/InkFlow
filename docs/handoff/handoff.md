@@ -432,10 +432,11 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 缺口：4.52 只支持响应 next-link；API 型来源需要页码或游标续页，但续页参数、终止条件和多请求预算必须仍由 DSL/执行器统一控制。
 - 实现：新增 `RulePaginationMode.PageNumber` 与 `RulePaginationMode.Cursor`。页码模式使用规则已声明且唯一的 query/form `parameterName`，按 `startPage`/`pageStep` 递增并由 `nextPageSelector` 判断继续；游标模式由 `cursorSelector` 读取下一游标并写回同一参数，保留原请求 method。省略 `mode` 的既有 JSON 仍为 next-link。
 - 安全/失败关闭：GET 续页只允许 query；页码值限制 0..1,000,000，游标限制 2,048 字符并拒绝控制字符；所有模式共享 MaxRequests、MaxPages、累计响应字节和执行时间预算。重复游标、配置错误、来源不一致或预算超限时整体失败，不暴露部分页面。
-- 定向证据：RuleAdapter/Validator/JSON 69/69 PASS；完整门禁将在本轮结束后补录。
+- 定向证据：RuleAdapter/Validator/JSON 69/69 PASS；完整本地与远端门禁已在本节补录。
 - 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 399/399、Architecture 1/1、Contract 10/10 PASS；完整 Integration 80 项中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 语法、API `/health` 200 和 `git diff --check` PASS。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未通过。
+- 远端证据：提交 `0e9164b` 的 CI `33269606086`、Docker `33269606076`、Security `33269606147` 均 GREEN。CI 真实 PostgreSQL 集成共 80 项，78 通过、2 跳过；Unit 399/399、Architecture 1/1、Contract 10/10，11 个迁移检查、Compose、Runtime/SLO、Redis、备份恢复和 diagnostics 全部通过。Docker 的 Collector 与四个业务镜像构建/扫描/发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过，保留既有 Actions Node 20 弃用提示。
 - 非目标：Cookie/Session、通用变量、完整 XPath/JSONPath 语法、受控分页之外的多请求/递归 MaxDepth、真实来源和阅读 3.0 人工验收仍未完成。
-- 当前状态：page-number/cursor 形成可执行候选基线，本地 Build/Test/Runtime 已完成，远端 CI/Docker/Security 待提交后触发并补录；尚不能标记 `Accepted/Completed`。
+- 当前状态：page-number/cursor 形成可执行候选基线，并取得本地与远端三类门禁证据；整体仍为 `1.0 Release Candidate`，尚不能标记 `Accepted/Completed`。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
@@ -504,6 +505,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Private Library v2：独立 PrivateChapter/私有正文 + TXT/EPUB 导入导出 + 用户范围读取 + ZIP/XML 输入边界（`f83476a`，CI `33163145132` / Docker `33163145104` / Security `33163144984` 均 GREEN；真实账户/文件和公共路径隔离人工验收待定）
 ✅ Operations/Repair Center UI v1：受保护快照展示 + 来源能力控制 + 死信理由确认重放（ed0ff8c，CI 33125476460 / Docker 33125476441 均 GREEN）
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
+✅ Source Rule page-number/cursor Pagination：声明式 query/form 参数注入 + 有界执行/失败关闭（`0e9164b`；CI `33269606086` / Docker `33269606076` / Security `33269606147` GREEN；真实来源与人工验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）
