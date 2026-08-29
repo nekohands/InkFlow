@@ -1,6 +1,6 @@
 namespace InkFlow.BuildingBlocks.Persistence;
 
-/// <summary>审计事实的数据库行。该实体只通过追加式 sink 创建，不提供更新/删除仓储。</summary>
+/// <summary>审计事实的数据库行。普通写入只通过追加式 sink 创建，过期删除由受控 retention seam 执行。</summary>
 public sealed class AuditEventEntity
 {
     public Guid Id { get; set; }

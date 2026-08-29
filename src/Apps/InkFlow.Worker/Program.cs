@@ -38,16 +38,23 @@ builder.Services.AddDbContext<SourcesDbContext>(o => o.UseNpgsql(connectionStrin
 builder.Services.AddDbContext<LibraryDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<ContentDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<MessagingDbContext>(o => o.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AuditDbContext>(o => o.UseNpgsql(connectionString));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(
     MessageRetentionOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddSingleton(
+    AuditRetentionOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddScoped<EfMessagingMessageStore>();
 builder.Services.AddScoped<IOutboxStore>(sp => sp.GetRequiredService<EfMessagingMessageStore>());
 builder.Services.AddScoped<IInboxStore>(sp => sp.GetRequiredService<EfMessagingMessageStore>());
 builder.Services.AddScoped<IMessageRetentionStore>(sp =>
     sp.GetRequiredService<EfMessagingMessageStore>());
 builder.Services.AddScoped<IMessageRetentionService, MessageRetentionService>();
+builder.Services.AddScoped<EfAuditRetentionStore>();
+builder.Services.AddScoped<IAuditRetentionStore>(sp =>
+    sp.GetRequiredService<EfAuditRetentionStore>());
+builder.Services.AddScoped<IAuditRetentionService, AuditRetentionService>();
 builder.Services.AddScoped<ITransactionalOutboxWriter, EfTransactionalOutboxWriter>();
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
@@ -108,6 +115,7 @@ builder.Services.AddScoped<CompositeTaskExecutor>();
 builder.Services.AddHostedService<TaskPollingService>();
 builder.Services.AddHostedService<SourceSeedService>();
 builder.Services.AddHostedService<MessageRetentionBackgroundService>();
+builder.Services.AddHostedService<AuditRetentionBackgroundService>();
 
 
 var app = builder.Build();

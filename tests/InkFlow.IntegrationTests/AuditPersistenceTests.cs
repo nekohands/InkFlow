@@ -79,6 +79,21 @@ public sealed class AuditPersistenceTests
         Assert.IsNotNull(mutationException);
         StringAssert.Contains(mutationException.ToString(), "append-only");
 
+        Exception? deletionException = null;
+        try
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""DELETE FROM "audit"."events" WHERE "Id" = {auditEvent.Id}""")
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            deletionException = exception;
+        }
+
+        Assert.IsNotNull(deletionException);
+        StringAssert.Contains(deletionException.ToString(), "append-only");
+
         db.ChangeTracker.Clear();
         var unchanged = await db.Events
             .AsNoTracking()
@@ -139,6 +154,92 @@ public sealed class AuditPersistenceTests
         Assert.IsFalse(firstPage.Events.Select(row => row.Id).Contains(secondPage.Events[0].Id));
     }
 
+    [TestMethod]
+    public async Task Audit_Retention_Deletes_Only_Expired_Events()
+    {
+        await using var db = CreateContext();
+        var expired = AuditEvent.Create(
+            action: "test.audit.retention.expired",
+            resource: "/test/audit/retention/expired",
+            outcome: "success",
+            statusCode: 200,
+            occurredAt: T0.AddDays(-31),
+            actorType: "system");
+        var recent = AuditEvent.Create(
+            action: "test.audit.retention.recent",
+            resource: "/test/audit/retention/recent",
+            outcome: "success",
+            statusCode: 200,
+            occurredAt: T0.AddDays(-1),
+            actorType: "system");
+        var sink = new PersistentAuditEventSink(db);
+        await sink.AppendAsync(expired).ConfigureAwait(false);
+        await sink.AppendAsync(recent).ConfigureAwait(false);
+
+        var service = new AuditRetentionService(
+            new EfAuditRetentionStore(db),
+            new FixedTimeProvider(T0));
+        var result = await service
+            .CleanupAsync(new AuditRetentionOptions
+            {
+                RetentionDays = 30,
+                BatchSize = 100,
+                MaxBatchesPerRun = 10,
+            })
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.DeletedCount);
+        Assert.IsFalse(await db.Events
+            .AsNoTracking()
+            .AnyAsync(candidate => candidate.Id == expired.Id)
+            .ConfigureAwait(false));
+        Assert.IsTrue(await db.Events
+            .AsNoTracking()
+            .AnyAsync(candidate => candidate.Id == recent.Id)
+            .ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task Audit_Retention_Stops_At_Per_Run_Batch_Bound()
+    {
+        await using var db = CreateContext();
+        var expiredEvents = Enumerable
+            .Range(0, 3)
+            .Select(index => AuditEvent.Create(
+                action: "test.audit.retention.batch",
+                resource: $"/test/audit/retention/batch/{index}",
+                outcome: "success",
+                statusCode: 200,
+                occurredAt: T0.AddDays(-31).AddMinutes(index),
+                actorType: "system"))
+            .ToArray();
+        var sink = new PersistentAuditEventSink(db);
+        foreach (var auditEvent in expiredEvents)
+        {
+            await sink.AppendAsync(auditEvent).ConfigureAwait(false);
+        }
+
+        var service = new AuditRetentionService(
+            new EfAuditRetentionStore(db),
+            new FixedTimeProvider(T0));
+        var result = await service
+            .CleanupAsync(new AuditRetentionOptions
+            {
+                RetentionDays = 30,
+                BatchSize = 2,
+                MaxBatchesPerRun = 1,
+            })
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.DeletedCount);
+        Assert.AreEqual(1, await db.Events
+            .AsNoTracking()
+            .CountAsync(candidate => expiredEvents
+                .Select(auditEvent => auditEvent.Id)
+                .Contains(candidate.Id))
+            .ConfigureAwait(false));
+    }
+
     private static AuditDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AuditDbContext>()
@@ -148,5 +249,10 @@ public sealed class AuditPersistenceTests
         var db = new AuditDbContext(options);
         db.Database.Migrate();
         return db;
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 }
