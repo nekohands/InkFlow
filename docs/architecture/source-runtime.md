@@ -84,9 +84,9 @@ scheme/host/port 同源；所有模式都受 `maxPages`、`MaxRequests`、响应
 MaxResultSize，以及调用方临时请求模板变量上下文的数量、名称、单值长度和累计 UTF-8 字节预算；默认
 变量边界为 32 个、名称 128 字符、单值 2,048 字符、累计 16 KiB。`RuleRequest` 的路径、Header、Query
 和 Form 模板值可使用 `{name}` 占位符；发布期与执行期都会拒绝未闭合/非法占位符、非法变量名和控制字符，
-执行失败不回显变量值。生产 HTTP 客户端在解码前按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、
-Owner/Admin 凭据管理和真实 SecretProvider 之外，基于 CredentialReference 的任务级初始认证及来源级默认
-绑定已形成 typed Bearer/Basic/API-Key Header 基线；持久化 Session，以及
+执行失败不回显变量值。生产 HTTP 客户端在解码前按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法仍不
+在当前执行基线内；基于 CredentialReference 的任务级初始认证及来源级默认绑定已形成 typed Bearer/Basic/API-Key
+Header 基线；持久化 Session，以及
 next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
@@ -98,8 +98,10 @@ next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirec
 
 `Source.DefaultCredentialReferenceId` 是来源级可选的非敏感默认绑定：规则型来源在调用方未提供显式
 `CredentialReferenceId` 时使用它，显式引用优先；RuleAdapter/Worker 只把该引用交给
-`ISourceCredentialProvider`，任务载荷仍不写入 secret。默认绑定本身不实现 Owner/Admin 管理，Provider
-仍必须执行 Owner Scope/跨租户授权；CodeAdapter 不会静默继承规则型来源默认绑定。
+`ISourceCredentialProvider`，任务载荷仍不写入 secret。4.59 增加受 Administrator policy 保护的
+`PUT /api/v1/admin/sources/{sourceId}/credential-binding`，仅允许设置或清除该引用并记录理由和命令审计，
+请求和响应均不承载 secret。Provider 仍必须执行 Owner Scope/跨租户授权；CodeAdapter 不会静默继承规则型来源默认绑定，
+真实 SecretProvider、secret 材料管理和跨执行持久会话仍需独立治理。
 
 禁止：
 

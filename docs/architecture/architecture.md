@@ -95,8 +95,9 @@ Query、Form 模板均支持有界的调用方变量上下文，执行器已应�
 `Source.DefaultCredentialReferenceId` 提供来源级可选的非敏感默认绑定，RuleAdapter/Worker 仅在调用方
 未提供显式引用时回退，显式引用优先。两者均由 `ISourceCredentialProvider` 解析并仅投影为 Bearer、Basic
 或受限 API-Key Header；无效引用、提供器异常、超时、非法材料和头冲突均在出网前失败关闭，secret 不进入
-任务/规则/日志/结果。配置提供器只是本地/容器适配器，Owner Scope、真实 SecretProvider 和管理入口仍需
-独立治理；CodeAdapter 不继承规则型来源默认绑定。
+任务/规则/日志/结果。4.59 已增加 Administrator-only 的来源默认引用设置/清除入口，并通过命令审计记录，
+请求和响应仍只含非敏感引用 ID。配置提供器只是本地/容器适配器，Owner Scope、真实 SecretProvider、secret
+材料管理和持久会话仍需独立治理；CodeAdapter 不继承规则型来源默认绑定。
 统一 `RuleSelectorEvaluator` 对 CSS、XML/HTML XPath 和受限 JSONPath 做分派；不支持的选择器语法、
 DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePagination` 只为 Search/TOC 列表提供
 同源 next-link、有限 page-number 或有限 cursor；next-link 后续以 GET 跟随，页码/游标只改写规则已声明

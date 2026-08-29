@@ -488,6 +488,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 回归与证据：Unit 442/442、Architecture 1/1、Contract 10/10、迁移模型 11/11、API `/health` 200；Integration 81 项中 6 通过、2 跳过、73 项因本机 Docker 管道不可用 BLOCKED。候选提交 `6d9c2ec` 的 [CI 33277737624](https://github.com/nekohands/InkFlow/actions/runs/33277737624)、[Docker 33277737577](https://github.com/nekohands/InkFlow/actions/runs/33277737577)、[Security 33277737675](https://github.com/nekohands/InkFlow/actions/runs/33277737675) 均 GREEN。
 - 当前状态：来源级默认 CredentialReference 为通过候选门禁的 Implemented 基线；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。
 
+### 4.59 Source 默认 CredentialReference Administrator 管理入口（本轮，2026-08-30）
+
+- 缺口：来源默认引用已有执行侧回退，但没有统一的受保护设置/清除入口和命令审计。
+- 实现：新增 `ISourceCredentialBindingService` 与 `PUT /api/v1/admin/sources/{sourceId}/credential-binding`；`null` 清除、合法非空引用设置，复用既有 `Source.DefaultCredentialReferenceId` 和 Sources Repository，无新 Migration。入口绑定独立 Administrator-only policy，不扩大 Operator 来源运维权限。
+- 安全/边界：请求只接受非敏感 `CredentialReferenceId` 与有界理由；响应只返回引用 ID；不接收/返回 secret、Token、Cookie 或密码。set/clear 结果写入命令审计，实际 secret 仍由 Provider 按 Owner Scope/跨租户规则解析。
+- 回归与证据：定向服务/接口测试 8/8；本地 Restore、Release Build 0/0、Unit 450/450、Architecture 1/1、Contract 10/10、API `/health` 200、匿名管理路由 401、`git diff --check` 通过；Integration 81 项中 6 通过、2 跳过、73 项因本机 Docker 管道不可用 BLOCKED。候选提交 `dee61d3` 的 [CI 33279039667](https://github.com/nekohands/InkFlow/actions/runs/33279039667)、[Docker 33279039645](https://github.com/nekohands/InkFlow/actions/runs/33279039645)、[Security 33279039666](https://github.com/nekohands/InkFlow/actions/runs/33279039666) 均 GREEN，headSha 均为 `dee61d31fdd9983c7cc30f57ea091cd016c5a6db`。
+- 非目标/当前状态：不实现 secret 材料管理、真实 SecretProvider、持久会话、真实来源/切源或人工验收；本包为通过候选门禁的 `Implemented` 基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -498,11 +506,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、Administrator 告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
 9. **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询授权、时间范围/精确过滤/游标、空结果、稳定错误和响应脱敏；本轮只完成自动化基线，未执行人工操作。
 10. **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未执行真实凭据操作。
-11. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
-12. **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖和失败导入无半本书；确认不进入公共 Catalog、搜索、Legado 或公共 Reading Shelf。本轮只完成自动化基线。
-13. **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证 Developer API 的目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮只完成自动化基线，未使用真实凭据。
-14. **生产 OTLP/SLO 窗口验收**：将 Collector 接入受治理持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，并验收错误预算告警、访问控制和保留策略；当前 CI 探针仅为短窗口基线。
-15. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收、Private Library 真实账户/文件验收，并继续推进 Security/Operations、外部告警和组织/支付商业化能力。
+11. **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名拒绝、理由与 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退与显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
+12. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
+13. **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖和失败导入无半本书；确认不进入公共 Catalog、搜索、Legado 或公共 Reading Shelf。本轮只完成自动化基线。
+14. **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证 Developer API 的目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮只完成自动化基线，未使用真实凭据。
+15. **生产 OTLP/SLO 窗口验收**：将 Collector 接入受治理持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，并验收错误预算告警、访问控制和保留策略；当前 CI 探针仅为短窗口基线。
+16. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收、Private Library 真实账户/文件验收，并继续推进 Security/Operations、外部告警和组织/支付商业化能力。
 
 当前推荐顺序：
 
@@ -557,12 +566,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ 第三个 Official Source 机制接入：17K CodeAdapter + 三宿主 SSRF 接线 + 幂等 Source 种子 + JSON Fixture 回归（本轮；真实验收待定）
 ✅ Source Rule page-number/cursor Pagination：声明式 query/form 参数注入 + 有界执行/失败关闭（`0e9164b`；CI `33269606086` / Docker `33269606076` / Security `33269606147` GREEN；真实来源与人工验收待定）
 ✅ Source Rule 有界请求模板变量：路径/Header/Query/Form 占位符 + 变量上下文预算 + 控制字符/语法失败关闭（`dd39396`；CI `33272774115` / Docker `33272774105` / Security `33272774138` GREEN；真实来源与人工验收待定）
+✅ Source 默认 CredentialReference 管理 API：Administrator-only 设置/清除 + 有界理由 + 命令审计（`dee61d3`；CI `33279039667` / Docker `33279039645` / Security `33279039666` GREEN；真实 Provider 与人工验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）
 → 17K 真实 Search/BookInfo/TOC/Content 验收
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
+→ Source 默认 CredentialReference 管理人工验收
 → 继续推进 1.0 Release Gates
 ```
 
@@ -818,6 +829,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证、有界响应派生变量和来源级默认 CredentialReference 回退；Owner/Admin 凭据管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证、有界响应派生变量、来源级默认 CredentialReference 回退和 Administrator-only 默认绑定管理 API；secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。

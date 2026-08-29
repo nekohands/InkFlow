@@ -90,9 +90,10 @@ Source Runtime 只把解析结果投影为有界的 Bearer、Basic 或受限 API
 配置适配器，开发可用未提交的本地环境配置，生产应接 Docker Secret/Vault/Cloud Secret Manager 风格提供器。
 Source records store references, not plaintext platform/user credentials；`Source.DefaultCredentialReferenceId`
 是可选的非敏感来源级默认引用，仅在 RuleAdapter/Worker 缺少显式 `CredentialReferenceId` 时使用，显式
-引用优先，且不复制到 Task Payload。最终解析仍必须经过 Provider，Provider 还必须实施 Platform /
-Organization / User Owner Scope 和跨租户授权；CodeAdapter 不继承规则型来源默认绑定。本轮不实现 Admin
-凭据管理或跨执行持久会话。
+引用优先，且不复制到 Task Payload。4.59 的 `PUT /api/v1/admin/sources/{sourceId}/credential-binding` 由
+Administrator-only policy 保护，只处理该引用的设置/清除、理由和命令审计，不接收或返回 secret。最终解析仍必须
+经过 Provider，Provider 还必须实施 Platform / Organization / User Owner Scope 和跨租户授权；CodeAdapter 不继承
+规则型来源默认绑定。真实 SecretProvider、secret 材料管理和跨执行持久会话仍未实现。
 
 RuleAdapter 的 `ResponseVariables` 视响应内容为不可信输入，只允许用于同一次执行的 page-number/cursor
 续页请求模板。提取结果经过变量数量、标识符、单值长度、累计 UTF-8 字节和控制字符边界；缺失、非法或
