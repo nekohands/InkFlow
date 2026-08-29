@@ -39,6 +39,16 @@ public sealed class ProductionSafeSourceHttpClient(
             message.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.CookieHeader))
+        {
+            if (request.CookieHeader.Any(char.IsControl))
+            {
+                throw new InvalidOperationException("request cookie header contains control characters.");
+            }
+
+            message.Headers.TryAddWithoutValidation("Cookie", request.CookieHeader);
+        }
+
         if (request.FormBody is not null)
         {
             message.Content = new StringContent(
@@ -55,7 +65,14 @@ public sealed class ProductionSafeSourceHttpClient(
             _limits.MaxBytes,
             cancellationToken).ConfigureAwait(false);
         var body = Decode(bytes, response.Content.Headers.ContentType?.CharSet);
-        return new SourceHttpResponse((int)response.StatusCode, body);
+        var setCookieHeaders = response.Headers.TryGetValues("Set-Cookie", out var values)
+            ? values.ToArray()
+            : [];
+        return new SourceHttpResponse(
+            (int)response.StatusCode,
+            body,
+            setCookieHeaders,
+            response.RequestMessage?.RequestUri ?? uri);
     }
 
     private static SourceRuleExecutionLimits ValidateLimits(SourceRuleExecutionLimits? limits)

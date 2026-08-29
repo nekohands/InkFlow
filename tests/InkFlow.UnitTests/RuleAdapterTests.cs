@@ -12,6 +12,7 @@ public sealed class RuleAdapterTests
     {
         public SourceHttpRequest? LastRequest { get; private set; }
         public int CallCount { get; private set; }
+        public List<SourceHttpRequest> Requests { get; } = [];
         public Func<SourceHttpRequest, SourceHttpResponse> Responder { get; set; } =
             _ => new SourceHttpResponse(200, """<a class="book-title" href="/book/12345">x</a>""");
 
@@ -19,6 +20,7 @@ public sealed class RuleAdapterTests
         {
             CallCount++;
             LastRequest = request;
+            Requests.Add(request);
             return Task.FromResult(Responder(request));
         }
     }
@@ -803,6 +805,214 @@ public sealed class RuleAdapterTests
 
         Assert.IsFalse(result.IsSuccess);
         Assert.IsTrue(result.Errors.Any(error => error.Contains("declared exactly once")));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
+    public async Task Session_Forwards_Response_Cookie_To_The_Next_Same_Origin_Request()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 2),
+            Session: new RuleSession());
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url.EndsWith("page=1", StringComparison.Ordinal)
+                ? new SourceHttpResponse(
+                    200,
+                    "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"/search?page=2\">next</a>",
+                    ["sid=abc; Path=/; HttpOnly"])
+                : new SourceHttpResponse(200, "<a class=\"result\" href=\"/book/2\">two</a>"),
+        };
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(2, http.Requests.Count);
+        Assert.IsNull(http.Requests[0].CookieHeader);
+        Assert.AreEqual("sid=abc", http.Requests[1].CookieHeader);
+    }
+
+    [TestMethod]
+    public async Task Session_Cookies_Do_Not_Leak_Between_Executions()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 2),
+            Session: new RuleSession());
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url.EndsWith("page=1", StringComparison.Ordinal)
+                ? new SourceHttpResponse(
+                    200,
+                    "<a class=\"next\" href=\"/search?page=2\">next</a>",
+                    ["sid=per-execution; Path=/"])
+                : new SourceHttpResponse(200, "done"),
+        };
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var first = await adapter.ExecuteAsync(rule, BaseUrl);
+        var second = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(first.IsSuccess, string.Join("; ", first.Errors));
+        Assert.IsTrue(second.IsSuccess, string.Join("; ", second.Errors));
+        Assert.AreEqual(4, http.Requests.Count);
+        Assert.IsNull(http.Requests[0].CookieHeader);
+        Assert.AreEqual("sid=per-execution", http.Requests[1].CookieHeader);
+        Assert.IsNull(http.Requests[2].CookieHeader);
+        Assert.AreEqual("sid=per-execution", http.Requests[3].CookieHeader);
+    }
+
+    [TestMethod]
+    public async Task Session_Rejects_Cookie_State_That_Exceeds_The_Declared_Bound()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Content,
+            RuleRequest.Get("/chapter/1"),
+            [new RuleField("body", new RuleSelector(SelectorKind.Css, "p"), null, [])],
+            Session: new RuleSession(MaxCookies: 1));
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "<p>正文</p>",
+                ["one=1; Path=/", "two=2; Path=/"]),
+        };
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("cookie limit")));
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Session_Does_Not_Send_A_Cookie_Outside_Its_Path()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/private/page-1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 2),
+            Session: new RuleSession());
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url.EndsWith("page-1", StringComparison.Ordinal)
+                ? new SourceHttpResponse(
+                    200,
+                    "<a class=\"next\" href=\"/public/page-2\">next</a>",
+                    ["sid=private; Path=/private"])
+                : new SourceHttpResponse(200, "done"),
+        };
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(2, http.Requests.Count);
+        Assert.IsNull(http.Requests[1].CookieHeader);
+    }
+
+    [TestMethod]
+    public async Task Session_Removes_A_Cookie_When_The_Upstream_Expires_It()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 3),
+            Session: new RuleSession());
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url switch
+            {
+                var url when url.EndsWith("page=1", StringComparison.Ordinal) => new SourceHttpResponse(
+                    200,
+                    "<a class=\"next\" href=\"/search?page=2\">next</a>",
+                    ["sid=abc; Path=/"]),
+                var url when url.EndsWith("page=2", StringComparison.Ordinal) => new SourceHttpResponse(
+                    200,
+                    "<a class=\"next\" href=\"/search?page=3\">next</a>",
+                    ["sid=; Max-Age=0; Path=/"]),
+                _ => new SourceHttpResponse(200, "done"),
+            },
+        };
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(3, http.Requests.Count);
+        Assert.AreEqual("sid=abc", http.Requests[1].CookieHeader);
+        Assert.IsNull(http.Requests[2].CookieHeader);
+    }
+
+    [TestMethod]
+    public async Task Session_Rejects_A_Cross_Origin_Final_Response()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Content,
+            RuleRequest.Get("/chapter/1"),
+            [new RuleField("body", new RuleSelector(SelectorKind.Css, "p"), null, [])],
+            Session: new RuleSession());
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "<p>正文</p>",
+                ["sid=foreign; Path=/"],
+                new Uri("https://other.example.com/chapter/1")),
+        };
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("response origin")));
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Static_Cookie_Header_Is_Rejected_Without_Hitting_Http()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Content,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/chapter/1",
+                new Dictionary<string, string> { ["Cookie"] = "sid=plaintext" },
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>()),
+            [new RuleField("body", new RuleSelector(SelectorKind.Css, "p"), null, [])]);
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("Cookie")));
         Assert.AreEqual(0, http.CallCount);
     }
 

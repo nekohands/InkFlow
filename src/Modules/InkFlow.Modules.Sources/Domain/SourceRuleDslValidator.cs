@@ -30,6 +30,9 @@ public static class SourceRuleDslValidator
     public const int MaxPaginationParameterNameLength = 128;
     public const int MaxPaginationPageValue = 1_000_000;
     public const int MaxPaginationCursorLength = 2_048;
+    public const int MaxSessionCookies = 32;
+    public const int MaxSessionCookieBytes = 4_096;
+    public const int MaxSessionCookieLifetimeSeconds = 3_600;
 
     private static readonly System.Text.RegularExpressions.Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
@@ -94,6 +97,7 @@ public static class SourceRuleDslValidator
             ValidateFields(rule, errors);
             ValidateList(rule, errors);
             ValidatePagination(rule, errors);
+            ValidateSession(rule, errors);
         }
 
         return errors;
@@ -152,6 +156,13 @@ public static class SourceRuleDslValidator
                     errors.Add($"{prefix}: headers must have non-empty key and value.");
                     break;
                 }
+            }
+
+            if (request.Headers.Keys.Any(IsCookieHeaderName))
+            {
+                errors.Add(
+                    $"{prefix}: Cookie/Set-Cookie headers are not allowed; " +
+                    "declare a bounded session instead of persisting cookie values.");
             }
         }
 
@@ -455,6 +466,44 @@ public static class SourceRuleDslValidator
         return errors;
     }
 
+    /// <summary>只校验单条能力规则的执行期 Cookie Session 声明。</summary>
+    public static IReadOnlyList<string> ValidateSession(CapabilityRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        var errors = new List<string>();
+        ValidateSession(rule, errors);
+        return errors;
+    }
+
+    private static void ValidateSession(CapabilityRule rule, List<string> errors)
+    {
+        var session = rule.Session;
+        if (session is null)
+        {
+            return;
+        }
+
+        var prefix = $"rules[{rule.Capability}] session";
+        if (session.MaxCookies < 1 || session.MaxCookies > MaxSessionCookies)
+        {
+            errors.Add($"{prefix}: maxCookies must be between 1 and {MaxSessionCookies}.");
+        }
+
+        if (session.MaxCookieBytes < 1 || session.MaxCookieBytes > MaxSessionCookieBytes)
+        {
+            errors.Add(
+                $"{prefix}: maxCookieBytes must be between 1 and {MaxSessionCookieBytes}.");
+        }
+
+        if (session.MaxCookieLifetimeSeconds < 1 ||
+            session.MaxCookieLifetimeSeconds > MaxSessionCookieLifetimeSeconds)
+        {
+            errors.Add(
+                $"{prefix}: maxCookieLifetimeSeconds must be between 1 and " +
+                $"{MaxSessionCookieLifetimeSeconds}.");
+        }
+    }
+
     private static void ValidatePagination(CapabilityRule rule, List<string> errors)
     {
         var pagination = rule.Pagination;
@@ -721,4 +770,8 @@ public static class SourceRuleDslValidator
             errors.Add($"{path}: length must be at most {maximum} characters.");
         }
     }
+
+    private static bool IsCookieHeaderName(string name) =>
+        name.Equals("cookie", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("set-cookie", StringComparison.OrdinalIgnoreCase);
 }

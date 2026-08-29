@@ -374,4 +374,31 @@ public sealed class SourceRuleDslJsonTests
         Assert.AreEqual("$.nextCursor", cursorPagination.CursorSelector!.Expression);
         StringAssert.Contains(cursorJson, "\"cursorSelector\"");
     }
+
+    [TestMethod]
+    public void Serialize_Roundtrips_Bounded_Session_Metadata_Without_Cookie_Values()
+    {
+        var dsl = new SourceRuleDsl(
+            "1",
+            "session-source",
+            [new CapabilityRule(
+                SourceCapability.Content,
+                RuleRequest.Get("/chapter/1"),
+                [new RuleField("content", new RuleSelector(SelectorKind.Css, "p"), null, [])],
+                Session: new RuleSession(
+                    MaxCookies: 4,
+                    MaxCookieBytes: 1024,
+                    MaxCookieLifetimeSeconds: 120))]);
+
+        var json = SourceRuleDslJson.Serialize(dsl);
+        var result = SourceRuleDslJson.Parse(json);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        var session = result.Document!.Rules[0].Session!;
+        Assert.AreEqual(4, session.MaxCookies);
+        Assert.AreEqual(1024, session.MaxCookieBytes);
+        Assert.AreEqual(120, session.MaxCookieLifetimeSeconds);
+        StringAssert.Contains(json, "\"session\"");
+        Assert.IsFalse(json.Contains("sid=", StringComparison.OrdinalIgnoreCase));
+    }
 }

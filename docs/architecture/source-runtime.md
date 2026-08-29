@@ -54,7 +54,7 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 
 - HTTP GET / POST
 - Header / Query / Form
-- Cookie/Session 引用
+- 受控 response-cookie Session（仅执行期策略；初始凭据仍走 CredentialReference）
 - CSS Selector / XPath / JSONPath
 - Regex（必须 Timeout）
 - Replace / Trim
@@ -63,7 +63,11 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 
 上面的列表描述 DSL v1 的目标 AST 能力，不等同于当前执行器全部可用。现阶段 `RuleAdapter` 的执行基线
 覆盖 GET/POST、Header/Query/Form、路径占位符、CSS 选择器、受控 XPath/JSONPath、带超时 Regex、
-Trim/Replace、Search/TOC 列表绑定和三种受控 Pagination。API、Worker、Scheduler 均注入统一的
+Trim/Replace、Search/TOC 列表绑定和三种受控 Pagination。`CapabilityRule.Session` 可为一次
+RuleAdapter 执行声明受控的 response-cookie 会话：只接收成功响应的 `Set-Cookie`，按同源最终响应、
+Domain/Path/Secure 和 Max-Age/Expires 规则向后续同源请求发送；策略最多 32 个 Cookie、累计 4 KiB、
+最长 3600 秒，状态不进入 Rule JSON 值、日志、任务载荷或跨执行存储。Session 的最终响应 URI 若因
+重定向离开来源 origin，整次执行失败；Cookie 数量/字节超限也整体失败。API、Worker、Scheduler 均注入统一的
 `RuleSelectorEvaluator`：CSS 继续由 AngleSharp 处理；XML 兼容响应使用禁止 DTD/外部实体的 XML 导航，
 非 XML HTML 使用有界的路径、子路径、属性/文本谓词和属性终端；JSONPath 仅开放
 `$` root、property、quoted property、array index、wildcard 和 recursive-property 子集。
@@ -78,7 +82,8 @@ scheme/host/port 同源；所有模式都受 `maxPages`、`MaxRequests`、响应
 不暴露已抓页面。
 `SourceRuleExecutionLimits` 已接入有限的 MaxRequests、MaxBytes、MaxExecutionTime、MaxRegexTime 和
 MaxResultSize，默认 `MaxRequests=8`（未声明 Pagination 的规则仍只发一个请求），生产 HTTP 客户端在解码前
-按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、Cookie/Session、通用变量扩展，以及
+按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、基于 CredentialReference 的初始认证/持久化
+Session、通用变量扩展，以及
 next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
@@ -121,9 +126,10 @@ Community/Private Rule 的网络请求必须统一经过 SafeHttpClient：
 
 当前 API、Worker、Scheduler 的来源 HTTP typed client 及 Kanunu8 adapter 均接入
 `SsrfSafeHttpMessageHandler`：关闭环境代理，在每次新 TCP 连接时重新解析并检查全部结果，
-再直接连接同一批已验证 IP；80/443 之外的端口拒绝，自动重定向最多 5 跳且每个新目标重新走
-连接级校验。`SsrfGuard` 的请求前字面量/DNS 检查保留为第一道防线，Handler 是防止默认
-`HttpClient` 再次解析造成 rebinding 的执行约束。
+再直接连接同一批已验证 IP；80/443 之外的端口拒绝。无 Cookie 请求自动重定向最多 5 跳且每个
+新目标重新走连接级校验；带显式 Cookie 的请求关闭自动重定向，避免 Cookie 被复制到跨源目标，
+此类链路必须使用 RuleAdapter 的受控同源分页。`SsrfGuard` 的请求前字面量/DNS 检查保留为第一道
+防线，Handler 是防止默认 `HttpClient` 再次解析造成 rebinding 的执行约束。
 
 外部 API 永远不能接受任意 URL 并将 InkFlow 变成公共代理。
 
@@ -138,6 +144,7 @@ Community/Private Rule 的网络请求必须统一经过 SafeHttpClient：
 - MaxExecutionTime
 - MaxRegexTime
 - MaxResultSize
+- RuleSession 的 Cookie 数量、累计字节和执行期生命周期上限
 
 错误或恶意规则不得耗尽整个 Worker Pool。
 
@@ -149,6 +156,9 @@ MaxResultSize=512 KiB。请求体、分页累计解码响应体、字段聚合�
 ## 8. Credential
 
 Task Payload 不包含明文账号、Cookie、Token 或代理密码，只传 `CredentialReferenceId`。
+
+`RuleSession` 只处理本次 RuleAdapter 链路中由来源响应产生的短期 Cookie，不是凭据存储，也不能替代
+`CredentialReferenceId`、初始登录、跨任务会话接管或人工 CAPTCHA 流程。
 
 Credential 必须有 Owner Scope：Platform / Organization / User。私人凭据不能跨租户任务使用。
 

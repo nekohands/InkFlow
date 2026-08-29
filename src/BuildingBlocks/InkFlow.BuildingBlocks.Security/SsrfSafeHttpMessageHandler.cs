@@ -10,42 +10,65 @@ namespace InkFlow.BuildingBlocks.Security;
 /// <see cref="HttpClient"/> 默认会自行解析主机名；仅在调用前单独解析一次
 /// 无法阻止 DNS rebinding。此 Handler 在每次建立新连接时解析并校验所有地址，
 /// 然后直接连接其中一个已校验地址，因此连接不会再次触发系统 DNS 解析。
-/// 自动重定向仍由 HttpClient 处理，但每个重定向目标建立连接时都会重复这套校验。
+/// 无 Cookie 请求的自动重定向仍由 HttpClient 处理，但每个重定向目标建立连接时都会重复这套校验。
+/// 带 Cookie 的请求使用不自动重定向的同等传输，避免显式 Cookie 头被复制到跨源目标。
 /// </summary>
 public sealed class SsrfSafeHttpMessageHandler : HttpMessageHandler
 {
     private const int MaxAutomaticRedirections = 5;
     private readonly HttpMessageInvoker _inner;
+    private readonly HttpMessageInvoker _cookieSafeInner;
 
     public SsrfSafeHttpMessageHandler(IIpAddressResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
 
-        var transport = new SocketsHttpHandler
-        {
-            // 来源请求不应通过环境代理绕过目标地址校验；代理本身也可能成为内网跳板。
-            UseProxy = false,
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = MaxAutomaticRedirections,
-            ConnectCallback = (context, cancellationToken) =>
-                ConnectToVerifiedAddressAsync(context, resolver, cancellationToken),
-        };
-        _inner = new HttpMessageInvoker(transport, disposeHandler: true);
+        _inner = new HttpMessageInvoker(
+            CreateTransport(resolver, allowAutoRedirect: true),
+            disposeHandler: true);
+        _cookieSafeInner = new HttpMessageInvoker(
+            CreateTransport(resolver, allowAutoRedirect: false),
+            disposeHandler: true);
     }
 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
-        CancellationToken cancellationToken) =>
-        _inner.SendAsync(request, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        // ProductionSafeSourceHttpClient maps RuleAdapter's transient session state
+        // to this standard header. A Cookie-bearing request must not follow a redirect
+        // whose target could be a different origin.
+        var transport = request.Headers.Contains("Cookie") ? _cookieSafeInner : _inner;
+        return transport.SendAsync(request, cancellationToken);
+    }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             _inner.Dispose();
+            _cookieSafeInner.Dispose();
         }
 
         base.Dispose(disposing);
+    }
+
+    private static SocketsHttpHandler CreateTransport(
+        IIpAddressResolver resolver,
+        bool allowAutoRedirect)
+    {
+        return new SocketsHttpHandler
+        {
+            // 来源请求不应通过环境代理绕过目标地址校验；代理本身也可能成为内网跳板。
+            UseProxy = false,
+            AllowAutoRedirect = allowAutoRedirect,
+            MaxAutomaticRedirections = MaxAutomaticRedirections,
+            // Cookie state belongs to the individual RuleAdapter execution. Keeping a
+            // handler-level CookieContainer would allow state to cross source requests.
+            UseCookies = false,
+            ConnectCallback = (context, cancellationToken) =>
+                ConnectToVerifiedAddressAsync(context, resolver, cancellationToken),
+        };
     }
 
     private static async ValueTask<Stream> ConnectToVerifiedAddressAsync(

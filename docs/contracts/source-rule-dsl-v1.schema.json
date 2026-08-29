@@ -77,6 +77,16 @@
               "$ref": "#/$defs/pagination"
             }
           ]
+        },
+        "session": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/session"
+            }
+          ]
         }
       },
       "allOf": [
@@ -156,7 +166,7 @@
           "pattern": "^/"
         },
         "headers": {
-          "$ref": "#/$defs/stringMap"
+          "$ref": "#/$defs/headerMap"
         },
         "query": {
           "$ref": "#/$defs/stringMap"
@@ -175,6 +185,27 @@
       "propertyNames": {
         "minLength": 1,
         "maxLength": 256
+      }
+    },
+    "headerMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 2048
+      },
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 256,
+        "not": {
+          "anyOf": [
+            {
+              "pattern": "^[Cc][Oo][Oo][Kk][Ii][Ee]$"
+            },
+            {
+              "pattern": "^[Ss][Ee][Tt]-[Cc][Oo][Oo][Kk][Ii][Ee]$"
+            }
+          ]
+        }
       }
     },
     "selector": {
@@ -608,6 +639,30 @@
           }
         }
       ]
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxCookies": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 32
+        },
+        "maxCookieBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096,
+          "default": 4096
+        },
+        "maxCookieLifetimeSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "default": 3600
+        }
+      }
     }
   }
 }

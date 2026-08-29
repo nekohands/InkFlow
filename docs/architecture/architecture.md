@@ -93,7 +93,10 @@ RuleAdapter 的 Rule JSON 经过版本化严格 codec 和离线 Fixture 边界�
 统一 `RuleSelectorEvaluator` 对 CSS、XML/HTML XPath 和受限 JSONPath 做分派；不支持的选择器语法、
 DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePagination` 只为 Search/TOC 列表提供
 同源 next-link、有限 page-number 或有限 cursor；next-link 后续以 GET 跟随，页码/游标只改写规则已声明
-且唯一的 query/form 参数。循环、重复游标、跨源和请求/页面上限整体失败。完整 XPath/JSONPath 语法、Cookie/Session、
+且唯一的 query/form 参数。循环、重复游标、跨源和请求/页面上限整体失败。`CapabilityRule.Session` 已提供
+单次 RuleAdapter 执行内的受控 response-cookie 会话：只接收成功响应的 `Set-Cookie`，按同源最终响应及
+Domain/Path/Secure、生命周期和数量/字节边界发送到后续请求，Cookie 不写入 Rule JSON 值、日志、任务载荷
+或跨执行存储。完整 XPath/JSONPath 语法、基于 CredentialReference 的初始认证/持久化 Session、
 通用变量，以及三种受控分页之外的多请求/递归执行所需的完整 Redirect/Depth 策略仍需
 对应运行时引擎与独立回归，不能由解析通过替代真实执行验收。
 

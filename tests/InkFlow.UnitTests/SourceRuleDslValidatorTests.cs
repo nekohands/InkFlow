@@ -339,4 +339,38 @@ public sealed class SourceRuleDslValidatorTests
         var result = SourceRuleDslValidator.Validate(dsl);
         Assert.IsTrue(result.Count >= 3, $"expected multiple violations, got: {string.Join("; ", result)}");
     }
+
+    [TestMethod]
+    public void Session_Limits_Are_Bounded()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            Session = new RuleSession(
+                MaxCookies: SourceRuleDslValidator.MaxSessionCookies + 1,
+                MaxCookieBytes: SourceRuleDslValidator.MaxSessionCookieBytes + 1,
+                MaxCookieLifetimeSeconds: SourceRuleDslValidator.MaxSessionCookieLifetimeSeconds + 1),
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "session-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("maxCookies")));
+        Assert.IsTrue(result.Any(error => error.Contains("maxCookieBytes")));
+        Assert.IsTrue(result.Any(error => error.Contains("maxCookieLifetimeSeconds")));
+    }
+
+    [TestMethod]
+    public void Static_Cookie_Request_Headers_Are_Rejected()
+    {
+        var request = RuleRequest.Get("/search") with
+        {
+            Headers = new Dictionary<string, string> { ["set-cookie"] = "sid=plaintext" },
+        };
+        var rule = ValidDsl().Rules[0] with { Request = request };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "session-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("Cookie/Set-Cookie")));
+    }
 }

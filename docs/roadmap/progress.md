@@ -787,6 +787,17 @@ Phase 1A 自动化工作包状态：
 - 非目标：Cookie/Session、通用变量扩展、完整 XPath/JSONPath 语法、三种受控分页之外的多请求/递归编排，以及真实来源、故障切换、阅读 3.0 和人工验收仍按待定清单处理。
 - 当前状态：page-number/cursor 受控分页已形成可执行基线，并取得本地与远端三类门禁证据；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。
 
+### 4.54 Source Rule 受控 response-cookie Session（本轮，2026-08-30）
+
+- 缺口：来源有时需要先通过响应 `Set-Cookie` 建立短期会话，再访问同源的后续分页请求；此前既没有 Rule DSL 声明边界，也没有安全的 Cookie 传递 seam。
+- 实现：新增可选 `CapabilityRule.Session` / `RuleSession`，只声明 Cookie 数量、累计字节和生命周期上限，不保存 Cookie 值。`RuleAdapter` 在一次执行内维护内存 Cookie jar，按同源最终响应、Domain/Path/Secure 和 Max-Age/Expires 规则向后续 next-link/page-number/cursor 请求发送；`SourceHttpResponse` 暴露原始 `Set-Cookie` 与最终响应 URI，生产 HTTP 客户端使用显式临时 Cookie 头。
+- 安全与失败关闭：生产 `SocketsHttpHandler` 关闭共享 CookieContainer；静态 `Cookie` / `Set-Cookie` 请求头被 Rule Validator/Adapter 拒绝；最多 32 个 Cookie、累计 4 KiB、最长 3600 秒，跨执行不复用。跨源重定向响应、Cookie 数量/字节上限会使整次 Rule 执行失败，Cookie 值不进入 Rule JSON、任务载荷、日志或结果。
+- 回归：新增 RuleAdapter Cookie 传播、执行隔离、路径匹配、过期删除、跨源响应和边界测试；新增生产 HTTP Cookie 头/响应头测试、Validator 上限/静态头测试和 JSON Contract 往返测试。Unit 全量 410/410、定向 Session/HTTP 回归通过。
+- 非目标：本轮不实现 CredentialReference/ISecretProvider 的初始账号或 Token 注入、跨任务/跨来源持久会话、完整 RFC Cookie/公共后缀策略、自动重定向中间响应 Cookie 或带 Cookie 请求的自动重定向、通用变量或递归多请求编排；真实来源、故障切换、阅读 3.0 和人工验收继续按第 6 节待定清单处理。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 410/410、Architecture 1/1、Contract 10/10 PASS；Schema/Fixture JSON 语法、PowerShell 等价迁移模型检查、API `/health` 与 `git diff --check` 待最终回归补录；本机完整 Integration 仍需按环境实跑，Docker 不可用时记为 BLOCKED。
+- 远端证据：候选提交及 CI/Docker/Security 结果待推送后补录；在远端门禁完成前本工作包只标记为 `Implemented`，不标记 `Accepted/Completed`。
+- 当前状态：受控 response-cookie Session 已形成可审查的执行期基线，整体继续保持 `1.0 Release Candidate`；Credential 初始认证、真实来源、真实故障切换、阅读 3.0 和人工验收仍未关闭。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -891,8 +902,8 @@ Official Source
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；受控 XPath/JSONPath
   选择器运行时已在 4.51 接入，受控 next-link Pagination 已在 4.52 接入，page-number/cursor 与跨页
-  Rule execution budgets 已在 4.53 接入；完整 XPath/JSONPath 语法、Cookie/Session、通用变量扩展及三种受控分页
-  之外的多请求/递归预算仍待后续工程工作包。
+  Rule execution budgets 已在 4.53 接入，受控 response-cookie Session 已在 4.54 接入；完整 XPath/JSONPath
+  语法、CredentialReference 驱动的初始认证/持久会话、通用变量扩展及三种受控分页之外的多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。

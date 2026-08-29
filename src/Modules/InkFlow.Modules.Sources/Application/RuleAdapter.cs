@@ -54,6 +54,15 @@ public sealed class RuleAdapter
             }
         }
 
+        if (rule.Session is not null)
+        {
+            var sessionErrors = SourceRuleDslValidator.ValidateSession(rule);
+            if (sessionErrors.Count > 0)
+            {
+                return RuleExecutionResult.Fail(sessionErrors);
+            }
+        }
+
         var initialParameterName = pagination?.Mode == RulePaginationMode.PageNumber
             ? pagination.ParameterName
             : null;
@@ -96,6 +105,7 @@ public sealed class RuleAdapter
 
         var sourceOrigin = target!;
         var currentRequest = request!;
+        var cookieJar = rule.Session is null ? null : new RuleCookieJar(rule.Session);
         var pageBodies = new List<string>();
         var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
@@ -131,8 +141,18 @@ public sealed class RuleAdapter
             SourceHttpResponse response;
             try
             {
+                var requestToSend = currentRequest;
+                if (cookieJar is not null &&
+                    Uri.TryCreate(currentRequest.Url, UriKind.Absolute, out var requestUri))
+                {
+                    requestToSend = currentRequest with
+                    {
+                        CookieHeader = cookieJar.BuildCookieHeader(requestUri),
+                    };
+                }
+
                 response = await _httpClient
-                    .SendAsync(currentRequest, executionCancellation.Token)
+                    .SendAsync(requestToSend, executionCancellation.Token)
                     .WaitAsync(executionCancellation.Token)
                     .ConfigureAwait(false);
             }
@@ -162,6 +182,27 @@ public sealed class RuleAdapter
             if (responseBytes > _limits.MaxBytes)
             {
                 return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+            }
+
+            if (cookieJar is not null)
+            {
+                if (!Uri.TryCreate(currentRequest.Url, UriKind.Absolute, out var requestUri))
+                {
+                    return RuleExecutionResult.Fail(["session: request URI is invalid."]);
+                }
+
+                var responseUri = response.ResponseUri ?? requestUri;
+                if (!responseUri.IsAbsoluteUri || !IsSameOrigin(sourceOrigin, responseUri))
+                {
+                    return RuleExecutionResult.Fail(
+                        ["session: response origin changed during redirect."]);
+                }
+
+                var sessionError = cookieJar.Accept(response.SetCookieHeaders, responseUri);
+                if (sessionError is not null)
+                {
+                    return RuleExecutionResult.Fail([sessionError]);
+                }
             }
 
             pageBodies.Add(response.Body);
@@ -471,6 +512,14 @@ public sealed class RuleAdapter
             return errors;
         }
 
+        if (rule.Request.Headers.Keys.Any(IsCookieHeaderName))
+        {
+            errors.Add(
+                $"{prefix}: Cookie/Set-Cookie headers are not allowed; " +
+                "declare a bounded session instead of persisting cookie values.");
+            return errors;
+        }
+
         var path = FillTemplate($"{prefix}.pathTemplate", rule.Request.PathTemplate, variables, errors);
         var queryValues = rule.Request.Query.ToDictionary(
             pair => pair.Key,
@@ -535,6 +584,10 @@ public sealed class RuleAdapter
             return encodeValues ? Uri.EscapeDataString(value) : value;
         });
     }
+
+    private static bool IsCookieHeaderName(string name) =>
+        name.Equals("cookie", StringComparison.OrdinalIgnoreCase) ||
+        name.Equals("set-cookie", StringComparison.OrdinalIgnoreCase);
 
     private RuleExecutionResult ExtractFields(CapabilityRule rule, string body)
     {
