@@ -9,7 +9,7 @@ namespace InkFlow.Modules.Sources.Application;
 
 /// <summary>
 /// 规则执行器：把声明式 DSL 变成一次或一组有界的真实抓取。
-/// 执行顺序固定为：URL 构建 → SSRF 字面量校验 → 发请求（经 ISourceHttpClient）→
+/// 执行顺序固定为：URL 构建 → SSRF 字面量校验 → 凭据解析/投影 → 发请求（经 ISourceHttpClient）→
 /// 状态码检查 → 字段抽取 → 变换管道。任一环节失败即整体失败，不产生部分结果；
 /// 请求、响应、时间、正则、分页、模板变量和结果预算由
 /// <see cref="SourceRuleExecutionLimits"/> 强制约束。
@@ -25,15 +25,18 @@ public sealed class RuleAdapter
     private readonly ISourceHttpClient _httpClient;
     private readonly ISelectorEvaluator _selectorEvaluator;
     private readonly SourceRuleExecutionLimits _limits;
+    private readonly ISourceCredentialProvider? _credentialProvider;
 
     public RuleAdapter(
         ISourceHttpClient httpClient,
         ISelectorEvaluator selectorEvaluator,
-        SourceRuleExecutionLimits? limits = null)
+        SourceRuleExecutionLimits? limits = null,
+        ISourceCredentialProvider? credentialProvider = null)
     {
         _httpClient = httpClient;
         _selectorEvaluator = selectorEvaluator;
         _limits = limits ?? SourceRuleExecutionLimits.Default;
+        _credentialProvider = credentialProvider;
         _limits.Validate();
     }
 
@@ -43,7 +46,8 @@ public sealed class RuleAdapter
         CapabilityRule rule,
         string baseUrl,
         IReadOnlyDictionary<string, string>? variables = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        SourceExecutionContext? executionContext = null)
     {
         variables ??= new Dictionary<string, string>();
 
@@ -112,16 +116,36 @@ public sealed class RuleAdapter
             return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
         }
 
+        using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        executionCancellation.CancelAfter(_limits.MaxExecutionTime);
+
+        // 只有请求结构、SSRF 和执行预算都通过后才解析 secret，减少不必要的敏感材料驻留。
+        var credentialResolution = await ResolveCredentialAsync(
+                executionContext,
+                cancellationToken,
+                executionCancellation.Token)
+            .ConfigureAwait(false);
+        if (credentialResolution.Error is not null)
+        {
+            return RuleExecutionResult.Fail([credentialResolution.Error]);
+        }
+
+        if (!TryApplyCredential(
+                request!,
+                credentialResolution.Credential,
+                out var preparedRequest,
+                out var credentialError))
+        {
+            return RuleExecutionResult.Fail([credentialError]);
+        }
+
         var sourceOrigin = target!;
-        var currentRequest = request!;
+        var currentRequest = preparedRequest!;
         var cookieJar = rule.Session is null ? null : new RuleCookieJar(rule.Session);
         var pageBodies = new List<string>();
         var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
         long responseBytes = 0;
-
-        using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        executionCancellation.CancelAfter(_limits.MaxExecutionTime);
 
         for (var page = 1; ; page++)
         {
@@ -294,15 +318,24 @@ public sealed class RuleAdapter
                         return RuleExecutionResult.Fail(pageBuildErrors);
                     }
 
-                    if (!TryValidateContinuationRequest(
+                    if (!TryApplyCredential(
                             nextRequest!,
+                            credentialResolution.Credential,
+                            out var preparedNextRequest,
+                            out var pageCredentialError))
+                    {
+                        return RuleExecutionResult.Fail([pageCredentialError]);
+                    }
+
+                    if (!TryValidateContinuationRequest(
+                            preparedNextRequest!,
                             sourceOrigin,
                             out var continuationError))
                     {
                         return RuleExecutionResult.Fail([continuationError]);
                     }
 
-                    currentRequest = nextRequest!;
+                    currentRequest = preparedNextRequest!;
                     break;
                 }
 
@@ -350,15 +383,24 @@ public sealed class RuleAdapter
                         return RuleExecutionResult.Fail(cursorBuildErrors);
                     }
 
-                    if (!TryValidateContinuationRequest(
+                    if (!TryApplyCredential(
                             nextRequest!,
+                            credentialResolution.Credential,
+                            out var preparedNextRequest,
+                            out var cursorCredentialError))
+                    {
+                        return RuleExecutionResult.Fail([cursorCredentialError]);
+                    }
+
+                    if (!TryValidateContinuationRequest(
+                            preparedNextRequest!,
                             sourceOrigin,
                             out var continuationError))
                     {
                         return RuleExecutionResult.Fail([continuationError]);
                     }
 
-                    currentRequest = nextRequest!;
+                    currentRequest = preparedNextRequest!;
                     break;
                 }
 
@@ -366,6 +408,95 @@ public sealed class RuleAdapter
                     return RuleExecutionResult.Fail(["pagination: mode is not supported."]);
             }
         }
+    }
+
+    private async Task<(SourceCredential? Credential, string? Error)> ResolveCredentialAsync(
+        SourceExecutionContext? executionContext,
+        CancellationToken callerCancellationToken,
+        CancellationToken executionCancellationToken)
+    {
+        if (executionContext is null || !executionContext.HasCredentialReference)
+        {
+            return (null, null);
+        }
+
+        var referenceId = executionContext.CredentialReferenceId!;
+        if (string.IsNullOrWhiteSpace(executionContext.SourceId) ||
+            executionContext.SourceId.Any(char.IsControl))
+        {
+            return (null, "credential: source execution context is invalid.");
+        }
+
+        if (!SourceCredentialReference.IsValid(referenceId))
+        {
+            return (null, "credential: credential reference is invalid.");
+        }
+
+        if (_credentialProvider is null)
+        {
+            return (null, "credential: credential provider is unavailable.");
+        }
+
+        try
+        {
+            var credential = await _credentialProvider
+                .ResolveAsync(
+                    executionContext.SourceId,
+                    referenceId,
+                    executionCancellationToken)
+                .WaitAsync(executionCancellationToken)
+                .ConfigureAwait(false);
+            return credential is null
+                ? (null, "credential: credential reference is unavailable.")
+                : (credential, null);
+        }
+        catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (executionCancellationToken.IsCancellationRequested)
+        {
+            return (null, "credential: credential resolution timed out.");
+        }
+        catch
+        {
+            // Provider exceptions may contain secret-store details; never expose them to the caller.
+            return (null, "credential: credential resolution failed.");
+        }
+    }
+
+    private static bool TryApplyCredential(
+        SourceHttpRequest request,
+        SourceCredential? credential,
+        out SourceHttpRequest? preparedRequest,
+        out string error)
+    {
+        preparedRequest = request;
+        error = string.Empty;
+        if (credential is null)
+        {
+            return true;
+        }
+
+        if (!credential.TryBuildHeader(out var headerName, out var headerValue))
+        {
+            error = "credential: credential material is invalid.";
+            return false;
+        }
+
+        if (request.Headers.Keys.Any(existingHeaderName =>
+                string.Equals(existingHeaderName, headerName, StringComparison.OrdinalIgnoreCase)))
+        {
+            error = "credential: credential header conflicts with rule header.";
+            return false;
+        }
+
+        var headers = new Dictionary<string, string>(request.Headers, StringComparer.OrdinalIgnoreCase)
+        {
+            [headerName] = headerValue,
+        };
+        preparedRequest = request with { Headers = headers };
+        return true;
     }
 
     private bool TryContinueAfterPage(

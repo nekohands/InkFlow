@@ -25,8 +25,14 @@ public sealed class RuleBasedSourceAdapter(
 
     private static readonly char[] Tab = ['\t'];
 
+    public Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
+        string keyword, CancellationToken cancellationToken = default) =>
+        SearchAsync(keyword, cancellationToken, executionContext: null);
+
     public async Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
-        string keyword, CancellationToken cancellationToken = default)
+        string keyword,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext)
     {
         var rule = source.FindRule(SourceCapability.Search);
         if (rule?.List is null)
@@ -35,7 +41,12 @@ public sealed class RuleBasedSourceAdapter(
         }
 
         var result = await ruleAdapter
-            .ExecuteAsync(rule, source.BaseUrl, new Dictionary<string, string> { ["key"] = keyword }, cancellationToken)
+            .ExecuteAsync(
+                rule,
+                source.BaseUrl,
+                new Dictionary<string, string> { ["key"] = keyword },
+                cancellationToken,
+                NormalizeExecutionContext(executionContext))
             .ConfigureAwait(false);
 
         if (!result.IsSuccess)
@@ -75,8 +86,14 @@ public sealed class RuleBasedSourceAdapter(
         return results;
     }
 
+    public Task<SourceBookInfo?> GetBookInfoAsync(
+        string externalBookId, CancellationToken cancellationToken = default) =>
+        GetBookInfoAsync(externalBookId, cancellationToken, executionContext: null);
+
     public async Task<SourceBookInfo?> GetBookInfoAsync(
-        string externalBookId, CancellationToken cancellationToken = default)
+        string externalBookId,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext)
     {
         var rule = source.FindRule(SourceCapability.BookInfo);
         if (rule is null)
@@ -87,7 +104,8 @@ public sealed class RuleBasedSourceAdapter(
         var result = await ExecuteWithVariablesAsync(
             rule,
             new Dictionary<string, string> { ["bookId"] = externalBookId },
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            executionContext).ConfigureAwait(false);
 
         if (!result.IsSuccess ||
             !result.Values.TryGetValue("title", out var title) ||
@@ -100,8 +118,14 @@ public sealed class RuleBasedSourceAdapter(
         return new SourceBookInfo(title.Trim(), string.IsNullOrWhiteSpace(author) ? "未知" : author.Trim());
     }
 
+    public Task<IReadOnlyList<SourceTocEntry>> GetTableOfContentsAsync(
+        string externalBookId, CancellationToken cancellationToken = default) =>
+        GetTableOfContentsAsync(externalBookId, cancellationToken, executionContext: null);
+
     public async Task<IReadOnlyList<SourceTocEntry>> GetTableOfContentsAsync(
-        string externalBookId, CancellationToken cancellationToken = default)
+        string externalBookId,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext)
     {
         var rule = source.FindRule(SourceCapability.Toc);
         if (rule?.List is null)
@@ -112,7 +136,8 @@ public sealed class RuleBasedSourceAdapter(
         var result = await ExecuteWithVariablesAsync(
             rule,
             new Dictionary<string, string> { ["bookId"] = externalBookId },
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            executionContext).ConfigureAwait(false);
 
         if (!result.IsSuccess)
         {
@@ -153,8 +178,14 @@ public sealed class RuleBasedSourceAdapter(
         return entries;
     }
 
+    public Task<string?> GetChapterContentAsync(
+        string externalChapterId, CancellationToken cancellationToken = default) =>
+        GetChapterContentAsync(externalChapterId, cancellationToken, executionContext: null);
+
     public async Task<string?> GetChapterContentAsync(
-        string externalChapterId, CancellationToken cancellationToken = default)
+        string externalChapterId,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext)
     {
         var rule = source.FindRule(SourceCapability.Content);
         if (rule is null)
@@ -167,7 +198,8 @@ public sealed class RuleBasedSourceAdapter(
             .ExecuteAsync(
                 rule, source.BaseUrl,
                 new Dictionary<string, string> { ["chapterId"] = externalChapterId },
-                cancellationToken)
+                cancellationToken,
+                NormalizeExecutionContext(executionContext))
             .ConfigureAwait(false);
 
         return result.IsSuccess && result.Values.TryGetValue("content", out var content)
@@ -178,8 +210,27 @@ public sealed class RuleBasedSourceAdapter(
     private Task<RuleExecutionResult> ExecuteWithVariablesAsync(
         CapabilityRule rule,
         IReadOnlyDictionary<string, string> variables,
-        CancellationToken cancellationToken) =>
-        ruleAdapter.ExecuteAsync(rule, source.BaseUrl, variables, cancellationToken);
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext) =>
+        ruleAdapter.ExecuteAsync(
+            rule,
+            source.BaseUrl,
+            variables,
+            cancellationToken,
+            NormalizeExecutionContext(executionContext));
+
+    private SourceExecutionContext NormalizeExecutionContext(
+        SourceExecutionContext? executionContext)
+    {
+        var context = executionContext ?? new SourceExecutionContext(source.Id);
+        if (!string.Equals(context.SourceId, source.Id, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "source execution context does not match adapter source.");
+        }
+
+        return context;
+    }
 
     private static SourceRuleExecutionLimits ResolveLimits(
         RuleAdapter ruleAdapter,

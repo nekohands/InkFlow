@@ -193,6 +193,7 @@ builder.Services.AddScoped<ISourceHealthOperations>(sp => sp.GetRequiredService<
 
 // 规则型/代码型适配器组合根(与 Worker 同源):健康感知由 BookDiscoveryService 内部执行。
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
+builder.Services.AddSingleton<ISourceCredentialProvider, ConfigurationSourceCredentialProvider>();
 builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>()
     .ConfigurePrimaryHttpMessageHandler(sp =>
         new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));

@@ -460,6 +460,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：候选提交 `dd39396` 已推送；[CI 33272774115](https://github.com/nekohands/InkFlow/actions/runs/33272774115)、[Docker 33272774105](https://github.com/nekohands/InkFlow/actions/runs/33272774105)、[Security 33272774138](https://github.com/nekohands/InkFlow/actions/runs/33272774138) 均 GREEN。CI 真实测试为 Unit 418/418、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成迁移、Compose、Runtime smoke、Core SLO、Redis、PostgreSQL 备份恢复和 diagnostics；Docker 四业务镜像/Collector 扫描发布及 Security NuGet/Filesystem/CodeQL/SBOM 均通过。
 - 当前状态：有界请求模板变量为通过候选门禁的 `Implemented` 基线，不等同 `Accepted/Completed`；响应派生变量、Credential 初始认证、真实来源/切源、阅读 3.0 和人工验收仍待后续。
 
+### 4.56 Source CredentialReference 有界初始认证（本轮，2026-08-30）
+
+- 缺口：`CrawlPayload.CredentialReferenceId` 之前只作为预留字段，活动 Worker 的 TOC、联动正文和 RuleAdapter 链路没有统一的安全解析与请求头投影。
+- 实现：新增 `ISourceCredentialProvider`、`ConfigurationSourceCredentialProvider` 和非敏感 `SourceExecutionContext`；任务级引用贯通 TOC → 联动 Content → `RuleBasedSourceAdapter` → `RuleAdapter`，仅允许 typed Bearer、Basic 或受限 API-Key Header。配置适配器读取 `SourceCredentials:<sourceId>:<referenceId>`；未实现凭据能力的 CodeAdapter 会显式拒绝带引用的执行上下文。
+- 安全/边界：引用 ID 最长 256 字符并拒绝路径注入；secret 不进入 Task Payload、Variables、Rule JSON、日志、错误文本、结果或 `ToString()`。凭据只在 URL/SSRF/请求预算通过后解析，并受 `MaxExecutionTime` 约束；缺失提供器、解析异常、超时、非法材料或规则头冲突均在 HTTP seam 前失败关闭。自定义 Provider 仍必须执行 Owner Scope 与跨租户授权。
+- 回归：新增凭据三种 typed 头、分页复用、配置解析、TOC/Content 任务传播、CodeAdapter 拒绝和失败关闭测试；本地 Unit 430/430、Architecture 1/1、Contract 10/10 通过。
+- 非目标：来源级默认凭据绑定、Scheduler/Admin 凭据管理、真实 SecretManager SDK、跨任务/跨来源持久会话、响应派生变量、递归/通用多请求和完整 XPath/JSONPath 语法仍未实现；真实来源、故障切换、阅读 3.0 和人工验收保留在待定清单。
+- 当前状态：任务级 CredentialReference 初始认证为 `Implemented` 本地基线；远端候选门禁待本轮提交推送后执行，整体仍为 `1.0 Release Candidate`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -790,6 +799,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session 和有界请求模板变量；完整语法、CredentialReference 驱动的初始认证/持久会话、响应派生变量及三种受控分页之外的多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量和任务级 CredentialReference typed 初始认证；来源级默认绑定、Owner/Admin 凭据管理、真实 SecretProvider、持久会话、响应派生变量及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。

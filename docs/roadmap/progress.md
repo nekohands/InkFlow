@@ -809,6 +809,17 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `dd39396` 已推送；[CI 33272774115](https://github.com/nekohands/InkFlow/actions/runs/33272774115)、[Docker 33272774105](https://github.com/nekohands/InkFlow/actions/runs/33272774105)、[Security 33272774138](https://github.com/nekohands/InkFlow/actions/runs/33272774138) 均为 GREEN。CI 真实测试为 Unit 418/418、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成迁移、Compose、Runtime smoke、Core SLO、Redis、PostgreSQL 备份恢复与 diagnostics；Docker 四业务镜像及 Collector 扫描/发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 通过，保留既有 Actions Node 20 弃用提示。
 - 当前状态：有界请求模板变量已形成通过候选门禁的 `Implemented` 基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；响应派生变量、Credential 初始认证、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
 
+### 4.56 Source CredentialReference 有界初始认证（本轮，2026-08-30）
+
+- 缺口：`CrawlPayload.CredentialReferenceId` 之前只作为预留字段，活动 Worker 的 TOC、联动正文和 RuleAdapter 链路没有统一的安全解析与请求头投影。
+- 实现：新增 `ISourceCredentialProvider`、`ConfigurationSourceCredentialProvider` 和非敏感 `SourceExecutionContext`；任务级引用贯通 TOC → 联动 Content → `RuleBasedSourceAdapter` → `RuleAdapter`，仅允许 typed Bearer、Basic 或受限 API-Key Header。配置适配器读取 `SourceCredentials:<sourceId>:<referenceId>`，生产接入仍应替换为 Docker Secret、Vault 或云 Secret Manager 等安全提供器；未实现凭据能力的 CodeAdapter 会显式拒绝带引用的执行上下文。
+- 安全与失败关闭：引用 ID 最长 256 字符并拒绝路径注入；secret 不进入 Task Payload、Variables、Rule JSON、日志、错误文本、结果或 `ToString()`。凭据只在 URL/SSRF/请求预算通过后解析，并受 `MaxExecutionTime` 约束；Bearer/Basic/API-Key 的头名、头值、材料长度和禁止头名均有界，缺失提供器、解析异常、超时、非法材料或规则头冲突均在 HTTP seam 前失败关闭。自定义 Provider 仍必须执行 Owner Scope 与跨租户授权。
+- 回归：新增 Bearer/Basic/API-Key 头注入、分页复用、配置解析、TOC/Content 任务传播、CodeAdapter 拒绝、提供器超时/异常脱敏、非法引用和头冲突不出网测试；本轮本地 Unit 430/430、Architecture 1/1、Contract 10/10 通过。
+- 非目标：不实现来源级默认凭据绑定、Scheduler/Admin 凭据管理、真实 Vault/Docker Secret SDK、跨任务/跨来源持久会话、响应派生变量、递归/通用多请求、完整 XPath/JSONPath 语法；真实来源、故障切换、阅读 3.0 和人工验收继续按第 6 节待定清单处理。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 430/430、Architecture 1/1、Contract 10/10 PASS。候选提交前的完整 Integration、迁移等价检查、Schema/Fixture、API Runtime smoke 和 `git diff --check` 将在本轮候选门禁中复核；Docker 不可用导致的本机 Integration 限制仍按既有待定状态保留。
+- 远端证据：待本轮候选提交推送后运行 CI、Docker、Security 三类门禁。
+- 当前状态：任务级 CredentialReference 初始认证已形成 `Implemented` 本地基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；来源默认绑定、持久会话、真实凭据后端、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -914,8 +925,8 @@ Official Source
 - Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；受控 XPath/JSONPath
   选择器运行时已在 4.51 接入，受控 next-link Pagination 已在 4.52 接入，page-number/cursor 与跨页
   Rule execution budgets 已在 4.53 接入，受控 response-cookie Session 已在 4.54 接入，有界请求模板变量已在
-  4.55 接入；完整 XPath/JSONPath 语法、CredentialReference 驱动的初始认证/持久会话、响应派生变量及三种
-  受控分页之外的多请求/递归预算仍待后续工程工作包。
+  4.55 接入，任务级 CredentialReference typed 初始认证已在 4.56 接入；来源级默认绑定、凭据 Owner/Admin
+  管理、真实 SecretProvider、持久会话、响应派生变量及三种受控分页之外的多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。

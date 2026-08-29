@@ -22,7 +22,13 @@ public sealed class TocSyncTaskHandler(
         }
 
         var sync = await catalog
-            .SyncChaptersAsync(task.Payload.SourceId, externalBookId, cancellationToken)
+            .SyncChaptersAsync(
+                task.Payload.SourceId,
+                externalBookId,
+                cancellationToken,
+                new SourceExecutionContext(
+                    task.Payload.SourceId,
+                    task.Payload.CredentialReferenceId))
             .ConfigureAwait(false);
 
         if (!sync.IsSuccess)
@@ -42,7 +48,11 @@ public sealed class TocSyncTaskHandler(
         // 目录与映射落库后立即联动正文抓取:只补"该来源尚未抓取过"的章节,
         // 已有产物/在途任务/死信的章节由链式服务按不变量跳过。
         await contentChain
-            .EnqueuePendingContentFetchesAsync(task.Payload.SourceId, externalBookId, cancellationToken)
+            .EnqueuePendingContentFetchesAsync(
+                task.Payload.SourceId,
+                externalBookId,
+                cancellationToken,
+                task.Payload.CredentialReferenceId)
             .ConfigureAwait(false);
 
         return CrawlOutcome.Ok();
@@ -70,7 +80,10 @@ public sealed class ContentFetchTaskHandler(
         var outcome = await contentService
             .FetchChapterContentAsync(
                 task.Payload.SourceId, externalBookId ?? string.Empty, externalChapterId,
-                cancellationToken)
+                cancellationToken,
+                new SourceExecutionContext(
+                    task.Payload.SourceId,
+                    task.Payload.CredentialReferenceId))
             .ConfigureAwait(false);
 
         if (!outcome.IsSuccess)

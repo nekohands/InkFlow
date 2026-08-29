@@ -36,7 +36,7 @@
 32. `audit.events` 普通路径必须保持追加式：更新和直接删除由数据库拒绝；过期清理只能通过 `AuditRetentionService` / `IAuditRetentionStore` 的 UTC cutoff seam 执行，且每轮受批量与批次数上限约束。该代码边界不替代生产法律保留、归档和删除授权治理。
 33. Source Rule DSL 的 JSON 输入与持久化结果必须经过版本化严格 codec/schema；未知属性、未知转换类型、缺失核心字段、超大文档和超出集合/表达式边界的规则必须 fail-closed，Fixture 回归不得依赖真实第三方网络。AST 声明能力不等同于运行时执行能力。
 34. RuleAdapter 执行必须受有限的 MaxRequests、MaxBytes、MaxExecutionTime、MaxRegexTime、MaxResultSize 和请求模板变量上下文预算约束；变量上下文必须限制数量、标识符名称、单值长度、累计 UTF-8 字节并拒绝控制字符，变量值不得进入错误文本。路径、Header、Query、Form 模板只允许 `{name}` 占位符，发布期和执行期都必须拒绝残留花括号；生产 HTTP 必须在解码前执行响应体流式上限。受控 next-link、page-number 和 cursor Pagination 仅允许 Search/TOC 列表；next-link 后续必须同源并以 GET 跟随，page-number/cursor 只能改写规则已声明且唯一的 query/form 参数。循环、重复游标、跨源或超出页面/请求预算时整体失败且不得暴露部分结果；更复杂的递归/多请求编排不得绕过这些边界。
-35. RuleSession 只能声明执行期 Cookie 策略，不能在 Rule JSON、Task Payload、日志或结果中携带初始 Cookie/Token；仅接收成功响应的同源 `Set-Cookie`，按 Domain/Path/Secure/生命周期匹配后发送，Cookie 数量/累计字节/生命周期超限时整次执行失败，Cookie 状态不得跨执行或跨来源复用；CredentialReference 驱动的初始认证和持久会话仍必须经过独立 SecretProvider/权限边界。
+35. RuleSession 只能声明执行期 Cookie 策略，不能在 Rule JSON、Task Payload、日志或结果中携带初始 Cookie/Token；仅接收成功响应的同源 `Set-Cookie`，按 Domain/Path/Secure/生命周期匹配后发送，Cookie 数量/累计字节/生命周期超限时整次执行失败，Cookie 状态不得跨执行或跨来源复用。任务级 CredentialReference 必须通过 `SourceExecutionContext` 和独立 `ISourceCredentialProvider` 解析，只能投影为有界的 Bearer、Basic 或受限 API-Key Header；引用、材料、secret 和最终头值不得进入 Task Payload、Variables、Rule JSON、日志、错误文本、结果或 `ToString()`。无效引用、Provider 缺失/失败/超时、非法材料和头冲突必须在 HTTP seam 前失败关闭；Provider 必须实施 Owner Scope/跨租户权限，来源级默认绑定、Admin 管理和持久会话仍需独立边界。
 
 ## 工程完成定义
 

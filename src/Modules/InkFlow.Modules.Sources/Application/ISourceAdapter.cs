@@ -26,12 +26,75 @@ public interface ISourceAdapter
     /// <summary>按关键词搜索书目。</summary>
     Task<IReadOnlyList<SourceSearchResult>> SearchAsync(string keyword, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 带执行上下文的搜索。旧 CodeAdapter 默认拒绝凭据引用，避免静默丢弃认证要求；
+    /// RuleBasedSourceAdapter 覆盖此重载并把引用交给 RuleAdapter。
+    /// </summary>
+    Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
+        string keyword,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext = null)
+    {
+        if (executionContext?.HasCredentialReference == true)
+        {
+            throw new InvalidOperationException(
+                "source adapter does not support credential references.");
+        }
+
+        return SearchAsync(keyword, cancellationToken);
+    }
+
     /// <summary>获取书目元数据;不存在返回 null。</summary>
     Task<SourceBookInfo?> GetBookInfoAsync(string externalBookId, CancellationToken cancellationToken = default);
+
+    /// <summary>带执行上下文的书目元数据读取。</summary>
+    Task<SourceBookInfo?> GetBookInfoAsync(
+        string externalBookId,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext = null)
+    {
+        if (executionContext?.HasCredentialReference == true)
+        {
+            throw new InvalidOperationException(
+                "source adapter does not support credential references.");
+        }
+
+        return GetBookInfoAsync(externalBookId, cancellationToken);
+    }
 
     /// <summary>获取完整目录(按阅读顺序)。</summary>
     Task<IReadOnlyList<SourceTocEntry>> GetTableOfContentsAsync(string externalBookId, CancellationToken cancellationToken = default);
 
+    /// <summary>带执行上下文的目录读取。</summary>
+    Task<IReadOnlyList<SourceTocEntry>> GetTableOfContentsAsync(
+        string externalBookId,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext = null)
+    {
+        if (executionContext?.HasCredentialReference == true)
+        {
+            throw new InvalidOperationException(
+                "source adapter does not support credential references.");
+        }
+
+        return GetTableOfContentsAsync(externalBookId, cancellationToken);
+    }
+
     /// <summary>获取章节原始正文;无内容返回 null。</summary>
     Task<string?> GetChapterContentAsync(string externalChapterId, CancellationToken cancellationToken = default);
+
+    /// <summary>带执行上下文的正文读取。</summary>
+    Task<string?> GetChapterContentAsync(
+        string externalChapterId,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext = null)
+    {
+        if (executionContext?.HasCredentialReference == true)
+        {
+            throw new InvalidOperationException(
+                "source adapter does not support credential references.");
+        }
+
+        return GetChapterContentAsync(externalChapterId, cancellationToken);
+    }
 }

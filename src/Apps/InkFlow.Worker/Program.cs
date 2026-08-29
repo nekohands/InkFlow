@@ -60,6 +60,7 @@ var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configur
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
 builder.Services.AddSingleton(SourceRuleExecutionLimits.Default);
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
+builder.Services.AddSingleton<ISourceCredentialProvider, ConfigurationSourceCredentialProvider>();
 builder.Services.AddScoped<EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ICrawlerTaskRepository>(sp =>
     sp.GetRequiredService<EfCrawlerTaskRepository>());

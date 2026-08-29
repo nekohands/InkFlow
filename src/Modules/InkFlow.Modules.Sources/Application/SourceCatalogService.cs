@@ -26,8 +26,16 @@ public sealed class SourceCatalogService(
     /// 抓取并导入一本书的元数据。已存在的书更新元数据，否则创建。
     /// </summary>
     public async Task<ImportOutcome> ImportBookInfoAsync(
-        string sourceId, string externalBookId, CancellationToken cancellationToken = default)
+        string sourceId,
+        string externalBookId,
+        CancellationToken cancellationToken = default,
+        SourceExecutionContext? executionContext = null)
     {
+        if (!IsExecutionContextValid(sourceId, executionContext))
+        {
+            return ImportOutcome.Fail(["source: execution context is invalid."]);
+        }
+
         if (!await IsAvailableAsync(sourceId, SourceCapability.BookInfo, cancellationToken)
                 .ConfigureAwait(false))
         {
@@ -45,7 +53,7 @@ public sealed class SourceCatalogService(
         try
         {
             info = await adapter
-                .GetBookInfoAsync(externalBookId, cancellationToken)
+                .GetBookInfoAsync(externalBookId, cancellationToken, executionContext)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -92,8 +100,16 @@ public sealed class SourceCatalogService(
 
     /// <summary>同步一本书的目录(按外部章节 ID 幂等追加)。</summary>
     public async Task<ImportOutcome> SyncChaptersAsync(
-        string sourceId, string externalBookId, CancellationToken cancellationToken = default)
+        string sourceId,
+        string externalBookId,
+        CancellationToken cancellationToken = default,
+        SourceExecutionContext? executionContext = null)
     {
+        if (!IsExecutionContextValid(sourceId, executionContext))
+        {
+            return ImportOutcome.Fail(["source: execution context is invalid."]);
+        }
+
         if (!await IsAvailableAsync(sourceId, SourceCapability.Toc, cancellationToken)
                 .ConfigureAwait(false))
         {
@@ -111,7 +127,7 @@ public sealed class SourceCatalogService(
         try
         {
             toc = await adapter
-                .GetTableOfContentsAsync(externalBookId, cancellationToken)
+                .GetTableOfContentsAsync(externalBookId, cancellationToken, executionContext)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -175,4 +191,10 @@ public sealed class SourceCatalogService(
 
     private Task<ISourceAdapter?> RequireAdapterAsync(string sourceId, CancellationToken cancellationToken) =>
         adapterFactory.GetAdapterAsync(sourceId, cancellationToken);
+
+    private static bool IsExecutionContextValid(
+        string sourceId,
+        SourceExecutionContext? executionContext) =>
+        executionContext is null ||
+        string.Equals(executionContext.SourceId, sourceId, StringComparison.Ordinal);
 }

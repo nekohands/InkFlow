@@ -37,7 +37,8 @@ public sealed class ContentFetchChainService(
     public async Task<int> EnqueuePendingContentFetchesAsync(
         string sourceId,
         string externalBookId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? credentialReferenceId = null)
     {
         var book = await sourceBooks
             .GetAsync(sourceId, externalBookId, cancellationToken)
@@ -97,7 +98,8 @@ public sealed class ContentFetchChainService(
                                 ["bookId"] = externalBookId,
                                 ["chapterId"] = id,
                                 ["reason"] = neverFetched ? "new" : "refetch",
-                            }),
+                            },
+                            credentialReferenceId),
                         createdAt: now),
                     cancellationToken)
                 .ConfigureAwait(false);

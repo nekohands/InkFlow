@@ -77,6 +77,26 @@ public sealed class TocSyncTaskHandlerTests
         Assert.AreEqual(0, harness.Tasks.Store.Count);
     }
 
+    [TestMethod]
+    public async Task Credential_Reference_Flows_Through_Toc_And_Chained_Content_Tasks()
+    {
+        var harness = await CreateHarnessAsync();
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                "example-source",
+                SourceCapability.Toc,
+                new Dictionary<string, string> { ["bookId"] = "10001" },
+                "source-credential"),
+            createdAt: T0);
+
+        var outcome = await harness.Handler.ExecuteAsync(task);
+
+        Assert.IsTrue(outcome.Succeeded, outcome.FailureReason);
+        Assert.AreEqual("source-credential", harness.Adapter.LastExecutionContext!.CredentialReferenceId);
+        Assert.IsTrue(harness.Tasks.Store.All(
+            chained => chained.Payload.CredentialReferenceId == "source-credential"));
+    }
+
     private static async Task<Harness> CreateHarnessAsync(bool withConfirmedMatch = true)
     {
         var sourceBooks = new InMemorySourceBooks();
@@ -101,10 +121,13 @@ public sealed class TocSyncTaskHandlerTests
         var chain = new ContentFetchChainService(
             sourceBooks, new InMemoryArtifacts(), tasks, TimeProvider.System);
 
-        return new Harness(new TocSyncTaskHandler(catalog, mappingService, chain), tasks);
+        return new Harness(new TocSyncTaskHandler(catalog, mappingService, chain), tasks, adapter);
     }
 
-    private sealed record Harness(TocSyncTaskHandler Handler, ConflictAwareTaskRepository Tasks);
+    private sealed record Harness(
+        TocSyncTaskHandler Handler,
+        ConflictAwareTaskRepository Tasks,
+        FakeAdapter Adapter);
 
     /// <summary>与 EfCrawlerTaskRepository 冲突语义一致的内存实现(阻止态含死信)。</summary>
     private sealed class ConflictAwareTaskRepository : ICrawlerTaskRepository
@@ -191,6 +214,7 @@ public sealed class TocSyncTaskHandlerTests
     private sealed class FakeAdapter : ISourceAdapter
     {
         public string SourceId => "example-source";
+        public SourceExecutionContext? LastExecutionContext { get; private set; }
 
         public Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
             string keyword,
@@ -210,6 +234,15 @@ public sealed class TocSyncTaskHandlerTests
                 new("c1", 0, "第一章"),
                 new("c2", 1, "第二章"),
             ]);
+
+        public Task<IReadOnlyList<SourceTocEntry>> GetTableOfContentsAsync(
+            string externalBookId,
+            CancellationToken cancellationToken,
+            SourceExecutionContext? executionContext)
+        {
+            LastExecutionContext = executionContext;
+            return GetTableOfContentsAsync(externalBookId, cancellationToken);
+        }
 
         public Task<string?> GetChapterContentAsync(
             string externalChapterId,

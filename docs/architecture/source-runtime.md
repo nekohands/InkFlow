@@ -54,7 +54,7 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 
 - HTTP GET / POST
 - Header / Query / Form
-- 受控 response-cookie Session（仅执行期策略；初始凭据仍走 CredentialReference）
+- 受控 response-cookie Session（仅执行期策略；任务级初始凭据通过 CredentialReference 解析）
 - CSS Selector / XPath / JSONPath
 - Regex（必须 Timeout）
 - Replace / Trim
@@ -85,7 +85,8 @@ MaxResultSize，以及调用方临时请求模板变量上下文的数量、名�
 变量边界为 32 个、名称 128 字符、单值 2,048 字符、累计 16 KiB。`RuleRequest` 的路径、Header、Query
 和 Form 模板值可使用 `{name}` 占位符；发布期与执行期都会拒绝未闭合/非法占位符、非法变量名和控制字符，
 执行失败不回显变量值。生产 HTTP 客户端在解码前按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、
-基于 CredentialReference 的初始认证/持久化 Session、响应派生变量，以及
+来源级默认绑定、Owner/Admin 凭据管理和真实 SecretProvider 之外的基于 CredentialReference 的任务级初始
+认证已形成 typed Bearer/Basic/API-Key Header 基线；持久化 Session、响应派生变量，以及
 next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
@@ -158,6 +159,17 @@ MaxResultSize=512 KiB。请求体、分页累计解码响应体、字段聚合�
 ## 8. Credential
 
 Task Payload 不包含明文账号、Cookie、Token 或代理密码，只传 `CredentialReferenceId`。
+
+活动 Worker 的 TOC、联动正文任务和 RuleAdapter 通过非敏感 `SourceExecutionContext` 传递该引用；
+`ISourceCredentialProvider` 负责按 `SourceId + CredentialReferenceId` 解析，`ConfigurationSourceCredentialProvider`
+仅是本地/容器配置适配器，读取 `SourceCredentials:<sourceId>:<referenceId>`，生产环境应替换为受治理的
+Docker Secret、Vault 或云 Secret Manager。当前只允许 Bearer、Basic 和受限 API-Key Header 三种 typed
+请求头投影；不支持凭据的 CodeAdapter 必须拒绝带引用的上下文。
+
+引用 ID、材料和最终请求头均有长度/字符/禁止头名边界，引用解析受 Rule 执行时间预算约束；无效引用、
+提供器缺失/失败/超时、非法材料和请求头冲突都在 HTTP seam 前失败关闭。secret 不进入 Task Payload、
+Variables、Rule JSON、日志、错误文本、结果或对象的 `ToString()`。Provider 仍负责 Owner Scope、
+跨租户授权和安全存储；本轮不提供来源级默认绑定、Admin 凭据管理或跨执行持久会话。
 
 `RuleSession` 只处理本次 RuleAdapter 链路中由来源响应产生的短期 Cookie，不是凭据存储，也不能替代
 `CredentialReferenceId`、初始登录、跨任务会话接管或人工 CAPTCHA 流程。

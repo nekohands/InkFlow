@@ -22,6 +22,7 @@ var connectionString =
 builder.Services.AddDbContext<SourcesDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<CrawlingDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ISourceCredentialProvider, ConfigurationSourceCredentialProvider>();
 builder.Services.AddScoped<ITransactionalOutboxWriter, EfTransactionalOutboxWriter>();
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());

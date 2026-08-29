@@ -86,7 +86,19 @@ public sealed class ContentFetchTaskHandlerTests
         Assert.AreEqual(1, harness.Artifacts.Store.Count);
     }
 
-    private static CrawlerTask CreateTask() =>
+    [TestMethod]
+    public async Task Credential_Reference_Flows_Through_The_Active_Content_Handler()
+    {
+        var harness = CreateHandler(publisher: null);
+
+        var outcome = await harness.Handler.ExecuteAsync(CreateTask("source-credential"));
+
+        Assert.IsTrue(outcome.Succeeded, outcome.FailureReason);
+        Assert.AreEqual("example-source", harness.Adapter.LastExecutionContext!.SourceId);
+        Assert.AreEqual("source-credential", harness.Adapter.LastExecutionContext.CredentialReferenceId);
+    }
+
+    private static CrawlerTask CreateTask(string? credentialReferenceId = null) =>
         CrawlerTask.Create(
             new CrawlPayload(
                 "example-source",
@@ -96,7 +108,8 @@ public sealed class ContentFetchTaskHandlerTests
                     ["bookId"] = "10001",
                     ["chapterId"] = "ch-001",
                     ["reason"] = "refetch",
-                }),
+                },
+                credentialReferenceId),
             createdAt: T0);
 
     private static Harness CreateHandler(IChainedContentPublisher? publisher, string? chapterBody = ChapterBody)
@@ -105,8 +118,9 @@ public sealed class ContentFetchTaskHandlerTests
         books.Book!.SyncChapters([("ch-001", "第一章")], T0);
 
         var artifacts = new InMemoryArtifactRepository();
+        var adapter = new FixedAdapter(chapterBody);
         var service = new SourceContentService(
-            new FixedAdapterFactory(new FixedAdapter(chapterBody)),
+            new FixedAdapterFactory(adapter),
             books,
             artifacts,
             TimeProvider.System);
@@ -115,13 +129,15 @@ public sealed class ContentFetchTaskHandlerTests
         return new Harness(
             new ContentFetchTaskHandler(service, publisher),
             artifacts,
-            recordingPublisher);
+            recordingPublisher,
+            adapter);
     }
 
     private sealed record Harness(
         ContentFetchTaskHandler Handler,
         InMemoryArtifactRepository Artifacts,
-        RecordingPublisher? Publisher);
+        RecordingPublisher? Publisher,
+        FixedAdapter Adapter);
 
     /// <summary>记录调用并按预设返回/抛出的发布桥替身。</summary>
     private sealed class RecordingPublisher : IChainedContentPublisher
@@ -158,6 +174,7 @@ public sealed class ContentFetchTaskHandlerTests
     private sealed class FixedAdapter(string? content) : ISourceAdapter
     {
         public string SourceId => "example-source";
+        public SourceExecutionContext? LastExecutionContext { get; private set; }
 
         public Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
             string keyword,
@@ -178,6 +195,15 @@ public sealed class ContentFetchTaskHandlerTests
             string externalChapterId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(content);
+
+        public Task<string?> GetChapterContentAsync(
+            string externalChapterId,
+            CancellationToken cancellationToken,
+            SourceExecutionContext? executionContext)
+        {
+            LastExecutionContext = executionContext;
+            return Task.FromResult(content);
+        }
     }
 
     private sealed class InMemoryBookRepository : ISourceBookRepository

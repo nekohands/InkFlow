@@ -34,7 +34,14 @@ public sealed class RuleCrawlerTaskExecutor(
         }
 
         var result = await ruleAdapter
-            .ExecuteAsync(rule, source.BaseUrl, task.Payload.Variables, cancellationToken)
+            .ExecuteAsync(
+                rule,
+                source.BaseUrl,
+                task.Payload.Variables,
+                cancellationToken,
+                new SourceExecutionContext(
+                    source.Id,
+                    task.Payload.CredentialReferenceId))
             .ConfigureAwait(false);
 
         return result.IsSuccess

@@ -6,6 +6,7 @@
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Security/InkFlow.BuildingBlocks.Security.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="AngleSharp" />
   </ItemGroup>
 </Project>

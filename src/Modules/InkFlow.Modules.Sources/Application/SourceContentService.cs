@@ -33,8 +33,15 @@ public sealed class SourceContentService(
 {
     public async Task<ContentFetchOutcome> FetchChapterContentAsync(
         string sourceId, string externalBookId, string externalChapterId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        SourceExecutionContext? executionContext = null)
     {
+        if (executionContext is not null &&
+            !string.Equals(executionContext.SourceId, sourceId, StringComparison.Ordinal))
+        {
+            return ContentFetchOutcome.Fail(["source: execution context is invalid."]);
+        }
+
         // 前置校验全部在触网前完成:适配器、书目、章节必须已存在。
         if (healthReader is not null && !await healthReader
                 .IsAvailableAsync(sourceId, SourceCapability.Content, cancellationToken)
@@ -72,7 +79,7 @@ public sealed class SourceContentService(
         try
         {
             rawContent = await adapter
-                .GetChapterContentAsync(externalChapterId, cancellationToken)
+                .GetChapterContentAsync(externalChapterId, cancellationToken, executionContext)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
