@@ -86,9 +86,15 @@ MaxResultSize，以及调用方临时请求模板变量上下文的数量、名�
 和 Form 模板值可使用 `{name}` 占位符；发布期与执行期都会拒绝未闭合/非法占位符、非法变量名和控制字符，
 执行失败不回显变量值。生产 HTTP 客户端在解码前按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、
 来源级默认绑定、Owner/Admin 凭据管理和真实 SecretProvider 之外的基于 CredentialReference 的任务级初始
-认证已形成 typed Bearer/Basic/API-Key Header 基线；持久化 Session、响应派生变量，以及
+认证已形成 typed Bearer/Basic/API-Key Header 基线；持久化 Session，以及
 next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
+
+`CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
+续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
+执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。
+派生值缺失、非法或超限会在下一次续页请求前整体失败，失败结果不暴露已抓响应、派生值或部分页面；
+最后一页不要求派生变量。该能力不提供持久化状态、跨执行状态、通用多请求序列或递归编排。
 
 禁止：
 

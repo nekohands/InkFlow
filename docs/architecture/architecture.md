@@ -101,8 +101,9 @@ DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePaginati
 且唯一的 query/form 参数。循环、重复游标、跨源和请求/页面上限整体失败。`CapabilityRule.Session` 已提供
 单次 RuleAdapter 执行内的受控 response-cookie 会话：只接收成功响应的 `Set-Cookie`，按同源最终响应及
 Domain/Path/Secure、生命周期和数量/字节边界发送到后续请求，Cookie 不写入 Rule JSON 值、日志、任务载荷
-或跨执行存储。来源级默认绑定、持久化 Session、响应派生变量，
-以及三种受控分页之外的多请求/递归执行所需的完整 Redirect/Depth 策略仍需
+或跨执行存储。`CapabilityRule.ResponseVariables` 仅在 page-number/cursor 续页存在时从当前响应派生
+临时请求变量，复用同一变量预算，缺失/非法/超限在续页出网前整体失败且不进入结果或日志；不提供
+持久化或跨执行状态。来源级默认绑定、持久化 Session，以及三种受控分页之外的多请求/递归执行所需的完整 Redirect/Depth 策略仍需
 对应运行时引擎与独立回归，不能由解析通过替代真实执行验收。
 
 抓取分层：

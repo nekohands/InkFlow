@@ -820,6 +820,17 @@ Phase 1A 自动化工作包状态：
 - 远端证据：最终提交 `47992d7`（代码实现提交 `c32dc80`，本提交仅补写验证证据）已推送；[CI 33275310547](https://github.com/nekohands/InkFlow/actions/runs/33275310547)、[Docker 33275266875](https://github.com/nekohands/InkFlow/actions/runs/33275266875)、[Security 33275266884](https://github.com/nekohands/InkFlow/actions/runs/33275266884) 均为 GREEN，且三项 Run 的 headSha 均为 `47992d7`。CI 真实测试为 Unit 430/430、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成 11 个迁移检查、Compose、Runtime smoke、Core SLO、Redis、PostgreSQL 备份恢复与 diagnostics；Docker 四业务镜像及 Collector 扫描/发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 通过，保留既有 Node 20 弃用与 CodeQL 权限提示。
 - 当前状态：任务级 CredentialReference 初始认证已形成通过候选门禁的 `Implemented` 基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；来源默认绑定、持久会话、真实凭据后端、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
 
+### 4.57 Source Rule 有界响应派生变量（本轮，2026-08-30）
+
+- 缺口：4.55 已支持调用方把变量填入请求模板，但 API 型来源的续页 token/cursor 辅助值仍不能从当前响应派生；若扩展成通用多请求，容易突破既有请求数、字节和执行期边界。
+- 实现：新增 `CapabilityRule.ResponseVariables` / `RuleResponseVariable`，仅允许 page-number/cursor 分页在确认存在下一页时，从当前响应用受控 Selector 或带超时 Regex 提取，并应用既有 Trim/Replace 后填入同一次执行的临时模板变量上下文；后续 query/header/form/path 请求复用该上下文，首请求仍使用调用方变量。
+- 安全与失败关闭：发布期和执行期都要求响应派生变量只出现在 page-number/cursor 规则中，变量名唯一且有界，提取结果复用变量数量、标识符、单值长度、累计 UTF-8 字节和控制字符预算。缺失、非法、正则超时或超限在下一次续页出网前整体失败，不暴露已抓页面、派生值、部分结果或错误中的敏感值；最后一页不要求派生变量，派生上下文不跨执行持久化。
+- 回归：新增页码续页 Selector 派生、游标续页 Regex/Header 派生、值缺失、值超限不出网/不泄露、声明模式/重复名称 Validator 及 JSON codec 往返测试；定向 RuleAdapter/Validator/JSON 回归 91/91 通过。
+- 非目标：不实现响应派生变量的持久化、跨执行状态、next-link 中的派生模板、多步通用请求序列、递归/MaxDepth 或完整 XPath/JSONPath 语法；真实来源、故障切换、阅读 3.0 和人工验收仍按待定清单处理。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 437/437、Architecture 1/1、Contract 10/10 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；迁移模型检查 11/11、Schema/Fixture JSON、API `/health` 200 和 `git diff --check` PASS。
+- 远端证据：候选提交 `8977a42` 的 [CI 33276544113](https://github.com/nekohands/InkFlow/actions/runs/33276544113)、[Docker 33276544229](https://github.com/nekohands/InkFlow/actions/runs/33276544229)、[Security 33276544165](https://github.com/nekohands/InkFlow/actions/runs/33276544165) 均 GREEN，且三项 Run 的 headSha 均为 `8977a425560f20bde38a162a598816a9cd56c1e7`。CI 真实测试为 Unit 437/437、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成 11 个迁移检查、Compose、Runtime smoke、Core SLO、Redis、PostgreSQL 备份恢复与 diagnostics；Docker 四业务镜像/Collector 通过，Security 的 NuGet、Filesystem、CodeQL、SBOM 通过，仅保留既有 Node 20 弃用与 CodeQL 权限提示。
+- 当前状态：有界响应派生变量已形成通过候选门禁的 `Implemented` 基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；来源级默认绑定、持久会话、真实 SecretProvider、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -925,8 +936,8 @@ Official Source
 - Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；受控 XPath/JSONPath
   选择器运行时已在 4.51 接入，受控 next-link Pagination 已在 4.52 接入，page-number/cursor 与跨页
   Rule execution budgets 已在 4.53 接入，受控 response-cookie Session 已在 4.54 接入，有界请求模板变量已在
-  4.55 接入，任务级 CredentialReference typed 初始认证已在 4.56 接入；来源级默认绑定、凭据 Owner/Admin
-  管理、真实 SecretProvider、持久会话、响应派生变量及三种受控分页之外的多请求/递归预算仍待后续工程工作包。
+  4.55 接入，任务级 CredentialReference typed 初始认证已在 4.56 接入，有界响应派生变量已在 4.57 接入；
+  来源级默认绑定、凭据 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
@@ -935,7 +946,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-当前 4.56 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 430/430、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 解析和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未完成执行。最终提交 `47992d7` 的 CI `33275310547`、Docker `33275266875`、Security `33275266884` 均 GREEN，真实来源、阅读 3.0 和人工验收按用户决定未执行。
+当前 4.57 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 437/437、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 解析和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未完成执行。提交 `8977a42` 的 CI `33276544113`、Docker `33276544229`、Security `33276544165` 均 GREEN，真实来源、阅读 3.0 和人工验收按用户决定未执行。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

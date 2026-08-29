@@ -57,6 +57,7 @@ Required controls:
 - private/link-local/metadata/internal service denial
 - max requests/bytes/redirects/execution time/result size
 - regex timeout / non-backtracking where applicable
+- bounded response-derived variables for continuation requests only
 - no process/filesystem/reflection/dynamic code/arbitrary socket
 
 当前来源请求由 `SsrfGuard` 做字面量与 DNS 全结果校验，并由
@@ -89,6 +90,11 @@ Source Runtime 只把解析结果投影为有界的 Bearer、Basic 或受限 API
 配置适配器，开发可用未提交的本地环境配置，生产应接 Docker Secret/Vault/Cloud Secret Manager 风格提供器。
 Source records store references, not plaintext platform/user credentials；Provider 还必须实施 Platform /
 Organization / User Owner Scope 和跨租户授权。本轮不实现来源级默认绑定、Admin 凭据管理或跨执行持久会话。
+
+RuleAdapter 的 `ResponseVariables` 视响应内容为不可信输入，只允许用于同一次执行的 page-number/cursor
+续页请求模板。提取结果经过变量数量、标识符、单值长度、累计 UTF-8 字节和控制字符边界；缺失、非法或
+超限值在续页出网前 fail-closed，且不得进入 Rule 结果、Task Payload、日志或错误文本。该上下文不会跨
+执行持久化，也不扩展为通用递归或无界多请求编排。
 
 ## 7. API Abuse Protection
 

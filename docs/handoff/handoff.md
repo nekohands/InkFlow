@@ -471,6 +471,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：最终提交 `47992d7`（代码实现提交 `c32dc80`，本提交仅补写验证证据）的 [CI 33275310547](https://github.com/nekohands/InkFlow/actions/runs/33275310547)、[Docker 33275266875](https://github.com/nekohands/InkFlow/actions/runs/33275266875)、[Security 33275266884](https://github.com/nekohands/InkFlow/actions/runs/33275266884) 均 GREEN，且三项 Run 的 headSha 均为 `47992d7`；CI Unit 430/430、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成迁移、Compose、Runtime smoke、SLO、Redis、PostgreSQL 恢复和 diagnostics；Docker 四业务镜像/Collector 通过，Security 扫描通过并保留既有 Node 20/CodeQL 权限提示。
 - 当前状态：任务级 CredentialReference 初始认证为通过候选门禁的 `Implemented` 基线；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。
 
+### 4.57 Source Rule 有界响应派生变量（本轮，2026-08-30）
+
+- 缺口：调用方模板变量已经覆盖首请求，但 API 型来源的续页 token/cursor 辅助值仍无法从当前响应安全派生；本轮只沿既有有界分页 seam 增量实现，不打开通用多请求编排。
+- 实现：`CapabilityRule.ResponseVariables` / `RuleResponseVariable` 仅服务 page-number/cursor 续页；每个实际续页前按受控 Selector 或带超时 Regex 从当前响应提取，应用 Trim/Replace，合并到执行期临时变量上下文，再渲染下一次 path/header/query/form。Selector/Regex 声明保持与输出字段一致的严格互斥形状。
+- 安全/边界：只允许 page-number/cursor，名称唯一且受界；提取值复用变量数量、名称、单值、累计 UTF-8 字节和控制字符预算。缺失/非法/正则超时/超限在续页出网前整体失败，不把响应、派生值、部分结果写入结果、日志、Task Payload 或错误文本；最终页不要求派生变量，不跨执行持久化。
+- 回归与证据：定向 RuleAdapter/Validator/JSON 91/91；本地 Restore、Release Build 0/0、Unit 437/437、Architecture 1/1、Contract 10/10、迁移模型 11/11、Schema/Fixture、API `/health` 200 通过；Integration 80 项中 6 通过、2 跳过、72 项因本机 Docker 管道不可用 BLOCKED。候选提交 `8977a42` 的 [CI 33276544113](https://github.com/nekohands/InkFlow/actions/runs/33276544113)、[Docker 33276544229](https://github.com/nekohands/InkFlow/actions/runs/33276544229)、[Security 33276544165](https://github.com/nekohands/InkFlow/actions/runs/33276544165) 均 GREEN，headSha 均为 `8977a425560f20bde38a162a598816a9cd56c1e7`。
+- 非目标：不包含持久化/跨执行状态、next-link 派生模板、递归/MaxDepth、通用请求序列、完整 XPath/JSONPath 或真实来源/阅读 3.0 人工验收。
+- 当前状态：有界响应派生变量为通过候选门禁的 `Implemented` 基线；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。来源默认绑定、Owner/Admin 凭据管理、真实 SecretProvider、持久会话、真实来源/切源、阅读 3.0 和人工验收仍待处理。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -801,6 +810,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量和任务级 CredentialReference typed 初始认证；来源级默认绑定、Owner/Admin 凭据管理、真实 SecretProvider、持久会话、响应派生变量及三种受控分页之外的多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证和有界响应派生变量；来源级默认绑定、Owner/Admin 凭据管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。
