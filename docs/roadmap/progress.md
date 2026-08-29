@@ -651,6 +651,7 @@ Phase 1A 自动化工作包状态：
 - 实现：Observability Building Block 新增 `CoreSloEvidenceEvaluator`、窗口/服务面聚合输入、四态评估结果和稳定 reason code。四个 Core SLO 服务面必须都有正请求量、请求数与延迟样本数匹配、合法 p95 才可能通过；评估结果计算可用性、99.5% 错误预算事件数、剩余预算和 p95 目标，超预算保留负数证据。
 - 安全/边界：评估器无状态，不新增数据库、公开 API 或 Collector 连接；reason code 不携带路径、用户、Token、异常原文或其他高基数信息。OTLP/合成探针只需将聚合结果映射到统一输入，真实月度窗口、探针覆盖、告警和保留治理仍待部署环境验收。决策见 ADR 0011。
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 324/324、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、56 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；API `/health` 200、`/metrics` 404（按设计），PostgreSQL/Redis 依赖请求未宣称通过；`git diff --check` PASS。
+- 远端验收：提交 `71aa1a8` 的 CI `33247413751`、Docker `33247413755`、Security `33247413756` 均 **GREEN**；CI 的 Restore/Build/Test、Compose、Runtime smoke、Redis 限流和备份恢复演练，Docker 四镜像构建/扫描，以及 Security 的 NuGet、Trivy、CodeQL、SBOM 均完成。Security 保留既有 `upload-artifact@v4` Node 20 弃用提示，未影响结论。
 - 当前状态：本工作包继续保持 `1.0 Release Candidate`，代码/自动化契约已完成但不等同于生产 SLO 达标；真实 OTLP Collector、合成探针、窗口证据和错误预算告警仍按第 6 节待定事项执行。
 
 ## 5. Phase 1A 核心验收链路

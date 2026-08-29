@@ -310,6 +310,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 实现：新增无状态 `CoreSloEvidenceEvaluator`。输入为明确窗口、证据来源和四个稳定服务面的请求/5xx/延迟聚合；输出 `Passed`、`Failed`、`InsufficientEvidence`、`InvalidEvidence`，并带稳定 reason code、可用性、99.5% 错误预算剩余和服务面 p95 目标。缺任一服务面、无正流量、p95 缺失或样本不完整时 `IsPassing=false`。
 - 边界：不连接 Collector、不新增数据库/公开 API、不伪造生产窗口证据；结果不包含路径、用户、Token、异常原文或其他高基数数据。真实 OTLP/探针窗口与告警治理继续待部署环境验收，详见 ADR 0011。
 - 本地证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 324/324、Architecture 1/1、Contract 10/10 PASS；Integration 64 项中 6 通过、56 项因本机 Docker Engine 不可用而 BLOCKED、2 项跳过；API `/health` 200、`/metrics` 404（按设计）。
+- 远端证据：提交 `71aa1a8` 的 CI `33247413751`、Docker `33247413755`、Security `33247413756` 均 **GREEN**；Security 仅有既有 `upload-artifact@v4` Node 20 弃用提示，不影响工作流结论。
 - 当前状态：保持 `1.0 Release Candidate`，本工作包的自动化契约已完成，但不标记 `Accepted/Completed`。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
