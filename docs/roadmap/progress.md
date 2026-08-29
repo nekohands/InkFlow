@@ -642,7 +642,8 @@ Phase 1A 自动化工作包状态：
 - 设计与实现：新增 `CoreSloPolicy` 和 `CoreSloMetricsMiddleware`，覆盖 `public_api`、`legado_api`、`developer_api`、`reader` 四个服务面；100–499 记为 good、5xx 记为 bad，记录 `inkflow.slo.requests`、`inkflow.slo.request.duration`（毫秒）和 `inkflow.slo.server.errors`。延迟目标为 public/developer 750ms、Legado/reader 1000ms，可用性目标为 99.5%。限流等预期 4xx 会被观测但不算服务端错误；`/health`、管理静态页、未知路径和来源内部请求排除。
 - 安全与出口：指标只携带稳定服务面和有限 outcome 标签，不写入路径参数、用户、IP、Token、异常原文或正文；OTLP traces/metrics exporter 只有在通用或对应 signal 的 endpoint 显式配置时才启用，没有 Collector 时不会默认连接本机端口；应用不新增公开 `/metrics` 端点。
 - 自动化证据：Release Build 0 warnings / 0 errors PASS；Unit 320/320、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、2 跳过、56 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。API `/health` 200，`/metrics` 按设计 404；本机 PostgreSQL/Redis 未运行，`/reader` 数据链路未宣称端到端通过。
-- 当前状态：本工作包保持 `1.0 Release Candidate`，候选远端 CI/Docker/Security 门禁待提交后验证；真实 OTLP Collector、SLO 窗口/合成探针、错误预算告警与生产保留治理，以及按用户决定延后的 MuMu/阅读 3.0、真实来源和人工验收，继续列入第 6 节待定事项，不等同于 `Accepted/Completed`。
+- 远端验收：候选提交 `a87c5ae` 的 CI `33246490603` GREEN（Unit 320/320、Architecture 1/1、Contract 10/10、Integration 64 项 62 通过/2 跳过，另有 Redis 限流集成 1/1；含 Restore/Build/Compose/Runtime smoke/备份恢复/Diagnostics），Docker `33246490571` GREEN，Security `33246490589` GREEN（NuGet、SBOM、Trivy 和 CodeQL）。
+- 当前状态：本工作包保持 `1.0 Release Candidate`，自动化 Release Gate 已通过；真实 OTLP Collector、SLO 窗口/合成探针、错误预算告警与生产保留治理，以及按用户决定延后的 MuMu/阅读 3.0、真实来源和人工验收，继续列入第 6 节待定事项，不等同于 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -751,7 +752,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Core SLO v1 已建立指标契约，但真实 OTLP Collector、SLO 窗口/合成探针、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Core SLO v1 已建立指标契约，但真实 OTLP Collector、SLO 窗口/合成探针、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

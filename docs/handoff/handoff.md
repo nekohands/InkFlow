@@ -6,7 +6,7 @@
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-08-28；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-08-29；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -301,7 +301,8 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 实现：新增 `CoreSloPolicy` 与 `CoreSloMetricsMiddleware`，稳定映射 `public_api`、`legado_api`、`developer_api`、`reader` 四类服务面；记录 `inkflow.slo.requests`、`inkflow.slo.request.duration`（毫秒）和 `inkflow.slo.server.errors`，目标为 99.5% 可用性以及 public/developer 750ms、Legado/reader 1000ms 延迟 p95。预期 4xx 仍计入请求但不算服务端错误，5xx 计入 bad/error。
 - 安全/配置：仅使用服务面和有限 outcome 标签，不携带路径参数、用户、IP、Token、异常原文或正文；`/health`、管理静态页、未知路径和来源内部请求不进入 Core SLO。OTLP exporter 仅在通用或对应 signal endpoint 显式配置时启用，应用不新增公开 `/metrics` 路由。
 - 本地证据：Release Build 0 warnings / 0 errors；Unit 320/320、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、2 跳过、56 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。API `/health` 200、`/metrics` 404（按设计）；本机 PostgreSQL/Redis 未运行，`/reader` 数据链路未宣称端到端通过。
-- 当前状态：候选远端 CI/Docker/Security 门禁待提交后验证；真实 Collector、SLO 窗口/合成探针、错误预算告警/保留治理，以及 MuMu/阅读 3.0、真实来源和人工验收均按待定事项处理。本工作包保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 远端验收：候选提交 `a87c5ae` 的 CI `33246490603` GREEN（Unit 320/320、Architecture 1/1、Contract 10/10、Integration 64 项 62 通过/2 跳过，另有 Redis 限流集成 1/1；含 Restore/Build/Compose/Runtime smoke/备份恢复/Diagnostics），Docker `33246490571` GREEN，Security `33246490589` GREEN（NuGet、SBOM、Trivy 和 CodeQL）。
+- 当前状态：真实 Collector、SLO 窗口/合成探针、错误预算告警/保留治理，以及 MuMu/阅读 3.0、真实来源和人工验收均按待定事项处理。本工作包保持 `1.0 Release Candidate`，自动化 Release Gate 已通过，不标记 `Accepted/Completed`。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
@@ -351,7 +352,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Operations Alert Snapshot v1：来源健康/死信/一致性/Redis 告警快照 + 配置化阈值 + OperationsRead 保护（本工作包）
 ✅ Operations Alert History v1：PostgreSQL incident 去重/恢复 + opened/resolved 历史 + 保留清理 + Administrator-only 有界查询（`4ef206f`；CI `33244304809` / Docker `33244304814` / Security `33244304804` GREEN）
 ✅ Operations Center Alert History UI v1：管理员历史刷新/不透明游标分页 + opened/resolved 转折展示 + Operator 权限提示（`734c626`；CI `33245390370` / Docker `33245390354` / Security `33245390350` GREEN；真实与人工验收待定）
-⏳ Core SLO Observability v1：四类服务面 + 可用性/延迟/5xx 低基数指标 + OTLP 显式配置（本轮；候选远端门禁待验证）
+✅ Core SLO Observability v1：四类服务面 + 可用性/延迟/5xx 低基数指标 + OTLP 显式配置（`a87c5ae`；CI `33246490603` / Docker `33246490571` / Security `33246490589` GREEN；真实 SLO 窗口与人工验收待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
