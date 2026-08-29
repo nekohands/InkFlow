@@ -12,6 +12,20 @@ public static class SourceRuleDslValidator
 
     /// <summary>单条正则超时的上限（毫秒），防止规则作者声明过宽的预算。</summary>
     public const int MaxRegexTimeoutMilliseconds = 2_000;
+    public const int MaxRules = 32;
+    public const int MaxFieldsPerRule = 64;
+    public const int MaxTransformsPerField = 16;
+    public const int MaxMapEntries = 64;
+    public const int MaxSourceIdLength = 128;
+    public const int MaxFieldNameLength = 128;
+    public const int MaxMapKeyLength = 256;
+    public const int MaxMapValueLength = 2_048;
+    public const int MaxPathTemplateLength = 2_048;
+    public const int MaxSelectorExpressionLength = 2_048;
+    public const int MaxRegexPatternLength = 4_096;
+    public const int MaxAttributeNameLength = 128;
+    public const int MaxTransformValueLength = 1_024;
+    public const int MaxListTrimLength = 512;
 
     private static readonly System.Text.RegularExpressions.Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
@@ -36,14 +50,37 @@ public static class SourceRuleDslValidator
             errors.Add("sourceId: must be non-empty and contain no whitespace.");
         }
 
+        ValidateMaxLength(dsl.SourceId, MaxSourceIdLength, "sourceId", errors);
+
+        if (dsl.Rules is null)
+        {
+            errors.Add("rules: must be an array.");
+            return errors;
+        }
+
         if (dsl.Rules.Count == 0)
         {
             errors.Add("rules: at least one capability rule is required.");
+        }
+        else if (dsl.Rules.Count > MaxRules)
+        {
+            errors.Add($"rules: must contain at most {MaxRules} entries.");
         }
 
         var seenCapabilities = new HashSet<SourceCapability>();
         foreach (var rule in dsl.Rules)
         {
+            if (rule is null)
+            {
+                errors.Add("rules: entries must not be null.");
+                continue;
+            }
+
+            if (!Enum.IsDefined(rule.Capability))
+            {
+                errors.Add($"rules[{rule.Capability}]: unknown capability.");
+            }
+
             if (!seenCapabilities.Add(rule.Capability))
             {
                 errors.Add($"rules[{rule.Capability}]: duplicate rule for the same capability.");
@@ -61,6 +98,12 @@ public static class SourceRuleDslValidator
     {
         var prefix = $"rules[{rule.Capability}]";
         var request = rule.Request;
+
+        if (request is null)
+        {
+            errors.Add($"{prefix}: request must not be null.");
+            return;
+        }
 
         if (!Enum.IsDefined(request.Method))
         {
@@ -81,16 +124,45 @@ public static class SourceRuleDslValidator
             }
         }
 
-        foreach (var header in request.Headers)
+        ValidateMaxLength(
+            request.PathTemplate,
+            MaxPathTemplateLength,
+            $"{prefix}.pathTemplate",
+            errors);
+
+        ValidateMap(request.Headers, $"{prefix}.headers", errors);
+        ValidateMap(request.Query, $"{prefix}.query", errors);
+        ValidateMap(request.Form, $"{prefix}.form", errors);
+
+        if (request.Headers is null)
         {
-            if (string.IsNullOrWhiteSpace(header.Key) || string.IsNullOrWhiteSpace(header.Value))
+            errors.Add($"{prefix}: headers must be an object.");
+        }
+        else
+        {
+            foreach (var header in request.Headers)
             {
-                errors.Add($"{prefix}: headers must have non-empty key and value.");
-                break;
+                if (string.IsNullOrWhiteSpace(header.Key) || string.IsNullOrWhiteSpace(header.Value))
+                {
+                    errors.Add($"{prefix}: headers must have non-empty key and value.");
+                    break;
+                }
             }
         }
 
-        foreach (var key in request.Query.Keys.Concat(request.Form.Keys))
+        if (request.Query is null)
+        {
+            errors.Add($"{prefix}: query must be an object.");
+        }
+
+        if (request.Form is null)
+        {
+            errors.Add($"{prefix}: form must be an object.");
+        }
+
+        var queryKeys = request.Query?.Keys ?? Array.Empty<string>();
+        var formKeys = request.Form?.Keys ?? Array.Empty<string>();
+        foreach (var key in queryKeys.Concat(formKeys))
         {
             if (string.IsNullOrWhiteSpace(key))
             {
@@ -99,7 +171,7 @@ public static class SourceRuleDslValidator
             }
         }
 
-        if (request.Method == RuleHttpMethod.Post && request.Form.Count == 0)
+        if (request.Method == RuleHttpMethod.Post && (request.Form is null || request.Form.Count == 0))
         {
             errors.Add($"{prefix}: a POST request requires a non-empty form body.");
         }
@@ -108,6 +180,17 @@ public static class SourceRuleDslValidator
     private static void ValidateFields(CapabilityRule rule, List<string> errors)
     {
         var prefix = $"rules[{rule.Capability}]";
+
+        if (rule.Fields is null)
+        {
+            errors.Add($"{prefix}: fields must be an array.");
+            return;
+        }
+
+        if (rule.Fields.Count > MaxFieldsPerRule)
+        {
+            errors.Add($"{prefix}: fields must contain at most {MaxFieldsPerRule} entries.");
+        }
 
         // 列表绑定能力(Toc/Search)由 List 提供结构化输出,单值字段可选;
         // 若同时声明了字段,仍逐个校验其合法性。
@@ -124,11 +207,23 @@ public static class SourceRuleDslValidator
         var seenNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var field in rule.Fields)
         {
+            if (field is null)
+            {
+                errors.Add($"{prefix}: field entries must not be null.");
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(field.Name))
             {
                 errors.Add($"{prefix}: field name must not be empty.");
                 continue;
             }
+
+            ValidateMaxLength(
+                field.Name,
+                MaxFieldNameLength,
+                $"{prefix} field name",
+                errors);
 
             if (!seenNames.Add(field.Name))
             {
@@ -156,10 +251,22 @@ public static class SourceRuleDslValidator
                     errors.Add($"{prefix}['{field.Name}']: selector expression must not be empty.");
                 }
 
+                ValidateMaxLength(
+                    selector.Expression,
+                    MaxSelectorExpressionLength,
+                    $"{prefix}['{field.Name}'] selector expression",
+                    errors);
+
                 if (field.Attribute is not null && string.IsNullOrWhiteSpace(field.Attribute))
                 {
                     errors.Add($"{prefix}['{field.Name}']: attribute name must not be blank when specified.");
                 }
+
+                ValidateMaxLength(
+                    field.Attribute,
+                    MaxAttributeNameLength,
+                    $"{prefix}['{field.Name}'] attribute",
+                    errors);
             }
 
             if (field.Regex is { } regex)
@@ -169,6 +276,12 @@ public static class SourceRuleDslValidator
                     errors.Add($"{prefix}['{field.Name}']: regex pattern must not be empty.");
                 }
 
+                ValidateMaxLength(
+                    regex.Pattern,
+                    MaxRegexPatternLength,
+                    $"{prefix}['{field.Name}'] regex pattern",
+                    errors);
+
                 if (regex.TimeoutMilliseconds <= 0 || regex.TimeoutMilliseconds > MaxRegexTimeoutMilliseconds)
                 {
                     errors.Add(
@@ -176,11 +289,44 @@ public static class SourceRuleDslValidator
                 }
             }
 
+            if (field.Transforms is null)
+            {
+                errors.Add($"{prefix}['{field.Name}']: transforms must be an array.");
+                continue;
+            }
+
+            if (field.Transforms.Count > MaxTransformsPerField)
+            {
+                errors.Add(
+                    $"{prefix}['{field.Name}']: transforms must contain at most " +
+                    $"{MaxTransformsPerField} entries.");
+            }
+
             foreach (var transform in field.Transforms)
             {
+                if (transform is null)
+                {
+                    errors.Add($"{prefix}['{field.Name}']: transform entries must not be null.");
+                    continue;
+                }
+
                 if (transform is ReplaceTransform { From: null or "" })
                 {
                     errors.Add($"{prefix}['{field.Name}']: replace transform requires a non-empty 'from'.");
+                }
+
+                if (transform is ReplaceTransform replace)
+                {
+                    ValidateMaxLength(
+                        replace.From,
+                        MaxTransformValueLength,
+                        $"{prefix}['{field.Name}'] replace 'from'",
+                        errors);
+                    ValidateMaxLength(
+                        replace.To,
+                        MaxTransformValueLength,
+                        $"{prefix}['{field.Name}'] replace 'to'",
+                        errors);
                 }
             }
         }
@@ -208,10 +354,22 @@ public static class SourceRuleDslValidator
             errors.Add($"{prefix}: list itemsSelector must not be empty.");
         }
 
+        ValidateMaxLength(
+            list.ItemsSelector,
+            MaxSelectorExpressionLength,
+            $"{prefix} itemsSelector",
+            errors);
+
         if (string.IsNullOrWhiteSpace(list.ExternalIdAttribute))
         {
             errors.Add($"{prefix}: list externalIdAttribute must not be empty.");
         }
+
+        ValidateMaxLength(
+            list.ExternalIdAttribute,
+            MaxAttributeNameLength,
+            $"{prefix} externalIdAttribute",
+            errors);
 
         if (list.IdPrefixToStrip is null)
         {
@@ -221,6 +379,56 @@ public static class SourceRuleDslValidator
         if (list.IdSuffixToStrip is null)
         {
             errors.Add($"{prefix}: idSuffixToStrip must be specified (may be empty string).");
+        }
+
+        ValidateMaxLength(
+            list.IdPrefixToStrip,
+            MaxListTrimLength,
+            $"{prefix} idPrefixToStrip",
+            errors);
+        ValidateMaxLength(
+            list.IdSuffixToStrip,
+            MaxListTrimLength,
+            $"{prefix} idSuffixToStrip",
+            errors);
+    }
+
+    private static void ValidateMap(
+        IReadOnlyDictionary<string, string>? values,
+        string prefix,
+        List<string> errors)
+    {
+        if (values is null)
+        {
+            return;
+        }
+
+        if (values.Count > MaxMapEntries)
+        {
+            errors.Add($"{prefix}: must contain at most {MaxMapEntries} entries.");
+        }
+
+        foreach (var pair in values)
+        {
+            if (pair.Value is null)
+            {
+                errors.Add($"{prefix}['{pair.Key}']: value must be a string.");
+            }
+
+            ValidateMaxLength(pair.Key, MaxMapKeyLength, $"{prefix} key", errors);
+            ValidateMaxLength(pair.Value, MaxMapValueLength, $"{prefix}['{pair.Key}']", errors);
+        }
+    }
+
+    private static void ValidateMaxLength(
+        string? value,
+        int maximum,
+        string path,
+        List<string> errors)
+    {
+        if (value is not null && value.Length > maximum)
+        {
+            errors.Add($"{path}: length must be at most {maximum} characters.");
         }
     }
 }

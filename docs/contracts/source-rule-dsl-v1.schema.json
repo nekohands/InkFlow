@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inkflow.dev/contracts/source-rule-dsl-v1.schema.json",
+  "title": "InkFlow Source Rule DSL v1",
+  "description": "Strict, declarative source request and extraction contract. It has no executable control flow.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sourceId",
+    "rules"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "sourceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S+$"
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/capabilityRule"
+      }
+    }
+  },
+  "$defs": {
+    "capabilityRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "request",
+        "fields"
+      ],
+      "properties": {
+        "capability": {
+          "enum": [
+            "search",
+            "bookInfo",
+            "toc",
+            "content",
+            "update"
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/request"
+        },
+        "fields": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "list": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/list"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "capability": {
+                "enum": [
+                  "search",
+                  "toc"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "list"
+            ],
+            "properties": {
+              "list": {
+                "$ref": "#/$defs/list"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "pathTemplate",
+        "headers",
+        "query",
+        "form"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "get",
+            "post"
+          ]
+        },
+        "pathTemplate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "^/"
+        },
+        "headers": {
+          "$ref": "#/$defs/stringMap"
+        },
+        "query": {
+          "$ref": "#/$defs/stringMap"
+        },
+        "form": {
+          "$ref": "#/$defs/stringMap"
+        }
+      }
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 2048
+      },
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "expression"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "css",
+            "xPath",
+            "jsonPath"
+          ]
+        },
+        "expression": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      }
+    },
+    "regex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pattern",
+        "timeoutMilliseconds"
+      ],
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "timeoutMilliseconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "selector",
+        "regex",
+        "transforms"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "selector": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/selector"
+            }
+          ]
+        },
+        "regex": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/regex"
+            }
+          ]
+        },
+        "transforms": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/trimTransform"
+              },
+              {
+                "$ref": "#/$defs/replaceTransform"
+              }
+            ]
+          }
+        },
+        "attribute": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "selector": {
+              "$ref": "#/$defs/selector"
+            },
+            "regex": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "selector": {
+              "type": "null"
+            },
+            "regex": {
+              "$ref": "#/$defs/regex"
+            }
+          }
+        }
+      ]
+    },
+    "trimTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "trim"
+        }
+      }
+    },
+    "replaceTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "kind": {
+          "const": "replace"
+        },
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "to": {
+          "type": "string",
+          "maxLength": 1024
+        }
+      }
+    },
+    "list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itemsSelector",
+        "externalIdAttribute",
+        "idPrefixToStrip",
+        "idSuffixToStrip"
+      ],
+      "properties": {
+        "itemsSelector": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "externalIdAttribute": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "idPrefixToStrip": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "idSuffixToStrip": {
+          "type": "string",
+          "maxLength": 512
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <None Update="Fixtures\source-rule-dsl-v1.json" CopyToOutputDirectory="PreserveNewest" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MSTest" />

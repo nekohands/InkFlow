@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1",
+  "sourceId": "fixture-source",
+  "rules": [
+    {
+      "capability": "search",
+      "request": {
+        "method": "post",
+        "pathTemplate": "/search",
+        "headers": {},
+        "query": {},
+        "form": {
+          "keyword": "{query}"
+        }
+      },
+      "fields": [
+        {
+          "name": "title",
+          "selector": {
+            "kind": "css",
+            "expression": ".title"
+          },
+          "regex": null,
+          "transforms": [
+            {
+              "kind": "trim"
+            },
+            {
+              "kind": "replace",
+              "from": "《",
+              "to": ""
+            }
+          ],
+          "attribute": null
+        }
+      ],
+      "list": {
+        "itemsSelector": ".result a",
+        "externalIdAttribute": "href",
+        "idPrefixToStrip": "/book/",
+        "idSuffixToStrip": ".html"
+      }
+    },
+    {
+      "capability": "content",
+      "request": {
+        "method": "get",
+        "pathTemplate": "/chapter/{chapterId}",
+        "headers": {},
+        "query": {},
+        "form": {}
+      },
+      "fields": [
+        {
+          "name": "content",
+          "selector": {
+            "kind": "css",
+            "expression": "article p"
+          },
+          "regex": null,
+          "transforms": [],
+          "attribute": null
+        }
+      ],
+      "list": null
+    }
+  ]
+}

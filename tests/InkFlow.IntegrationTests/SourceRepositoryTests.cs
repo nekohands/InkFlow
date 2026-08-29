@@ -83,6 +83,40 @@ public sealed class SourceRepositoryTests
     }
 
     [TestMethod]
+    public async Task Source_With_Transform_Rule_Dsl_Roundtrips()
+    {
+        var repo = CreateRepository();
+        var source = Source.Create(
+            "transform-roundtrip-source",
+            "示例来源",
+            "https://books.example.com",
+            T0);
+        source.UpdateRuleDsl(
+            new SourceRuleDsl("1", "transform-roundtrip-source",
+            [
+                new CapabilityRule(
+                    SourceCapability.Content,
+                    RuleRequest.Get("/chapter/{chapterId}"),
+                    [new RuleField(
+                        "content",
+                        new RuleSelector(SelectorKind.Css, "article"),
+                        null,
+                        [new TrimTransform(), new ReplaceTransform("old", "new")])]),
+            ]),
+            T0);
+
+        await repo.AddAsync(source).ConfigureAwait(false);
+
+        var loaded = await repo.GetAsync("transform-roundtrip-source").ConfigureAwait(false);
+        var transforms = loaded!.FindRule(SourceCapability.Content)!.Fields[0].Transforms;
+        Assert.IsInstanceOfType<TrimTransform>(transforms[0]);
+        var replace = transforms[1] as ReplaceTransform;
+        Assert.IsNotNull(replace);
+        Assert.AreEqual("old", replace.From);
+        Assert.AreEqual("new", replace.To);
+    }
+
+    [TestMethod]
     public async Task Save_Updates_Rule_Document()
     {
         var repo = CreateRepository();

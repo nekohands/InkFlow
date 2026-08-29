@@ -1,4 +1,3 @@
-using System.Text.Json;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -10,8 +9,6 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
     : Microsoft.EntityFrameworkCore.DbContext(options)
 {
     public static readonly string SchemaName = SourcesSchema.Name;
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public DbSet<SourceEntity> Sources => Set<SourceEntity>();
     public DbSet<SourceBookEntity> SourceBooks => Set<SourceBookEntity>();
@@ -85,10 +82,24 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
         });
     }
 
-    internal static string SerializeRuleDsl(SourceRuleDsl dsl) => JsonSerializer.Serialize(dsl, JsonOptions);
+    internal static string SerializeRuleDsl(SourceRuleDsl dsl) => SourceRuleDslJson.Serialize(dsl);
 
-    internal static SourceRuleDsl? DeserializeRuleDsl(string? json) =>
-        string.IsNullOrEmpty(json) ? null : JsonSerializer.Deserialize<SourceRuleDsl>(json, JsonOptions);
+    internal static SourceRuleDsl? DeserializeRuleDsl(string? json)
+    {
+        if (string.IsNullOrEmpty(json))
+        {
+            return null;
+        }
+
+        var result = SourceRuleDslJson.Parse(json);
+        if (!result.IsSuccess || result.Document is null)
+        {
+            throw new InvalidOperationException(
+                $"stored source rule DSL rejected: {string.Join(" | ", result.Errors)}");
+        }
+
+        return result.Document;
+    }
 }
 
 public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
