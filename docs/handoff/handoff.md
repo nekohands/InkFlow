@@ -335,8 +335,9 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 缺口：上一轮合成探针的四面 JSON 已通过，但短 Runtime smoke 未必等到 metrics 默认导出周期，Collector 日志未能证明 Core SLO metrics 到达。
 - 实现：Compose 透传 `OTEL_METRIC_EXPORT_INTERVAL`；CI 使用 1000 毫秒，Collector metrics 使用独立 1 秒 batch。新增 signal-specific `debug/metrics`，默认 basic，CI 临时 detailed；receipt smoke 校验两个 Core SLO instrument 和四个稳定服务面标签。
 - 安全/边界：详细 metrics 诊断只在 CI 期间启用，不新增公开 metrics API，不保存响应正文、身份、Token 或真实来源内容；生产仍需受治理 OTLP 后端、窗口聚合、告警和保留策略。
-- 本地证据：配置/工作流 diff 检查已完成；Docker CLI 不存在，Compose config/Collector receipt/源码 Compose 仍为 **BLOCKED**，等待远端三门。
-- 当前状态：继续保持 `1.0 Release Candidate`，本轮只把 Collector metrics 到达纳入自动化门禁，不标记 `Accepted/Completed`。
+- 本地证据：配置/工作流 diff 检查、Restore、Release Build（0 warnings / 0 errors）、Unit 324/324、Architecture 1/1、Contract 10/10 和脚本回归 PASS；Docker CLI 不存在，Compose config/Collector receipt/源码 Compose 本地仍为 **BLOCKED**。
+- 远端证据：候选提交 `0a1200e` 的 CI `33250749036`、Docker `33250749038`、Security `33250749023` 均 GREEN。CI receipt 实际匹配两个 Core SLO instrument 和 `public_api`、`legado_api`、`developer_api`、`reader` 四个标签；artifact 为 schemaVersion=1，四面各 5 requests/5 samples/0 server errors。
+- 当前状态：Collector metrics 到达已纳入自动化门禁，继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；生产后端、长窗口 SLO、告警/保留治理和人工/真实来源验收仍待定。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
@@ -391,6 +392,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Core SLO 窗口证据评估契约：四面完整性 + p95/可用性 + 错误预算 + 缺证据 fail-closed（本轮；真实 Collector/合成探针窗口待定）
 ✅ Compose OTLP Collector 监控基线：固定版本 Collector + 内部 OTLP 接收 + loopback 健康 smoke + 三宿主默认接线（`3a891ef`；CI `33248301675` / Docker `33248301684` / Security `33248301664` GREEN；生产后端/窗口/告警/保留仍待定）
 ✅ Core SLO Runtime 合成探针基线：四服务面固定入口 + 有界状态/延迟采样 + UTC JSON artifact（`d5a8ef3`；CI `33249393448` / Docker `33249393438` / Security `33249393437` GREEN；生产 OTLP 后端/长窗口/告警/保留与人工验收待定）
+✅ Core SLO Collector metrics 到达验证：1 秒 CI metrics 导出 + signal-specific receipt smoke + 四面 instrument/tag 校验（`0a1200e`；CI `33250749036` / Docker `33250749038` / Security `33250749023` GREEN；生产后端/长窗口/告警/保留与人工验收待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）

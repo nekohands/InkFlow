@@ -678,8 +678,9 @@ Phase 1A 自动化工作包状态：
 - 缺口：上一轮合成探针已经产生四面 HTTP/延迟 JSON，但 Collector 日志只看到 traces；.NET metrics 的默认周期可能晚于短 Runtime smoke，无法仅凭 Collector 健康或 traces 证明 Core SLO metrics 已到达。
 - 实现：Compose 将 `OTEL_METRIC_EXPORT_INTERVAL` 透传，默认保持 60000 毫秒；CI Runtime smoke 显式使用 1000 毫秒。Collector 为 metrics 使用独立 1 秒 batch 和 signal-specific `debug/metrics`，默认 basic；CI 临时切换 detailed，并由 receipt smoke 校验 `inkflow.slo.requests`、`inkflow.slo.request.duration` 及 `public_api`、`legado_api`、`developer_api`、`reader` 四个服务面标签。
 - 安全/边界：详细输出只在 CI 运行时打开，仍只读取已有低基数 metrics；不新增公开 `/metrics`、不保存响应正文、不携带真实凭据或触发真实来源。debug exporter 仍不是生产持久化、查询、告警或保留后端。
-- 本地证据：已完成配置/工作流 diff 检查；本机 Docker CLI 不存在，Compose config、Collector receipt 和 Docker 相关集成继续 **BLOCKED**，待远端门禁给出真实容器证据。
-- 当前状态：保持 `1.0 Release Candidate`；本轮只推进 Compose/CI metrics 到达自动化门禁，不代表生产 SLO 窗口、告警/保留治理或人工/真实来源验收完成。决策延续 ADR 0013。
+- 本地证据：配置/工作流 diff 检查、Restore、Release Build（0 warnings / 0 errors）、Unit 324/324、Architecture 1/1、Contract 10/10 和脚本回归 PASS；本机 Docker CLI 不存在，Compose config、Collector receipt 和 Docker 相关集成本地仍为 **BLOCKED**。
+- 远端证据：候选提交 `0a1200e` 的 CI `33250749036`、Docker `33250749038`、Security `33250749023` 均 **GREEN**。CI receipt 实际匹配 `inkflow.slo.requests`、`inkflow.slo.request.duration` 以及四个 surface；本轮 artifact 解析确认 schemaVersion=1、四面各 5 requests/5 samples/0 server errors，p95 分别为 public 12.219ms、Legado 29.613ms、Developer 13.070ms、Reader 4.092ms。
+- 当前状态：Compose/CI metrics 到达验证已进入自动化 Release Gate，但整体仍保持 `1.0 Release Candidate`；本轮不代表生产 SLO 窗口、告警/保留治理或人工/真实来源验收完成。决策延续 ADR 0013。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -789,7 +790,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线和四服务面合成探针脚本，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
