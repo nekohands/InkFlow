@@ -26,12 +26,16 @@ public sealed class ApiRateLimitOptions
     public int PublicWindowSeconds { get; init; } = 60;
     public int LegadoPermitLimit { get; init; } = 60;
     public int LegadoWindowSeconds { get; init; } = 60;
+    public int DeveloperPermitLimit { get; init; } = 60;
+    public int DeveloperWindowSeconds { get; init; } = 60;
     public int QueueLimit { get; init; }
+    public int RedisOperationTimeoutMilliseconds { get; init; } = 500;
     public string RedisConnectionString { get; init; } = "localhost:6379,abortConnect=false";
     public string RedisKeyPrefix { get; init; } = "inkflow:rate-limit";
 
     public TimeSpan PublicWindow => TimeSpan.FromSeconds(PublicWindowSeconds);
     public TimeSpan LegadoWindow => TimeSpan.FromSeconds(LegadoWindowSeconds);
+    public TimeSpan DeveloperWindow => TimeSpan.FromSeconds(DeveloperWindowSeconds);
 
     public static ApiRateLimitOptions FromConfiguration(IConfiguration configuration)
     {
@@ -42,7 +46,13 @@ public sealed class ApiRateLimitOptions
             PublicWindowSeconds = ReadInt(section, nameof(PublicWindowSeconds), 60),
             LegadoPermitLimit = ReadInt(section, nameof(LegadoPermitLimit), 60),
             LegadoWindowSeconds = ReadInt(section, nameof(LegadoWindowSeconds), 60),
+            DeveloperPermitLimit = ReadInt(section, nameof(DeveloperPermitLimit), 60),
+            DeveloperWindowSeconds = ReadInt(section, nameof(DeveloperWindowSeconds), 60),
             QueueLimit = ReadInt(section, nameof(QueueLimit), 0),
+            RedisOperationTimeoutMilliseconds = ReadInt(
+                section,
+                nameof(RedisOperationTimeoutMilliseconds),
+                500),
             RedisConnectionString = ReadString(
                 section[nameof(RedisConnectionString)]
                 ?? configuration.GetConnectionString("Redis")
@@ -60,7 +70,14 @@ public sealed class ApiRateLimitOptions
         ValidateRange(PublicWindowSeconds, 1, 3_600, nameof(PublicWindowSeconds));
         ValidateRange(LegadoPermitLimit, 1, 100_000, nameof(LegadoPermitLimit));
         ValidateRange(LegadoWindowSeconds, 1, 3_600, nameof(LegadoWindowSeconds));
+        ValidateRange(DeveloperPermitLimit, 1, 100_000, nameof(DeveloperPermitLimit));
+        ValidateRange(DeveloperWindowSeconds, 1, 3_600, nameof(DeveloperWindowSeconds));
         ValidateRange(QueueLimit, 0, 100, nameof(QueueLimit));
+        ValidateRange(
+            RedisOperationTimeoutMilliseconds,
+            50,
+            5_000,
+            nameof(RedisOperationTimeoutMilliseconds));
         if (string.IsNullOrWhiteSpace(RedisConnectionString))
         {
             throw new InvalidOperationException(
@@ -108,6 +125,7 @@ public static class ApiRateLimitPolicies
 {
     public const string PublicPolicyName = "api-public";
     public const string LegadoPolicyName = "legado";
+    public const string DeveloperPolicyName = "developer-api";
 
     public static IServiceCollection AddInkFlowApiRateLimiting(
         this IServiceCollection services,
@@ -121,7 +139,14 @@ public static class ApiRateLimitPolicies
         services.AddSingleton<IRateLimitStoreHealthRecorder>(sp =>
             sp.GetRequiredService<RateLimitStoreHealth>());
         services.AddSingleton<IConnectionMultiplexer>(_ =>
-            ConnectionMultiplexer.Connect(options.RedisConnectionString));
+        {
+            var redisOptions = ConfigurationOptions.Parse(options.RedisConnectionString);
+            redisOptions.AbortOnConnectFail = false;
+            redisOptions.ConnectTimeout = options.RedisOperationTimeoutMilliseconds;
+            redisOptions.SyncTimeout = options.RedisOperationTimeoutMilliseconds;
+            redisOptions.AsyncTimeout = options.RedisOperationTimeoutMilliseconds;
+            return ConnectionMultiplexer.Connect(redisOptions);
+        });
         services.AddSingleton<IDistributedRateLimitCounter, RedisRateLimitCounter>();
         services.AddSingleton<RedisRateLimiterFactory>();
         services.AddRateLimiter(rateLimiterOptions =>
@@ -135,7 +160,7 @@ public static class ApiRateLimitPolicies
                     ? Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
                     : Math.Max(
                         options.PublicWindowSeconds,
-                        options.LegadoWindowSeconds);
+                        Math.Max(options.LegadoWindowSeconds, options.DeveloperWindowSeconds));
                 context.HttpContext.Response.Headers["Retry-After"] =
                     retryAfterSeconds.ToString(CultureInfo.InvariantCulture);
                 return ValueTask.CompletedTask;
@@ -160,6 +185,16 @@ public static class ApiRateLimitPolicies
                         LegadoPolicyName,
                         options.LegadoPermitLimit,
                         options.LegadoWindow,
+                        options.QueueLimit));
+            rateLimiterOptions.AddPolicy(
+                DeveloperPolicyName,
+                context => context.RequestServices
+                    .GetRequiredService<RedisRateLimiterFactory>()
+                    .CreatePartition(
+                        context,
+                        DeveloperPolicyName,
+                        options.DeveloperPermitLimit,
+                        options.DeveloperWindow,
                         options.QueueLimit));
         });
 
@@ -206,7 +241,8 @@ public static class ApiRateLimitPolicies
         var identity = context.User.Identity;
         if (identity?.IsAuthenticated == true)
         {
-            var subject = context.User.FindFirst("sub")?.Value
+            var subject = context.User.FindFirst("developer_api_key_id")?.Value
+                ?? context.User.FindFirst("sub")?.Value
                 ?? context.User.FindFirst("client_id")?.Value;
             if (!string.IsNullOrWhiteSpace(subject))
             {

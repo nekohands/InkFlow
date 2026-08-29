@@ -65,6 +65,57 @@ public sealed class ApiSecurityTests
     }
 
     [TestMethod]
+    public void Developer_Rate_Limit_Key_Uses_Hashed_Api_Key_Identity()
+    {
+        var first = CreateContext("203.0.113.10");
+        first.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim("sub", "user-a"),
+                new Claim("developer_api_key_id", "key-a"),
+            ],
+            authenticationType: "developer"));
+        var second = CreateContext("203.0.113.10");
+        second.User = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim("sub", "user-a"),
+                new Claim("developer_api_key_id", "key-b"),
+            ],
+            authenticationType: "developer"));
+
+        var firstKey = ApiRateLimitPolicies.ResolveClientKey(first);
+        var secondKey = ApiRateLimitPolicies.ResolveClientKey(second);
+
+        Assert.AreNotEqual(firstKey, secondKey);
+        Assert.IsFalse(firstKey.Contains("key-a", StringComparison.Ordinal));
+        Assert.IsFalse(secondKey.Contains("key-b", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void Developer_Rate_Limit_Key_Does_Not_Trust_Unverified_Header()
+    {
+        var firstContext = CreateContext("203.0.113.10");
+        firstContext.Request.Path = "/api/developer/v1/books";
+        firstContext.Request.Headers["X-InkFlow-Api-Key"] = "lf_dev_first-secret";
+
+        var secondContext = CreateContext("198.51.100.20");
+        secondContext.Request.Path = "/api/developer/v1/books";
+        secondContext.Request.Headers["X-InkFlow-Api-Key"] = "lf_dev_first-secret";
+
+        var differentContext = CreateContext("203.0.113.10");
+        differentContext.Request.Path = "/api/developer/v1/books";
+        differentContext.Request.Headers["X-InkFlow-Api-Key"] = "lf_dev_second-secret";
+
+        var first = ApiRateLimitPolicies.ResolveClientKey(firstContext);
+        var second = ApiRateLimitPolicies.ResolveClientKey(secondContext);
+        var different = ApiRateLimitPolicies.ResolveClientKey(differentContext);
+
+        Assert.AreEqual(first, different);
+        Assert.AreNotEqual(first, second);
+        StringAssert.StartsWith(first, "ip:");
+        Assert.IsFalse(first.Contains("lf_dev_first-secret", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void Rate_Limit_Options_Reject_Unbounded_Configuration()
     {
         var options = new ApiRateLimitOptions { PublicPermitLimit = 0 };
@@ -79,6 +130,7 @@ public sealed class ApiSecurityTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Redis"] = "redis.example:6379,abortConnect=false",
+                ["RateLimiting:RedisOperationTimeoutMilliseconds"] = "250",
                 ["RateLimiting:RedisKeyPrefix"] = "inkflow:test-rate-limit",
             })
             .Build();
@@ -86,7 +138,16 @@ public sealed class ApiSecurityTests
         var options = ApiRateLimitOptions.FromConfiguration(configuration);
 
         Assert.AreEqual("redis.example:6379,abortConnect=false", options.RedisConnectionString);
+        Assert.AreEqual(250, options.RedisOperationTimeoutMilliseconds);
         Assert.AreEqual("inkflow:test-rate-limit", options.RedisKeyPrefix);
+    }
+
+    [TestMethod]
+    public void Rate_Limit_Options_Reject_An_Unbounded_Redis_Timeout()
+    {
+        var options = new ApiRateLimitOptions { RedisOperationTimeoutMilliseconds = 5_001 };
+
+        Assert.ThrowsExactly<InvalidOperationException>(() => options.Validate());
     }
 
     [TestMethod]

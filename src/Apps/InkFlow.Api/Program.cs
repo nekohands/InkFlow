@@ -10,6 +10,9 @@ using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Content.Domain;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
+using InkFlow.Modules.Billing.Application;
+using InkFlow.Modules.Billing.Infrastructure.Persistence;
+using InkFlow.Modules.Billing.Infrastructure;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Legado.Application;
@@ -18,6 +21,11 @@ using InkFlow.Modules.Identity.Domain;
 using InkFlow.Modules.Identity.Infrastructure.Authentication;
 using InkFlow.Modules.Identity.Infrastructure.Credentials;
 using InkFlow.Modules.Identity.Infrastructure.Persistence;
+using InkFlow.Modules.Developers.Application;
+using InkFlow.Modules.Developers.Domain;
+using InkFlow.Modules.Developers.Infrastructure.Authentication;
+using InkFlow.Modules.Developers.Infrastructure.Credentials;
+using InkFlow.Modules.Developers.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
@@ -26,6 +34,7 @@ using InkFlow.Modules.Reading.Infrastructure.Persistence;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +54,10 @@ builder.Services.AddDbContext<AuditDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
 builder.Services.AddDbContext<IdentityDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
+builder.Services.AddDbContext<DeveloperDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
+builder.Services.AddDbContext<BillingDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
 builder.Services.AddDbContext<CrawlingDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
 builder.Services.AddScoped<LoggingAuditEventSink>();
@@ -63,6 +76,28 @@ builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<ILegadoAccessTokenService, LegadoAccessTokenService>();
 builder.Services.AddScoped<IResourcePermissionService, ResourcePermissionService>();
 builder.Services.AddScoped<IResourceAuthorizationService, ResourceAuthorizationService>();
+builder.Services.AddScoped<DeveloperUserStatusReader>();
+builder.Services.AddScoped<IDeveloperUserStatusReader>(sp =>
+    sp.GetRequiredService<DeveloperUserStatusReader>());
+builder.Services.AddScoped<IBillingUserStatusReader>(sp =>
+    sp.GetRequiredService<DeveloperUserStatusReader>());
+builder.Services.AddScoped<EfDeveloperApplicationRepository>();
+builder.Services.AddScoped<IDeveloperApplicationRepository>(sp =>
+    sp.GetRequiredService<EfDeveloperApplicationRepository>());
+builder.Services.AddScoped<EfDeveloperApiKeyRepository>();
+builder.Services.AddScoped<IDeveloperApiKeyRepository>(sp =>
+    sp.GetRequiredService<EfDeveloperApiKeyRepository>());
+builder.Services.AddSingleton<IDeveloperApiKeySecretGenerator, DeveloperApiKeySecretGenerator>();
+builder.Services.AddScoped<DeveloperApplicationService>();
+builder.Services.AddScoped<IDeveloperApplicationService>(sp =>
+    sp.GetRequiredService<DeveloperApplicationService>());
+builder.Services.AddScoped<IDeveloperApiKeyValidator>(sp =>
+    sp.GetRequiredService<DeveloperApplicationService>());
+builder.Services.AddScoped<IPlanRepository, EfPlanRepository>();
+builder.Services.AddScoped<IEntitlementAssignmentRepository, EfEntitlementAssignmentRepository>();
+builder.Services.AddScoped<IEntitlementService, EntitlementService>();
+builder.Services.AddScoped<IQuotaSnapshotCache, RedisQuotaSnapshotCache>();
+builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = IdentityAuthenticationDefaults.Scheme;
@@ -71,7 +106,9 @@ builder.Services.AddAuthentication(options =>
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
         OpaqueBearerAuthenticationHandler>(IdentityAuthenticationDefaults.Scheme, _ => { })
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
-        LegadoTokenAuthenticationHandler>(IdentityAuthenticationDefaults.LegadoScheme, _ => { });
+        LegadoTokenAuthenticationHandler>(IdentityAuthenticationDefaults.LegadoScheme, _ => { })
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
+        DeveloperApiKeyAuthenticationHandler>(DeveloperAuthenticationDefaults.Scheme, _ => { });
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(
@@ -101,11 +138,21 @@ builder.Services.AddAuthorization(options =>
         IdentityPolicies.PermissionManagement,
         policy => policy.RequireRole(UserRole.Administrator.ToString()));
     options.AddPolicy(
+        IdentityPolicies.CommercialManagement,
+        policy => policy.RequireRole(UserRole.Administrator.ToString()));
+    options.AddPolicy(
         IdentityPolicies.LegadoRead,
         policy => policy
             .AddAuthenticationSchemes(IdentityAuthenticationDefaults.LegadoScheme)
             .RequireAuthenticatedUser()
             .RequireClaim(IdentityAuthenticationDefaults.LegadoScopeClaim, "read"));
+    options.AddPolicy(
+        DeveloperEndpointPolicies.CatalogRead,
+        policy => policy
+            .AddAuthenticationSchemes(DeveloperAuthenticationDefaults.Scheme)
+            .RequireAuthenticatedUser()
+            .RequireClaim(DeveloperAuthenticationDefaults.ScopeClaim, DeveloperApiScopes.CatalogRead)
+            .RequireClaim(DeveloperAuthenticationDefaults.EnvironmentClaim, "production"));
 });
 
 builder.Services.AddScoped<EfCrawlerTaskRepository>();
@@ -198,6 +245,24 @@ var app = builder.Build();
 // 认证先于审计/限流，使审计 actor 与认证主体分桶均可用；health 不进入业务审计。
 app.UseAuthentication();
 app.UseMiddleware<RequestAuditMiddleware>();
+app.Use(async (context, next) =>
+{
+    // Developer API has a dedicated key scheme. Authenticate it before the
+    // rate-limit partition is selected so valid keys are bucketed by key ID;
+    // missing/invalid keys remain IP-bucketed and are then rejected by policy.
+    if (context.Request.Path.StartsWithSegments("/api/developer/v1"))
+    {
+        var result = await context
+            .AuthenticateAsync(DeveloperAuthenticationDefaults.Scheme)
+            .ConfigureAwait(false);
+        if (result.Succeeded && result.Principal is not null)
+        {
+            context.User = result.Principal;
+        }
+    }
+
+    await next().ConfigureAwait(false);
+});
 app.UseRateLimiter();
 app.UseAuthorization();
 
@@ -351,6 +416,7 @@ var reading = api.MapGroup("/me/reading")
     .RequireAuthorization();
 
 api.MapPrivateLibraryEndpoints();
+app.MapDeveloperEndpoints(api);
 
 reading.MapGet("/shelf", async (
     int? limit,

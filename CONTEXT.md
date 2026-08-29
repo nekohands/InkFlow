@@ -41,3 +41,25 @@ _Avoid_: storing raw uploaded HTML/EPUB markup as the private reading document o
 **Import Snapshot**: a newly created Private Book and its immutable imported chapters produced by one accepted TXT or EPUB file.
 
 _Avoid_: silently overwriting an existing Private Book when a file is imported again.
+
+## Developer and commercial platform
+
+**Developer Application**: a User-owned registration that identifies one external integration and its environment when it calls the Developer API.
+
+_Avoid_: treating a User account or an API Key as the application identity.
+
+**Developer API Key**: a revocable credential issued to one Developer Application and used to authenticate read-only Developer API requests.
+
+_Avoid_: persisting or exposing the reusable secret after its one-time issuance, or accepting it in a URL.
+
+**Entitlement**: a plan-granted capability that determines whether a User or application may use a named platform feature.
+
+_Avoid_: collapsing plan capability into authentication, role, or a boolean `IsPremium` check.
+
+**Quota Unit**: the versioned weighted cost charged for one admitted Developer API operation.
+
+_Avoid_: treating every endpoint as equally expensive or using a cache counter as the authoritative usage fact.
+
+**Usage Ledger**: the append-oriented record of admitted Quota Units for a User, Developer Application, and API Key within a UTC calendar billing period.
+
+_Avoid_: reconstructing commercial usage only from Redis, logs, or mutable request summaries.

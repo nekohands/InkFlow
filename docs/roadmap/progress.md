@@ -596,6 +596,17 @@ Phase 0 开发过程中真实发现并修复：
 - 远端验收：提交 `f83476a` 的 CI `33163145132`、Docker `33163145104`、Security `33163144984` 均 **GREEN**；CI 的 Restore/Build/Test、Compose、Runtime smoke、Redis 限流、PostgreSQL 备份恢复和 Diagnostics，Docker 的四镜像构建/扫描，Security 的 CodeQL/NuGet/Trivy/SBOM 均通过。Security 仅保留既有 Actions Node 20 弃用提示。
 - 验收边界：按用户决定跳过 MuMu/阅读 3.0、真实来源、真实追更和人工操作；真实账户导入 TXT/EPUB、跨用户正文隔离、导出文件可读性和公共路径不泄漏继续列入第 6 节待定事项。
 
+### 4.34 Developer API / Commercial Foundation v1（本轮，2026-08-29）
+
+- 缺口：1.0 Release Candidate 还缺少 Developer Application、生产 API Key、套餐 Entitlement、用户级月度配额和只读外部目录 API 的可审查基础。
+- 决策：新增 ADR 0009。只提供 production opaque API Key 与 `catalog.read`；Free/Pro/Developer 为内置版本化套餐；活跃用户默认 Free；PostgreSQL 保存用户+UTC 月度 Usage Period 与不可变 Usage Ledger，Redis 只做快照加速；不接支付、OAuth、组织、sandbox、Community Marketplace 或管理型 Developer API。
+- 实现：新增 Developers/Billing 模块与独立 schema/migrations；完成应用/密钥自助创建、列表、撤销、轮换，Administrator 套餐授予，Developer API `/api/developer/v1` 的 Search/Books/Chapters/Content 只读契约，`429/Retry-After` 配额超限和 `503` 配额故障闭合；应用撤销、用户停用、密钥撤销/过期均使认证失败。
+- 安全与边界：密钥原文只在签发/轮换响应出现一次，持久化与审计不保存原文；Developer API 不触发来源抓取，不读取私人书库，不返回 SourceId/凭据；命令写入带资源引用的审计事件。公共/Legado/Developer 限流独立，Developer 专用认证先校验密钥，再按 API Key 短哈希分桶；缺失/无效密钥按 IP 分桶，Redis 操作超时配置化且有界。
+- 自动化：新增 Developers/Billing 领域/服务单测、Developer API 契约门禁、认证 Handler 安全测试、模块加载边界和 PostgreSQL Testcontainers 迁移/密钥撤销/跨密钥用户级配额测试；本机新增集成用例已实际尝试，但 Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不能记为通过。
+- 最终本地证据：`dotnet restore InkFlow.sln` PASS；完整 Release Build 0 warnings / 0 errors PASS；Unit 311/311、Architecture 1/1、Contract 9/9 PASS；完整 Integration 58 项中 6 通过、2 跳过、50 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。API `/health` 返回 200，匿名 Developer 管理/目录接口返回 401；本机 Redis/PostgreSQL 未运行，未宣称完整 Runtime 或 PostgreSQL/Redis 端到端通过；`git diff --check` PASS。
+- 当前状态：此工作包状态为 `Implemented`，不是 `Accepted/Completed`；远端 CI、Docker、Security 仍需在提交推送后取得真实证据。
+- 验收边界：按用户决定不执行 MuMu/阅读 3.0、真实来源、真实追更和人工验收；Developer API 生产凭据创建/轮换/撤销、套餐管理、配额超限、跨账户隔离、真实 PostgreSQL/Redis/Compose 运行验收仍列入第 6 节待定事项。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -681,10 +692,11 @@ Official Source
 - [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
 - [ ] **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块按来源过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未使用真实凭据操作。
 - [ ] **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询 200、Reader/匿名请求 401/403、时间范围/精确过滤/游标翻页、空结果和服务不可用时的稳定错误；确认响应不暴露秘密或正文，并保留截图/请求证据。本轮只完成自动化基线。
+- [ ] **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮未使用真实凭据。
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 55 项中 47 项因 `docker_engine` 不可用而 BLOCKED）；Private Library 新增迁移/章节隔离/级联删除用例也必须取得真实容器证据。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 58 项中 50 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过）；Private Library 与 Developers/Billing 新增迁移、隔离、配额并发用例也必须取得真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
@@ -692,13 +704,13 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Operations 已提供 Redis/来源健康/死信/一致性告警快照与配置化阈值；来源级授权 v1 已落地并接入来源查询/控制及授权审计。动态用户/组织配额、加权成本、组织/更广泛资源权限治理、外部告警路由和审计保留策略仍待后续 Operations/Identity 工作包。
+- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照与配置化阈值；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由和审计保留策略仍待后续 Operations/Identity/商业化工作包。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照与阈值基线已落地，外部告警路由、历史/去重、保留策略和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
-- Developer API / Plan / Entitlement / Billing / Organization / Community Marketplace 尚未实现。
+- Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
 
 ## 7. 当前阻塞
 

@@ -21,6 +21,14 @@ Identity v1 的 `User` 以邮箱规范化值保持唯一，账号状态控制是
 `AccessToken` 分离保存，客户端只持有 opaque 原始 token，数据库只保存不可逆摘要。Refresh
 轮换在存储层以事务行锁保证一次性成功，登出可撤销会话及其访问令牌。
 
+## Developers & Commercial
+
+`DeveloperApplication` 是用户拥有的生产环境外部集成注册；它与 `User`、API Key 和公共目录身份分离。`DeveloperApiKey` 绑定应用，使用 opaque 原文、Prefix、不可逆摘要、单一 `catalog.read` scope、创建/过期/最后使用/撤销元数据；原文只在签发或轮换响应中出现一次。撤销应用会使其密钥失效，API Key 认证不会接受 URL 或 Query 中的密钥。
+
+`PlanDefinition` 是带版本和固定 `QuotaAlgorithmVersion` 的内置套餐定义（Free / Pro / Developer）；`EntitlementAssignment` 是管理员授予用户套餐的不可变历史，当前能力由最新记录派生，没有记录时默认 Free。业务代码检查 Entitlement，不直接依赖套餐名称。
+
+`UsagePeriod` 是 PostgreSQL 中按 `(UserId, UTC month)` 唯一的可锁定累计配额行；`UsageLedgerEntry` 按用户、应用、API Key、操作、加权单位、算法版本和 TraceId 保存每次准入事实。Redis 只能缓存配额快照，不能决定是否准入。Developer API 只读已落库的 Canonical Catalog/Content，不触发第三方来源抓取，也不访问 Private Library。
+
 ## Library
 
 ### CanonicalBook

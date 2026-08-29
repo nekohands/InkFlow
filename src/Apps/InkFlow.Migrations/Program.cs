@@ -3,7 +3,9 @@
 // 本地默认指向 compose 的 postgres 实例。
 // 进程必须以退出码 0 结束——compose 中 api/worker/scheduler 依赖 migrations 成功完成。
 using InkFlow.Modules.Content.Infrastructure.Persistence;
+using InkFlow.Modules.Billing.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
+using InkFlow.Modules.Developers.Infrastructure.Persistence;
 using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using InkFlow.Modules.Reading.Infrastructure.Persistence;
@@ -20,6 +22,8 @@ var contexts = new DbContext[]
 {
     new IdentityDbContext(new DbContextOptionsBuilder<IdentityDbContext>().UseNpgsql(connectionString).Options),
     new AuditDbContext(new DbContextOptionsBuilder<AuditDbContext>().UseNpgsql(connectionString).Options),
+    new DeveloperDbContext(new DbContextOptionsBuilder<DeveloperDbContext>().UseNpgsql(connectionString).Options),
+    new BillingDbContext(new DbContextOptionsBuilder<BillingDbContext>().UseNpgsql(connectionString).Options),
     new CrawlingDbContext(new DbContextOptionsBuilder<CrawlingDbContext>().UseNpgsql(connectionString).Options),
     new LibraryDbContext(new DbContextOptionsBuilder<LibraryDbContext>().UseNpgsql(connectionString).Options),
     new ReadingDbContext(new DbContextOptionsBuilder<ReadingDbContext>().UseNpgsql(connectionString).Options),

@@ -18,14 +18,17 @@
 14. Source URL 不是业务主键；优先保留外部稳定 ID，并维护历史 URL。
 15. EF Core、Redis、ASP.NET 等基础设施依赖不得进入纯 Domain 模型。
 16. PrivateBook、PrivateChapter 和私有正文必须与 CanonicalBook/CanonicalChapter/ContentVersion 使用独立身份，并且所有私有数据访问都必须绑定认证主体 UserId；TXT/EPUB 导入失败不得留下部分私有书籍。
-16. Authoritative Data 与 Projection/Cache/Search Index 分离，Derived Data 必须可重建。
-17. 外部调用均视为不可靠，必须考虑 Timeout、Retry、Backoff、Circuit Breaker 和 Idempotency。
-18. 公共 API Contract 与内部 Entity/DTO 分离，`/api/v1` 默认向后兼容。
-19. 生产数据库迁移由独立 Migration 流程执行，不由 API 启动隐式升级。
-20. 关键修复通过 Admin Command、Repair Job 或 Migration Job 完成，不把手工 SQL 作为常规运营流程。
-21. Content Policy 的当前状态只能由 `ContentPolicyDecision` 追加历史派生；公开读取必须在正文加载前经过策略门控，策略历史不得被更新或删除。
-22. 每一个编码工作包必须遵守 `docs/engineering/development-workflow.md` 的完整闭环：实现 → Diff 自检 → 实际 Build → 自动化测试 → 运行/集成验收 → 安全/架构检查 → Candidate Commit → 实际 CI → Bug 修复与回归 → 文档同步 → Accepted。任何规定 Gate 未通过或未实际执行时，不得标记 `Completed`。
-23. 所有主要用户前端页面必须遵守 `docs/engineering/frontend-design.md`：实现前研究至少 3 个当前活跃同类产品，优先优化操作路径、可读性、响应式和可访问性；核心 UI 不能只依据开发者个人偏好设计，也不能直接复制竞品视觉。用户可见页面在未完成 Mobile/Desktop/UX/Visual/Accessibility 验收前不得标记 `Completed`。
+17. Authoritative Data 与 Projection/Cache/Search Index 分离，Derived Data 必须可重建。
+18. Developer API Key 原文只在签发/轮换响应中出现一次；持久化只保存 Prefix、不可逆摘要和生命周期/Scope 元数据，应用撤销必须使其密钥失效。
+19. Developer API 只读已落库公共 Canonical 数据；不得触发第三方抓取、读取 Private Library 或提供管理写入；公共 API、Developer API 和 Personal Legado 的认证/授权边界必须独立。
+20. Developer 配额准入必须以 PostgreSQL 用户级 UTC 月度事实和事务锁为准；固定版本的加权成本与 Usage Ledger 必须可追溯，Redis 只能加速展示/读取。
+21. 外部调用均视为不可靠，必须考虑 Timeout、Retry、Backoff、Circuit Breaker 和 Idempotency。
+22. 公共 API Contract 与内部 Entity/DTO 分离，`/api/v1` 默认向后兼容。
+23. 生产数据库迁移由独立 Migration 流程执行，不由 API 启动隐式升级。
+24. 关键修复通过 Admin Command、Repair Job 或 Migration Job 完成，不把手工 SQL 作为常规运营流程。
+25. Content Policy 的当前状态只能由 `ContentPolicyDecision` 追加历史派生；公开读取必须在正文加载前经过策略门控，策略历史不得被更新或删除。
+26. 每一个编码工作包必须遵守 `docs/engineering/development-workflow.md` 的完整闭环：实现 → Diff 自检 → 实际 Build → 自动化测试 → 运行/集成验收 → 安全/架构检查 → Candidate Commit → 实际 CI → Bug 修复与回归 → 文档同步 → Accepted。任何规定 Gate 未通过或未实际执行时，不得标记 `Completed`。
+27. 所有主要用户前端页面必须遵守 `docs/engineering/frontend-design.md`：实现前研究至少 3 个当前活跃同类产品，优先优化操作路径、可读性、响应式和可访问性；核心 UI 不能只依据开发者个人偏好设计，也不能直接复制竞品视觉。用户可见页面在未完成 Mobile/Desktop/UX/Visual/Accessibility 验收前不得标记 `Completed`。
 
 ## 工程完成定义
 

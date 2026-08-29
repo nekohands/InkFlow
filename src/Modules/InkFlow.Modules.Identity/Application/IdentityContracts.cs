@@ -86,6 +86,7 @@ public static class IdentityPolicies
     public const string CrawlerRepair = "identity-crawler-repair";
     public const string ContentModeration = "identity-content-moderation";
     public const string SourceOperations = "identity-source-operations";
+    public const string CommercialManagement = "identity-commercial-management";
     public const string PermissionManagement = "identity-permission-management";
     public const string LegadoRead = "identity-legado-read";
 }

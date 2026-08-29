@@ -12,5 +12,7 @@
     <ProjectReference Include="../../Modules/InkFlow.Modules.Crawling/InkFlow.Modules.Crawling.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Content/InkFlow.Modules.Content.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Reading/InkFlow.Modules.Reading.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Developers/InkFlow.Modules.Developers.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Billing/InkFlow.Modules.Billing.csproj" />
   </ItemGroup>
 </Project>

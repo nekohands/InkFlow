@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace InkFlow.ArchitectureTests;
 
 /// <summary>
-/// 骨架阶段边界守卫：确认八个业务模块程序集均可解析加载。
+/// 边界守卫：确认业务模块程序集均可解析加载。
 /// 真正的分层约束检查（NetArchTest 规则）将在模块出现实际类型后补充。
 /// </summary>
 [TestClass]
@@ -19,6 +19,8 @@ public sealed class ModuleBoundarySmokeTests
         "InkFlow.Modules.Reading",
         "InkFlow.Modules.Search",
         "InkFlow.Modules.Legado",
+        "InkFlow.Modules.Developers",
+        "InkFlow.Modules.Billing",
     ];
 
     [TestMethod]

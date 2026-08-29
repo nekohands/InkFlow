@@ -26,7 +26,9 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 - Reading：阅读进度、Reader Preference、书架和阅读状态。
 - Search：搜索抽象与可重建 Search Document。
 - Legado：Legado Contract、Rule Generator、兼容性 Profile 与专用 API。
-- Billing / Developers / Organizations / Operations：后续商业阶段渐进实现。
+- Billing：版本化内置套餐、Entitlement 历史、用户月度配额与 Usage Ledger。
+- Developers：生产环境 Developer Application、可撤销 API Key 和只读 Developer API v1。
+- Organizations / Operations：继续按后续商业与运维工作包渐进实现。
 
 公共 Building Blocks 只包含稳定横切能力：强类型 ID、Result/Error、Messaging、Persistence primitives、Security primitives、Observability。
 
@@ -105,9 +107,11 @@ Task 支持：TaskId、Type、SourceId、Priority、Attempt、MaxAttempts、Sche
 
 Source Health Operator Controls v1 已补齐受保护的来源能力健康查询以及带理由的单能力 disable/enable 命令；状态仍由 Sources 健康聚合和 PostgreSQL 事实表驱动，恢复只回到 `Unknown`，不绕过真实探针。Operations Center Read Model v1 已提供独立查询授权和有界聚合视图；完整 Center UI、自动修复、告警、保留策略和备份治理仍待后续实现。
 
-API 公共/Legado 限流由 ASP.NET Core policy 承载，计数通过 Redis Lua 原子脚本共享到多个 API 实例；Redis 连接故障时使用相同配额/窗口的有界本地降级并记录恢复转折，避免故障时无界放行。Redis 只保存可重建的限流计数，不承载任何业务事实；动态用户/组织配额、加权成本和 Redis 告警仍不在本版本范围内。
+API 公共/Legado/Developer 限流由 ASP.NET Core policy 承载，计数通过 Redis Lua 原子脚本共享到多个 API 实例；Redis 操作使用配置化的有界超时（`RateLimiting:RedisOperationTimeoutMilliseconds`），连接故障时使用相同配额/窗口的有界本地降级并记录恢复转折，避免故障时无界放行。Redis 只保存可重建的限流计数，不承载任何业务事实。Developer API v1 使用生产环境 opaque API Key 和 `catalog.read` scope，仅暴露已落库公共目录/正文；Free/Pro/Developer 内置套餐通过 Entitlement 授予能力，PostgreSQL `usage_periods` 以用户+UTC 月份锁定累计加权单位，`usage_ledger` 按调用保存不可变事实，超额返回 `429/Retry-After`，Redis 配额快照只用于展示加速。
 
 Operations Center 提供受 `Operator` / `Administrator` 保护的告警快照读端口：它从来源能力健康、死信、一致性检查和 Redis 限流存储健康汇总当前告警，并以配置化阈值和有界结果输出稳定代码。该快照是可重建的观测投影，不执行修复、不写入业务事实；外部通知、告警历史/去重、保留策略和生产路由仍由后续运维集成负责。
+
+Developer API / Commercial Foundation v1 的组合根由 `InkFlow.Api` 组装：用户通过 `/api/v1/me/developer-applications` 自助创建应用、签发/轮换/撤销密钥，通过 `/api/v1/me/entitlement` 查看当前套餐和配额；Administrator 通过 `/api/v1/admin/plans` 与 `/api/v1/admin/users/{userId}/entitlement` 管理套餐。外部只读面为 `/api/developer/v1`，不触发来源抓取、不进入私人书库、不提供管理写入；密钥原文只在签发/轮换响应出现，列表和审计只保存脱敏引用。
 
 ## 7. Messaging 与一致性
 
@@ -123,7 +127,7 @@ Domain Event 描述模块内部事实；Integration Event 仅暴露跨模块需�
 
 Source of Truth 与 Projection 分离：
 
-- Authoritative：Book、Chapter、Source、ContentVersion、User、Billing Ledger 等。
+- Authoritative：Book、Chapter、Source、ContentVersion、User、Developer Application/API Key、Plan/Entitlement Assignment、Usage Period/Ledger 等。
 - Derived：Search Index、Cache、Ranking、Legado Projection、Web Projection、Statistics。
 
 Projection 必须可重建。
