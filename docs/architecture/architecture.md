@@ -88,10 +88,12 @@ Quality 决策必须输出可解释 Evidence 和 AlgorithmVersion，并支持人
 
 RuleAdapter 的 Rule JSON 经过版本化严格 codec 和离线 Fixture 边界；未知属性/转换类型、缺失核心字段、
 超大文档和超出集合/表达式上限的规则必须 fail-closed。当前执行基线覆盖 GET/POST、Header/Query/Form、路径
-占位符、CSS、带超时 Regex、Trim/Replace 及列表绑定；当前单请求执行器已应用有限的请求数、请求/响应字节、
-执行时间、正则时间和结果大小预算，生产 HTTP 读取也有流式响应体上限。XPath/JSONPath 等 AST 扩展、
-Cookie/Session、Pagination、以及多请求/递归执行所需的完整 Redirect/Depth 策略仍需对应运行时引擎与
-独立回归，不能由解析通过替代真实执行验收。
+占位符、CSS、受控 XPath/JSONPath、带超时 Regex、Trim/Replace 及列表绑定；当前单请求执行器已应用有限的
+请求数、请求/响应字节、执行时间、正则时间和结果大小预算，生产 HTTP 读取也有流式响应体上限。
+统一 `RuleSelectorEvaluator` 对 CSS、XML/HTML XPath 和受限 JSONPath 做分派；不支持的选择器语法、
+DTD/外部实体、超大文档或超量匹配必须 fail-closed。完整 XPath/JSONPath 语法、Cookie/Session、Pagination、
+以及多请求/递归执行所需的完整 Redirect/Depth 策略仍需对应运行时引擎与独立回归，不能由解析通过替代
+真实执行验收。
 
 抓取分层：
 

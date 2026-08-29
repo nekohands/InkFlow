@@ -407,6 +407,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 自动化证据：本机 Restore/Release Build（0 warnings / 0 errors）、Unit 364/364、Architecture 1/1、Contract 10/10、11 个迁移模型检查均 PASS；完整 Integration 80 项中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。远端 CI `33263255422` 报告 Integration 80 项 78 通过/2 跳过，新增跨连接并发健康测试通过；Docker `33263255437`、Security `33263255420` 均 GREEN。
 - 当前状态：本工作包保持 `1.0 Release Candidate`，远端已取得真实 PostgreSQL 并发证据；真实来源/故障切换、阅读 3.0、人工验收和生产治理仍是待定事项，不等同于 `Accepted/Completed`。
 
+### 4.51 Source Rule 受控 XPath/JSONPath 运行时（本轮，2026-08-30）
+
+- 缺口：Rule DSL 虽已声明 CSS/XPath/JSONPath，运行时此前只有 CSS；Search/TOC 列表绑定固定按 CSS 解释。
+- 实现：`RuleSelectorEvaluator` 已接入 API、Worker、Scheduler。它分派 CSS、XML XPath、HTML 受限 XPath fallback 和受限 JSONPath；HTML 支持常见路径、属性/文本谓词与属性终端，JSONPath 支持 root/property/quoted property/index/wildcard/recursive-property。列表绑定增加可选 `itemsSelectorKind`、`textAttribute`，旧四参数构造与旧 JSON 继续按 CSS/文本工作。
+- 安全/回归：XML 禁止 DTD/外部实体；选择器、文档、深度、遍历和匹配数量有界；不支持语法、非法 CSS 和超限输入 fail-closed。新增 9 项求值回归及 DSL JSON/Validator 回归，覆盖 JSON 列表、XML/HTML XPath、非法表达式、DTD 和列表元数据；三宿主统一注入该实现。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 376/376、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移检查 11/11 PASS；API `/health` 200。完整 Integration 80 项为 6 通过、2 跳过、72 项因本机 Docker Engine 命名管道不可用而 BLOCKED；真实来源、MuMu/阅读 3.0 和人工验收按用户决定未执行。
+- 远端证据：提交 `2f16b6e` 的 CI `33265352562`、Docker `33265352563`、Security `33265352595` 均 GREEN；CI 报告 Unit 376/376、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并通过 Runtime/SLO/Redis/备份恢复/diagnostics。
+- 当前状态：受控选择器运行时完成并取得三类远端门禁，整体仍为 `1.0 Release Candidate`；完整选择器语法、Cookie/Session/Pagination/多请求递归、真实来源故障切换、阅读 3.0 和人工验收仍在待定清单，不等同于 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -735,6 +744,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，不提前做万能脚本语言；完整 XPath/JSONPath 等执行引擎仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集；完整语法、Cookie/Session/Pagination 和多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [ ] 新 Source 网络能力必须同步安全测试。

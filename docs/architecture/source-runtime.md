@@ -62,12 +62,17 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 - Pagination
 
 上面的列表描述 DSL v1 的目标 AST 能力，不等同于当前执行器全部可用。现阶段 `RuleAdapter` 的执行基线
-覆盖 GET/POST、Header/Query/Form、路径占位符、CSS 选择器、带超时 Regex、Trim/Replace 和 Search/TOC
-列表绑定；Schema 保留 XPath/JSONPath 枚举以保持 AST 的前向兼容，但当前 `CssSelectorEvaluator` 只执行 CSS。
+覆盖 GET/POST、Header/Query/Form、路径占位符、CSS 选择器、受控 XPath/JSONPath、带超时 Regex、
+Trim/Replace 和 Search/TOC 列表绑定。API、Worker、Scheduler 均注入统一的
+`RuleSelectorEvaluator`：CSS 继续由 AngleSharp 处理；XML 兼容响应使用禁止 DTD/外部实体的 XML 导航，
+非 XML HTML 使用有界的路径、子路径、属性/文本谓词和属性终端；JSONPath 仅开放
+`$` root、property、quoted property、array index、wildcard 和 recursive-property 子集。
+Search/TOC 列表绑定可声明 `itemsSelectorKind` 与可选 `textAttribute`，未声明时保持 CSS/文本的向后兼容。
+不支持的 XPath/JSONPath 语法、非法 CSS、超大文档、超量匹配和超深 JSON 均 fail-closed；
 `SourceRuleExecutionLimits` 已为当前单请求执行器接入有限的 MaxRequests、MaxBytes、MaxExecutionTime、
-MaxRegexTime 和 MaxResultSize；生产 HTTP 客户端在解码前按流读取并拒绝超大响应。XPath/JSONPath 引擎、
-Cookie/Session、Pagination、通用变量扩展，以及多请求/递归执行所需的 MaxRedirects/MaxDepth 策略化，仍需
-后续运行时工作包和独立回归，不能仅凭 JSON 解析通过将规则标记为 Published 或宣称真实来源可用。
+MaxRegexTime 和 MaxResultSize，生产 HTTP 客户端在解码前按流读取并拒绝超大响应。完整 XPath/JSONPath
+语法、Cookie/Session、Pagination、通用变量扩展，以及多请求/递归执行所需的 MaxRedirects/MaxDepth
+策略化仍需后续运行时工作包和独立回归，不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
 禁止：
 

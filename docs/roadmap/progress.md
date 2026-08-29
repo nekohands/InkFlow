@@ -755,6 +755,16 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `3ba51a1` 的 CI `33263255422`、Docker `33263255437`、Security `33263255420` 均 **GREEN**。CI Test 为 80 项、78 通过/2 跳过，`Concurrent_Health_Mutations_Preserve_All_Failures` 通过；迁移检查、Compose、Runtime smoke、SLO、Redis、PostgreSQL 备份恢复和 diagnostics 均通过；Docker 四业务镜像构建/扫描/发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
 - 当前状态：并发健康状态写入已取得本地单元与远端真实 PostgreSQL 证据，整体继续保持 `1.0 Release Candidate`；真实来源故障切换、阅读 3.0、人工验收和生产治理仍按第 6 节待定，不等同于 `Accepted/Completed`。
 
+### 4.51 Source Rule 受控 XPath/JSONPath 运行时（本轮，2026-08-30）
+
+- 缺口：Source Rule DSL 已声明 CSS/XPath/JSONPath，但此前执行器只接入 CSS；Search/TOC 列表绑定也固定按 CSS 解释，JSONPath 规则无法形成可执行的列表结果。
+- 实现：新增统一 `RuleSelectorEvaluator` 并接入 API、Worker、Scheduler。CSS 继续由 AngleSharp 处理；XML 兼容文档使用禁止 DTD/外部实体的 XML 导航，非 XML HTML 使用受限的 `//`/子路径、属性/文本谓词和属性终端；JSONPath 开放 `$` root、property、quoted property、array index、wildcard、recursive-property 子集。列表绑定新增可选 `itemsSelectorKind` 与 `textAttribute`，缺省仍为 CSS/条目文本，保持既有 Rule JSON 兼容。
+- 安全与失败关闭：选择器表达式、文档大小、JSON 深度、HTML 路径深度、遍历元素数和结果数均有上限；不支持的过滤/联合/脚本语法、非法 CSS、DTD/实体输入和超限结果返回空值/空集合，不把第三方响应当作可执行代码。
+- 回归：新增 JSONPath 标量/列表绑定、XML XPath 节点、HTML 常见谓词、属性终端、非法 CSS、非法 JSONPath、DTD 失败关闭和 DSL 元数据往返测试；修复非法 CSS 异常向上冒泡及列表绑定硬编码 CSS 的问题。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 376/376、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11 PASS；Schema/Fixture JSON 语法和 API `/health` 200 PASS；完整 Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Git Bash wrapper 在 Windows 中因找不到 `dotnet` 未通过，但同一 11 个上下文的等价流程已通过；`git diff --check` PASS。
+- 远端证据：候选提交 `2f16b6e` 的 CI `33265352562`、Docker `33265352563`、Security `33265352595` 均 **GREEN**。CI Unit 376/376、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过；Restore/Build、11 个迁移检查、Compose、Runtime smoke、SLO/Telemetry、Redis、PostgreSQL 备份恢复和 diagnostics 均通过。Security 保留既有 Actions Node 20 弃用提示，未影响门禁。
+- 当前状态：受控 XPath/JSONPath 执行基线已取得本地与远端门禁证据，整体继续保持 `1.0 Release Candidate`；完整 XPath/JSONPath 语法、Cookie/Session、Pagination、通用变量、多请求/递归预算、真实来源/故障切换、阅读 3.0 和人工验收仍按第 6 节待定，不等同于 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -857,7 +867,9 @@ Official Source
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
-- Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；当前只完成最小 AST/声明边界，单请求 Rule execution budgets 已在 4.49 接入；XPath/JSONPath 执行引擎、Cookie/Session、Pagination、通用变量扩展及多请求/递归预算仍待后续工程工作包。
+- Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；受控 XPath/JSONPath
+  选择器运行时已在 4.51 接入，单请求 Rule execution budgets 已在 4.49 接入；完整 XPath/JSONPath 语法、
+  Cookie/Session、Pagination、通用变量扩展及多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
