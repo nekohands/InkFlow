@@ -773,7 +773,7 @@ Phase 1A 自动化工作包状态：
 - 回归：新增 RuleAdapter 分页聚合、请求耗尽、页数耗尽、跨源、循环、POST→GET、跨页累计字节预算回归；新增 Search/TOC HTML 与 JSON 多页投影、DSL JSON 往返及 Validator/schema 边界回归。当前定向结果为 RuleAdapter 分页 6/6、分页列表 2/2、Validator 类 20/20、JSON 往返 1/1、累计字节 1/1 PASS。
 - 非目标：本轮不实现 page-number/cursor 分页、通用变量或 Cookie/Session、超出 next-link 的多请求编排、递归 MaxDepth、完整 XPath/JSONPath 语法；真实 Official Source、故障切换、阅读 3.0 和人工验收继续按待定清单处理。
 - 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 389/389、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11 PASS；Schema/Fixture JSON 语法和 API `/health` 200 PASS；完整 Solution Test 的 Integration 为 80 项，其中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
-- 远端证据：本候选提交推送后补录 CI、Docker 和 Security 工作流结果；在结果确认前不标记远端门禁完成。
+- 远端证据：首个候选提交 `83aa68d` 的 CI `33267442596` 曾因 Linux 将 `/search?page=2` 这类相对链接按 `file:` 解析而失败 6 项；Docker `33267442625` 与 Security `33267442628` 仍为 GREEN。修复提交 `c4cddcd` 已通过 CI `33267729513`、Docker `33267729544`、Security `33267729548`。CI 报告 Unit 389/389、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过；迁移 11/11、Compose、Runtime smoke、Core SLO probe/telemetry、Redis、PostgreSQL 备份恢复和 diagnostics 均通过。Security 的 NuGet、Filesystem、CodeQL、SBOM 均通过，保留既有 Node 20 弃用和 CodeQL API 权限提示，未影响门禁。
 - 当前状态：受控 next-link Pagination 与多请求预算已形成候选实现，整体继续保持 `1.0 Release Candidate`；仍不等同于 `Accepted/Completed`，真实来源、故障切换、阅读 3.0 和人工验收继续按待定清单处理。
 
 ## 5. Phase 1A 核心验收链路
@@ -890,7 +890,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-本轮全量回归的结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 389/389、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查、Schema/Fixture JSON 语法和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。本候选提交的 CI、Docker、Security 结果待推送后补录；真实来源、阅读 3.0 和人工验收按用户决定未执行。
+本轮全量回归的结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 389/389、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查、Schema/Fixture JSON 语法和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。修复提交 `c4cddcd` 的 CI `33267729513`、Docker `33267729544`、Security `33267729548` 已全部 GREEN；真实来源、阅读 3.0 和人工验收按用户决定未执行。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

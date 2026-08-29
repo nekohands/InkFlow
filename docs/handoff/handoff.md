@@ -6,7 +6,7 @@
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-08-29；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -421,9 +421,9 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 缺口：RuleAdapter 之前固定只发起一次请求，Search/TOC 无法安全聚合 next-link 分页；页面循环也没有统一的请求数、累计响应字节和执行时间边界。
 - 实现：`CapabilityRule` 增加可选 `RulePagination`，仅允许 Search/TOC 的 List 绑定；首请求沿用原 method/form，后续链接固定 GET。CSS next selector 必须提供链接属性，XPath/JSONPath 复用受控选择器求值；`RuleBasedSourceAdapter` 汇总所有通过校验的页面，旧规则保持兼容。
 - 安全/失败关闭：后续 URL 必须与首请求保持相同 scheme/host/port，并重新通过 SSRF 字面量检查；拒绝 userinfo、fragment、控制字符、非法/过长链接、循环和跨源。`maxPages` 有界为 1..32，默认 8；所有页面共享 MaxRequests、累计响应字节和单一执行超时。任何边界或传输失败都整体失败，不返回部分页面/结果。
-- 定向证据：RuleAdapter 分页 6/6、分页列表 2/2、Validator 类 20/20、JSON 往返 1/1、累计响应字节 1/1 PASS；完整门禁待本轮结束后补录。
+- 定向证据：RuleAdapter 分页 6/6、分页列表 2/2、Validator 类 20/20、JSON 往返 1/1、累计响应字节 1/1 PASS；完整本地与远端门禁已在下方补录。
 - 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 389/389、Architecture 1/1、Contract 10/10、11 个迁移模型检查均 PASS；Schema/Fixture JSON 语法和 API `/health` 200；完整 Integration 80 项中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
-- 远端证据：本候选提交推送后补录 CI、Docker 和 Security 工作流结果；结果确认前不标记远端门禁完成。
+- 远端证据：首个候选提交 `83aa68d` 的 CI `33267442596` 因 Linux 将 `/search?page=2` 相对链接误解析为 `file:` 而失败 6 项；Docker `33267442625`、Security `33267442628` 为 GREEN。修复提交 `c4cddcd` 的 CI `33267729513`、Docker `33267729544`、Security `33267729548` 均 GREEN；CI Unit 389/389、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，迁移 11/11、Compose、Runtime/SLO、Redis、PostgreSQL 备份恢复和 diagnostics 均通过。Security 的 NuGet、Filesystem、CodeQL、SBOM 均通过，仅保留既有 Node 20 弃用与 CodeQL API 权限提示。
 - 非目标：page-number/cursor、Cookie/Session、通用变量、next-link 之外的多请求/递归 MaxDepth、完整 XPath/JSONPath 语法和真实来源/阅读 3.0 人工验收仍未完成。
 - 当前状态：受控 next-link Pagination 候选实现完成，整体保持 `1.0 Release Candidate`，尚不能标记 `Accepted/Completed`。
 
