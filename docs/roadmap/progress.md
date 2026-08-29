@@ -645,6 +645,14 @@ Phase 1A 自动化工作包状态：
 - 远端验收：候选提交 `a87c5ae` 的 CI `33246490603` GREEN（Unit 320/320、Architecture 1/1、Contract 10/10、Integration 64 项 62 通过/2 跳过，另有 Redis 限流集成 1/1；含 Restore/Build/Compose/Runtime smoke/备份恢复/Diagnostics），Docker `33246490571` GREEN，Security `33246490589` GREEN（NuGet、SBOM、Trivy 和 CodeQL）。
 - 当前状态：本工作包保持 `1.0 Release Candidate`，自动化 Release Gate 已通过；真实 OTLP Collector、SLO 窗口/合成探针、错误预算告警与生产保留治理，以及按用户决定延后的 MuMu/阅读 3.0、真实来源和人工验收，继续列入第 6 节待定事项，不等同于 `Accepted/Completed`。
 
+### 4.39 Core SLO 窗口证据评估契约（本轮，2026-08-29）
+
+- 缺口：指标基线能记录请求，但没有统一的窗口报告语义；零流量、缺失 p95、直方图样本不匹配或未知服务面不能被安全地区分为“失败”与“尚无证据”。
+- 实现：Observability Building Block 新增 `CoreSloEvidenceEvaluator`、窗口/服务面聚合输入、四态评估结果和稳定 reason code。四个 Core SLO 服务面必须都有正请求量、请求数与延迟样本数匹配、合法 p95 才可能通过；评估结果计算可用性、99.5% 错误预算事件数、剩余预算和 p95 目标，超预算保留负数证据。
+- 安全/边界：评估器无状态，不新增数据库、公开 API 或 Collector 连接；reason code 不携带路径、用户、Token、异常原文或其他高基数信息。OTLP/合成探针只需将聚合结果映射到统一输入，真实月度窗口、探针覆盖、告警和保留治理仍待部署环境验收。决策见 ADR 0011。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 324/324、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、56 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；API `/health` 200、`/metrics` 404（按设计），PostgreSQL/Redis 依赖请求未宣称通过；`git diff --check` PASS。
+- 当前状态：本工作包继续保持 `1.0 Release Candidate`，代码/自动化契约已完成但不等同于生产 SLO 达标；真实 OTLP Collector、合成探针、窗口证据和错误预算告警仍按第 6 节待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

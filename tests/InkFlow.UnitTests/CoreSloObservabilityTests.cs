@@ -110,6 +110,123 @@ public sealed class CoreSloObservabilityTests
         Assert.IsTrue(durations.All(duration => duration >= 0));
     }
 
+    [TestMethod]
+    public void Window_evaluator_passes_complete_evidence_and_reports_error_budget()
+    {
+        var evaluation = CoreSloEvidenceEvaluator.Evaluate(
+            CompleteEvidence(
+                requestCount: 1_000,
+                serverErrorCount: 0,
+                p95Milliseconds: 750));
+
+        Assert.AreEqual(CoreSloEvaluationStatus.Passed, evaluation.Status);
+        Assert.IsTrue(evaluation.IsPassing);
+        Assert.IsTrue(evaluation.HasCompleteEvidence);
+        Assert.AreEqual(4, evaluation.Surfaces.Count);
+
+        var publicApi = evaluation.Surfaces.Single(
+            surface => surface.Surface == CoreSloPolicy.PublicApiSurface);
+        Assert.AreEqual(5m, publicApi.ErrorBudgetEvents);
+        Assert.AreEqual(5m, publicApi.RemainingErrorBudgetEvents);
+        Assert.AreEqual(0m, publicApi.ErrorBudgetConsumedRatio);
+    }
+
+    [TestMethod]
+    public void Window_evaluator_counts_only_server_errors_and_fails_latency_or_availability()
+    {
+        var evidence = CompleteEvidence(
+            requestCount: 1_000,
+            serverErrorCount: 6,
+            p95Milliseconds: 751);
+        var surfaces = evidence.Surfaces.ToDictionary(pair => pair.Key, pair => pair.Value);
+        surfaces[CoreSloPolicy.PublicApiSurface] =
+            new CoreSloSurfaceWindowEvidence(1_000, 6, 1_000, 751);
+        evidence = evidence with { Surfaces = surfaces };
+
+        var evaluation = CoreSloEvidenceEvaluator.Evaluate(evidence);
+        var publicApi = evaluation.Surfaces.Single(
+            surface => surface.Surface == CoreSloPolicy.PublicApiSurface);
+
+        Assert.AreEqual(CoreSloEvaluationStatus.Failed, evaluation.Status);
+        Assert.AreEqual(CoreSloEvaluationStatus.Failed, publicApi.Status);
+        CollectionAssert.Contains(publicApi.Reasons.ToList(), "availability_below_target");
+        CollectionAssert.Contains(publicApi.Reasons.ToList(), "latency_p95_above_target");
+        Assert.AreEqual(0.994m, publicApi.Availability);
+        Assert.AreEqual(-1m, publicApi.RemainingErrorBudgetEvents);
+    }
+
+    [TestMethod]
+    public void Window_evaluator_fails_closed_for_missing_or_mismatched_latency_evidence()
+    {
+        var evidence = CompleteEvidence(
+            requestCount: 10,
+            serverErrorCount: 0,
+            p95Milliseconds: null);
+        var surfaces = evidence.Surfaces.ToDictionary(pair => pair.Key, pair => pair.Value);
+        surfaces[CoreSloPolicy.ReaderSurface] =
+            new CoreSloSurfaceWindowEvidence(10, 0, 9, 500);
+        evidence = evidence with { Surfaces = surfaces };
+
+        var evaluation = CoreSloEvidenceEvaluator.Evaluate(evidence);
+        var publicApi = evaluation.Surfaces.Single(
+            surface => surface.Surface == CoreSloPolicy.PublicApiSurface);
+        var reader = evaluation.Surfaces.Single(
+            surface => surface.Surface == CoreSloPolicy.ReaderSurface);
+
+        Assert.AreEqual(CoreSloEvaluationStatus.InsufficientEvidence, evaluation.Status);
+        Assert.AreEqual(CoreSloEvaluationStatus.InsufficientEvidence, publicApi.Status);
+        Assert.AreEqual(CoreSloEvaluationStatus.InsufficientEvidence, reader.Status);
+        CollectionAssert.Contains(publicApi.Reasons.ToList(), "latency_p95_missing");
+        CollectionAssert.Contains(reader.Reasons.ToList(), "duration_sample_count_mismatch");
+        Assert.IsFalse(evaluation.IsPassing);
+    }
+
+    [TestMethod]
+    public void Window_evaluator_rejects_unknown_surfaces_and_invalid_aggregates()
+    {
+        var evidence = CompleteEvidence(
+            requestCount: 10,
+            serverErrorCount: 0,
+            p95Milliseconds: 100);
+        var surfaces = evidence.Surfaces.ToDictionary(pair => pair.Key, pair => pair.Value);
+        surfaces["/api/v1/books/book-1"] =
+            new CoreSloSurfaceWindowEvidence(10, 0, 10, 100);
+        surfaces[CoreSloPolicy.DeveloperApiSurface] =
+            new CoreSloSurfaceWindowEvidence(10, 11, 10, 100);
+        evidence = evidence with { Surfaces = surfaces };
+
+        var evaluation = CoreSloEvidenceEvaluator.Evaluate(evidence);
+        var developerApi = evaluation.Surfaces.Single(
+            surface => surface.Surface == CoreSloPolicy.DeveloperApiSurface);
+
+        Assert.AreEqual(CoreSloEvaluationStatus.InvalidEvidence, evaluation.Status);
+        Assert.AreEqual(CoreSloEvaluationStatus.InvalidEvidence, developerApi.Status);
+        CollectionAssert.Contains(evaluation.Reasons.ToList(), "unknown_surface_present");
+        CollectionAssert.Contains(evaluation.Reasons.ToList(), "invalid_surface_evidence");
+        CollectionAssert.Contains(developerApi.Reasons.ToList(), "server_error_count_invalid");
+        Assert.IsFalse(evaluation.IsPassing);
+    }
+
+    private static CoreSloWindowEvidence CompleteEvidence(
+        long requestCount,
+        long serverErrorCount,
+        double? p95Milliseconds)
+    {
+        var surfaces = CoreSloPolicy.Surfaces.ToDictionary(
+            surface => surface,
+            surface => new CoreSloSurfaceWindowEvidence(
+                requestCount,
+                serverErrorCount,
+                requestCount,
+                p95Milliseconds));
+
+        return new CoreSloWindowEvidence(
+            new DateTimeOffset(2026, 8, 29, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 8, 30, 0, 0, 0, TimeSpan.Zero),
+            "unit-test-fixture",
+            surfaces);
+    }
+
     private static string? Tag(
         ReadOnlySpan<KeyValuePair<string, object?>> tags,
         string key)

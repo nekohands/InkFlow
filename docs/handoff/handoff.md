@@ -304,6 +304,14 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 远端验收：候选提交 `a87c5ae` 的 CI `33246490603` GREEN（Unit 320/320、Architecture 1/1、Contract 10/10、Integration 64 项 62 通过/2 跳过，另有 Redis 限流集成 1/1；含 Restore/Build/Compose/Runtime smoke/备份恢复/Diagnostics），Docker `33246490571` GREEN，Security `33246490589` GREEN（NuGet、SBOM、Trivy 和 CodeQL）。
 - 当前状态：真实 Collector、SLO 窗口/合成探针、错误预算告警/保留治理，以及 MuMu/阅读 3.0、真实来源和人工验收均按待定事项处理。本工作包保持 `1.0 Release Candidate`，自动化 Release Gate 已通过，不标记 `Accepted/Completed`。
 
+### 4.39 Core SLO 窗口证据评估契约（本轮，2026-08-29）
+
+- 缺口：Core SLO 指标已有记录出口，但没有统一窗口层判断；零流量、缺 p95、延迟样本不匹配和未知服务面不能默认当作达标。
+- 实现：新增无状态 `CoreSloEvidenceEvaluator`。输入为明确窗口、证据来源和四个稳定服务面的请求/5xx/延迟聚合；输出 `Passed`、`Failed`、`InsufficientEvidence`、`InvalidEvidence`，并带稳定 reason code、可用性、99.5% 错误预算剩余和服务面 p95 目标。缺任一服务面、无正流量、p95 缺失或样本不完整时 `IsPassing=false`。
+- 边界：不连接 Collector、不新增数据库/公开 API、不伪造生产窗口证据；结果不包含路径、用户、Token、异常原文或其他高基数数据。真实 OTLP/探针窗口与告警治理继续待部署环境验收，详见 ADR 0011。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 324/324、Architecture 1/1、Contract 10/10 PASS；Integration 64 项中 6 通过、56 项因本机 Docker Engine 不可用而 BLOCKED、2 项跳过；API `/health` 200、`/metrics` 404（按设计）。
+- 当前状态：保持 `1.0 Release Candidate`，本工作包的自动化契约已完成，但不标记 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -353,6 +361,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Operations Alert History v1：PostgreSQL incident 去重/恢复 + opened/resolved 历史 + 保留清理 + Administrator-only 有界查询（`4ef206f`；CI `33244304809` / Docker `33244304814` / Security `33244304804` GREEN）
 ✅ Operations Center Alert History UI v1：管理员历史刷新/不透明游标分页 + opened/resolved 转折展示 + Operator 权限提示（`734c626`；CI `33245390370` / Docker `33245390354` / Security `33245390350` GREEN；真实与人工验收待定）
 ✅ Core SLO Observability v1：四类服务面 + 可用性/延迟/5xx 低基数指标 + OTLP 显式配置（`a87c5ae`；CI `33246490603` / Docker `33246490571` / Security `33246490589` GREEN；真实 SLO 窗口与人工验收待定）
+✅ Core SLO 窗口证据评估契约：四面完整性 + p95/可用性 + 错误预算 + 缺证据 fail-closed（本轮；真实 Collector/合成探针窗口待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）

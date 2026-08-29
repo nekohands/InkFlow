@@ -22,6 +22,17 @@ public static class CoreSloPolicy
     public const double DeveloperApiLatencyP95Milliseconds = 750;
     public const double ReaderLatencyP95Milliseconds = 1_000;
 
+    private static readonly IReadOnlyList<string> RequiredSurfaces =
+        Array.AsReadOnly(
+        [
+            PublicApiSurface,
+            LegadoApiSurface,
+            DeveloperApiSurface,
+            ReaderSurface,
+        ]);
+
+    public static IReadOnlyList<string> Surfaces => RequiredSurfaces;
+
     /// <summary>
     /// Expected client outcomes, including authentication and rate-limit responses, do not
     /// consume the server availability budget. Server failures (5xx) are bad events.

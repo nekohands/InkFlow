@@ -150,4 +150,6 @@ Projection 必须可重建。
 
 Core SLO v1 以 `public_api`、`legado_api`、`developer_api` 和 `reader` 四个稳定服务面记录低基数可用性/延迟指标；`/health`、管理静态页、未知路径和第三方来源内部请求不进入 Core SLO。`inkflow.slo.requests`、`inkflow.slo.request.duration` 和 `inkflow.slo.server.errors` 不携带路径参数、用户、IP、Token 或异常原文，第三方来源自身不可用不直接计入 InkFlow API 自身 SLA。OTLP exporter 仅在显式配置 endpoint 时启用，目标与边界见 ADR 0010。
 
+`CoreSloEvidenceEvaluator` 对外部聚合出的明确时间窗口执行纯函数评估：四个服务面必须具备正请求量、匹配的延迟样本和合法 p95，结果区分 Passed、Failed、InsufficientEvidence 与 InvalidEvidence，并计算错误预算剩余量。它不保存或发送观测事实，真实 Collector、探针、告警和保留策略仍属于部署治理。
+
 当前 CI 在 Runtime smoke 产生真实审计数据后执行 PostgreSQL custom-format 备份恢复演练：恢复到隔离数据库，并比较所有非系统表的行数签名与 `audit.events` 数量。该验证证明数据库归档可恢复，不等同于生产异地备份、保留策略、RPO/RTO 或告警治理。

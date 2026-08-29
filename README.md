@@ -174,6 +174,8 @@ CI 在 Runtime smoke 产生审计数据后执行 `scripts/backup-restore-drill.s
 
 Core SLO v1 通过 OpenTelemetry 记录 `public_api`、`legado_api`、`developer_api` 和 `reader` 四个服务面：`inkflow.slo.requests`（可用性好/坏事件）、`inkflow.slo.request.duration`（毫秒延迟）和 `inkflow.slo.server.errors`（5xx）。指标只携带稳定服务面和有限结果标签，不包含 URL 参数、用户、IP、Token 或异常原文；目标与正式达标条件见 [ADR 0010](docs/adr/0010-core-slo-and-observability-metrics.md)。配置 OTLP endpoint 后才启用 exporter，没有 Collector 时不会默认向本机端口发送数据。
 
+`CoreSloEvidenceEvaluator` 将 OTLP/合成探针聚合出的单窗口数据转换为可审计结果：四个服务面必须都有正流量、完整延迟样本和 p95，缺证据或非法聚合不会被判为通过；结果同时给出 99.5% 可用性、p95 目标和错误预算剩余量。该评估器不连接生产 Collector、不保存窗口报告，也不替代真实月度窗口验收，契约见 [ADR 0011](docs/adr/0011-core-slo-window-evidence-evaluation.md)。
+
 `.github/workflows/docker.yml` 会先构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描；全部通过后才推送各镜像标签。该基线不替代生产镜像准入、报告保留、Secret 轮换和部署环境策略治理。
 
 ### 生产注意事项
