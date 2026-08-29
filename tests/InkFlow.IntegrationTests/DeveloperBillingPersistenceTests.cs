@@ -135,7 +135,7 @@ public sealed class DeveloperBillingPersistenceTests
         var keyRepository = new EfDeveloperApiKeyRepository(setup);
         for (var index = 0; index < DeveloperLimits.MaxActiveKeysPerApplication - 1; index++)
         {
-            var raw = $"lf_dev_seed-{index}";
+            var raw = $"lf_dev_seed_key-{index}";
             var seeded = DeveloperApiKey.Create(
                 keyOwner,
                 keyApplication.Id,

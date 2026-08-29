@@ -613,6 +613,7 @@ Phase 1A 自动化工作包状态：
 - 缺口：应用创建和 API Key 签发原先采用“先查询再写入”，多 API 实例并发请求可能突破每用户 10 个应用、每应用 5 个活跃 Key 的既定上限；过期 Key 轮换也可能额外制造活跃 Key。
 - 实现：Developer PostgreSQL Repository 在创建应用时按 UserId、创建/签发 Key 时按 ApplicationId 获取事务级 advisory lock，在同一事务内检查活跃数量后写入；Key 轮换复用同一 ApplicationId 锁，并拒绝在活跃 Key 已满时把过期 Key 轮换为新活跃 Key。服务层将持久化边界返回的拒绝映射为 `LimitReached`，不暴露生成中的原文密钥。
 - 自动化：新增服务层上限拒绝回归 2 项、PostgreSQL 跨连接并发应用/Key 上限测试和过期 Key 轮换上限测试；本机 Release Build 0 warnings / 0 errors，Unit 313/313、Architecture 1/1、Contract 9/9 PASS。DeveloperBillingPersistenceTests 5 项实际尝试但因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；完整 Integration 60 项中 6 通过、2 跳过、52 项因 Docker Engine 不可用而 BLOCKED。
+- 远端首轮 CI 已实际启动真实 PostgreSQL：60 项中 57 通过、2 跳过，1 项失败原因为测试夹具生成的 seed 前缀不足 16 位并触发 `ArgumentOutOfRangeException`；该夹具问题已修正，过期 Key 轮换回归已在首轮远端通过，待修正提交重新验证。
 - 当前状态：代码实现已完成，仍待远端真实 PostgreSQL 并发验证；不改变 `1.0 Release Candidate` 状态，也不替代第 6 节人工/真实环境验收。
 
 ## 5. Phase 1A 核心验收链路
