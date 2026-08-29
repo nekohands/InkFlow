@@ -1,3 +1,4 @@
+using System.Text;
 using InkFlow.Modules.Sources.Domain;
 
 namespace InkFlow.Modules.Sources.Application;
@@ -12,9 +13,15 @@ namespace InkFlow.Modules.Sources.Application;
 ///   外部 ID = 条目的 ExternalIdAttribute 值剥离 IdPrefixToStrip/IdSuffixToStrip,
 ///   标题取条目文本。
 /// </summary>
-public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapter, ISelectorEvaluator selectorEvaluator) : ISourceAdapter
+public sealed class RuleBasedSourceAdapter(
+    Source source,
+    RuleAdapter ruleAdapter,
+    ISelectorEvaluator selectorEvaluator,
+    SourceRuleExecutionLimits? limits = null) : ISourceAdapter
 {
     public string SourceId => source.Id;
+
+    private readonly SourceRuleExecutionLimits _limits = ResolveLimits(ruleAdapter, limits);
 
     private static readonly char[] Tab = ['\t'];
 
@@ -38,6 +45,7 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
 
         var items = selectorEvaluator.SelectAll(result.Body ?? string.Empty, ToSelector(rule.List));
         var results = new List<SourceSearchResult>();
+        long resultBytes = 0;
 
         foreach (var item in items)
         {
@@ -47,7 +55,17 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
                 continue;
             }
 
-            results.Add(new SourceSearchResult(externalId, item.TextContent, "未知"));
+            const string unknownAuthor = "未知";
+            var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
+                Encoding.UTF8.GetByteCount(item.TextContent) +
+                Encoding.UTF8.GetByteCount(unknownAuthor);
+            if (resultBytes + itemBytes > _limits.MaxResultSize)
+            {
+                return [];
+            }
+
+            resultBytes += itemBytes;
+            results.Add(new SourceSearchResult(externalId, item.TextContent, unknownAuthor));
         }
 
         return results;
@@ -102,6 +120,7 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
 
         var index = 0;
         var entries = new List<SourceTocEntry>();
+        long resultBytes = 0;
 
         foreach (var item in items)
         {
@@ -113,6 +132,14 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
                 continue;
             }
 
+            var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
+                Encoding.UTF8.GetByteCount(title);
+            if (resultBytes + itemBytes > _limits.MaxResultSize)
+            {
+                return [];
+            }
+
+            resultBytes += itemBytes;
             entries.Add(new SourceTocEntry(externalId, index++, title));
         }
 
@@ -146,6 +173,15 @@ public sealed class RuleBasedSourceAdapter(Source source, RuleAdapter ruleAdapte
         IReadOnlyDictionary<string, string> variables,
         CancellationToken cancellationToken) =>
         ruleAdapter.ExecuteAsync(rule, source.BaseUrl, variables, cancellationToken);
+
+    private static SourceRuleExecutionLimits ResolveLimits(
+        RuleAdapter ruleAdapter,
+        SourceRuleExecutionLimits? limits)
+    {
+        var value = limits ?? ruleAdapter.Limits;
+        value.Validate();
+        return value;
+    }
 
     private static RuleSelector ToSelector(RuleListBinding binding) =>
         new(SelectorKind.Css, binding.ItemsSelector);

@@ -732,10 +732,18 @@ Phase 1A 自动化工作包状态：
 - 缺口：Source DSL 已有 typed AST 与领域校验，但持久化仍使用默认 JSON 序列化；抽象 `RuleTransform` 没有稳定 wire shape，未知字段/转换类型、缺失必需字段和过大文档也没有统一的版本化 fail-closed 边界。
 - 实现：新增 `SourceRuleDslJson` 版本化编解码器与 `docs/contracts/source-rule-dsl-v1.schema.json`。JSON 边界拒绝未知属性，要求构造参数对应的核心字段，限制文档大小、规则/字段/转换/映射及各类表达式长度；`trim` / `replace` 使用显式 `kind` AST，输出统一 camel-case 字符枚举，兼容读取既有数字枚举但不以数字写出。领域 Validator 同步空值、枚举、集合、长度、POST 表单和列表绑定约束。
 - 持久化与回归：Sources EF 仓储统一经过该 codec；非法已存规则读取时 fail-closed，不静默执行。新增无第三方网络依赖的 `source-rule-dsl-v1.json` Fixture、内置 linovelib 定义往返测试、未知属性/未知转换/必需字段/超大文档测试，以及 PostgreSQL `RuleTransform` 往返集成测试；未新增 API 或 Migration。
-- 执行边界：本工作包只建立最小可测试 schema/AST 与持久化契约，不宣称完整 DSL 引擎。Schema 保留 CSS/XPath/JSONPath 的 AST 枚举；当前 RuleAdapter 执行基线仍为 CSS，XPath/JSONPath、Cookie/Session、Pagination、通用变量扩展和完整执行预算需后续引擎/运行时工作包接入并单独回归，不能仅凭解析通过标记为 Published 或真实来源可用。
+- 执行边界：本工作包只建立最小可测试 schema/AST 与持久化契约，不宣称完整 DSL 引擎。Schema 保留 CSS/XPath/JSONPath 的 AST 枚举；当前 RuleAdapter 执行基线仍为 CSS，单请求的请求/响应字节、执行时间、正则时间和结果大小预算已在后续 4.49 接入；XPath/JSONPath、Cookie/Session、Pagination、通用变量扩展及多请求/递归的完整预算仍需单独回归，不能仅凭解析通过标记为 Published 或真实来源可用。
 - 本地证据：`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 353/353、Architecture 1/1、Contract 10/10 PASS；Schema JSON 语法检查与 `git diff --check` PASS。新增 Sources PostgreSQL 集成目标已编译，但本机 `npipe://./pipe/docker_engine` 不可用，实际容器执行 BLOCKED。
 - 远端证据：`2451c72` 首次 CI 暴露既有 Search 仓储 Fixture 缺少列表绑定的问题，已在 `2966088` 修复并重新验证；最终 CI `33259952185`、Docker `33259952247`、Security `33259952205` 均 GREEN。CI Test 为 Unit 353/353、Architecture 1/1、Contract 10/10、Integration 79 项中 77 通过/2 跳过，新增 `Source_With_Transform_Rule_Dsl_Roundtrips` 通过；11 个 Migration 检查、Compose、Runtime/SLO telemetry、Redis、PostgreSQL 备份恢复和 diagnostics 全部通过。Security 保留既有 Actions Node 20 弃用提示，未影响门禁。
 - 当前状态：Source DSL v1 最小 schema/AST、Fixture 和仓储边界已取得三类远端门禁证据，整体继续保持 `1.0 Release Candidate`；XPath/JSONPath 等执行能力、真实来源/故障切换、阅读 3.0 与人工验收和生产治理仍按第 6 节待定，不等同于 `Accepted/Completed`。
+
+### 4.49 Source Rule 单请求执行预算与响应体边界（本轮，2026-08-29）
+
+- 缺口：Source Rule 执行虽已有 DSL 严格解析和 SSRF 连接约束，但请求数、请求/响应体大小、执行时间、正则时间和结构化结果大小此前没有在执行器统一 fail-closed；生产客户端读取响应时也会先完整载入再解码。
+- 实现：新增不可变 `SourceRuleExecutionLimits`，默认限制为 MaxRequests=1、MaxBytes=2 MiB、MaxExecutionTime=20 秒、MaxRegexTime=2 秒、MaxResultSize=512 KiB，并在 API/Worker/Scheduler 组合根共享同一快照。`RuleAdapter` 对零请求预算、表单/解码后响应字节、HTTP 总等待时间、严格正则超时和字段聚合结果统一返回稳定错误；`RuleBasedSourceAdapter` 对 Search/TOC 列表结果超限整体返回空结果。`ProductionSafeSourceHttpClient` 先检查 Content-Length，再以有界流读取，未知长度超限也不会继续累积。
+- 安全与非目标：超限不暴露部分结果，调用方取消仍按原语义传播；自动重定向仍由 SSRF Handler 固定最多 5 跳，XPath/JSONPath、Cookie/Session、Pagination 及递归 MaxDepth 仍未进入执行器，本轮不以 AST 解析替代真实来源验收。
+- 本地/远端证据：待本轮 Release Build、Unit/Architecture/Contract、集成尝试、候选 Commit 和 CI/Docker/Security 门禁完成后补录。
+- 当前状态：执行预算与响应体内存边界已实现，整体继续保持 `1.0 Release Candidate`；真实来源、真实故障切换、阅读 3.0、人工验收和生产治理仍按第 6 节待定，不等同于 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -839,7 +847,7 @@ Official Source
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
-- Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；当前只完成最小 AST/声明边界，XPath/JSONPath 执行引擎、Cookie/Session、Pagination、通用变量扩展和完整 Rule execution budgets 仍待后续工程工作包。
+- Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；当前只完成最小 AST/声明边界，单请求 Rule execution budgets 已在 4.49 接入；XPath/JSONPath 执行引擎、Cookie/Session、Pagination、通用变量扩展及多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。

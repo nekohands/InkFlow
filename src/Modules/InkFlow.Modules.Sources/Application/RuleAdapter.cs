@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using System.Text.RegularExpressions;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Sources.Domain;
@@ -8,12 +9,30 @@ namespace InkFlow.Modules.Sources.Application;
 /// <summary>
 /// 规则执行器：把声明式 DSL 变成一次真实的抓取。
 /// 执行顺序固定为：URL 构建 → SSRF 字面量校验 → 发请求（经 ISourceHttpClient）→
-/// 状态码检查 → 字段抽取 → 变换管道。任一环节失败即整体失败，不产生部分结果。
+/// 状态码检查 → 字段抽取 → 变换管道。任一环节失败即整体失败，不产生部分结果；
+/// 请求、响应、时间、正则和结果预算由 <see cref="SourceRuleExecutionLimits"/> 强制约束。
 /// </summary>
-public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator selectorEvaluator)
+public sealed class RuleAdapter
 {
     private static readonly Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
+
+    private readonly ISourceHttpClient _httpClient;
+    private readonly ISelectorEvaluator _selectorEvaluator;
+    private readonly SourceRuleExecutionLimits _limits;
+
+    public RuleAdapter(
+        ISourceHttpClient httpClient,
+        ISelectorEvaluator selectorEvaluator,
+        SourceRuleExecutionLimits? limits = null)
+    {
+        _httpClient = httpClient;
+        _selectorEvaluator = selectorEvaluator;
+        _limits = limits ?? SourceRuleExecutionLimits.Default;
+        _limits.Validate();
+    }
+
+    public SourceRuleExecutionLimits Limits => _limits;
 
     public async Task<RuleExecutionResult> ExecuteAsync(
         CapabilityRule rule,
@@ -44,14 +63,40 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
             return RuleExecutionResult.Fail(["request: built URL is not absolute."]);
         }
 
+        // v1 execution is one request at most. A zero request budget is an explicit
+        // fail-closed switch and must be checked before entering the HTTP seam.
+        if (_limits.MaxRequests < 1)
+        {
+            return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+        }
+
+        if (request.FormBody is not null &&
+            Encoding.UTF8.GetByteCount(request.FormBody) > _limits.MaxBytes)
+        {
+            return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
+        }
+
         SourceHttpResponse response;
+        using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        executionCancellation.CancelAfter(_limits.MaxExecutionTime);
         try
         {
-            response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            response = await _httpClient
+                .SendAsync(request, executionCancellation.Token)
+                .WaitAsync(executionCancellation.Token)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
+        {
+            return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
+        }
+        catch (SourceResponseTooLargeException)
+        {
+            return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
         }
         catch (Exception ex)
         {
@@ -61,6 +106,11 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
         if (!response.IsSuccess)
         {
             return RuleExecutionResult.Fail([$"http: upstream returned status {(int)response.StatusCode}."]);
+        }
+
+        if (Encoding.UTF8.GetByteCount(response.Body) > _limits.MaxBytes)
+        {
+            return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
         }
 
         return ExtractFields(rule, response.Body);
@@ -147,6 +197,7 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         var errors = new List<string>();
+        long resultBytes = 0;
 
         foreach (var field in rule.Fields)
         {
@@ -154,12 +205,18 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
 
             if (field.Selector is { } selector)
             {
-                extracted = selectorEvaluator.EvaluateFirst(
+                extracted = _selectorEvaluator.EvaluateFirst(
                     body, selector, field.Attribute);
             }
             else if (field.Regex is { } regexSpec)
             {
-                extracted = EvaluateRegex(body, regexSpec, field.Name, rule.Capability, errors);
+                extracted = EvaluateRegex(
+                    body,
+                    regexSpec,
+                    field.Name,
+                    rule.Capability,
+                    _limits.MaxRegexTime,
+                    errors);
             }
             else
             {
@@ -183,20 +240,38 @@ public sealed class RuleAdapter(ISourceHttpClient httpClient, ISelectorEvaluator
                 };
             }
 
+            var extractedBytes = Encoding.UTF8.GetByteCount(extracted);
+            resultBytes += extractedBytes;
+            if (resultBytes > _limits.MaxResultSize)
+            {
+                errors.Add("execution: result exceeded size budget.");
+                continue;
+            }
+
             values[field.Name] = extracted;
         }
 
         return errors.Count > 0 ? RuleExecutionResult.Fail(errors) : RuleExecutionResult.Ok(values, body);
     }
 
-    private static string? EvaluateRegex(string body, RuleRegex regexSpec, string fieldName, SourceCapability capability, List<string> errors)
+    private static string? EvaluateRegex(
+        string body,
+        RuleRegex regexSpec,
+        string fieldName,
+        SourceCapability capability,
+        TimeSpan maxRegexTime,
+        List<string> errors)
     {
         try
         {
+            var declaredTimeoutMilliseconds = regexSpec.TimeoutMilliseconds;
+            var executionTimeoutMilliseconds = (int)Math.Min(
+                declaredTimeoutMilliseconds,
+                maxRegexTime.TotalMilliseconds);
             var regex = new Regex(
                 regexSpec.Pattern,
                 RegexOptions.None,
-                TimeSpan.FromMilliseconds(regexSpec.TimeoutMilliseconds));
+                TimeSpan.FromMilliseconds(executionTimeoutMilliseconds));
 
             var match = regex.Match(body);
             if (!match.Success)

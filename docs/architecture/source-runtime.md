@@ -59,8 +59,10 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 上面的列表描述 DSL v1 的目标 AST 能力，不等同于当前执行器全部可用。现阶段 `RuleAdapter` 的执行基线
 覆盖 GET/POST、Header/Query/Form、路径占位符、CSS 选择器、带超时 Regex、Trim/Replace 和 Search/TOC
 列表绑定；Schema 保留 XPath/JSONPath 枚举以保持 AST 的前向兼容，但当前 `CssSelectorEvaluator` 只执行 CSS。
-XPath/JSONPath 引擎、Cookie/Session、Pagination、通用变量扩展和完整 Rule execution budgets 接入前，不能
-仅凭 JSON 解析通过将规则标记为 Published 或宣称真实来源可用。
+`SourceRuleExecutionLimits` 已为当前单请求执行器接入有限的 MaxRequests、MaxBytes、MaxExecutionTime、
+MaxRegexTime 和 MaxResultSize；生产 HTTP 客户端在解码前按流读取并拒绝超大响应。XPath/JSONPath 引擎、
+Cookie/Session、Pagination、通用变量扩展，以及多请求/递归执行所需的 MaxRedirects/MaxDepth 策略化，仍需
+后续运行时工作包和独立回归，不能仅凭 JSON 解析通过将规则标记为 Published 或宣称真实来源可用。
 
 禁止：
 
@@ -120,6 +122,11 @@ Community/Private Rule 的网络请求必须统一经过 SafeHttpClient：
 - MaxResultSize
 
 错误或恶意规则不得耗尽整个 Worker Pool。
+
+当前单请求基线的默认上限为：MaxRequests=1、MaxBytes=2 MiB、MaxExecutionTime=20 s、
+MaxRegexTime=2 s、MaxResultSize=512 KiB。请求体、解码后的响应体、字段聚合结果和 Search/TOC 列表
+均 fail-closed；`SsrfSafeHttpMessageHandler` 另以最多 5 跳限制自动重定向。Pagination/递归尚未进入
+执行器，因此 MaxDepth 不在本基线中宣称已实现。
 
 ## 8. Credential
 

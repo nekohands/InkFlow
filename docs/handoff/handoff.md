@@ -386,10 +386,18 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 缺口：Source DSL 已有 typed AST 与领域校验，但持久化仍使用默认 JSON 序列化；抽象 `RuleTransform` 没有稳定 wire shape，未知字段/转换类型、缺失必需字段和过大文档也没有统一的版本化 fail-closed 边界。
 - 实现：新增 `SourceRuleDslJson` 版本化编解码器与 `docs/contracts/source-rule-dsl-v1.schema.json`。JSON 边界拒绝未知属性，要求构造参数对应的核心字段，限制文档大小、规则/字段/转换/映射及各类表达式长度；`trim` / `replace` 使用显式 `kind` AST，输出统一 camel-case 字符枚举，兼容读取既有数字枚举但不以数字写出。领域 Validator 同步空值、枚举、集合、长度、POST 表单和列表绑定约束。
 - 持久化与回归：Sources EF 仓储统一经过该 codec；非法已存规则读取时 fail-closed，不静默执行。新增无第三方网络依赖的 `source-rule-dsl-v1.json` Fixture、内置 linovelib 定义往返测试、未知属性/未知转换/必需字段/超大文档测试，以及 PostgreSQL `RuleTransform` 往返集成测试；未新增 API 或 Migration。
-- 执行边界：本工作包只建立最小可测试 schema/AST 与持久化契约，不宣称完整 DSL 引擎。Schema 保留 CSS/XPath/JSONPath 的 AST 枚举；当前 RuleAdapter 执行基线仍为 CSS，XPath/JSONPath、Cookie/Session、Pagination、通用变量扩展和完整执行预算需后续引擎/运行时工作包接入并单独回归，不能仅凭解析通过标记为 Published 或真实来源可用。
+- 执行边界：本工作包只建立最小可测试 schema/AST 与持久化契约，不宣称完整 DSL 引擎。Schema 保留 CSS/XPath/JSONPath 的 AST 枚举；当前 RuleAdapter 执行基线仍为 CSS，单请求的请求/响应字节、执行时间、正则时间和结果大小预算已在后续 4.49 接入；XPath/JSONPath、Cookie/Session、Pagination、通用变量扩展及多请求/递归的完整预算需单独回归，不能仅凭 JSON 解析通过标记为 Published 或真实来源可用。
 - 本地证据：`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 353/353、Architecture 1/1、Contract 10/10 PASS；Schema JSON 语法检查与 `git diff --check` PASS。新增 Sources PostgreSQL 集成目标已编译，但本机 `npipe://./pipe/docker_engine` 不可用，实际容器执行 BLOCKED。
 - 远端证据：`2451c72` 首次 CI 暴露既有 Search 仓储 Fixture 缺少列表绑定的问题，已在 `2966088` 修复并重新验证；最终 CI `33259952185`、Docker `33259952247`、Security `33259952205` 均 GREEN。CI Test 为 Unit 353/353、Architecture 1/1、Contract 10/10、Integration 79 项中 77 通过/2 跳过，新增 `Source_With_Transform_Rule_Dsl_Roundtrips` 通过；11 个 Migration 检查、Compose、Runtime/SLO telemetry、Redis、PostgreSQL 备份恢复和 diagnostics 全部通过。Security 保留既有 Actions Node 20 弃用提示，未影响门禁。
 - 当前状态：Source DSL v1 最小 schema/AST、Fixture 和仓储边界已取得三类远端门禁证据，整体继续保持 `1.0 Release Candidate`；XPath/JSONPath 等执行能力、真实来源/故障切换、阅读 3.0 与人工验收和生产治理仍按待定清单，不等同于 `Accepted/Completed`。
+
+### 4.49 Source Rule 单请求执行预算与响应体边界（本轮，2026-08-29）
+
+- 缺口：Source Rule 执行此前没有统一的请求数、请求/响应体大小、执行时间、正则时间和结构化结果大小边界；生产 HTTP 客户端读取响应时会先完整载入再解码。
+- 实现：新增不可变 `SourceRuleExecutionLimits`，默认 MaxRequests=1、MaxBytes=2 MiB、MaxExecutionTime=20 秒、MaxRegexTime=2 秒、MaxResultSize=512 KiB；API/Worker/Scheduler 注册同一默认快照。`RuleAdapter`、`RuleBasedSourceAdapter` 和 `ProductionSafeSourceHttpClient` 分别在请求、字段/列表结果和流式响应读取边界 fail-closed，预算超限不暴露部分结果，内部执行超时不泄漏异常文本。
+- 非目标：当前只完成单请求执行预算；自动重定向仍为 SSRF Handler 固定 5 跳，XPath/JSONPath、Cookie/Session、Pagination 和递归 MaxDepth 仍需后续运行时工作包，真实来源和阅读 3.0 人工验收继续保留在待定事项。
+- 本地/远端证据：待本轮门禁完成后补录。
+- 下一步：完成本轮候选 Commit 的 CI/Docker/Security 验证；之后继续处理真实第二 Official Source/故障切换与用户已延期的人工验收。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。

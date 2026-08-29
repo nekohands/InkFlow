@@ -186,6 +186,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 builder.Services.AddSingleton(sourceHealthOptions);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
+builder.Services.AddSingleton(SourceRuleExecutionLimits.Default);
 builder.Services.AddScoped<SourceHealthService>();
 builder.Services.AddScoped<ISourceHealthReader>(sp => sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddScoped<ISourceHealthOperations>(sp => sp.GetRequiredService<SourceHealthService>());

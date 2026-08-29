@@ -7,12 +7,16 @@ namespace InkFlow.Modules.Sources.Infrastructure;
 
 /// <summary>
 /// 生产 ISourceHttpClient:出网前做 DNS 解析级 SSRF 校验(防 rebinding),
-/// 随后经 HttpClient 抓取。校验失败抛异常,由 RuleAdapter 归类为失败原因。
+/// 随后经 HttpClient 抓取，并在解码前执行有限的响应体流读取。校验或预算失败抛异常,
+/// 由 RuleAdapter 归类为失败原因。
 /// </summary>
 public sealed class ProductionSafeSourceHttpClient(
     HttpClient http,
-    IIpAddressResolver resolver) : ISourceHttpClient
+    IIpAddressResolver resolver,
+    SourceRuleExecutionLimits? limits = null) : ISourceHttpClient
 {
+    private readonly SourceRuleExecutionLimits _limits = ValidateLimits(limits);
+
     public async Task<SourceHttpResponse> SendAsync(
         SourceHttpRequest request, CancellationToken cancellationToken = default)
     {
@@ -46,9 +50,58 @@ public sealed class ProductionSafeSourceHttpClient(
             .ConfigureAwait(false);
 
         // 兼容老站点的非 UTF-8 编码(GB2312/GBK 等):按响应声明的 charset 解码,未知则回退 UTF-8。
-        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var bytes = await ReadBoundedBytesAsync(
+            response.Content,
+            _limits.MaxBytes,
+            cancellationToken).ConfigureAwait(false);
         var body = Decode(bytes, response.Content.Headers.ContentType?.CharSet);
         return new SourceHttpResponse((int)response.StatusCode, body);
+    }
+
+    private static SourceRuleExecutionLimits ValidateLimits(SourceRuleExecutionLimits? limits)
+    {
+        var value = limits ?? SourceRuleExecutionLimits.Default;
+        value.Validate();
+        return value;
+    }
+
+    private static async Task<byte[]> ReadBoundedBytesAsync(
+        HttpContent content,
+        int maxBytes,
+        CancellationToken cancellationToken)
+    {
+        if (content.Headers.ContentLength is { } contentLength && contentLength > maxBytes)
+        {
+            throw new SourceResponseTooLargeException();
+        }
+
+        using var stream = await content
+            .ReadAsStreamAsync(cancellationToken)
+            .ConfigureAwait(false);
+        using var buffer = new MemoryStream(Math.Min(maxBytes, 81_920));
+        var chunk = new byte[Math.Min(maxBytes, 81_920)];
+        var totalBytes = 0;
+
+        while (true)
+        {
+            var read = await stream
+                .ReadAsync(chunk.AsMemory(), cancellationToken)
+                .ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            if (read > maxBytes - totalBytes)
+            {
+                throw new SourceResponseTooLargeException();
+            }
+
+            buffer.Write(chunk, 0, read);
+            totalBytes += read;
+        }
+
+        return buffer.ToArray();
     }
 
     private static string Decode(byte[] bytes, string? charset)

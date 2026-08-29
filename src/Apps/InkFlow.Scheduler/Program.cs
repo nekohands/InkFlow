@@ -25,6 +25,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ITransactionalOutboxWriter, EfTransactionalOutboxWriter>();
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
+builder.Services.AddSingleton(SourceRuleExecutionLimits.Default);
 builder.Services.AddScoped<ICrawlerTaskRepository, EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ISourceBookRepository, EfSourceBookRepository>();
 builder.Services.AddScoped<ISourceHealthRepository, EfSourceHealthRepository>();

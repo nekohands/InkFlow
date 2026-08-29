@@ -58,6 +58,7 @@ builder.Services.AddScoped<IAuditRetentionService, AuditRetentionService>();
 builder.Services.AddScoped<ITransactionalOutboxWriter, EfTransactionalOutboxWriter>();
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
+builder.Services.AddSingleton(SourceRuleExecutionLimits.Default);
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
 builder.Services.AddScoped<EfCrawlerTaskRepository>();
 builder.Services.AddScoped<ICrawlerTaskRepository>(sp =>

@@ -61,6 +61,24 @@ public sealed class LinovelibSourceDefinitionTests
         Assert.AreEqual(1, entries[1].Index);
     }
 
+    [TestMethod]
+    public async Task Search_Result_Over_Max_Size_Fails_Closed()
+    {
+        var source = CreateSource();
+        var http = new FixtureHttpClient(
+            """<ul><li><a href="/novel/book-123.html">123456</a></li></ul>""");
+        var selector = new CssSelectorEvaluator();
+        var limits = new SourceRuleExecutionLimits { MaxResultSize = 5 };
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(http, selector, limits),
+            selector);
+
+        var results = await adapter.SearchAsync("剑 来");
+
+        Assert.AreEqual(0, results.Count, "an oversized list result must not expose partial results");
+    }
+
     private static Source CreateSource()
     {
         var source = Source.Create(

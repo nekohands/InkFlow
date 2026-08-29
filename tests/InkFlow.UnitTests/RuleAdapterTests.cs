@@ -182,6 +182,29 @@ public sealed class RuleAdapterTests
     }
 
     [TestMethod]
+    public async Task Request_Form_Over_Max_Bytes_Fails_Without_Hitting_Http()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Post,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["keyword"] = "123456" }),
+            []);
+        var http = new FakeHttpClient();
+        var limits = new SourceRuleExecutionLimits { MaxBytes = 5 };
+
+        var result = await new RuleAdapter(http, new FakeSelectorEvaluator(), limits)
+            .ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("request exceeded byte budget")));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
     public async Task Transport_Exception_Is_Classified_As_Transport_Failure()
     {
         var failingHttp = new ThrowingHttpClient();
@@ -192,9 +215,166 @@ public sealed class RuleAdapterTests
         Assert.IsTrue(result.Errors.Any(e => e.Contains("transport failure")));
     }
 
+    [TestMethod]
+    public async Task Request_Budget_Zero_Fails_Without_Hitting_Http()
+    {
+        var http = new FakeHttpClient();
+        var limits = new SourceRuleExecutionLimits { MaxRequests = 0 };
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator(), limits);
+
+        var result = await adapter.ExecuteAsync(
+            SearchRule(), BaseUrl, new Dictionary<string, string> { ["query"] = "q", ["page"] = "1" });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("request budget exceeded")));
+        Assert.AreEqual(0, http.CallCount, "a request denied by the budget must not reach the HTTP seam");
+    }
+
+    [TestMethod]
+    public async Task Execution_Time_Budget_Cancels_A_Hanging_Request()
+    {
+        var http = new HangingHttpClient();
+        var limits = new SourceRuleExecutionLimits
+        {
+            MaxExecutionTime = TimeSpan.FromMilliseconds(40),
+        };
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator(), limits);
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+
+        var execution = adapter.ExecuteAsync(
+            SearchRule(),
+            BaseUrl,
+            new Dictionary<string, string> { ["query"] = "q", ["page"] = "1" },
+            callerCancellation.Token);
+        var completed = await Task.WhenAny(execution, Task.Delay(TimeSpan.FromMilliseconds(500)));
+
+        Assert.AreSame(execution, completed, "the execution budget must bound a non-returning HTTP call");
+        var result = await execution;
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("time budget exceeded")));
+        await Task.Delay(TimeSpan.FromMilliseconds(20));
+        Assert.IsTrue(http.CancellationRequested);
+    }
+
+    [TestMethod]
+    public async Task Response_Over_Max_Bytes_Fails_Before_Field_Extraction()
+    {
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(200, "123456"),
+        };
+        var limits = new SourceRuleExecutionLimits { MaxBytes = 5 };
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator(), limits);
+
+        var result = await adapter.ExecuteAsync(
+            SearchRule(),
+            BaseUrl,
+            new Dictionary<string, string> { ["query"] = "q", ["page"] = "1" });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("response exceeded byte budget")));
+    }
+
+    [TestMethod]
+    public async Task Extracted_Result_Over_Max_Size_Fails_Without_Returning_Partial_Data()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Content,
+            RuleRequest.Get("/chapter/1"),
+            [new RuleField("content", new RuleSelector(SelectorKind.Css, ".content"), null, [])]);
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(200, "<html/>")
+        };
+        var evaluator = new FakeSelectorEvaluator { Handler = (_, _) => "123456" };
+        var limits = new SourceRuleExecutionLimits { MaxResultSize = 5 };
+
+        var result = await new RuleAdapter(http, evaluator, limits).ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("result exceeded size budget")));
+        Assert.AreEqual(0, result.Values.Count, "a result over budget must not expose partial fields");
+    }
+
+    [TestMethod]
+    public async Task Regex_Uses_The_Stricter_Execution_Time_Budget()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Content,
+            RuleRequest.Get("/chapter/1"),
+            [new RuleField("body", null, new RuleRegex(@"^(a+)+$", 1_000), [])]);
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(200, new string('a', 100) + "!"),
+        };
+        var limits = new SourceRuleExecutionLimits
+        {
+            MaxRegexTime = TimeSpan.FromMilliseconds(1),
+        };
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var result = await new RuleAdapter(http, new FakeSelectorEvaluator(), limits)
+            .ExecuteAsync(rule, BaseUrl);
+        stopwatch.Stop();
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("regex evaluation timed out")));
+        Assert.IsTrue(
+            stopwatch.Elapsed < TimeSpan.FromMilliseconds(250),
+            $"the stricter regex budget should finish promptly, actual {stopwatch.Elapsed}");
+    }
+
+    [TestMethod]
+    public async Task Oversized_Response_Is_Classified_As_A_Budget_Failure()
+    {
+        var result = await new OversizedResponseHttpClient()
+            .CreateAdapter()
+            .ExecuteAsync(
+                SearchRule(),
+                BaseUrl,
+                new Dictionary<string, string> { ["query"] = "q", ["page"] = "1" });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("response exceeded byte budget")));
+        Assert.IsFalse(result.Errors.Any(e => e.Contains("transport failure")));
+    }
+
     private sealed class ThrowingHttpClient : ISourceHttpClient
     {
         public Task<SourceHttpResponse> SendAsync(SourceHttpRequest request, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("connection refused (fixture)");
+    }
+
+    private sealed class OversizedResponseHttpClient : ISourceHttpClient
+    {
+        public RuleAdapter CreateAdapter() => new(this, new FakeSelectorEvaluator());
+
+        public Task<SourceHttpResponse> SendAsync(
+            SourceHttpRequest request,
+            CancellationToken cancellationToken = default) =>
+            throw new SourceResponseTooLargeException();
+    }
+
+    private sealed class HangingHttpClient : ISourceHttpClient
+    {
+        public bool CancellationRequested { get; private set; }
+
+        public async Task<SourceHttpResponse> SendAsync(
+            SourceHttpRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            using var registration = cancellationToken.Register(() => CancellationRequested = true);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+
+            throw new InvalidOperationException("the hanging fixture unexpectedly completed");
+        }
     }
 }
