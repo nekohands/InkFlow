@@ -23,6 +23,7 @@ var contexts = new DbContext[]
 {
     new IdentityDbContext(new DbContextOptionsBuilder<IdentityDbContext>().UseNpgsql(connectionString).Options),
     new AuditDbContext(new DbContextOptionsBuilder<AuditDbContext>().UseNpgsql(connectionString).Options),
+    new MessagingDbContext(new DbContextOptionsBuilder<MessagingDbContext>().UseNpgsql(connectionString).Options),
     new DeveloperDbContext(new DbContextOptionsBuilder<DeveloperDbContext>().UseNpgsql(connectionString).Options),
     new BillingDbContext(new DbContextOptionsBuilder<BillingDbContext>().UseNpgsql(connectionString).Options),
     new OperationsDbContext(new DbContextOptionsBuilder<OperationsDbContext>().UseNpgsql(connectionString).Options),

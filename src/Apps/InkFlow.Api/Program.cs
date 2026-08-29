@@ -64,6 +64,7 @@ builder.Services.AddDbContext<BillingDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
 builder.Services.AddDbContext<CrawlingDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
+builder.Services.AddScoped<ITransactionalOutboxWriter, EfTransactionalOutboxWriter>();
 builder.Services.AddScoped<LoggingAuditEventSink>();
 builder.Services.AddScoped<PersistentAuditEventSink>();
 builder.Services.AddScoped<IAuditEventSink, CompositeAuditEventSink>();

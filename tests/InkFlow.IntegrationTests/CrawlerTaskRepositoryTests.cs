@@ -1,3 +1,4 @@
+using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
@@ -46,7 +47,12 @@ public sealed class CrawlerTaskRepositoryTests
 
         var db = new CrawlingDbContext(options);
         db.Database.Migrate();
-        return (db, new EfCrawlerTaskRepository(db));
+        using var messaging = new MessagingDbContext(
+            new DbContextOptionsBuilder<MessagingDbContext>()
+                .UseNpgsql(_container!.GetConnectionString())
+                .Options);
+        messaging.Database.Migrate();
+        return (db, new EfCrawlerTaskRepository(db, new EfTransactionalOutboxWriter()));
     }
 
     private static CrawlPayload Payload(

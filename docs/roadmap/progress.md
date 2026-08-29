@@ -682,6 +682,15 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `0a1200e` 的 CI `33250749036`、Docker `33250749038`、Security `33250749023` 均 **GREEN**。CI receipt 实际匹配 `inkflow.slo.requests`、`inkflow.slo.request.duration` 以及四个 surface；本轮 artifact 解析确认 schemaVersion=1、四面各 5 requests/5 samples/0 server errors，p95 分别为 public 12.219ms、Legado 29.613ms、Developer 13.070ms、Reader 4.092ms。
 - 当前状态：Compose/CI metrics 到达验证已进入自动化 Release Gate，但整体仍保持 `1.0 Release Candidate`；本轮不代表生产 SLO 窗口、告警/保留治理或人工/真实来源验收完成。决策延续 ADR 0013。
 
+### 4.43 Transactional Outbox / Inbox 基础恢复（本轮，2026-08-29）
+
+- 缺口：仓库文档原先声称 Phase 0 已完成 Outbox/Inbox，但 `InkFlow.BuildingBlocks.Messaging` 实际只有空项目文件，缺少消息契约、PostgreSQL 表、租约投递和消费幂等实现；这会使跨模块一致性只能停留在文档层。
+- 实现：新增有界 JSON `IntegrationMessage`（稳定消息 ID、类型、TraceId、SHA-256 PayloadHash），`messaging.outbox_messages` / `messaging.inbox_messages` 及官方 EF Migration；Outbox 使用 PostgreSQL `FOR UPDATE SKIP LOCKED`、lease、attempt、失败退避和发布确认，Inbox 以消息 ID 主键、类型/载荷摘要核对和 lease 实现重复消费保护。
+- 事务边界：`ITransactionalOutboxWriter` 强制调用方先开启业务 DbContext 事务；Crawler `AddAsync` 现在将 `crawler.tasks` 与最小化 `crawler.task.created` 消息在同一 PostgreSQL 事务中提交或回滚。消息只含 task/source/capability/status 等稳定字段，不携带变量、章节 ID 或凭据引用。
+- 自动化证据：本机 `dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 327/327、Architecture 1/1、Contract 10/10 PASS；新增 7 个 PostgreSQL 18 Testcontainers 用例已编译，但本机执行因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为通过；`git diff --check` PASS（仅保留 Git 的换行提示）。
+- 远端证据：本候选尚未提交/推送，CI、Docker、安全扫描和远端 PostgreSQL 集成验证为 **NOT RUN**，不得据此关闭本工作包。
+- 当前状态：Outbox/Inbox 基础和一个 Crawler 生产写入点已实现，整体继续保持 `1.0 Release Candidate`；远端真实 PostgreSQL/Compose/CI 验证，以及真实来源、阅读 3.0、人工 UX、生产 OTLP/SLO 和通知治理仍按第 6 节待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -771,7 +780,7 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 64 项中 56 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过）；Private Library、Developers/Billing 与 Operations 告警历史新增迁移、隔离、并发和保留清理用例也必须取得真实容器证据。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 70 项中 62 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过）；Private Library、Developers/Billing、Operations 告警历史和 Messaging Outbox/Inbox 新增迁移、隔离、并发和保留清理用例也必须取得真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
@@ -791,6 +800,8 @@ Official Source
 ## 7. 当前阻塞
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
+
+本轮全量 `dotnet test InkFlow.sln -c Release --no-build` 的结果为：Unit 327/327、Architecture 1/1、Contract 10/10 PASS；Integration 70 项中 6 项通过、2 项跳过、62 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

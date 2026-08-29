@@ -10,6 +10,7 @@
 | 私人内容越权泄漏 | 极高 | Public/Private endpoint 分离、Ownership 授权、Blob 去重与权限分离 |
 | Legado Contract 被破坏 | 高 | 独立 DTO/API、兼容 Profile、Golden/Contract Test、Release Gate |
 | Crawler 无限重试 | 高 | Error Classification、MaxAttempts、Backoff、DeadLetter |
+| 业务事实与跨模块消息不一致 | 高 | 同一 PostgreSQL 事务写入 Transactional Outbox、消息 ID/载荷摘要核对、lease + SKIP LOCKED、Inbox 幂等；其他模块接入前不得宣称事件闭环 |
 | Redis 丢失导致任务状态丢失 | 高 | PostgreSQL 作为 Task Source of Truth，Redis 仅 Dispatch 加速 |
 | Blob 与数据库不一致 | 高 | Consistency Checker、StoragePointer validation、Repair Job |
 | Source Credential 泄漏 | 高 | SecretReference、最小权限、Task 不携带明文凭据、审计 |

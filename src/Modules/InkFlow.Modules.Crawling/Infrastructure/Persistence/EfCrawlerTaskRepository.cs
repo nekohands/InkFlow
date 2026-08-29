@@ -1,18 +1,30 @@
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
+using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Sources.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace InkFlow.Modules.Crawling.Infrastructure.Persistence;
 
 /// <summary>EF Core / Npgsql 仓储实现。租约互斥依赖数据库事务 + 状态条件更新。</summary>
-public sealed class EfCrawlerTaskRepository(CrawlingDbContext db) : ICrawlerTaskRepository, ICrawlerTaskRepairRepository
+public sealed class EfCrawlerTaskRepository(
+    CrawlingDbContext db,
+    ITransactionalOutboxWriter outbox) : ICrawlerTaskRepository, ICrawlerTaskRepairRepository
 {
     public async Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
         db.Tasks.Add(CrawlerTaskMapper.ToEntity(task));
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await outbox.EnqueueAsync(
+                db,
+                CrawlerIntegrationMessages.TaskCreated(task),
+                cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default)

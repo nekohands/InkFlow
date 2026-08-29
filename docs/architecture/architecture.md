@@ -117,8 +117,12 @@ Developer API / Commercial Foundation v1 的组合根由 `InkFlow.Api` 组装：
 
 采用 PostgreSQL Transaction + Transactional Outbox + Inbox：
 
-- 数据写入与 Outbox Event 同事务提交。
-- 跨进程消费采用 At-Least-Once + Idempotent Consumer。
+- `InkFlow.BuildingBlocks.Messaging` 定义有界 JSON `IntegrationMessage`；消息 ID、类型和 PayloadHash 是消费幂等与身份核对的稳定字段。
+- `messaging.outbox_messages` / `messaging.inbox_messages` 是 PostgreSQL 事实表，不由 Redis、缓存或 Projection 替代。
+- `ITransactionalOutboxWriter` 只能在业务 DbContext 已开启的 PostgreSQL 事务中追加 Outbox 行，业务事实与 Outbox Event 必须同事务提交或回滚。
+- Outbox Dispatcher 以 `FOR UPDATE SKIP LOCKED` 领取可投递行，用 lease、attempt、AvailableAt 和失败代码支持 At-Least-Once；发布成功后才写入 `ProcessedAt`。
+- Inbox 以消息 ID 主键去重，处理成功后才写入 `ProcessedAt`；消费者崩溃或 lease 到期后允许再次领取。类型/载荷摘要不一致视为身份冲突并拒绝消费。
+- 当前已接入 Crawler `AddAsync` 的 `crawler.task.created` 最小稳定事件；其他模块的业务写入必须在接入相同事务 seam 后才能发布事件。
 - 不追求依赖 MQ 的理论 Exactly Once。
 
 Domain Event 描述模块内部事实；Integration Event 仅暴露跨模块需要的稳定事实。
