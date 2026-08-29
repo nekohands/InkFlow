@@ -283,6 +283,165 @@ public sealed class MessagingPersistenceTests
         Assert.AreEqual(1, claims.Count(claim => claim.Status == InboxClaimStatus.AlreadyInProgress));
     }
 
+    [TestMethod]
+    public async Task Outbox_Dispatcher_Publishes_And_Acknowledges_Real_Record()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var message = IntegrationMessage.Create(
+            "test.dispatcher.real",
+            "{\"value\":11}",
+            T0,
+            id: Guid.CreateVersion7());
+
+        await using (var enqueueDb = CreateMessagingDb())
+        {
+            await new EfMessagingMessageStore(enqueueDb)
+                .EnqueueAsync(message)
+                .ConfigureAwait(false);
+        }
+
+        var publisher = new RecordingPublisher();
+        await using (var dispatchDb = CreateMessagingDb())
+        {
+            var dispatcher = new OutboxDispatcher(
+                new EfMessagingMessageStore(dispatchDb),
+                publisher,
+                new FixedTimeProvider(T0),
+                new OutboxDispatcherOptions
+                {
+                    Owner = "dispatcher-real",
+                    LeaseDuration = TimeSpan.FromMinutes(2),
+                    BatchSize = 10,
+                    RetryPolicy = new ExponentialMessageRetryPolicy(
+                        TimeSpan.FromSeconds(1),
+                        TimeSpan.FromMinutes(1)),
+                });
+
+            var result = await dispatcher.DispatchOnceAsync().ConfigureAwait(false);
+            Assert.AreEqual(1, result.ClaimedCount);
+            Assert.AreEqual(1, result.PublishedCount);
+            Assert.AreEqual(0, result.FailedCount);
+        }
+
+        await using var verify = CreateMessagingDb();
+        var stored = await verify.OutboxMessages
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == message.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual(message.Id, publisher.Published.Single().Id);
+        Assert.IsNotNull(stored.ProcessedAt);
+        Assert.AreEqual(1, stored.AttemptCount);
+        Assert.IsNull(stored.LockOwner);
+    }
+
+    [TestMethod]
+    public async Task Outbox_Dispatcher_Releases_Transport_Failure_For_Retry()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var message = IntegrationMessage.Create(
+            "test.dispatcher.retry",
+            "{\"value\":12}",
+            T0,
+            id: Guid.CreateVersion7());
+
+        await using (var enqueueDb = CreateMessagingDb())
+        {
+            await new EfMessagingMessageStore(enqueueDb)
+                .EnqueueAsync(message)
+                .ConfigureAwait(false);
+        }
+
+        await using (var dispatchDb = CreateMessagingDb())
+        {
+            var dispatcher = new OutboxDispatcher(
+                new EfMessagingMessageStore(dispatchDb),
+                new RecordingPublisher { ThrowOnPublish = true },
+                new FixedTimeProvider(T0),
+                new OutboxDispatcherOptions
+                {
+                    Owner = "dispatcher-retry",
+                    LeaseDuration = TimeSpan.FromMinutes(2),
+                    BatchSize = 10,
+                    RetryPolicy = new ExponentialMessageRetryPolicy(
+                        TimeSpan.FromSeconds(4),
+                        TimeSpan.FromMinutes(1)),
+                });
+
+            var result = await dispatcher.DispatchOnceAsync().ConfigureAwait(false);
+            Assert.AreEqual(1, result.ClaimedCount);
+            Assert.AreEqual(0, result.PublishedCount);
+            Assert.AreEqual(1, result.FailedCount);
+        }
+
+        await using var verify = CreateMessagingDb();
+        var stored = await verify.OutboxMessages
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == message.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual(T0.AddSeconds(4), stored.AvailableAt);
+        Assert.AreEqual(MessageFailureCodes.PublishFailed, stored.LastError);
+        Assert.IsNull(stored.ProcessedAt);
+        Assert.IsNull(stored.LockOwner);
+    }
+
+    [TestMethod]
+    public async Task Inbox_Consumer_Processes_And_Deduplicates_Real_Record()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var message = IntegrationMessage.Create(
+            "test.consumer.real",
+            "{\"value\":13}",
+            T0,
+            id: Guid.CreateVersion7());
+        var handler = new RecordingHandler(message.MessageType);
+        var resolver = new IntegrationMessageHandlerRegistry([handler]);
+
+        InboxConsumeResult first;
+        await using (var firstDb = CreateMessagingDb())
+        {
+            first = await new IntegrationMessageConsumer(
+                    new EfMessagingMessageStore(firstDb),
+                    resolver,
+                    new FixedTimeProvider(T0),
+                    new InboxConsumerOptions
+                    {
+                        Owner = "consumer-real-a",
+                        LeaseDuration = TimeSpan.FromMinutes(2),
+                    })
+                .ConsumeAsync(message)
+                .ConfigureAwait(false);
+        }
+
+        InboxConsumeResult duplicate;
+        await using (var duplicateDb = CreateMessagingDb())
+        {
+            duplicate = await new IntegrationMessageConsumer(
+                    new EfMessagingMessageStore(duplicateDb),
+                    resolver,
+                    new FixedTimeProvider(T0.AddSeconds(1)),
+                    new InboxConsumerOptions
+                    {
+                        Owner = "consumer-real-b",
+                        LeaseDuration = TimeSpan.FromMinutes(2),
+                    })
+                .ConsumeAsync(message)
+                .ConfigureAwait(false);
+        }
+
+        Assert.AreEqual(InboxConsumeStatus.Processed, first.Status);
+        Assert.AreEqual(InboxConsumeStatus.AlreadyProcessed, duplicate.Status);
+        Assert.AreEqual(1, handler.CallCount);
+
+        await using var verify = CreateMessagingDb();
+        var stored = await verify.InboxMessages
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == message.Id)
+            .ConfigureAwait(false);
+        Assert.IsNotNull(stored.ProcessedAt);
+        Assert.AreEqual(1, stored.AttemptCount);
+        Assert.IsNull(stored.LockOwner);
+    }
+
     private static async Task MigrateAllRequiredSchemasAsync()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);
@@ -317,4 +476,44 @@ public sealed class MessagingPersistenceTests
         new(new DbContextOptionsBuilder<CrawlingDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
             .Options);
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class RecordingPublisher : IIntegrationMessagePublisher
+    {
+        public List<OutboxMessageRecord> Published { get; } = [];
+
+        public bool ThrowOnPublish { get; init; }
+
+        public Task PublishAsync(
+            OutboxMessageRecord message,
+            CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnPublish)
+            {
+                throw new InvalidOperationException("transport failure details");
+            }
+
+            Published.Add(message);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingHandler(string messageType) : IIntegrationMessageHandler
+    {
+        public string MessageType { get; } = messageType;
+
+        public int CallCount { get; private set; }
+
+        public Task HandleAsync(
+            IntegrationMessage message,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.CompletedTask;
+        }
+    }
 }
