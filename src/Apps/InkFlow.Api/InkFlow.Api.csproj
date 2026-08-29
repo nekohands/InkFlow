@@ -16,5 +16,6 @@
     <ProjectReference Include="../../Modules/InkFlow.Modules.Legado/InkFlow.Modules.Legado.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Developers/InkFlow.Modules.Developers.csproj" />
     <ProjectReference Include="../../Modules/InkFlow.Modules.Billing/InkFlow.Modules.Billing.csproj" />
+    <ProjectReference Include="../../Modules/InkFlow.Modules.Operations/InkFlow.Modules.Operations.csproj" />
   </ItemGroup>
 </Project>

@@ -21,6 +21,7 @@ public sealed class ModuleBoundarySmokeTests
         "InkFlow.Modules.Legado",
         "InkFlow.Modules.Developers",
         "InkFlow.Modules.Billing",
+        "InkFlow.Modules.Operations",
     ];
 
     [TestMethod]

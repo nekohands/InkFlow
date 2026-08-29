@@ -1,4 +1,6 @@
 using InkFlow.Api;
+using InkFlow.Modules.Operations.Application;
+using InkFlow.Modules.Operations.Domain;
 using InkFlow.Modules.Sources.Domain;
 using Microsoft.Extensions.Configuration;
 
@@ -20,6 +22,7 @@ public sealed class OperationsAlertTests
                 ["Operations:Alerts:UnavailableCapabilityCountThreshold"] = "2",
                 ["Operations:Alerts:ConsistencyIssueCountThreshold"] = "5",
                 ["Operations:Alerts:MaxReturnedAlerts"] = "20",
+                ["Operations:Alerts:HistoryRetentionDays"] = "14",
             })
             .Build();
 
@@ -29,6 +32,7 @@ public sealed class OperationsAlertTests
         Assert.AreEqual(2, options.UnavailableCapabilityCountThreshold);
         Assert.AreEqual(5, options.ConsistencyIssueCountThreshold);
         Assert.AreEqual(20, options.MaxReturnedAlerts);
+        Assert.AreEqual(14, options.HistoryRetentionDays);
 
         var invalid = new OperationsAlertOptions { MaxReturnedAlerts = 0 };
         Assert.ThrowsExactly<InvalidOperationException>(() => invalid.Validate());
@@ -177,6 +181,41 @@ public sealed class OperationsAlertTests
         Assert.IsTrue(snapshot.Truncated);
     }
 
+    [TestMethod]
+    public async Task Reader_Records_Only_Unfiltered_Complete_Snapshots()
+    {
+        var operations = new FakeOperationsCenterReader(
+            new OperationsCenterResponse(
+                T0,
+                "ready",
+                OperationsSection<IReadOnlyList<OperationsSourceView>>.Ready([]),
+                OperationsSection<OperationsCrawlerView>.Ready(
+                    new OperationsCrawlerView(0, false, [])),
+                OperationsSection<ConsistencyCheckReport>.Ready(
+                    new ConsistencyCheckReport(T0, "healthy", 0, 0, false, []))));
+        var history = new FakeHistoryRepository();
+        var reader = new OperationsAlertReader(
+            operations,
+            new FixedRateLimitHealthReader(new RateLimitStoreHealthSnapshot(
+                RateLimitStoreHealthStatus.Healthy,
+                0,
+                T0,
+                null)),
+            new OperationsAlertOptions(),
+            new FixedClock(T0),
+            history);
+
+        await reader.ReadAsync(10);
+        await reader.ReadForSourcesAsync(10, new HashSet<string>(StringComparer.Ordinal)
+        {
+            "official-a",
+        });
+
+        Assert.AreEqual(1, history.RecordedSnapshots);
+        Assert.IsTrue(history.LastSnapshotWasComplete);
+        Assert.AreEqual(0, history.LastAlerts.Count);
+    }
+
     private sealed class FakeOperationsCenterReader(OperationsCenterResponse response)
         : IOperationsCenterReader
     {
@@ -204,6 +243,34 @@ public sealed class OperationsAlertTests
         : IRateLimitStoreHealthReader
     {
         public RateLimitStoreHealthSnapshot GetSnapshot() => snapshot;
+    }
+
+    private sealed class FakeHistoryRepository : IOperationsAlertHistoryRepository
+    {
+        public int RecordedSnapshots { get; private set; }
+
+        public bool LastSnapshotWasComplete { get; private set; }
+
+        public IReadOnlyCollection<OperationsAlertObservation> LastAlerts { get; private set; } = [];
+
+        public Task RecordSnapshotAsync(
+            DateTimeOffset observedAt,
+            bool isCompleteSnapshot,
+            IReadOnlyCollection<OperationsAlertObservation> activeAlerts,
+            TimeSpan retention,
+            CancellationToken cancellationToken = default)
+        {
+            RecordedSnapshots++;
+            LastSnapshotWasComplete = isCompleteSnapshot;
+            LastAlerts = activeAlerts;
+            return Task.CompletedTask;
+        }
+
+        public Task<OperationsAlertHistoryPage> QueryAsync(
+            int limit,
+            OperationsAlertHistoryCursor? before = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new OperationsAlertHistoryPage([], null));
     }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider

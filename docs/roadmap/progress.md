@@ -617,6 +617,15 @@ Phase 1A 自动化工作包状态：
 - 修正提交 `638a18e` 的远端验证已通过：CI `33242669065` 中 60 项 58 通过、2 跳过，应用/Key 并发上限和过期 Key 轮换两个新增测试均通过；Docker `33242669053`、Security `33242669075` 均 GREEN。
 - 当前状态：代码实现和远端真实 PostgreSQL 并发验证已完成，自动化 Release Gate 保持通过；不改变 `1.0 Release Candidate` 状态，也不替代第 6 节人工/真实环境验收。
 
+### 4.36 Operations 告警历史、去重与恢复状态（本轮，2026-08-29）
+
+- 缺口：Operations Alert Snapshot v1 只能返回当前快照，重复轮询会反复看到同一告警；此前没有可追溯的 opened/resolved 转折、并发协调、保留清理或受保护历史查询。
+- 设计：新增独立 `InkFlow.Modules.Operations` 模块与 `operations` schema；告警指纹只由稳定 code/resource 坐标计算，排除动态 message。`alert_incidents` 保存当前状态与出现次数，`alert_history` 只保存 opened/resolved 转折；完整快照才允许恢复缺失 incident，partial/unavailable 快照不误恢复。
+- 实现：PostgreSQL Migration 创建两张表、索引和禁止 UPDATE 的追加式触发器；仓储在事务内使用 PostgreSQL advisory lock 协调多 API 实例，重复快照只更新 last-seen/occurrence，不新增历史行；按 `HistoryRetentionDays`（默认 30 天，范围 1–3650）清理旧历史和过期 resolved 状态。未过滤的管理员告警快照接入记录，新增 Administrator-only `GET /api/v1/admin/operations/alerts/history`，默认 50、最多 100 条并使用时间戳+事件 ID 不透明游标。
+- 安全与边界：历史不写入动态描述、异常原文、Token、IP、连接串或正文；Operator 继续只能获取来源过滤快照，不能查询平台级历史；历史读取/存储失败分别返回稳定 `operations_alert_history_unavailable` 或保留当前快照可用。外部通知渠道、生产路由与治理仍不虚构，继续列为后续 Operations 工作。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 317/317、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、2 跳过、56 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，其中新增 Operations PostgreSQL Testcontainers 4 项均已实际尝试；`dotnet ef migrations has-pending-model-changes` PASS，`git diff --check` PASS。API 本地 Runtime smoke：`/health` 200，匿名历史入口 401。
+- 当前状态：本工作包保持 `1.0 Release Candidate`，自动化实现待远端 CI/Docker/Security 验证；不等同于 `Accepted/Completed`，人工 Operations Center、真实 PostgreSQL/Redis、真实来源和阅读 3.0 验收仍按第 6 节待定清单执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -699,14 +708,14 @@ Official Source
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
-- [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
+- [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、管理员告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
 - [ ] **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块按来源过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未使用真实凭据操作。
 - [ ] **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询 200、Reader/匿名请求 401/403、时间范围/精确过滤/游标翻页、空结果和服务不可用时的稳定错误；确认响应不暴露秘密或正文，并保留截图/请求证据。本轮只完成自动化基线。
 - [ ] **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮未使用真实凭据。
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 58 项中 50 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过）；Private Library 与 Developers/Billing 新增迁移、隔离、配额并发用例也必须取得真实容器证据。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 64 项中 56 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过）；Private Library、Developers/Billing 与 Operations 告警历史新增迁移、隔离、并发和保留清理用例也必须取得真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
@@ -714,17 +723,17 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照与配置化阈值；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由和审计保留策略仍待后续 Operations/Identity/商业化工作包。
+- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理和管理员历史查询；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由、生产告警治理和审计保留策略仍待后续 Operations/Identity/商业化工作包。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
-- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照与阈值基线已落地，外部告警路由、历史/去重、保留策略和完整运维闭环仍待后续 Operations/Crawling 工作包。
+- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态和内部保留清理已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
 
 ## 7. 当前阻塞
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查的远端 CI、Compose、Runtime smoke 与 Docker 已取得本轮提交 `f83476a` 的实际绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；这些人工/环境限制属于整体 Release Gate，不改变已通过的本地和远端自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史仍待候选提交触发新的远端验证。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Legado/InkFlow.Modules.Legado.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Developers/InkFlow.Modules.Developers.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Billing/InkFlow.Modules.Billing.csproj" />
+    <ProjectReference Include="../../src/Modules/InkFlow.Modules.Operations/InkFlow.Modules.Operations.csproj" />
     <ProjectReference Include="../../src/Adapters/Kanunu8/InkFlow.Sources.Adapters.Kanunu8.csproj" />
   </ItemGroup>
 </Project>

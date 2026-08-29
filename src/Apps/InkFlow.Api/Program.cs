@@ -13,6 +13,8 @@ using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Billing.Application;
 using InkFlow.Modules.Billing.Infrastructure.Persistence;
 using InkFlow.Modules.Billing.Infrastructure;
+using InkFlow.Modules.Operations.Application;
+using InkFlow.Modules.Operations.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Legado.Application;
@@ -51,6 +53,8 @@ var databaseConnectionString =
     ?? "Host=localhost;Port=5432;Database=inkflow;Username=inkflow;Password=inkflow";
 
 builder.Services.AddDbContext<AuditDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
+builder.Services.AddDbContextFactory<OperationsDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
 builder.Services.AddDbContext<IdentityDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
@@ -234,6 +238,7 @@ builder.Services.AddScoped<IOperationsCenterReader, OperationsCenterReader>();
 builder.Services.AddSingleton(
     OperationsAlertOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddScoped<IOperationsAlertReader, OperationsAlertReader>();
+builder.Services.AddScoped<IOperationsAlertHistoryRepository, EfOperationsAlertHistoryRepository>();
 builder.Services.AddScoped<IReadingStateRepository, EfReadingStateRepository>();
 builder.Services.AddScoped<IReadingStateService, ReadingStateService>();
 builder.Services.AddScoped<CatalogQueryService>();
@@ -688,6 +693,51 @@ operationsRead.MapGet("/operations/alerts", async (
                 ct)
             .ConfigureAwait(false);
     return Results.Ok(snapshot);
+});
+
+operationsRead.MapGet("/operations/alerts/history", async (
+    int? limit,
+    string? cursor,
+    ClaimsPrincipal principal,
+    IOperationsAlertHistoryRepository history,
+    CancellationToken ct) =>
+{
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out _,
+            out var role))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    // History is a platform-wide incident view. Operators receive source-scoped
+    // snapshots, so only administrators may query this unfiltered history.
+    if (role != UserRole.Administrator)
+    {
+        return (IResult)Results.Forbid();
+    }
+
+    if (!OperationsAlertHistoryEndpointResults.TryCreateQuery(
+            limit,
+            cursor,
+            out var boundedLimit,
+            out var before,
+            out var error))
+    {
+        return (IResult)Results.BadRequest(new { error });
+    }
+
+    try
+    {
+        var page = await history.QueryAsync(boundedLimit, before, ct).ConfigureAwait(false);
+        return Results.Ok(OperationsAlertHistoryEndpointResults.ToResponse(page));
+    }
+    catch (Exception) when (!ct.IsCancellationRequested)
+    {
+        return Results.Json(
+            new { error = "operations_alert_history_unavailable" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
 });
 
 var repair = api.MapGroup("/admin")

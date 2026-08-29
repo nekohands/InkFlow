@@ -72,9 +72,9 @@ CI: GREEN (CI 33242669065; Docker 33242669053; Security 33242669075)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-29 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现，远端 CI、Docker、Security 门禁已通过；真实凭据、真实 PostgreSQL/Redis 和人工验收仍待后续。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
+**当前状态（2026-08-29 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现，远端 CI、Docker、Security 门禁已通过；真实凭据、真实 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐，远端门禁待本轮候选提交验证；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
 
-本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数、受保护的 Operations 告警快照与阈值基线，以及来源级资源授权 v1。授权管理、来源过滤和撤销审计已接入；外部通知路由、告警历史/去重和更完整的组织/资源权限治理仍待后续工作包。
+本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数、受保护的 Operations 告警快照与阈值基线，以及来源级资源授权 v1。授权管理、来源过滤和撤销审计已接入；告警内部历史/去重/恢复状态已由 Operations PostgreSQL 事实表承载，外部通知路由和更完整的组织/资源权限治理仍待后续工作包。
 
 随后补齐 Worker 任务可靠性基础：过期 `Leased`/`Running` 任务会回收后重新领取，数据库领取查询覆盖过期 `Running`，`CompositeTaskExecutor` 已注册到 DI，单个执行异常进入失败/重试/死信路径；本轮进一步加入基于 PostgreSQL 事务与 `FOR UPDATE SKIP LOCKED` 的跨进程原子领取，以及基于 `ScheduledAt` 的持久化重试退避。追更写侧已完整闭环：目录联动入队 + 抓取→发布桥 + 上游修订重扫，Content 任务真正产出正典 `ContentVersion` 并保持版本追加不覆盖（详见 4.6 / 4.7）。本轮进一步打通冷启动主路径:`BookDiscoveryService` 让 `/api/v1/search` 与 Legado `/search` 能发现未入库书目,幂等导入并自动匹配正典身份(详见 4.8)。健康侧完成半开自动恢复与主动巡检探针(4.9);Web Reader 搜索也已接入发现流,三端(API/Legado/Reader)共用同一落库过滤语义(详见 4.10)。冷却曲线参数已配置化(ADR 0005,详见 4.11):运营经 `SourceHealth` 配置节调整失败阈值与重探节奏,无 Schema 变更。
 
@@ -276,6 +276,15 @@ CI: GREEN (CI 33242669065; Docker 33242669053; Security 33242669075)
 - 修正提交 `638a18e` 的远端验证已通过：CI `33242669065` 中 60 项 58 通过、2 跳过，应用/Key 并发上限和过期 Key 轮换两个新增测试均通过；Docker `33242669053`、Security `33242669075` 均 GREEN。
 - 当前状态：代码实现和远端真实 PostgreSQL 并发验证已完成，自动化 Release Gate 保持通过；不改变 `1.0 Release Candidate` 状态，也不替代待定事项中的人工/真实环境验收。
 
+### 4.36 Operations 告警历史、去重与恢复状态（本轮，2026-08-29）
+
+- 缺口：告警快照此前没有可追溯的 opened/resolved 历史、重复快照去重、并发协调、恢复状态、保留清理或受保护历史查询。
+- 实现：新增 `InkFlow.Modules.Operations` 与 `operations` schema；`alert_incidents` 保存当前状态/last-seen/occurrence，`alert_history` 只保存稳定告警身份的 opened/resolved 转折。PostgreSQL 事务级 advisory lock 协调多 API 实例，完整快照才能恢复缺失 incident，partial/unavailable 快照不会误恢复；Migration 以触发器拒绝历史 UPDATE，按 `HistoryRetentionDays` 清理旧历史和过期 resolved 状态。
+- API/权限：未过滤的 Administrator 告警快照接入持久化；新增 `GET /api/v1/admin/operations/alerts/history`，默认 50、最多 100 条，时间戳+事件 ID 不透明游标分页。平台级历史只对 Administrator 开放，Operator 仍只能读取来源过滤快照；查询故障返回稳定 `operations_alert_history_unavailable`。
+- 安全边界：历史不写入动态 message、异常原文、Token、IP、连接串或正文；外部通知渠道、生产路由/治理不在本轮实现。
+- 本地证据：Release Build 0 warnings / 0 errors；Unit 317/317、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、2 跳过、56 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，其中新增 4 项 Operations PostgreSQL Testcontainers 均已实际尝试；EF model pending-check、`git diff --check` PASS；API `/health` 200，匿名历史入口 401。远端 CI/Docker/Security 由候选提交后验证。
+- 当前状态：保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；Operations Center 历史分页、真实 PostgreSQL/Redis、真实来源、阅读 3.0 和其他人工验收继续按待定清单执行。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -283,7 +292,7 @@ CI: GREEN (CI 33242669065; Docker 33242669053; Security 33242669075)
 5. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 6. **Phase 1B 真实切源验收**：从已接入来源中选择可稳定访问的真实第二 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
 7. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
-8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview 读取、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
+8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、Administrator 告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
 9. **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询授权、时间范围/精确过滤/游标、空结果、稳定错误和响应脱敏；本轮只完成自动化基线，未执行人工操作。
 10. **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未执行真实凭据操作。
 11. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
@@ -322,6 +331,7 @@ CI: GREEN (CI 33242669065; Docker 33242669053; Security 33242669075)
 ✅ PostgreSQL Backup/Restore Drill v1：custom-format dump/restore + 隔离库全表行数签名校验（`29c2c5f`，CI `33129734525` / Docker `33129734604` 均 GREEN）
 ✅ Redis Distributed Rate Limit v1：Redis Lua 原子 fixed-window + 独立连接集成验证 + 有界本地降级（`2bace7d`，CI `33131258779` / Docker `33131258754` 均 GREEN）
 ✅ Operations Alert Snapshot v1：来源健康/死信/一致性/Redis 告警快照 + 配置化阈值 + OperationsRead 保护（本工作包）
+✅ Operations Alert History v1：PostgreSQL incident 去重/恢复 + opened/resolved 历史 + 保留清理 + Administrator-only 有界查询（本轮；远端门禁待候选提交验证）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
@@ -552,7 +562,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
-- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练、告警快照/阈值、来源级授权 v1 和已落地高风险命令审计基线已完成；外部告警路由、历史/去重、生产异地备份/保留/RPO-RTO、安全扫描治理、组织/更广泛资源权限和更完整的审计保留治理仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级。
+- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练、告警快照/阈值/内部历史去重与恢复、来源级授权 v1 和已落地高风险命令审计基线已完成；外部告警路由、生产异地备份/保留/RPO-RTO、安全扫描治理、组织/更广泛资源权限和更完整的审计保留治理仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级。
 - 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1、Private Library 私有正文/TXT/EPUB 导入导出自动化基础和 Developer API / Entitlement / Billing v1 候选基线已完成；PWA 实际安装/离线/跨设备验收、Private Library 与 Developer API 真实账户/凭据验收、Organization、Community Marketplace 仍未完成。
 
 更后阶段：Developer API / Commercial Foundation 的真实运营与产品化深化、Organization、Community Marketplace、Enterprise Deployment。

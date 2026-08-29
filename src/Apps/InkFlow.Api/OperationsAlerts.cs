@@ -1,10 +1,14 @@
 using System.Globalization;
+using InkFlow.Modules.Operations.Application;
+using InkFlow.Modules.Operations.Domain;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace InkFlow.Api;
 
 /// <summary>
-/// Operations 告警阈值。告警读取是快照语义；外部通知、去重和历史留存不在本版本内。
+/// Operations 告警阈值。当前告警快照可选地记录内部 opened/resolved 历史；
+/// 外部通知路由仍由后续运维集成负责。
 /// </summary>
 public sealed class OperationsAlertOptions
 {
@@ -14,6 +18,7 @@ public sealed class OperationsAlertOptions
     public int UnavailableCapabilityCountThreshold { get; init; } = 1;
     public int ConsistencyIssueCountThreshold { get; init; } = 1;
     public int MaxReturnedAlerts { get; init; } = 100;
+    public int HistoryRetentionDays { get; init; } = 30;
 
     public static OperationsAlertOptions FromConfiguration(
         IConfiguration configuration)
@@ -37,6 +42,10 @@ public sealed class OperationsAlertOptions
                 section,
                 nameof(MaxReturnedAlerts),
                 100),
+            HistoryRetentionDays = ReadInt(
+                section,
+                nameof(HistoryRetentionDays),
+                30),
         };
         options.Validate();
         return options;
@@ -56,6 +65,7 @@ public sealed class OperationsAlertOptions
             100_000,
             nameof(ConsistencyIssueCountThreshold));
         ValidateRange(MaxReturnedAlerts, 1, 100, nameof(MaxReturnedAlerts));
+        ValidateRange(HistoryRetentionDays, 1, 3650, nameof(HistoryRetentionDays));
     }
 
     private static int ReadInt(
@@ -127,7 +137,9 @@ public sealed class OperationsAlertReader(
     IOperationsCenterReader operations,
     IRateLimitStoreHealthReader rateLimitHealth,
     OperationsAlertOptions options,
-    TimeProvider clock) : IOperationsAlertReader
+    TimeProvider clock,
+    IOperationsAlertHistoryRepository? history = null,
+    ILogger<OperationsAlertReader>? logger = null) : IOperationsAlertReader
 {
     public const int DefaultLimit = 50;
 
@@ -168,6 +180,36 @@ public sealed class OperationsAlertReader(
             operationsSnapshot,
             rateLimitHealth.GetSnapshot(),
             _options);
+
+        if (allowedSourceIds is null && history is not null)
+        {
+            try
+            {
+                await history.RecordSnapshotAsync(
+                        operationsSnapshot.GeneratedAt,
+                        string.Equals(
+                            operationsSnapshot.Status,
+                            "ready",
+                            StringComparison.OrdinalIgnoreCase),
+                        alerts.Select(alert => OperationsAlertObservation.Create(
+                                alert.Code,
+                                alert.Severity,
+                                alert.ResourceType,
+                                alert.ResourceId))
+                            .ToArray(),
+                        TimeSpan.FromDays(_options.HistoryRetentionDays),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // The current snapshot remains available if the optional history
+                // store is unavailable; the next complete poll can reconcile it.
+                logger?.LogWarning(
+                    "Operations alert history persistence failed; current snapshot remains available.");
+            }
+        }
+
         var returnedAlerts = alerts.Take(boundedLimit).ToList();
 
         return new OperationsAlertSnapshot(
