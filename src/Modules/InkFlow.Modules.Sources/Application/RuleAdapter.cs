@@ -263,8 +263,18 @@ public sealed class RuleAdapter
             return false;
         }
 
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var target) &&
-            !Uri.TryCreate(new Uri(currentRequest.Url), value, out target))
+        if (!Uri.TryCreate(value, UriKind.RelativeOrAbsolute, out var parsedLink))
+        {
+            error = "pagination: next link is not a valid URL.";
+            return false;
+        }
+
+        Uri? target;
+        if (parsedLink.IsAbsoluteUri)
+        {
+            target = parsedLink;
+        }
+        else if (!Uri.TryCreate(new Uri(currentRequest.Url), parsedLink, out target))
         {
             error = "pagination: next link is not a valid URL.";
             return false;
