@@ -1,4 +1,5 @@
 using AngleSharp.Html.Parser;
+using AngleSharp.Dom;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 
@@ -6,8 +7,8 @@ namespace InkFlow.Modules.Sources.Infrastructure;
 
 /// <summary>
 /// CSS 选择器求值器(AngleSharp HtmlParser 实现)。
-/// XPath / JSONPath v1 暂未支持:EvaluateFirst 返回 null、SelectAll 返回空,
-/// 由规则校验与执行器按缺失处理;两个引擎随后续工作包以同一接口接入。
+/// 多选择器场景由 <see cref="RuleSelectorEvaluator"/> 统一分派；此类保留为
+/// CSS-only 的兼容实现。
 /// </summary>
 public sealed class CssSelectorEvaluator : ISelectorEvaluator
 {
@@ -21,15 +22,22 @@ public sealed class CssSelectorEvaluator : ISelectorEvaluator
             return null;
         }
 
-        var element = Parser.ParseDocument(documentBody).QuerySelector(selector.Expression);
-        if (element is null)
+        try
+        {
+            var element = Parser.ParseDocument(documentBody).QuerySelector(selector.Expression);
+            if (element is null)
+            {
+                return null;
+            }
+
+            return string.IsNullOrWhiteSpace(attributeName)
+                ? element.TextContent.Trim()
+                : element.GetAttribute(attributeName.Trim());
+        }
+        catch (DomException)
         {
             return null;
         }
-
-        return string.IsNullOrWhiteSpace(attributeName)
-            ? element.TextContent.Trim()
-            : element.GetAttribute(attributeName.Trim());
     }
 
     public IReadOnlyList<SelectorElementSnapshot> SelectAll(
@@ -40,11 +48,18 @@ public sealed class CssSelectorEvaluator : ISelectorEvaluator
             return [];
         }
 
-        return Parser.ParseDocument(documentBody)
-            .QuerySelectorAll(selector.Expression)
-            .Select(e => new SelectorElementSnapshot(
-                e.TextContent.Trim(),
-                e.Attributes.ToDictionary(a => a.Name, a => a.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase)))
-            .ToList();
+        try
+        {
+            return Parser.ParseDocument(documentBody)
+                .QuerySelectorAll(selector.Expression)
+                .Select(e => new SelectorElementSnapshot(
+                    e.TextContent.Trim(),
+                    e.Attributes.ToDictionary(a => a.Name, a => a.Value ?? string.Empty, StringComparer.OrdinalIgnoreCase)))
+                .ToList();
+        }
+        catch (DomException)
+        {
+            return [];
+        }
     }
 }

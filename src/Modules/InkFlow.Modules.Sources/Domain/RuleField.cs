@@ -15,9 +15,13 @@ public sealed record RuleField(
 /// <summary>
 /// 列表抽取绑定(Toc/Search 等多结果能力):选择重复条目集合,
 /// 从条目的指定属性(通常 href)剥离前后缀得到外部 ID,标题取条目文本。
+/// <paramref name="ItemsSelectorKind"/> 默认为 CSS；JSONPath 条目可用
+/// <paramref name="TextAttribute"/> 指定标题属性。
 /// </summary>
 public sealed record RuleListBinding(
     string ItemsSelector,
     string ExternalIdAttribute,
     string IdPrefixToStrip,
-    string IdSuffixToStrip);
+    string IdSuffixToStrip,
+    SelectorKind ItemsSelectorKind = SelectorKind.Css,
+    string? TextAttribute = null);

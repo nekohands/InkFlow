@@ -48,7 +48,7 @@ builder.Services.AddHttpClient<InkFlow.Sources.Adapters.SeventeenK.SeventeenKSou
     .ConfigurePrimaryHttpMessageHandler(sp =>
         new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
-builder.Services.AddScoped<ISelectorEvaluator, InkFlow.Modules.Sources.Infrastructure.CssSelectorEvaluator>();
+builder.Services.AddScoped<ISelectorEvaluator, InkFlow.Modules.Sources.Infrastructure.RuleSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
     sp.GetRequiredService<ISourceRepository>(),

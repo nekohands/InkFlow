@@ -240,4 +240,32 @@ public sealed class SourceRuleDslJsonTests
         StringAssert.Contains(json, "\"capability\": \"search\"");
         StringAssert.Contains(json, "\"kind\": \"trim\"");
     }
+
+    [TestMethod]
+    public void Serialize_Roundtrips_JsonPath_List_Binding_Metadata()
+    {
+        var dsl = new SourceRuleDsl(
+            "1",
+            "json-source",
+            [new CapabilityRule(
+                SourceCapability.Search,
+                RuleRequest.Get("/search"),
+                [],
+                new RuleListBinding(
+                    "$.items[*]",
+                    "id",
+                    string.Empty,
+                    string.Empty,
+                    SelectorKind.JsonPath,
+                    "title"))]);
+
+        var json = SourceRuleDslJson.Serialize(dsl);
+        var result = SourceRuleDslJson.Parse(json);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(SelectorKind.JsonPath, result.Document!.Rules[0].List!.ItemsSelectorKind);
+        Assert.AreEqual("title", result.Document.Rules[0].List!.TextAttribute);
+        StringAssert.Contains(json, "\"itemsSelectorKind\": \"jsonPath\"");
+        StringAssert.Contains(json, "\"textAttribute\": \"title\"");
+    }
 }

@@ -56,8 +56,9 @@ public sealed class RuleBasedSourceAdapter(
             }
 
             const string unknownAuthor = "未知";
+            var title = GetItemText(item, rule.List);
             var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
-                Encoding.UTF8.GetByteCount(item.TextContent) +
+                Encoding.UTF8.GetByteCount(title) +
                 Encoding.UTF8.GetByteCount(unknownAuthor);
             if (resultBytes + itemBytes > _limits.MaxResultSize)
             {
@@ -65,7 +66,7 @@ public sealed class RuleBasedSourceAdapter(
             }
 
             resultBytes += itemBytes;
-            results.Add(new SourceSearchResult(externalId, item.TextContent, unknownAuthor));
+            results.Add(new SourceSearchResult(externalId, title, unknownAuthor));
         }
 
         return results;
@@ -125,7 +126,7 @@ public sealed class RuleBasedSourceAdapter(
         foreach (var item in items)
         {
             var externalId = ExtractExternalId(item, rule.List);
-            var title = item.TextContent.Trim();
+            var title = GetItemText(item, rule.List);
 
             if (string.IsNullOrEmpty(externalId) || string.IsNullOrEmpty(title))
             {
@@ -184,7 +185,20 @@ public sealed class RuleBasedSourceAdapter(
     }
 
     private static RuleSelector ToSelector(RuleListBinding binding) =>
-        new(SelectorKind.Css, binding.ItemsSelector);
+        new(binding.ItemsSelectorKind, binding.ItemsSelector);
+
+    private static string GetItemText(
+        SelectorElementSnapshot element,
+        RuleListBinding binding)
+    {
+        if (!string.IsNullOrWhiteSpace(binding.TextAttribute) &&
+            element.Attributes.TryGetValue(binding.TextAttribute, out var attributeValue))
+        {
+            return attributeValue.Trim();
+        }
+
+        return element.TextContent.Trim();
+    }
 
     /// <summary>外部 ID = 条目属性值剥离声明的前缀/后缀。</summary>
     private static string? ExtractExternalId(

@@ -316,6 +316,14 @@
           "minLength": 1,
           "maxLength": 2048
         },
+        "itemsSelectorKind": {
+          "enum": [
+            "css",
+            "xPath",
+            "jsonPath"
+          ],
+          "default": "css"
+        },
         "externalIdAttribute": {
           "type": "string",
           "minLength": 1,
@@ -328,6 +336,18 @@
         "idSuffixToStrip": {
           "type": "string",
           "maxLength": 512
+        },
+        "textAttribute": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          ]
         }
       }
     }

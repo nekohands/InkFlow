@@ -8,8 +8,8 @@ public sealed record SelectorElementSnapshot(
     IReadOnlyDictionary<string, string> Attributes);
 
 /// <summary>
-/// 选择器求值抽象(CSS/XPath/JSONPath)。具体引擎随后续工作包以适配器注入;
-/// 本接口让 RuleAdapter 与解析器实现解耦，并可完全离线测试。
+/// 选择器求值抽象(CSS/XPath/JSONPath)。默认实现由 `RuleSelectorEvaluator` 统一分派；本接口让
+/// RuleAdapter 与解析器实现解耦，并可完全离线测试。
 /// </summary>
 public interface ISelectorEvaluator
 {
@@ -18,7 +18,7 @@ public interface ISelectorEvaluator
 
     /// <summary>
     /// 返回与选择器匹配的全部元素快照(列表抽取用)。
-    /// v1 仅支持 CSS 选择器;XPath/JSONPath 引擎接入后在此分派。
+    /// XPath 与 JSONPath 仅开放受控子集；不支持的语法返回空结果。
     /// </summary>
     IReadOnlyList<SelectorElementSnapshot> SelectAll(string documentBody, RuleSelector selector);
 }

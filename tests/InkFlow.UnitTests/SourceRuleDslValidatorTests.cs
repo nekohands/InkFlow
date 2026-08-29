@@ -170,6 +170,50 @@ public sealed class SourceRuleDslValidatorTests
     }
 
     [TestMethod]
+    public void List_Selector_Metadata_Validates_Kind_And_Text_Attribute()
+    {
+        var dsl = ValidDsl();
+        var list = dsl.Rules[0].List! with
+        {
+            ItemsSelectorKind = (SelectorKind)99,
+            TextAttribute = " "
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            dsl with { Rules = [dsl.Rules[0] with { List = list }] });
+
+        Assert.IsTrue(result.Any(e => e.Contains("list selector kind")));
+        Assert.IsTrue(result.Any(e => e.Contains("textAttribute")));
+    }
+
+    [TestMethod]
+    public void Selector_Expressions_Must_Use_Their_Declared_Root_Syntax()
+    {
+        var dsl = ValidDsl();
+        var rules = dsl.Rules.Select(rule => rule with
+        {
+            Fields = [
+                new RuleField(
+                    "json",
+                    new RuleSelector(SelectorKind.JsonPath, "items.title"),
+                    null,
+                    []),
+                new RuleField(
+                    "xpath",
+                    new RuleSelector(SelectorKind.XPath, "root/item"),
+                    null,
+                    [])
+            ],
+            List = rule.List
+        }).ToList();
+
+        var result = SourceRuleDslValidator.Validate(dsl with { Rules = rules });
+
+        Assert.IsTrue(result.Any(e => e.Contains("JSONPath selector")));
+        Assert.IsTrue(result.Any(e => e.Contains("XPath selector")));
+    }
+
+    [TestMethod]
     public void Validator_Returns_All_Violations_At_Once()
     {
         var dsl = new SourceRuleDsl("42", "", []);

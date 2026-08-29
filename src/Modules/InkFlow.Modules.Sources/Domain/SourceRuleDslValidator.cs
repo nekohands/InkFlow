@@ -257,6 +257,20 @@ public static class SourceRuleDslValidator
                     $"{prefix}['{field.Name}'] selector expression",
                     errors);
 
+                var expression = selector.Expression?.TrimStart() ?? string.Empty;
+                if (selector.Kind == SelectorKind.JsonPath && !expression.StartsWith('$'))
+                {
+                    errors.Add(
+                        $"{prefix}['{field.Name}']: JSONPath selector must start with '$'.");
+                }
+
+                if (selector.Kind == SelectorKind.XPath &&
+                    !expression.StartsWith('/') && !expression.StartsWith('.'))
+                {
+                    errors.Add(
+                        $"{prefix}['{field.Name}']: XPath selector must start with '/' or '.'.");
+                }
+
                 if (field.Attribute is not null && string.IsNullOrWhiteSpace(field.Attribute))
                 {
                     errors.Add($"{prefix}['{field.Name}']: attribute name must not be blank when specified.");
@@ -354,6 +368,24 @@ public static class SourceRuleDslValidator
             errors.Add($"{prefix}: list itemsSelector must not be empty.");
         }
 
+        var listExpression = list.ItemsSelector?.TrimStart() ?? string.Empty;
+        if (list.ItemsSelectorKind == SelectorKind.JsonPath &&
+            !listExpression.StartsWith('$'))
+        {
+            errors.Add($"{prefix}: JSONPath list selector must start with '$'.");
+        }
+
+        if (list.ItemsSelectorKind == SelectorKind.XPath &&
+            !listExpression.StartsWith('/') && !listExpression.StartsWith('.'))
+        {
+            errors.Add($"{prefix}: XPath list selector must start with '/' or '.'.");
+        }
+
+        if (!Enum.IsDefined(list.ItemsSelectorKind))
+        {
+            errors.Add($"{prefix}: unknown list selector kind '{list.ItemsSelectorKind}'.");
+        }
+
         ValidateMaxLength(
             list.ItemsSelector,
             MaxSelectorExpressionLength,
@@ -390,6 +422,22 @@ public static class SourceRuleDslValidator
             list.IdSuffixToStrip,
             MaxListTrimLength,
             $"{prefix} idSuffixToStrip",
+            errors);
+
+        if (list.TextAttribute is not null && string.IsNullOrWhiteSpace(list.TextAttribute))
+        {
+            errors.Add($"{prefix}: list textAttribute must not be blank when specified.");
+        }
+
+        if (list.TextAttribute?.Any(char.IsControl) == true)
+        {
+            errors.Add($"{prefix}: list textAttribute must not contain control characters.");
+        }
+
+        ValidateMaxLength(
+            list.TextAttribute,
+            MaxAttributeNameLength,
+            $"{prefix} textAttribute",
             errors);
     }
 

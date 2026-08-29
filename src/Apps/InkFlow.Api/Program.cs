@@ -203,7 +203,7 @@ builder.Services.AddHttpClient<InkFlow.Sources.Adapters.SeventeenK.SeventeenKSou
     .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(20))
     .ConfigurePrimaryHttpMessageHandler(sp =>
         new SsrfSafeHttpMessageHandler(sp.GetRequiredService<IIpAddressResolver>()));
-builder.Services.AddScoped<ISelectorEvaluator, CssSelectorEvaluator>();
+builder.Services.AddScoped<ISelectorEvaluator, RuleSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
     sp.GetRequiredService<ISourceRepository>(),
