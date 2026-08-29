@@ -660,7 +660,7 @@ Phase 1A 自动化工作包状态：
 - 实现：新增固定版本 `otel/opentelemetry-collector:0.159.0`，配置文件为 `deploy/observability/otel-collector-config.yaml`；OTLP gRPC/HTTP 仅在 Compose 内部监听，健康端口 `13133` 只绑定宿主机 loopback。API、Worker、Scheduler 默认指向 `http://otel-collector:4317`，同时保留 `OTEL_EXPORTER_OTLP_ENDPOINT` 覆盖入口；Collector 使用只读挂载、read-only、tmpfs、`no-new-privileges` 和 `cap_drop: ALL`。
 - 验证边界：CI Runtime smoke 新增 Collector 健康请求，Docker 门禁先扫描固定版本 Collector 再扫描四个业务镜像；当前 `debug` exporter 只用于本地/CI 接收与诊断，不提供生产持久化、查询、告警或长期保留。Collector 健康通过不等同于四个 Core SLO 服务面有生产窗口证据或月度达标，决策见 ADR 0012。
 - 本地证据：`Get-Command docker` 显示 Docker CLI 不存在，因此 Compose config、Collector Runtime smoke 和依赖 Docker 的 Integration 仍为 **BLOCKED**；未以本地应用测试替代该证据。
-- 远端证据：候选提交推送后补录 CI/Docker/Security 三个工作流结果；任一未触发、Pending 或失败均不标记为完成。
+- 远端证据：候选提交 `3a891ef` 的 CI `33248301675`、Docker `33248301684`、Security `33248301664` 均 **GREEN**。CI 实际通过 Compose config、Collector loopback 健康 Runtime smoke、Restore/Build/Test、Redis 限流、PostgreSQL 备份恢复和 Runtime diagnostics；Docker 先通过 Collector 镜像 Trivy 扫描，再完成四个业务镜像构建/扫描/发布；Security 的 NuGet、Trivy、CodeQL、SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
 - 当前状态：保持 `1.0 Release Candidate`；Compose 接收/健康基线进入自动化门禁，但生产 OTLP 后端、SLO 窗口、合成探针、错误预算告警与保留治理仍属于 Release Gate。
 
 ## 5. Phase 1A 核心验收链路
