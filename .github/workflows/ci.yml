@@ -34,6 +34,13 @@ jobs:
       - name: Validate Compose
         run: docker compose -f docker-compose.build.yml config --quiet
 
+      - name: Core SLO probe script regression
+        run: |
+          bash -n scripts/core-slo-runtime-smoke.sh
+          bash -n scripts/tests/core-slo-runtime-smoke.fixture-curl.sh
+          bash -n scripts/tests/core-slo-runtime-smoke.test.sh
+          bash scripts/tests/core-slo-runtime-smoke.test.sh
+
       - name: Runtime smoke test
         run: |
           docker compose -f docker-compose.build.yml up -d --build --wait api worker scheduler otel-collector
@@ -195,6 +202,24 @@ jobs:
             docker compose logs --no-color api
             exit 1
           }
+
+      - name: Core SLO synthetic probe
+        env:
+          INKFLOW_SLO_EVIDENCE_FILE: ${{ runner.temp }}/inkflow-core-slo-evidence.json
+          INKFLOW_SLO_PROBE_COUNT: "5"
+          INKFLOW_SLO_CURL_MAX_TIME: "10"
+        run: |
+          chmod +x scripts/core-slo-runtime-smoke.sh
+          scripts/core-slo-runtime-smoke.sh http://localhost:8080
+
+      - name: Upload Core SLO synthetic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkflow-core-slo-synthetic-evidence
+          path: ${{ runner.temp }}/inkflow-core-slo-evidence.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Redis distributed rate-limit integration
         env:

@@ -321,6 +321,14 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 本地证据：Docker CLI 不存在，Compose config/Runtime smoke/Testcontainers 仍为 BLOCKED；候选提交 `3a891ef` 的远端 CI `33248301675`、Docker `33248301684`、Security `33248301664` 均 GREEN。CI 通过 Compose config、Collector loopback 健康 Runtime smoke、Restore/Build/Test、Redis 限流、备份恢复和 diagnostics；Docker 先扫描 Collector，再完成四个业务镜像构建/扫描/发布；Security 的 NuGet、Trivy、CodeQL、SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
 - 当前状态：保持 `1.0 Release Candidate`。生产 OTLP 后端、四服务面到达、合成探针/窗口、错误预算告警和保留治理仍是 Release Gate。
 
+### 4.41 Core SLO Runtime 合成探针基线（本轮，2026-08-29）
+
+- 缺口：Collector 已能在 Compose 内部接收遥测，但 Runtime smoke 还没有对四个 Core SLO 服务面形成统一、可复核的请求与 p95 证据。
+- 实现：新增 `scripts/core-slo-runtime-smoke.sh`，固定探测公共目录（200）、空查询 Legado（200）、未授权 Developer API（预期 401）和 Reader 页面（200）。每面默认 5 次请求，单请求超时 10 秒且上限 60 秒；失败、超时或非预期状态立即失败，不自动重试，也不保存响应正文。
+- 证据：脚本生成包含 UTC 窗口、四面请求数/5xx 数/延迟样本数/p95 的 JSON，CI 上传 30 天构建产物。空 Legado 查询不触发真实来源，Developer 探针不使用真实凭据；证据可以映射到 `CoreSloWindowEvidence`，但不直接宣称生产 SLO 达标。
+- 本地证据：本机 Docker CLI 不存在，源码 Compose/真实 API Runtime 探针与 Testcontainers 仍为 BLOCKED；已完成 Bash 语法与本地 fixture 回归后再记录结果。
+- 当前状态：保持 `1.0 Release Candidate`，等待远端 CI 首次执行并确认 Runtime artifact；真实 OTLP 后端、长窗口聚合、错误预算告警、保留治理以及用户决定延后的人工/真实来源验收继续按待定清单执行。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -334,7 +342,8 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 11. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
 12. **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖和失败导入无半本书；确认不进入公共 Catalog、搜索、Legado 或公共 Reading Shelf。本轮只完成自动化基线。
 13. **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证 Developer API 的目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮只完成自动化基线，未使用真实凭据。
-14. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收、Private Library 真实账户/文件验收，并继续推进 Security/Operations、外部告警和组织/支付商业化能力。
+14. **生产 OTLP/SLO 窗口验收**：将 Collector 接入受治理持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，并验收错误预算告警、访问控制和保留策略；当前 CI 探针仅为短窗口基线。
+15. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收、Private Library 真实账户/文件验收，并继续推进 Security/Operations、外部告警和组织/支付商业化能力。
 
 当前推荐顺序：
 
@@ -372,6 +381,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Core SLO Observability v1：四类服务面 + 可用性/延迟/5xx 低基数指标 + OTLP 显式配置（`a87c5ae`；CI `33246490603` / Docker `33246490571` / Security `33246490589` GREEN；真实 SLO 窗口与人工验收待定）
 ✅ Core SLO 窗口证据评估契约：四面完整性 + p95/可用性 + 错误预算 + 缺证据 fail-closed（本轮；真实 Collector/合成探针窗口待定）
 ✅ Compose OTLP Collector 监控基线：固定版本 Collector + 内部 OTLP 接收 + loopback 健康 smoke + 三宿主默认接线（`3a891ef`；CI `33248301675` / Docker `33248301684` / Security `33248301664` GREEN；生产后端/窗口/告警/保留仍待定）
+✅ Core SLO Runtime 合成探针基线：四服务面固定入口 + 有界状态/延迟采样 + UTC JSON artifact（本轮；生产 OTLP 后端/长窗口/告警/保留与人工验收待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
