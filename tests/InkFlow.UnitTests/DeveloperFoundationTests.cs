@@ -112,6 +112,36 @@ public sealed class DeveloperApplicationServiceTests
         Assert.IsNull(await service.ValidateAsync(issued.Value!.RawKey));
     }
 
+    [TestMethod]
+    public async Task Application_Limit_From_Repository_Is_Reported_Without_Persisting()
+    {
+        var applications = new FakeApplicationRepository { RejectAdds = true };
+        var service = CreateService(applications, new FakeKeyRepository());
+
+        var result = await service.CreateApplicationAsync(Guid.CreateVersion7(), "Limit App");
+
+        Assert.AreEqual(DeveloperOperationStatus.LimitReached, result.Status);
+        Assert.IsNull(result.Value);
+    }
+
+    [TestMethod]
+    public async Task Key_Limit_From_Repository_Is_Reported_Without_Exposing_A_Secret()
+    {
+        var applications = new FakeApplicationRepository();
+        var keys = new FakeKeyRepository { RejectAdds = true };
+        var service = CreateService(applications, keys);
+        var application = await service.CreateApplicationAsync(Guid.CreateVersion7(), "Limit App");
+
+        var result = await service.IssueKeyAsync(
+            application.Value!.UserId,
+            application.Value.ApplicationId,
+            "Limit key",
+            null);
+
+        Assert.AreEqual(DeveloperOperationStatus.LimitReached, result.Status);
+        Assert.IsNull(result.Value);
+    }
+
     private static DeveloperApplicationService CreateService(
         FakeApplicationRepository applications,
         FakeKeyRepository keys) =>
@@ -153,12 +183,19 @@ public sealed class DeveloperApplicationServiceTests
     {
         private readonly Dictionary<Guid, DeveloperApplication> _items = [];
 
-        public Task AddAsync(
+        public bool RejectAdds { get; init; }
+
+        public Task<bool> AddAsync(
             DeveloperApplication application,
             CancellationToken cancellationToken = default)
         {
+            if (RejectAdds)
+            {
+                return Task.FromResult(false);
+            }
+
             _items[application.Id] = application;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
         public Task<IReadOnlyList<DeveloperApplication>> ListForUserAsync(
@@ -196,12 +233,19 @@ public sealed class DeveloperApplicationServiceTests
     {
         private readonly Dictionary<Guid, DeveloperApiKey> _items = [];
 
-        public Task AddAsync(
+        public bool RejectAdds { get; init; }
+
+        public Task<bool> AddAsync(
             DeveloperApiKey key,
             CancellationToken cancellationToken = default)
         {
+            if (RejectAdds)
+            {
+                return Task.FromResult(false);
+            }
+
             _items[key.Id] = key;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
         public Task<IReadOnlyList<DeveloperApiKey>> ListForApplicationAsync(

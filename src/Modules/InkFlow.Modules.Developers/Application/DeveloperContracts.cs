@@ -58,7 +58,8 @@ public sealed record DeveloperKeyAuthentication(
 
 public interface IDeveloperApplicationRepository
 {
-    Task AddAsync(DeveloperApplication application, CancellationToken cancellationToken = default);
+    /// <returns><see langword="true"/> when persisted; <see langword="false"/> when the active application cap is reached.</returns>
+    Task<bool> AddAsync(DeveloperApplication application, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<DeveloperApplication>> ListForUserAsync(
         Guid userId,
@@ -78,7 +79,8 @@ public interface IDeveloperApplicationRepository
 
 public interface IDeveloperApiKeyRepository
 {
-    Task AddAsync(DeveloperApiKey key, CancellationToken cancellationToken = default);
+    /// <returns><see langword="true"/> when persisted; <see langword="false"/> when the active key cap is reached.</returns>
+    Task<bool> AddAsync(DeveloperApiKey key, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<DeveloperApiKey>> ListForApplicationAsync(
         Guid userId,

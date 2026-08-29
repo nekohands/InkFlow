@@ -17,6 +17,8 @@ The external base path is `/api/developer/v1`. The Web/API management surface re
 
 The raw secret is returned only from a successful issue or rotate response. List and audit responses contain key metadata and a safe prefix, never the hash or raw secret.
 
+Lifecycle limits are enforced by the PostgreSQL persistence boundary: one user may have at most 10 active applications and one application may have at most 5 active keys. Application creation and key issue use transaction-scoped advisory locks; key rotation uses the same application lock and cannot turn an expired key into an additional active key beyond the cap.
+
 ## Management endpoints
 
 | Method | Path | Authorization | Purpose |

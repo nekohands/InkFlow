@@ -2,6 +2,7 @@ using DotNet.Testcontainers.Images;
 using InkFlow.Modules.Billing.Application;
 using InkFlow.Modules.Billing.Domain;
 using InkFlow.Modules.Billing.Infrastructure.Persistence;
+using InkFlow.Modules.Developers.Application;
 using InkFlow.Modules.Developers.Domain;
 using InkFlow.Modules.Developers.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -94,6 +95,126 @@ public sealed class DeveloperBillingPersistenceTests
     }
 
     [TestMethod]
+    public async Task Concurrent_Application_And_Key_Creation_Respect_Active_Limits()
+    {
+        await using var setup = CreateDeveloperDb();
+        await setup.Database.MigrateAsync().ConfigureAwait(false);
+
+        var applicationOwner = Guid.CreateVersion7();
+        var applicationRepository = new EfDeveloperApplicationRepository(setup);
+        for (var index = 0; index < DeveloperLimits.MaxApplicationsPerUser - 1; index++)
+        {
+            var seeded = DeveloperApplication.Create(
+                applicationOwner,
+                $"Seed application {index}",
+                T0);
+            Assert.IsTrue(await applicationRepository.AddAsync(seeded).ConfigureAwait(false));
+        }
+
+        await using var firstApplicationDb = CreateDeveloperDb();
+        await using var secondApplicationDb = CreateDeveloperDb();
+        var firstApplication = DeveloperApplication.Create(
+            applicationOwner,
+            "Concurrent application A",
+            T0);
+        var secondApplication = DeveloperApplication.Create(
+            applicationOwner,
+            "Concurrent application B",
+            T0);
+        var applicationResults = await Task.WhenAll(
+            new EfDeveloperApplicationRepository(firstApplicationDb).AddAsync(firstApplication),
+            new EfDeveloperApplicationRepository(secondApplicationDb).AddAsync(secondApplication))
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(1, applicationResults.Count(result => result));
+        Assert.AreEqual(1, applicationResults.Count(result => !result));
+
+        var keyOwner = Guid.CreateVersion7();
+        var keyApplication = DeveloperApplication.Create(keyOwner, "Key limit application", T0);
+        Assert.IsTrue(await applicationRepository.AddAsync(keyApplication).ConfigureAwait(false));
+        var keyRepository = new EfDeveloperApiKeyRepository(setup);
+        for (var index = 0; index < DeveloperLimits.MaxActiveKeysPerApplication - 1; index++)
+        {
+            var raw = $"lf_dev_seed-{index}";
+            var seeded = DeveloperApiKey.Create(
+                keyOwner,
+                keyApplication.Id,
+                $"Seed key {index}",
+                raw[..16],
+                DeveloperApiKey.HashSecret(raw),
+                DeveloperApiScopes.CatalogRead,
+                DeveloperEnvironment.Production,
+                T0,
+                T0.AddDays(30));
+            Assert.IsTrue(await keyRepository.AddAsync(seeded).ConfigureAwait(false));
+        }
+
+        await using var firstKeyDb = CreateDeveloperDb();
+        await using var secondKeyDb = CreateDeveloperDb();
+        var firstKey = CreateKey(keyOwner, keyApplication.Id, "Concurrent key A", "a");
+        var secondKey = CreateKey(keyOwner, keyApplication.Id, "Concurrent key B", "b");
+        var keyResults = await Task.WhenAll(
+            new EfDeveloperApiKeyRepository(firstKeyDb).AddAsync(firstKey),
+            new EfDeveloperApiKeyRepository(secondKeyDb).AddAsync(secondKey))
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(1, keyResults.Count(result => result));
+        Assert.AreEqual(1, keyResults.Count(result => !result));
+    }
+
+    [TestMethod]
+    public async Task Rotating_An_Expired_Key_Cannot_Exceed_The_Active_Key_Limit()
+    {
+        await using var db = CreateDeveloperDb();
+        await db.Database.MigrateAsync().ConfigureAwait(false);
+
+        var userId = Guid.CreateVersion7();
+        var application = DeveloperApplication.Create(userId, "Expired rotation application", T0);
+        var applications = new EfDeveloperApplicationRepository(db);
+        var keys = new EfDeveloperApiKeyRepository(db);
+        Assert.IsTrue(await applications.AddAsync(application).ConfigureAwait(false));
+
+        var expiredRaw = "lf_dev_expired-rotation";
+        var expired = DeveloperApiKey.Create(
+            userId,
+            application.Id,
+            "Expired key",
+            expiredRaw[..16],
+            DeveloperApiKey.HashSecret(expiredRaw),
+            DeveloperApiScopes.CatalogRead,
+            DeveloperEnvironment.Production,
+            T0.AddDays(-2),
+            T0.AddDays(-1));
+        Assert.IsTrue(await keys.AddAsync(expired).ConfigureAwait(false));
+
+        for (var index = 0; index < DeveloperLimits.MaxActiveKeysPerApplication; index++)
+        {
+            Assert.IsTrue(
+                await keys.AddAsync(
+                    CreateKey(userId, application.Id, $"Active key {index}", $"active-{index}"))
+                    .ConfigureAwait(false));
+        }
+
+        var replacement = CreateKey(userId, application.Id, "Replacement key", "replacement");
+        Assert.IsFalse(
+            await keys.RotateAsync(
+                    userId,
+                    application.Id,
+                    expired.Id,
+                    replacement,
+                    T0)
+                .ConfigureAwait(false));
+
+        var current = await keys.GetAsync(userId, application.Id, expired.Id).ConfigureAwait(false);
+        Assert.IsNotNull(current);
+        Assert.IsNull(current!.RevokedAt);
+        Assert.AreEqual(
+            DeveloperLimits.MaxActiveKeysPerApplication,
+            (await keys.ListForApplicationAsync(userId, application.Id).ConfigureAwait(false))
+                .Count(key => key.IsActive(T0)));
+    }
+
+    [TestMethod]
     public async Task Monthly_Quota_Is_Enforced_At_User_Level_Across_Keys()
     {
         await using (var setup = CreateBillingDb())
@@ -140,6 +261,25 @@ public sealed class DeveloperBillingPersistenceTests
         new(new DbContextOptionsBuilder<DeveloperDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
             .Options);
+
+    private static DeveloperApiKey CreateKey(
+        Guid userId,
+        Guid applicationId,
+        string name,
+        string suffix)
+    {
+        var raw = $"lf_dev_concurrent-{suffix}";
+        return DeveloperApiKey.Create(
+            userId,
+            applicationId,
+            name,
+            raw[..16],
+            DeveloperApiKey.HashSecret(raw),
+            DeveloperApiScopes.CatalogRead,
+            DeveloperEnvironment.Production,
+            T0,
+            T0.AddDays(30));
+    }
 
     private static BillingDbContext CreateBillingDb() =>
         new(new DbContextOptionsBuilder<BillingDbContext>()

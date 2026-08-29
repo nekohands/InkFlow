@@ -22,17 +22,15 @@ public sealed class DeveloperApplicationService(
                 DeveloperOperationStatus.InvalidRequest);
         }
 
-        var existing = await applications.ListForUserAsync(userId, cancellationToken).ConfigureAwait(false);
-        if (existing.Count(application => application.IsActive) >= DeveloperLimits.MaxApplicationsPerUser)
-        {
-            return DeveloperOperationResult<DeveloperApplicationView>.Failure(
-                DeveloperOperationStatus.LimitReached);
-        }
-
         try
         {
             var application = DeveloperApplication.Create(userId, name ?? string.Empty, clock.GetUtcNow());
-            await applications.AddAsync(application, cancellationToken).ConfigureAwait(false);
+            if (!await applications.AddAsync(application, cancellationToken).ConfigureAwait(false))
+            {
+                return DeveloperOperationResult<DeveloperApplicationView>.Failure(
+                    DeveloperOperationStatus.LimitReached);
+            }
+
             return DeveloperOperationResult<DeveloperApplicationView>.Success(ToView(application));
         }
         catch (ArgumentException)
@@ -75,15 +73,6 @@ public sealed class DeveloperApplicationService(
         {
             return DeveloperOperationResult<IssuedDeveloperApiKey>.Failure(
                 DeveloperOperationStatus.NotFound);
-        }
-
-        var activeKeys = (await keys.ListForApplicationAsync(userId, applicationId, cancellationToken)
-                .ConfigureAwait(false))
-            .Count(key => key.IsActive(clock.GetUtcNow()));
-        if (activeKeys >= DeveloperLimits.MaxActiveKeysPerApplication)
-        {
-            return DeveloperOperationResult<IssuedDeveloperApiKey>.Failure(
-                DeveloperOperationStatus.LimitReached);
         }
 
         if (!ValidateOptionalKeyName(name) || !TryLifetime(expiresInDays, out var lifetime))
@@ -233,7 +222,12 @@ public sealed class DeveloperApplicationService(
             application.Environment,
             now,
             now.Add(lifetime));
-        await keys.AddAsync(key, cancellationToken).ConfigureAwait(false);
+        if (!await keys.AddAsync(key, cancellationToken).ConfigureAwait(false))
+        {
+            return DeveloperOperationResult<IssuedDeveloperApiKey>.Failure(
+                DeveloperOperationStatus.LimitReached);
+        }
+
         return DeveloperOperationResult<IssuedDeveloperApiKey>.Success(
             new IssuedDeveloperApiKey(ToView(key), secret.RawKey));
     }

@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
 using InkFlow.Modules.Developers.Application;
 using InkFlow.Modules.Developers.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -57,15 +59,71 @@ public static class DeveloperMapper
             entity.RevokedAt);
 }
 
+/// <summary>
+/// PostgreSQL transaction-scoped locks serialize quota-like lifecycle caps across API instances.
+/// The lock key is derived from the stable aggregate identity and never contains user data.
+/// </summary>
+internal static class DeveloperAdvisoryLock
+{
+    private const int ApplicationNamespace = 1001;
+    private const int ApiKeyNamespace = 1002;
+
+    public static Task AcquireApplicationAsync(
+        DeveloperDbContext db,
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        AcquireAsync(db, ApplicationNamespace, userId, cancellationToken);
+
+    public static Task AcquireApiKeyAsync(
+        DeveloperDbContext db,
+        Guid applicationId,
+        CancellationToken cancellationToken) =>
+        AcquireAsync(db, ApiKeyNamespace, applicationId, cancellationToken);
+
+    private static Task AcquireAsync(
+        DeveloperDbContext db,
+        int namespaceKey,
+        Guid aggregateId,
+        CancellationToken cancellationToken)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        aggregateId.TryWriteBytes(bytes);
+        var hash = BinaryPrimitives.ReadInt32LittleEndian(SHA256.HashData(bytes));
+        return db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({namespaceKey}, {hash})",
+            cancellationToken);
+    }
+}
+
 public sealed class EfDeveloperApplicationRepository(DeveloperDbContext db)
     : IDeveloperApplicationRepository
 {
-    public async Task AddAsync(
+    public async Task<bool> AddAsync(
         DeveloperApplication application,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await DeveloperAdvisoryLock
+            .AcquireApplicationAsync(db, application.UserId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var activeCount = await db.Applications
+            .CountAsync(
+                x => x.UserId == application.UserId && x.RevokedAt == null,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (activeCount >= DeveloperLimits.MaxApplicationsPerUser)
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
         db.Applications.Add(DeveloperMapper.ToEntity(application));
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     public async Task<IReadOnlyList<DeveloperApplication>> ListForUserAsync(
@@ -120,12 +178,34 @@ public sealed class EfDeveloperApplicationRepository(DeveloperDbContext db)
 public sealed class EfDeveloperApiKeyRepository(DeveloperDbContext db)
     : IDeveloperApiKeyRepository
 {
-    public async Task AddAsync(
+    public async Task<bool> AddAsync(
         DeveloperApiKey key,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await DeveloperAdvisoryLock
+            .AcquireApiKeyAsync(db, key.ApplicationId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var activeCount = await db.ApiKeys
+            .CountAsync(
+                x => x.ApplicationId == key.ApplicationId &&
+                     x.RevokedAt == null &&
+                     x.ExpiresAt > key.CreatedAt,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (activeCount >= DeveloperLimits.MaxActiveKeysPerApplication)
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
         db.ApiKeys.Add(DeveloperMapper.ToEntity(key));
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     public async Task<IReadOnlyList<DeveloperApiKey>> ListForApplicationAsync(
@@ -211,11 +291,28 @@ public sealed class EfDeveloperApiKeyRepository(DeveloperDbContext db)
             .BeginTransactionAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        await DeveloperAdvisoryLock
+            .AcquireApiKeyAsync(db, applicationId, cancellationToken)
+            .ConfigureAwait(false);
+
         var current = await db.ApiKeys
             .FromSqlInterpolated($"SELECT * FROM \"developers\".\"api_keys\" WHERE \"Id\" = {keyId} AND \"UserId\" = {userId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
         if (current is null || current.RevokedAt is not null)
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
+        var activeCount = await db.ApiKeys
+            .CountAsync(
+                x => x.ApplicationId == applicationId &&
+                     x.RevokedAt == null &&
+                     x.ExpiresAt > now,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (current.ExpiresAt <= now && activeCount >= DeveloperLimits.MaxActiveKeysPerApplication)
         {
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             return false;
