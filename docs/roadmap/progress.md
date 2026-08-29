@@ -706,7 +706,7 @@ Phase 1A 自动化工作包状态：
 - 实现：新增 `MessageRetentionOptions`、`MessageRetentionService` 和 `IMessageRetentionStore`。每轮按 `BatchSize` 与 `MaxBatchesPerRun` 双重上限计算 Outbox/Inbox cutoff，只删除 `ProcessedAt` 已设置且早于 cutoff 的记录；失败、待重试、未处理和仍被锁定的消息不在清理条件内。PostgreSQL 实现使用事务内 `FOR UPDATE SKIP LOCKED` 分批删除，Worker 以 `Messaging:Retention` 配置并在启动延迟后每小时执行。
 - 边界：本轮只接入消息事实表保留清理，不选择 MQ、Publisher 或业务 Handler，也不把清理结果作为消息事实的唯一来源；具体传输和执行宿主仍需后续按模块推进。
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 338/338、Architecture 1/1、Contract 10/10 PASS；完整 Integration 76 项中 6 项通过、2 项跳过、68 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为本机集成通过；新增 MessagingRetention 单测 4/4 通过，新增 MessagingPersistence 保留清理集成用例 2 项已实际尝试但被 Docker 阻断；`git diff --check` PASS（仅保留 Git 换行提示）。
-- 远端证据：本工作包候选提交的 CI、Docker、Security 仍待推送后执行；在远端门禁完成前不标记 `CI Green` 或 `Accepted/Completed`。
+- 远端证据：候选提交 `bf6eae1` 的 CI `33255354693`、Docker `33255354699`、Security `33255354684` 均 **GREEN**。CI 真实 PostgreSQL 集成共 76 项，74 通过、2 跳过；Messaging Persistence/Execution/Retention 12 项全部通过，Unit 338/338、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 也全部通过。Docker 的 Collector 与四业务镜像构建/扫描/发布通过；Security 的 NuGet、Trivy、CodeQL、SBOM 全部通过，保留既有 `actions/upload-artifact@v4` Node 20 弃用提示。
 - 当前状态：保留清理代码与 Worker 周期接线已完成，整体继续保持 `1.0 Release Candidate`；本机 Docker、真实来源/切源、阅读 3.0、人工 UX、生产 OTLP/SLO 长窗口和外部通知治理仍按第 6 节待定。
 
 ## 5. Phase 1A 核心验收链路

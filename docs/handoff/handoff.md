@@ -61,13 +61,13 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 ```text
 Restore: PASS
 Release Build: PASS (0 warnings / 0 errors)
-Unit: PASS
-Architecture: PASS
-Integration: LOCAL BLOCKED (76 total: 6 passed / 2 skipped / 68 Docker-blocked); current Messaging Persistence/Execution/Retention scope is 12 tests; remote gate for this work package is pending.
+Unit: PASS (338/338)
+Architecture: PASS (1/1)
+Integration: LOCAL BLOCKED (76 total: 6 passed / 2 skipped / 68 Docker-blocked); PASS (CI 33255354693: 74 passed / 2 skipped, including 12/12 Messaging persistence/execution/retention tests)
 Contract: PASS (10/10)
 Compose validation: PASS
 Runtime smoke: PASS
-CI: GREEN (CI 33253938424; Docker 33253938404; Security 33253938443)
+CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ```
 
 ## 4. 下一工作包
@@ -361,7 +361,7 @@ CI: GREEN (CI 33253938424; Docker 33253938404; Security 33253938443)
 - 实现：新增 `MessageRetentionOptions`、`MessageRetentionService` 和 `IMessageRetentionStore`。按 `BatchSize` 与 `MaxBatchesPerRun` 双重上限计算 Outbox/Inbox cutoff，只删除 `ProcessedAt` 已设置且早于 cutoff 的记录；失败、待重试、未处理和仍被锁定的消息保留。PostgreSQL 使用事务内 `FOR UPDATE SKIP LOCKED` 分批删除；Worker 注册 `MessagingDbContext`，按 `Messaging:Retention` 配置在启动延迟后每小时执行清理。
 - 边界：本轮只接入消息事实表保留清理，不选择 MQ、Publisher 或业务 Handler；传输适配和业务事件宿主仍需后续按模块推进。
 - 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 338/338、Architecture 1/1、Contract 10/10 PASS；完整 Integration 76 项中 6 项通过、2 项跳过、68 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。新增 Retention 单测 4/4 通过；Messaging Persistence/Execution/Retention 12 项已实际尝试但未取得本机容器证据；`git diff --check` PASS。
-- 远端证据：候选提交推送后补录 CI、Docker、Security 运行编号；在门禁完成前不标记 `Accepted/Completed`。
+- 远端证据：候选提交 `bf6eae1` 的 CI `33255354693`、Docker `33255354699`、Security `33255354684` 均 GREEN。CI 真实 PostgreSQL 集成 76 项为 74 通过/2 跳过，12/12 Messaging Persistence/Execution/Retention 用例通过，Unit 338/338、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 均通过；Docker 的 Collector 与四业务镜像构建/扫描/发布通过；Security 的 NuGet、Trivy、CodeQL、SBOM 全部通过，保留既有 `actions/upload-artifact@v4` Node 20 弃用提示。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
