@@ -794,9 +794,9 @@ Phase 1A 自动化工作包状态：
 - 安全与失败关闭：生产 `SocketsHttpHandler` 关闭共享 CookieContainer；静态 `Cookie` / `Set-Cookie` 请求头被 Rule Validator/Adapter 拒绝；最多 32 个 Cookie、累计 4 KiB、最长 3600 秒，跨执行不复用。跨源重定向响应、Cookie 数量/字节上限会使整次 Rule 执行失败，Cookie 值不进入 Rule JSON、任务载荷、日志或结果。
 - 回归：新增 RuleAdapter Cookie 传播、执行隔离、路径匹配、过期删除、跨源响应和边界测试；新增生产 HTTP Cookie 头/响应头测试、Validator 上限/静态头测试和 JSON Contract 往返测试。Unit 全量 410/410、定向 Session/HTTP 回归通过。
 - 非目标：本轮不实现 CredentialReference/ISecretProvider 的初始账号或 Token 注入、跨任务/跨来源持久会话、完整 RFC Cookie/公共后缀策略、自动重定向中间响应 Cookie 或带 Cookie 请求的自动重定向、通用变量或递归多请求编排；真实来源、故障切换、阅读 3.0 和人工验收继续按第 6 节待定清单处理。
-- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 410/410、Architecture 1/1、Contract 10/10 PASS；Schema/Fixture JSON 语法、PowerShell 等价迁移模型检查、API `/health` 与 `git diff --check` 待最终回归补录；本机完整 Integration 仍需按环境实跑，Docker 不可用时记为 BLOCKED。
-- 远端证据：候选提交及 CI/Docker/Security 结果待推送后补录；在远端门禁完成前本工作包只标记为 `Implemented`，不标记 `Accepted/Completed`。
-- 当前状态：受控 response-cookie Session 已形成可审查的执行期基线，整体继续保持 `1.0 Release Candidate`；Credential 初始认证、真实来源、真实故障切换、阅读 3.0 和人工验收仍未关闭。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 410/410、Architecture 1/1、Contract 10/10 PASS；Schema/Fixture JSON 语法、PowerShell 等价迁移模型检查 11/11、API `/health` 200 与 `git diff --check` PASS。Git Bash 迁移 wrapper 仅完成 `bash -n` 语法检查，完整 wrapper 在 Windows 因找不到 `dotnet` 未执行；本机完整 Integration 80 项为 6 通过、2 跳过、72 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- 远端证据：候选提交 `6f52719` 已推送；[CI 33271405103](https://github.com/nekohands/InkFlow/actions/runs/33271405103)、[Docker 33271405122](https://github.com/nekohands/InkFlow/actions/runs/33271405122)、[Security 33271405107](https://github.com/nekohands/InkFlow/actions/runs/33271405107) 均为 GREEN，包含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics、四镜像构建和 SBOM/Filesystem/CodeQL/NuGet 检查。
+- 当前状态：受控 response-cookie Session 已形成可审查的执行期基线，候选提交门禁已通过，整体继续保持 `1.0 Release Candidate`；Credential 初始认证、真实来源、真实故障切换、阅读 3.0 和人工验收仍未关闭。
 
 ## 5. Phase 1A 核心验收链路
 

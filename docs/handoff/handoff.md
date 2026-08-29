@@ -445,8 +445,9 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 安全/边界：生产 `SsrfSafeHttpMessageHandler` 的 `SocketsHttpHandler` 关闭共享 CookieContainer；Rule DSL/Adapter 拒绝静态 `Cookie` / `Set-Cookie` 头。Cookie 状态最多 32 个、累计 4 KiB、最长 3600 秒，不能进入持久化 JSON、Task Payload、日志、结果或下一次执行。跨源最终响应和资源上限整体失败，非法/外域 Cookie 不被采用。
 - 回归：新增 RuleAdapter 的传播、执行隔离、路径、过期删除、跨源响应和上限测试；新增生产 HTTP 头传递/响应 Cookie 测试、Validator 边界测试和 JSON 往返测试。当前本地 Unit 410/410、Architecture 1/1、Contract 10/10 通过。
 - 非目标：不实现 CredentialReference/ISecretProvider 的初始账号/Token 注入、跨任务或跨来源持久会话、完整 RFC Cookie/公共后缀策略、自动重定向中间响应 Cookie 或带 Cookie 请求的自动重定向、通用变量或递归多请求。真实来源、故障切换、阅读 3.0 与人工验收继续保留在待定清单。
-- 本地/远端证据：本地 Restore、Release Build（0 warnings / 0 errors）、全量 Unit/Architecture/Contract 已通过；Schema、Migration、Runtime、完整 Integration 和 GitHub Actions 三类门禁将在候选提交推送后补录。Docker 不可用的本机集成项必须继续记为 BLOCKED。
-- 当前状态：受控 response-cookie Session 为 `Implemented` 候选基线，不等同 `Accepted/Completed`；待完成最终本地回归、Candidate Commit、CI/Docker/Security 远端验证和文档证据补录。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 410/410、Architecture 1/1、Contract 10/10 PASS；Schema/Fixture JSON 语法、PowerShell 等价迁移模型检查 11/11、API `/health` 200 与 `git diff --check` PASS。Git Bash 迁移 wrapper 仅完成 `bash -n` 语法检查，完整 wrapper 在 Windows 因找不到 `dotnet` 未执行；本机完整 Integration 80 项为 6 通过、2 跳过、72 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- 远端证据：候选提交 `6f52719` 已推送；[CI 33271405103](https://github.com/nekohands/InkFlow/actions/runs/33271405103)、[Docker 33271405122](https://github.com/nekohands/InkFlow/actions/runs/33271405122)、[Security 33271405107](https://github.com/nekohands/InkFlow/actions/runs/33271405107) 均为 GREEN，包含 Restore/Build/Test/Compose/Runtime smoke/Diagnostics、四镜像构建和 SBOM/Filesystem/CodeQL/NuGet 检查。
+- 当前状态：受控 response-cookie Session 为已通过候选门禁的 `Implemented` 基线，不等同 `Accepted/Completed`；CredentialReference 初始认证/持久会话、真实来源/切源、阅读 3.0 和人工验收仍待后续。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
