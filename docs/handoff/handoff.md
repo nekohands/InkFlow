@@ -325,9 +325,10 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 
 - 缺口：Collector 已能在 Compose 内部接收遥测，但 Runtime smoke 还没有对四个 Core SLO 服务面形成统一、可复核的请求与 p95 证据。
 - 实现：新增 `scripts/core-slo-runtime-smoke.sh`，固定探测公共目录（200）、空查询 Legado（200）、未授权 Developer API（预期 401）和 Reader 页面（200）。每面默认 5 次请求，单请求超时 10 秒且上限 60 秒；失败、超时或非预期状态立即失败，不自动重试，也不保存响应正文。
-- 证据：脚本生成包含 UTC 窗口、四面请求数/5xx 数/延迟样本数/p95 的 JSON，CI 上传 30 天构建产物。空 Legado 查询不触发真实来源，Developer 探针不使用真实凭据；证据可以映射到 `CoreSloWindowEvidence`，但不直接宣称生产 SLO 达标。
-- 本地证据：本机 Docker CLI 不存在，源码 Compose/真实 API Runtime 探针与 Testcontainers 仍为 BLOCKED；已完成 Bash 语法与本地 fixture 回归后再记录结果。
-- 当前状态：保持 `1.0 Release Candidate`，等待远端 CI 首次执行并确认 Runtime artifact；真实 OTLP 后端、长窗口聚合、错误预算告警、保留治理以及用户决定延后的人工/真实来源验收继续按待定清单执行。
+- 证据：脚本生成包含 UTC 窗口、四面请求数/5xx 数/延迟样本数/p95 的 JSON，CI 上传 30 天构建产物。空 Legado 查询不触发真实来源，Developer 探针不使用真实凭据；证据可以映射到 `CoreSloWindowEvidence`，但不直接宣称生产 SLO 达标。远端 artifact 已解析确认 schemaVersion=1、四面各 5 requests/5 samples/0 server errors。
+- 本地证据：Docker CLI 不存在，源码 Compose/真实 API Runtime 探针与 Testcontainers 仍为 BLOCKED；Bash 语法、fixture 回归和 `git diff --check` PASS，Release Build 0 warnings / 0 errors，Unit 324/324、Architecture 1/1、Contract 10/10 PASS；全量 Integration 64 项为 6 通过、2 跳过、56 项 BLOCKED。
+- 远端证据：提交 `d5a8ef3` 的 CI `33249393448`、Docker `33249393438`、Security `33249393437` 均 GREEN；CI Runtime smoke、四面合成探针和 evidence artifact 上传均通过。
+- 当前状态：自动化合成探针基线已进入 Release Gate，仍保持 `1.0 Release Candidate`；真实 OTLP 后端、长窗口聚合、错误预算告警、保留治理以及用户决定延后的人工/真实来源验收继续按待定清单执行。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
@@ -381,7 +382,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Core SLO Observability v1：四类服务面 + 可用性/延迟/5xx 低基数指标 + OTLP 显式配置（`a87c5ae`；CI `33246490603` / Docker `33246490571` / Security `33246490589` GREEN；真实 SLO 窗口与人工验收待定）
 ✅ Core SLO 窗口证据评估契约：四面完整性 + p95/可用性 + 错误预算 + 缺证据 fail-closed（本轮；真实 Collector/合成探针窗口待定）
 ✅ Compose OTLP Collector 监控基线：固定版本 Collector + 内部 OTLP 接收 + loopback 健康 smoke + 三宿主默认接线（`3a891ef`；CI `33248301675` / Docker `33248301684` / Security `33248301664` GREEN；生产后端/窗口/告警/保留仍待定）
-✅ Core SLO Runtime 合成探针基线：四服务面固定入口 + 有界状态/延迟采样 + UTC JSON artifact（本轮；生产 OTLP 后端/长窗口/告警/保留与人工验收待定）
+✅ Core SLO Runtime 合成探针基线：四服务面固定入口 + 有界状态/延迟采样 + UTC JSON artifact（`d5a8ef3`；CI `33249393448` / Docker `33249393438` / Security `33249393437` GREEN；生产 OTLP 后端/长窗口/告警/保留与人工验收待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）

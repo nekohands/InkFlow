@@ -667,9 +667,11 @@ Phase 1A 自动化工作包状态：
 
 - 缺口：Collector 已能在 Compose 内部接收遥测，但 Runtime smoke 还没有对四个 Core SLO 服务面形成统一、可复核的请求与 p95 证据。
 - 实现：新增 `scripts/core-slo-runtime-smoke.sh`，固定探测公共目录（200）、空查询 Legado（200）、未授权 Developer API（预期 401）和 Reader 页面（200）。每面默认 5 次请求，单请求默认 10 秒超时且配置上限为 60 秒，失败/超时/非预期状态立即失败；脚本不重试、不保存响应正文。
-- 证据：脚本生成 UTC 窗口 JSON，包含四面的 `requestCount`、`serverErrorCount`、`durationSampleCount` 和最近秩 `p95LatencyMilliseconds`，并在 CI 上传 30 天构建产物。空 Legado 查询不触发真实来源，Developer 探针不使用真实凭据。
+- 证据：脚本生成 UTC 窗口 JSON，包含四面的 `requestCount`、`serverErrorCount`、`durationSampleCount` 和最近秩 `p95LatencyMilliseconds`，并在 CI 上传 30 天构建产物。空 Legado 查询不触发真实来源，Developer 探针不使用真实凭据。远端 CI `33249393448` 已实际通过脚本回归、Compose Runtime smoke、四面探针和 artifact 上传；artifact 解析确认 schemaVersion=1、四面各 5 requests/5 samples/0 server errors。
 - 边界：这是 Compose/CI 短窗口合成基线，不是生产月度 SLO 达标证明；真实 OTLP 后端到达、长窗口聚合、错误预算告警、保留治理以及用户决定延后的 MuMu/阅读 3.0、真实来源和人工验收仍列入第 6 节。决策见 ADR 0013。
-- 当前状态：保持 `1.0 Release Candidate`，等待本轮远端 CI 首次执行并确认 Runtime artifact；不标记 `Accepted/Completed`。
+- 本地证据：脚本 Bash 语法、fixture 回归和 `git diff --check` PASS；Release Build 0 warnings / 0 errors，Unit 324/324、Architecture 1/1、Contract 10/10 PASS。全量 Integration 64 项为 6 通过、2 跳过、56 项因本机 Docker Engine 不可用而 BLOCKED。
+- 远端证据：提交 `d5a8ef3` 的 CI `33249393448`、Docker `33249393438`、Security `33249393437` 均 **GREEN**；CI 的 Runtime smoke、四面探针和 evidence artifact 上传均通过。
+- 当前状态：自动化合成探针基线已进入 Release Gate，仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；生产 OTLP 后端、长窗口 SLO、错误预算治理及人工/真实来源验收继续待定。
 
 ## 5. Phase 1A 核心验收链路
 
