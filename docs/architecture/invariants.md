@@ -30,6 +30,7 @@
 26. 每一个编码工作包必须遵守 `docs/engineering/development-workflow.md` 的完整闭环：实现 → Diff 自检 → 实际 Build → 自动化测试 → 运行/集成验收 → 安全/架构检查 → Candidate Commit → 实际 CI → Bug 修复与回归 → 文档同步 → Accepted。任何规定 Gate 未通过或未实际执行时，不得标记 `Completed`。
 27. 所有主要用户前端页面必须遵守 `docs/engineering/frontend-design.md`：实现前研究至少 3 个当前活跃同类产品，优先优化操作路径、可读性、响应式和可访问性；核心 UI 不能只依据开发者个人偏好设计，也不能直接复制竞品视觉。用户可见页面在未完成 Mobile/Desktop/UX/Visual/Accessibility 验收前不得标记 `Completed`。
 28. 业务事实与 Transactional Outbox 必须在同一 PostgreSQL 事务中提交；Integration Message 的 ID、类型和载荷摘要必须稳定可核对，Inbox 只有在消费成功后才标记已处理，消息载荷不得携带凭据、Token 或不必要的私有业务变量。
+29. Outbox Dispatcher 只有在发布调用成功后才能确认消息；发布失败必须保留稳定失败码并按有界退避重新变为可领取，确认异常不得伪造成功。Inbox Consumer 只有在 Handler 成功后才能确认消费，未知类型和 Handler 异常必须可追踪且不得把异常文本写入消息事实。
 
 ## 工程完成定义
 

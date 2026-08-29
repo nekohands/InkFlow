@@ -63,11 +63,11 @@ Restore: PASS
 Release Build: PASS (0 warnings / 0 errors)
 Unit: PASS
 Architecture: PASS
-Integration: LOCAL BLOCKED (71 total: 6 passed / 2 skipped / 63 Docker-blocked); PASS (CI 33252929657: 69 passed / 2 skipped, including 7/7 Messaging tests)
+Integration: LOCAL BLOCKED (74 total: 6 passed / 2 skipped / 66 Docker-blocked); PASS (CI 33253938424: 72 passed / 2 skipped, including 10/10 Messaging persistence/execution tests)
 Contract: PASS (10/10)
 Compose validation: PASS
 Runtime smoke: PASS
-CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
+CI: GREEN (CI 33253938424; Docker 33253938404; Security 33253938443)
 ```
 
 ## 4. 下一工作包
@@ -347,6 +347,14 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 本地证据：Release Build 0 warnings / 0 errors、Unit 327/327、Architecture 1/1、Contract 10/10 PASS；新增 7 项真实 PostgreSQL 集成测试因本机 Docker `npipe://./pipe/docker_engine` 不可用 BLOCKED。
 - 远端证据：提交 `dd80e2d` 的 CI `33252929657`、Docker `33252929642`、Security `33252929646` 均 GREEN；CI 真实 PostgreSQL 集成 71 项为 69 通过/2 跳过，新增 7 项 Messaging 用例全部通过，且 Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 均通过；Docker 四镜像与 Collector 扫描通过，Security 的 NuGet/SBOM/Trivy/CodeQL 通过。保留既有 Actions Node 20 弃用提示。
 
+### 4.44 Transactional Outbox / Inbox 执行层（本轮，2026-08-29）
+
+- 缺口：基础表、租约和 Crawler 事务写入已经恢复，但此前没有可复用的 Dispatcher / Consumer 执行闭环来驱动成功确认、失败退避和 Inbox 幂等状态转换。
+- 实现：新增 `OutboxDispatcher`、`IntegrationMessageConsumer`、Handler Registry、Publisher/Handler 接口、稳定失败码和有界指数退避。发布成功后才确认 Outbox；发布失败记录 `publish_failed` 并释放租约重试，确认异常不提前确认。Handler 成功后才确认 Inbox；未知类型和 Handler 异常记录稳定失败码，异常文本不写入持久化记录。
+- 边界：本轮只提供可测试的执行层和传输/处理接口，不选择或接入未定义的 MQ，也不扩大宿主后台生命周期；实际适配器、宿主轮询和业务 Handler 接入仍需后续按模块推进。
+- 本地证据：Release Build 0 warnings / 0 errors、Unit 334/334、Architecture 1/1、Contract 10/10 PASS；完整 Integration 74 项中 6 项通过、2 项跳过、66 项因本机 Docker `npipe://./pipe/docker_engine` 不可用 BLOCKED；Messaging Persistence/Execution 10 项已实际尝试但无法取得本机容器证据。
+- 远端证据：提交 `fa81db7` 的 CI `33253938424`、Docker `33253938404`、Security `33253938443` 均 GREEN；CI 真实 PostgreSQL 集成 74 项为 72 通过/2 跳过，10/10 Messaging Persistence/Execution 用例通过，Unit 334/334、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 均通过；Docker 四镜像与 Collector 扫描通过，Security 的 NuGet/SBOM/Trivy/CodeQL 通过。保留既有 Actions Node 20 弃用提示。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -401,7 +409,8 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Compose OTLP Collector 监控基线：固定版本 Collector + 内部 OTLP 接收 + loopback 健康 smoke + 三宿主默认接线（`3a891ef`；CI `33248301675` / Docker `33248301684` / Security `33248301664` GREEN；生产后端/窗口/告警/保留仍待定）
 ✅ Core SLO Runtime 合成探针基线：四服务面固定入口 + 有界状态/延迟采样 + UTC JSON artifact（`d5a8ef3`；CI `33249393448` / Docker `33249393438` / Security `33249393437` GREEN；生产 OTLP 后端/长窗口/告警/保留与人工验收待定）
   ✅ Core SLO Collector metrics 到达验证：1 秒 CI metrics 导出 + signal-specific receipt smoke + 四面 instrument/tag 校验（`0a1200e`；CI `33250749036` / Docker `33250749038` / Security `33250749023` GREEN；生产后端/长窗口/告警/保留与人工验收待定）
-  ✅ Transactional Outbox / Inbox 基础恢复：消息契约 + PostgreSQL Migration + Crawler 任务同事务写入 + lease/幂等集成测试（`dd80e2d`；CI `33252929657` / Docker `33252929642` / Security `33252929646` GREEN；其他模块接入与人工/真实业务验收仍待定）
+✅ Transactional Outbox / Inbox 基础恢复：消息契约 + PostgreSQL Migration + Crawler 任务同事务写入 + lease/幂等集成测试（`dd80e2d`；CI `33252929657` / Docker `33252929642` / Security `33252929646` GREEN；其他模块接入与人工/真实业务验收仍待定）
+✅ Transactional Outbox / Inbox 执行层：Dispatcher/Consumer + 稳定失败码 + 有界重试（`fa81db7`；CI `33253938424` / Docker `33253938404` / Security `33253938443` GREEN；传输适配与宿主后台接线仍待选型）
   ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
