@@ -427,6 +427,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 非目标：page-number/cursor、Cookie/Session、通用变量、next-link 之外的多请求/递归 MaxDepth、完整 XPath/JSONPath 语法和真实来源/阅读 3.0 人工验收仍未完成。
 - 当前状态：受控 next-link Pagination 候选实现完成，整体保持 `1.0 Release Candidate`，尚不能标记 `Accepted/Completed`。
 
+### 4.53 Source Rule page-number / cursor Pagination（本轮，2026-08-30）
+
+- 缺口：4.52 只支持响应 next-link；API 型来源需要页码或游标续页，但续页参数、终止条件和多请求预算必须仍由 DSL/执行器统一控制。
+- 实现：新增 `RulePaginationMode.PageNumber` 与 `RulePaginationMode.Cursor`。页码模式使用规则已声明且唯一的 query/form `parameterName`，按 `startPage`/`pageStep` 递增并由 `nextPageSelector` 判断继续；游标模式由 `cursorSelector` 读取下一游标并写回同一参数，保留原请求 method。省略 `mode` 的既有 JSON 仍为 next-link。
+- 安全/失败关闭：GET 续页只允许 query；页码值限制 0..1,000,000，游标限制 2,048 字符并拒绝控制字符；所有模式共享 MaxRequests、MaxPages、累计响应字节和执行时间预算。重复游标、配置错误、来源不一致或预算超限时整体失败，不暴露部分页面。
+- 定向证据：RuleAdapter/Validator/JSON 69/69 PASS；完整门禁将在本轮结束后补录。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 399/399、Architecture 1/1、Contract 10/10 PASS；完整 Integration 80 项中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 语法、API `/health` 200 和 `git diff --check` PASS。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未通过。
+- 非目标：Cookie/Session、通用变量、完整 XPath/JSONPath 语法、受控分页之外的多请求/递归 MaxDepth、真实来源和阅读 3.0 人工验收仍未完成。
+- 当前状态：page-number/cursor 形成可执行候选基线，本地 Build/Test/Runtime 已完成，远端 CI/Docker/Security 待提交后触发并补录；尚不能标记 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -755,6 +765,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集与受控 next-link Pagination；完整语法、Cookie/Session、page-number/cursor、通用变量及 next-link 之外的多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination 及 page-number/cursor Pagination；完整语法、Cookie/Session、通用变量及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [ ] 新 Source 网络能力必须同步安全测试。

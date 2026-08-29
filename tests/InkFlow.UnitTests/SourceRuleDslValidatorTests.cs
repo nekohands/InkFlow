@@ -263,6 +263,76 @@ public sealed class SourceRuleDslValidatorTests
     }
 
     [TestMethod]
+    public void Page_Number_Pagination_Requires_An_Existing_Query_Or_Form_Parameter()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            Pagination = new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                3)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+            },
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "paged-source", [rule]));
+
+        Assert.IsTrue(result.Any(e => e.Contains("declared exactly once")));
+    }
+
+    [TestMethod]
+    public void Page_Number_Pagination_Validates_Start_And_Step_Bounds()
+    {
+        var request = new RuleRequest(
+            RuleHttpMethod.Get,
+            "/search",
+            new Dictionary<string, string>(),
+            new Dictionary<string, string> { ["page"] = "1" },
+            new Dictionary<string, string>());
+        var rule = ValidDsl().Rules[0] with
+        {
+            Request = request,
+            Pagination = new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                3)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+                StartPage = -1,
+                PageStep = 0,
+            },
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "paged-source", [rule]));
+
+        Assert.IsTrue(result.Any(e => e.Contains("startPage")));
+        Assert.IsTrue(result.Any(e => e.Contains("pageStep")));
+    }
+
+    [TestMethod]
+    public void Cursor_Pagination_Requires_A_Cursor_Selector_And_Parameter()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            Pagination = new RulePagination(MaxPages: 3)
+            {
+                Mode = RulePaginationMode.Cursor,
+            },
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "cursor-source", [rule]));
+
+        Assert.IsTrue(result.Any(e => e.Contains("cursorSelector")));
+        Assert.IsTrue(result.Any(e => e.Contains("parameterName")));
+    }
+
+    [TestMethod]
     public void Validator_Returns_All_Violations_At_Once()
     {
         var dsl = new SourceRuleDsl("42", "", []);

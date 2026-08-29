@@ -58,6 +58,30 @@ public sealed class RuleBasedSourceAdapterPaginationTests
         }
     }
 
+    private sealed class PageNumberHttpClient : ISourceHttpClient
+    {
+        public int CallCount { get; private set; }
+
+        public Task<SourceHttpResponse> SendAsync(
+            SourceHttpRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            var response = request.Url switch
+            {
+                "https://books.example.com/search?page=1" =>
+                    "<a class=\"book\" href=\"/book/1\">One</a><a class=\"next\" href=\"/ignored\">Next</a>",
+                "https://books.example.com/search?page=2" =>
+                    "<a class=\"book\" href=\"/book/2\">Two</a>",
+                _ => string.Empty,
+            };
+
+            return Task.FromResult(new SourceHttpResponse(
+                response.Length == 0 ? 404 : 200,
+                response));
+        }
+    }
+
     [TestMethod]
     public async Task Search_Projects_Items_From_All_Paginated_Bodies()
     {
@@ -137,5 +161,51 @@ public sealed class RuleBasedSourceAdapterPaginationTests
         CollectionAssert.AreEqual(
             new[] { "One", "Two" },
             results.Select(result => result.Title).ToArray());
+    }
+
+    [TestMethod]
+    public async Task Search_Projects_Items_From_Page_Number_Pagination()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["page"] = "1" },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("a.book", "href", "/book/", string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 3)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+                StartPage = 1,
+                PageStep = 1,
+            });
+        var source = Source.Rehydrate(
+            "page-number-source",
+            "页码来源",
+            "https://books.example.com",
+            new SourceRuleDsl("1", "page-number-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow);
+        var http = new PageNumberHttpClient();
+        var limits = new SourceRuleExecutionLimits { MaxRequests = 3 };
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(http, new RuleSelectorEvaluator(), limits),
+            new RuleSelectorEvaluator(),
+            limits);
+
+        var results = await adapter.SearchAsync("keyword");
+
+        Assert.AreEqual(2, http.CallCount);
+        CollectionAssert.AreEqual(
+            new[] { "1", "2" },
+            results.Select(result => result.ExternalBookId).ToArray());
     }
 }

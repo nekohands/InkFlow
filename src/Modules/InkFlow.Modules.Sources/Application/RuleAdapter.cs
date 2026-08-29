@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -43,7 +44,29 @@ public sealed class RuleAdapter
     {
         variables ??= new Dictionary<string, string>();
 
-        var buildErrors = TryBuildRequest(rule, baseUrl, variables, out var request);
+        var pagination = rule.Pagination;
+        if (pagination is not null)
+        {
+            var paginationErrors = SourceRuleDslValidator.ValidatePagination(rule);
+            if (paginationErrors.Count > 0)
+            {
+                return RuleExecutionResult.Fail(paginationErrors);
+            }
+        }
+
+        var initialParameterName = pagination?.Mode == RulePaginationMode.PageNumber
+            ? pagination.ParameterName
+            : null;
+        var initialParameterValue = pagination?.Mode == RulePaginationMode.PageNumber
+            ? pagination.StartPage.ToString(CultureInfo.InvariantCulture)
+            : null;
+        var buildErrors = TryBuildRequest(
+            rule,
+            baseUrl,
+            variables,
+            initialParameterName,
+            initialParameterValue,
+            out var request);
         if (buildErrors.Count > 0)
         {
             return RuleExecutionResult.Fail(buildErrors);
@@ -64,64 +87,6 @@ public sealed class RuleAdapter
             return RuleExecutionResult.Fail(["request: built URL is not absolute."]);
         }
 
-        if (rule.Pagination is not null &&
-            (rule.List is null || rule.Capability is not (SourceCapability.Search or SourceCapability.Toc)))
-        {
-            return RuleExecutionResult.Fail(
-                ["pagination: a paginated rule requires a Search/Toc list binding."]);
-        }
-
-        if (rule.Pagination is { } configuredPagination)
-        {
-            if (configuredPagination.MaxPages < 1 ||
-                configuredPagination.MaxPages > SourceRuleDslValidator.MaxPaginationPages)
-            {
-                return RuleExecutionResult.Fail(["pagination: maxPages is outside the allowed range."]);
-            }
-
-            if (configuredPagination.NextPageSelector is null)
-            {
-                return RuleExecutionResult.Fail(["pagination: nextPageSelector must be configured."]);
-            }
-
-            var nextPageExpression = configuredPagination.NextPageSelector.Expression?.TrimStart() ?? string.Empty;
-            if (!Enum.IsDefined(configuredPagination.NextPageSelector.Kind) ||
-                string.IsNullOrWhiteSpace(nextPageExpression) ||
-                nextPageExpression.Length > SourceRuleDslValidator.MaxSelectorExpressionLength)
-            {
-                return RuleExecutionResult.Fail(["pagination: nextPageSelector is invalid."]);
-            }
-
-            if (configuredPagination.NextPageSelector.Kind == SelectorKind.JsonPath &&
-                !nextPageExpression.StartsWith('$'))
-            {
-                return RuleExecutionResult.Fail(["pagination: JSONPath next-page selector must start with '$'."]);
-            }
-
-            if (configuredPagination.NextPageSelector.Kind == SelectorKind.XPath &&
-                !nextPageExpression.StartsWith('/') &&
-                !nextPageExpression.StartsWith('.'))
-            {
-                return RuleExecutionResult.Fail(
-                    ["pagination: XPath next-page selector must start with '/' or '.'."]);
-            }
-
-            if (configuredPagination.NextPageAttribute is { } nextPageAttribute &&
-                (string.IsNullOrWhiteSpace(nextPageAttribute) ||
-                 nextPageAttribute.Any(char.IsControl) ||
-                 nextPageAttribute.Length > SourceRuleDslValidator.MaxAttributeNameLength))
-            {
-                return RuleExecutionResult.Fail(["pagination: nextPageAttribute is invalid."]);
-            }
-
-            if (configuredPagination.NextPageSelector.Kind == SelectorKind.Css &&
-                string.IsNullOrWhiteSpace(configuredPagination.NextPageAttribute))
-            {
-                return RuleExecutionResult.Fail(
-                    ["pagination: CSS next-page selector requires a non-empty nextPageAttribute."]);
-            }
-        }
-
         // A zero request budget is an explicit fail-closed switch and must be checked
         // before entering the HTTP seam, including when pagination is declared.
         if (_limits.MaxRequests < 1)
@@ -131,9 +96,9 @@ public sealed class RuleAdapter
 
         var sourceOrigin = target!;
         var currentRequest = request!;
-        var pagination = rule.Pagination;
         var pageBodies = new List<string>();
         var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
         long responseBytes = 0;
 
         using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -151,7 +116,8 @@ public sealed class RuleAdapter
                 return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
             }
 
-            if (!visitedUrls.Add(currentRequest.Url))
+            if (pagination?.Mode == RulePaginationMode.NextLink &&
+                !visitedUrls.Add(currentRequest.Url))
             {
                 return RuleExecutionResult.Fail(["pagination: next-link cycle detected."]);
             }
@@ -204,40 +170,213 @@ public sealed class RuleAdapter
                 return ExtractFields(rule, response.Body);
             }
 
-            var nextLink = _selectorEvaluator.EvaluateFirst(
-                response.Body,
-                pagination.NextPageSelector,
-                pagination.NextPageAttribute);
-            if (string.IsNullOrWhiteSpace(nextLink))
+            switch (pagination.Mode)
             {
-                var extracted = ExtractFields(rule, pageBodies[0]);
-                return extracted.IsSuccess
-                    ? extracted with { PageBodies = pageBodies.ToArray() }
-                    : extracted;
-            }
+                case RulePaginationMode.NextLink:
+                {
+                    var nextLink = _selectorEvaluator.EvaluateFirst(
+                        response.Body,
+                        pagination.NextPageSelector!,
+                        pagination.NextPageAttribute);
+                    if (string.IsNullOrWhiteSpace(nextLink))
+                    {
+                        return CompletePagination(rule, pageBodies);
+                    }
 
-            if (page >= pagination.MaxPages)
-            {
-                return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
-            }
+                    if (!TryContinueAfterPage(
+                            page,
+                            pagination,
+                            out var limitError))
+                    {
+                        return RuleExecutionResult.Fail([limitError]);
+                    }
 
-            if (page >= _limits.MaxRequests)
-            {
-                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
-            }
+                    if (!TryBuildNextRequest(
+                            currentRequest,
+                            nextLink,
+                            sourceOrigin,
+                            out var nextRequest,
+                            out var nextRequestError))
+                    {
+                        return RuleExecutionResult.Fail([nextRequestError]);
+                    }
 
-            if (!TryBuildNextRequest(
-                    currentRequest,
-                    nextLink,
-                    sourceOrigin,
-                    out var nextRequest,
-                    out var nextRequestError))
-            {
-                return RuleExecutionResult.Fail([nextRequestError]);
-            }
+                    currentRequest = nextRequest!;
+                    break;
+                }
 
-            currentRequest = nextRequest!;
+                case RulePaginationMode.PageNumber:
+                {
+                    var hasNextPage = _selectorEvaluator.EvaluateFirst(
+                        response.Body,
+                        pagination.NextPageSelector!,
+                        pagination.NextPageAttribute);
+                    if (string.IsNullOrWhiteSpace(hasNextPage))
+                    {
+                        return CompletePagination(rule, pageBodies);
+                    }
+
+                    if (!TryContinueAfterPage(
+                            page,
+                            pagination,
+                            out var limitError))
+                    {
+                        return RuleExecutionResult.Fail([limitError]);
+                    }
+
+                    var nextPageValue = (long)pagination.StartPage +
+                        (long)page * pagination.PageStep;
+                    if (nextPageValue > SourceRuleDslValidator.MaxPaginationPageValue)
+                    {
+                        return RuleExecutionResult.Fail(
+                            ["pagination: generated page value exceeds the allowed range."]);
+                    }
+
+                    var pageBuildErrors = TryBuildRequest(
+                        rule,
+                        baseUrl,
+                        variables,
+                        pagination.ParameterName,
+                        nextPageValue.ToString(CultureInfo.InvariantCulture),
+                        out var nextRequest);
+                    if (pageBuildErrors.Count > 0)
+                    {
+                        return RuleExecutionResult.Fail(pageBuildErrors);
+                    }
+
+                    if (!TryValidateContinuationRequest(
+                            nextRequest!,
+                            sourceOrigin,
+                            out var continuationError))
+                    {
+                        return RuleExecutionResult.Fail([continuationError]);
+                    }
+
+                    currentRequest = nextRequest!;
+                    break;
+                }
+
+                case RulePaginationMode.Cursor:
+                {
+                    var rawCursor = _selectorEvaluator.EvaluateFirst(
+                        response.Body,
+                        pagination.CursorSelector!,
+                        pagination.CursorAttribute);
+                    if (string.IsNullOrWhiteSpace(rawCursor))
+                    {
+                        return CompletePagination(rule, pageBodies);
+                    }
+
+                    if (!TryContinueAfterPage(
+                            page,
+                            pagination,
+                            out var limitError))
+                    {
+                        return RuleExecutionResult.Fail([limitError]);
+                    }
+
+                    var cursor = rawCursor.Trim();
+                    if (cursor.Length > SourceRuleDslValidator.MaxPaginationCursorLength ||
+                        cursor.Any(char.IsControl))
+                    {
+                        return RuleExecutionResult.Fail(
+                            ["pagination: cursor value is invalid or too long."]);
+                    }
+
+                    if (!visitedCursors.Add(cursor))
+                    {
+                        return RuleExecutionResult.Fail(["pagination: cursor cycle detected."]);
+                    }
+
+                    var cursorBuildErrors = TryBuildRequest(
+                        rule,
+                        baseUrl,
+                        variables,
+                        pagination.ParameterName,
+                        cursor,
+                        out var nextRequest);
+                    if (cursorBuildErrors.Count > 0)
+                    {
+                        return RuleExecutionResult.Fail(cursorBuildErrors);
+                    }
+
+                    if (!TryValidateContinuationRequest(
+                            nextRequest!,
+                            sourceOrigin,
+                            out var continuationError))
+                    {
+                        return RuleExecutionResult.Fail([continuationError]);
+                    }
+
+                    currentRequest = nextRequest!;
+                    break;
+                }
+
+                default:
+                    return RuleExecutionResult.Fail(["pagination: mode is not supported."]);
+            }
         }
+    }
+
+    private bool TryContinueAfterPage(
+        int page,
+        RulePagination pagination,
+        out string error)
+    {
+        if (page >= pagination.MaxPages)
+        {
+            error = "pagination: page limit exceeded.";
+            return false;
+        }
+
+        if (page >= _limits.MaxRequests)
+        {
+            error = "execution: request budget exceeded.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private RuleExecutionResult CompletePagination(
+        CapabilityRule rule,
+        IReadOnlyList<string> pageBodies)
+    {
+        var extracted = ExtractFields(rule, pageBodies[0]);
+        return extracted.IsSuccess
+            ? extracted with { PageBodies = pageBodies.ToArray() }
+            : extracted;
+    }
+
+    private static bool TryValidateContinuationRequest(
+        SourceHttpRequest request,
+        Uri sourceOrigin,
+        out string error)
+    {
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var target) ||
+            target.Fragment.Length > 0 ||
+            target.UserInfo.Length > 0)
+        {
+            error = "pagination: generated continuation request is not a permitted URL.";
+            return false;
+        }
+
+        var ssrfErrors = SsrfGuard.InspectLiteral(target);
+        if (ssrfErrors.Count > 0)
+        {
+            error = $"ssrf: {string.Join("; ", ssrfErrors)}";
+            return false;
+        }
+
+        if (!IsSameOrigin(sourceOrigin, target))
+        {
+            error = "pagination: generated continuation request must stay on the source origin.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
     }
 
     private static bool TryBuildNextRequest(
@@ -318,6 +457,8 @@ public sealed class RuleAdapter
         CapabilityRule rule,
         string baseUrl,
         IReadOnlyDictionary<string, string> variables,
+        string? overrideParameterName,
+        string? overrideParameterValue,
         out SourceHttpRequest? request)
     {
         request = null;
@@ -333,7 +474,9 @@ public sealed class RuleAdapter
         var path = FillTemplate($"{prefix}.pathTemplate", rule.Request.PathTemplate, variables, errors);
         var queryValues = rule.Request.Query.ToDictionary(
             pair => pair.Key,
-            pair => FillTemplate($"{prefix}.query['{pair.Key}']", pair.Value, variables, errors));
+            pair => string.Equals(pair.Key, overrideParameterName, StringComparison.Ordinal)
+                ? overrideParameterValue ?? string.Empty
+                : FillTemplate($"{prefix}.query['{pair.Key}']", pair.Value, variables, errors));
 
         if (errors.Count > 0)
         {
@@ -352,7 +495,9 @@ public sealed class RuleAdapter
         var formBody = rule.Request.Method == RuleHttpMethod.Post && rule.Request.Form.Count > 0
             ? string.Join('&', rule.Request.Form.Select(p =>
                 $"{Uri.EscapeDataString(FillTemplate(prefix, p.Key, variables, errors, encodeValues: false))}=" +
-                $"{Uri.EscapeDataString(FillTemplate($"{prefix}.form['{p.Key}']", p.Value, variables, errors, encodeValues: false))}"))
+                $"{Uri.EscapeDataString(string.Equals(p.Key, overrideParameterName, StringComparison.Ordinal)
+                    ? overrideParameterValue ?? string.Empty
+                    : FillTemplate($"{prefix}.form['{p.Key}']", p.Value, variables, errors, encodeValues: false))}"))
             : null;
 
         if (errors.Count > 0)

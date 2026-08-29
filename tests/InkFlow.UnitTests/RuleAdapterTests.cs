@@ -588,6 +588,224 @@ public sealed class RuleAdapterTests
         Assert.AreEqual(0, result.ResponseBodies.Count);
     }
 
+    [TestMethod]
+    public async Task Page_Number_Pagination_Advances_The_Declared_Query_Parameter()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>
+                {
+                    ["page"] = "ignored",
+                    ["q"] = "keyword",
+                },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 4)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+                StartPage = 1,
+                PageStep = 1,
+            });
+        var requests = new List<SourceHttpRequest>();
+        var http = new FakeHttpClient
+        {
+            Responder = request =>
+            {
+                requests.Add(request);
+                return request.Url.Contains("page=1", StringComparison.Ordinal)
+                    ? new SourceHttpResponse(
+                        200,
+                        "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"/ignored\">next</a>")
+                    : new SourceHttpResponse(200, "<a class=\"result\" href=\"/book/2\">two</a>");
+            },
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 3 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(2, requests.Count);
+        StringAssert.Contains(requests[0].Url, "page=1");
+        StringAssert.Contains(requests[0].Url, "q=keyword");
+        StringAssert.Contains(requests[1].Url, "page=2");
+        StringAssert.Contains(requests[1].Url, "q=keyword");
+        Assert.AreEqual(2, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Page_Number_Pagination_Updates_A_Post_Form_And_Preserves_The_Method()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Post,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>
+                {
+                    ["page"] = "ignored",
+                    ["q"] = "keyword",
+                }),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 2)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+                StartPage = 1,
+                PageStep = 1,
+            });
+        var requests = new List<SourceHttpRequest>();
+        var http = new FakeHttpClient
+        {
+            Responder = request =>
+            {
+                requests.Add(request);
+                return requests.Count == 1
+                    ? new SourceHttpResponse(200, "<a class=\"next\" href=\"/ignored\">next</a>")
+                    : new SourceHttpResponse(200, "done");
+            },
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 2 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        CollectionAssert.AreEqual(
+            new[] { RuleHttpMethod.Post, RuleHttpMethod.Post },
+            requests.Select(request => request.Method).ToArray());
+        Assert.AreEqual("page=1&q=keyword", requests[0].FormBody);
+        Assert.AreEqual("page=2&q=keyword", requests[1].FormBody);
+    }
+
+    [TestMethod]
+    public async Task Cursor_Pagination_Injects_The_Selected_Cursor_And_Stops_When_Absent()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["cursor"] = string.Empty },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("$.items[*]", "id", string.Empty, string.Empty, SelectorKind.JsonPath),
+            Pagination: new RulePagination(
+                MaxPages: 4)
+            {
+                Mode = RulePaginationMode.Cursor,
+                ParameterName = "cursor",
+                CursorSelector = new RuleSelector(SelectorKind.JsonPath, "$.nextCursor"),
+            });
+        var requests = new List<SourceHttpRequest>();
+        var http = new FakeHttpClient
+        {
+            Responder = request =>
+            {
+                requests.Add(request);
+                return requests.Count == 1
+                    ? new SourceHttpResponse(200, "{\"items\":[],\"nextCursor\":\"a b\"}")
+                    : new SourceHttpResponse(200, "{\"items\":[]}");
+            },
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 3 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(2, requests.Count);
+        StringAssert.Contains(requests[0].Url, "cursor=");
+        StringAssert.Contains(requests[1].Url, "cursor=a%20b");
+        Assert.AreEqual(2, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Cursor_Pagination_Fails_Closed_When_A_Cursor_Repeats()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["cursor"] = string.Empty },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("$.items[*]", "id", string.Empty, string.Empty, SelectorKind.JsonPath),
+            Pagination: new RulePagination(MaxPages: 4)
+            {
+                Mode = RulePaginationMode.Cursor,
+                ParameterName = "cursor",
+                CursorSelector = new RuleSelector(SelectorKind.JsonPath, "$.nextCursor"),
+            });
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "{\"items\":[],\"nextCursor\":\"same\"}"),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 4 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("cursor cycle")));
+        Assert.AreEqual(2, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Page_Number_Pagination_Requires_The_Declared_Parameter()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 2)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+            });
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("declared exactly once")));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
     private sealed class ThrowingHttpClient : ISourceHttpClient
     {
         public Task<SourceHttpResponse> SendAsync(SourceHttpRequest request, CancellationToken cancellationToken = default)

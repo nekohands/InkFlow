@@ -63,19 +63,23 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 
 上面的列表描述 DSL v1 的目标 AST 能力，不等同于当前执行器全部可用。现阶段 `RuleAdapter` 的执行基线
 覆盖 GET/POST、Header/Query/Form、路径占位符、CSS 选择器、受控 XPath/JSONPath、带超时 Regex、
-Trim/Replace、Search/TOC 列表绑定和受控 next-link Pagination。API、Worker、Scheduler 均注入统一的
+Trim/Replace、Search/TOC 列表绑定和三种受控 Pagination。API、Worker、Scheduler 均注入统一的
 `RuleSelectorEvaluator`：CSS 继续由 AngleSharp 处理；XML 兼容响应使用禁止 DTD/外部实体的 XML 导航，
 非 XML HTML 使用有界的路径、子路径、属性/文本谓词和属性终端；JSONPath 仅开放
 `$` root、property、quoted property、array index、wildcard 和 recursive-property 子集。
 Search/TOC 列表绑定可声明 `itemsSelectorKind` 与可选 `textAttribute`，未声明时保持 CSS/文本的向后兼容。
 不支持的 XPath/JSONPath 语法、非法 CSS、超大文档、超量匹配和超深 JSON 均 fail-closed；
-`RulePagination` 仅用于 Search/TOC 列表，首个请求沿用规则方法，后续 next link 统一以 GET 跟随，且必须
-保持来源 scheme/host/port 同源。循环链接、跨源/带凭据/带 fragment 的链接和超出 `maxPages` /
-`MaxRequests` 的链路整体失败，不暴露已抓页面；所有分页响应共享解码后响应字节和执行时间预算。
+`RulePagination` 仅用于 Search/TOC 列表：`nextLink` 首个请求沿用规则方法、后续链接统一以 GET 跟随；
+`pageNumber` 在规则已声明且唯一的 query/form 参数中按 `startPage`/`pageStep` 递增，并用
+`nextPageSelector` 判断是否继续；`cursor` 从 `cursorSelector` 读取游标并写入同样的已声明参数，保留原请求方法。
+页码/游标参数不得同时出现在 query 和 form，GET 只能使用 query。next-link 必须保持来源
+scheme/host/port 同源；所有模式都受 `maxPages`、`MaxRequests`、响应字节和执行时间预算约束。
+循环链接、重复游标、跨源/带凭据/带 fragment 的链接、非法游标和超出边界的链路整体失败，
+不暴露已抓页面。
 `SourceRuleExecutionLimits` 已接入有限的 MaxRequests、MaxBytes、MaxExecutionTime、MaxRegexTime 和
 MaxResultSize，默认 `MaxRequests=8`（未声明 Pagination 的规则仍只发一个请求），生产 HTTP 客户端在解码前
-按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、Cookie/Session、页码/游标型 Pagination、通用变量扩展，
-以及 next-link 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
+按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、Cookie/Session、通用变量扩展，以及
+next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
 禁止：

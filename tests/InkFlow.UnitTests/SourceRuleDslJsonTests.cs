@@ -296,11 +296,82 @@ public sealed class SourceRuleDslJsonTests
 
         Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
         var pagination = result.Document!.Rules[0].Pagination!;
-        Assert.AreEqual(SelectorKind.JsonPath, pagination.NextPageSelector.Kind);
+        Assert.AreEqual(SelectorKind.JsonPath, pagination.NextPageSelector!.Kind);
         Assert.AreEqual("$.next", pagination.NextPageSelector.Expression);
         Assert.IsNull(pagination.NextPageAttribute);
         Assert.AreEqual(3, pagination.MaxPages);
         StringAssert.Contains(json, "\"pagination\"");
         StringAssert.Contains(json, "\"nextPageSelector\"");
+    }
+
+    [TestMethod]
+    public void Serialize_Roundtrips_Page_Number_And_Cursor_Pagination_Metadata()
+    {
+        var pageRequest = new RuleRequest(
+            RuleHttpMethod.Get,
+            "/search",
+            new Dictionary<string, string>(),
+            new Dictionary<string, string> { ["page"] = "1" },
+            new Dictionary<string, string>());
+        var pageDsl = new SourceRuleDsl(
+            "1",
+            "page-source",
+            [new CapabilityRule(
+                SourceCapability.Search,
+                pageRequest,
+                [],
+                new RuleListBinding("a.item", "href", string.Empty, string.Empty),
+                new RulePagination(
+                    new RuleSelector(SelectorKind.Css, "a.next"),
+                    "href",
+                    3)
+                {
+                    Mode = RulePaginationMode.PageNumber,
+                    ParameterName = "page",
+                    StartPage = 1,
+                    PageStep = 1,
+                })]);
+
+        var pageJson = SourceRuleDslJson.Serialize(pageDsl);
+        var pageResult = SourceRuleDslJson.Parse(pageJson);
+
+        Assert.IsTrue(pageResult.IsSuccess, string.Join("; ", pageResult.Errors));
+        var pagePagination = pageResult.Document!.Rules[0].Pagination!;
+        Assert.AreEqual(RulePaginationMode.PageNumber, pagePagination.Mode);
+        Assert.AreEqual("page", pagePagination.ParameterName);
+        Assert.AreEqual(1, pagePagination.StartPage);
+        Assert.AreEqual(1, pagePagination.PageStep);
+        StringAssert.Contains(pageJson, "\"mode\": \"pageNumber\"");
+
+        var cursorRequest = new RuleRequest(
+            RuleHttpMethod.Get,
+            "/search",
+            new Dictionary<string, string>(),
+            new Dictionary<string, string> { ["cursor"] = string.Empty },
+            new Dictionary<string, string>());
+        var cursorDsl = new SourceRuleDsl(
+            "1",
+            "cursor-source",
+            [new CapabilityRule(
+                SourceCapability.Search,
+                cursorRequest,
+                [],
+                new RuleListBinding("$.items[*]", "id", string.Empty, string.Empty, SelectorKind.JsonPath),
+                new RulePagination(MaxPages: 3)
+                {
+                    Mode = RulePaginationMode.Cursor,
+                    ParameterName = "cursor",
+                    CursorSelector = new RuleSelector(SelectorKind.JsonPath, "$.nextCursor"),
+                })]);
+
+        var cursorJson = SourceRuleDslJson.Serialize(cursorDsl);
+        var cursorResult = SourceRuleDslJson.Parse(cursorJson);
+
+        Assert.IsTrue(cursorResult.IsSuccess, string.Join("; ", cursorResult.Errors));
+        var cursorPagination = cursorResult.Document!.Rules[0].Pagination!;
+        Assert.AreEqual(RulePaginationMode.Cursor, cursorPagination.Mode);
+        Assert.AreEqual("cursor", cursorPagination.ParameterName);
+        Assert.AreEqual("$.nextCursor", cursorPagination.CursorSelector!.Expression);
+        StringAssert.Contains(cursorJson, "\"cursorSelector\"");
     }
 }

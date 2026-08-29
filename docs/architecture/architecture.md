@@ -88,12 +88,13 @@ Quality 决策必须输出可解释 Evidence 和 AlgorithmVersion，并支持人
 
 RuleAdapter 的 Rule JSON 经过版本化严格 codec 和离线 Fixture 边界；未知属性/转换类型、缺失核心字段、
 超大文档和超出集合/表达式上限的规则必须 fail-closed。当前执行基线覆盖 GET/POST、Header/Query/Form、路径
-占位符、CSS、受控 XPath/JSONPath、带超时 Regex、Trim/Replace、列表绑定和受控 next-link Pagination；
+占位符、CSS、受控 XPath/JSONPath、带超时 Regex、Trim/Replace、列表绑定和三种受控 Pagination；
 执行器已应用有限的请求数、请求/响应字节、执行时间、正则时间和结果大小预算，生产 HTTP 读取也有流式响应体上限。
 统一 `RuleSelectorEvaluator` 对 CSS、XML/HTML XPath 和受限 JSONPath 做分派；不支持的选择器语法、
-DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePagination` 只为 Search/TOC 列表提供同源
-next-link，后续链接以 GET 跟随，循环、跨源和请求/页面上限整体失败。完整 XPath/JSONPath 语法、Cookie/Session、
-页码/游标型 Pagination、通用变量，以及 next-link 之外的多请求/递归执行所需的完整 Redirect/Depth 策略仍需
+DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePagination` 只为 Search/TOC 列表提供
+同源 next-link、有限 page-number 或有限 cursor；next-link 后续以 GET 跟随，页码/游标只改写规则已声明
+且唯一的 query/form 参数。循环、重复游标、跨源和请求/页面上限整体失败。完整 XPath/JSONPath 语法、Cookie/Session、
+通用变量，以及三种受控分页之外的多请求/递归执行所需的完整 Redirect/Depth 策略仍需
 对应运行时引擎与独立回归，不能由解析通过替代真实执行验收。
 
 抓取分层：

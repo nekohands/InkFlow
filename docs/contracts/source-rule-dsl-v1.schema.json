@@ -392,14 +392,72 @@
     "pagination": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "nextPageSelector"
-      ],
       "properties": {
+        "mode": {
+          "enum": [
+            "nextLink",
+            "pageNumber",
+            "cursor"
+          ],
+          "default": "nextLink"
+        },
         "nextPageSelector": {
-          "$ref": "#/$defs/selector"
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/selector"
+            }
+          ]
         },
         "nextPageAttribute": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          ]
+        },
+        "parameterName": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          ]
+        },
+        "startPage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "default": 1
+        },
+        "pageStep": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000,
+          "default": 1
+        },
+        "cursorSelector": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/selector"
+            }
+          ]
+        },
+        "cursorAttribute": {
           "anyOf": [
             {
               "type": "null"
@@ -421,6 +479,86 @@
       "allOf": [
         {
           "if": {
+            "anyOf": [
+              {
+                "not": {
+                  "required": [
+                    "mode"
+                  ]
+                }
+              },
+              {
+                "properties": {
+                  "mode": {
+                    "const": "nextLink"
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "required": [
+              "nextPageSelector"
+            ],
+            "properties": {
+              "nextPageSelector": {
+                "$ref": "#/$defs/selector"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "pageNumber"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "nextPageSelector",
+              "parameterName"
+            ],
+            "properties": {
+              "nextPageSelector": {
+                "$ref": "#/$defs/selector"
+              },
+              "parameterName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "cursor"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "cursorSelector",
+              "parameterName"
+            ],
+            "properties": {
+              "cursorSelector": {
+                "$ref": "#/$defs/selector"
+              },
+              "parameterName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        },
+        {
+          "if": {
             "properties": {
               "nextPageSelector": {
                 "properties": {
@@ -437,6 +575,31 @@
             ],
             "properties": {
               "nextPageAttribute": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "cursorSelector": {
+                "properties": {
+                  "kind": {
+                    "const": "css"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "cursorAttribute"
+            ],
+            "properties": {
+              "cursorAttribute": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 128

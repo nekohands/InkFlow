@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（自动化 Release Gate 已通过，人工/真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最后更新日期：2026-08-29
+- 最后更新日期：2026-08-30
 
 ## 1. 总体状态
 
@@ -776,6 +776,16 @@ Phase 1A 自动化工作包状态：
 - 远端证据：首个候选提交 `83aa68d` 的 CI `33267442596` 曾因 Linux 将 `/search?page=2` 这类相对链接按 `file:` 解析而失败 6 项；Docker `33267442625` 与 Security `33267442628` 仍为 GREEN。修复提交 `c4cddcd` 已通过 CI `33267729513`、Docker `33267729544`、Security `33267729548`。CI 报告 Unit 389/389、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过；迁移 11/11、Compose、Runtime smoke、Core SLO probe/telemetry、Redis、PostgreSQL 备份恢复和 diagnostics 均通过。Security 的 NuGet、Filesystem、CodeQL、SBOM 均通过，保留既有 Node 20 弃用和 CodeQL API 权限提示，未影响门禁。
 - 当前状态：受控 next-link Pagination 与多请求预算已形成候选实现，整体继续保持 `1.0 Release Candidate`；仍不等同于 `Accepted/Completed`，真实来源、故障切换、阅读 3.0 和人工验收继续按待定清单处理。
 
+### 4.53 Source Rule page-number / cursor Pagination（本轮，2026-08-30）
+
+- 缺口：4.52 只覆盖响应中的 next-link；API 型来源常用页码或游标续页，若没有统一参数注入和终止边界，容易把规则扩展成无界多请求。
+- 实现：`RulePaginationMode` 新增 `pageNumber` 与 `cursor`。页码模式要求在 RuleRequest 的 query/form 中声明唯一 `parameterName`，按有限 `startPage`/`pageStep` 生成后续请求，并由 `nextPageSelector` 判断是否还有下一页；游标模式由 `cursorSelector` 读取下一游标，写回同一已声明参数，保留首请求 method。旧省略 `mode` 的规则继续按 `nextLink` 解析。
+- 安全与失败关闭：GET 续页只能使用 query，query/form 不得同时声明同一续页参数；页码值限制在 0..1,000,000，游标限制 2,048 字符且拒绝控制字符。所有模式共享 MaxRequests、MaxPages、累计响应字节和执行超时；重复游标、参数配置错误、SSRF/来源不一致和任一边界超限均整体失败，不暴露部分页面。
+- 回归：新增页码 query 与 POST form 参数递增、游标 URL 编码/停止、重复游标 fail-closed、续页参数声明校验、页码边界以及 page-number/cursor JSON codec 往返测试；本轮定向 RuleAdapter/Validator/JSON 69/69 PASS。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 399/399、Architecture 1/1、Contract 10/10 PASS；完整 Solution Test 的 Integration 为 80 项，其中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 语法、API `/health` 200 和 `git diff --check` PASS。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未通过，不能替代已通过的等价检查。
+- 非目标：Cookie/Session、通用变量扩展、完整 XPath/JSONPath 语法、三种受控分页之外的多请求/递归编排，以及真实来源、故障切换、阅读 3.0 和人工验收仍按待定清单处理。
+- 当前状态：page-number/cursor 受控分页已形成可执行基线；本地 Build/Test/Runtime 证据已补齐，远端 CI/Docker/Security 待提交后触发并补录；不等同于 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -879,9 +889,9 @@ Official Source
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；受控 XPath/JSONPath
-  选择器运行时已在 4.51 接入，受控 next-link Pagination 与跨页 Rule execution budgets 已在 4.52 接入；完整
-  XPath/JSONPath 语法、Cookie/Session、page-number/cursor、通用变量扩展及 next-link 之外的多请求/递归预算仍待
-  后续工程工作包。
+  选择器运行时已在 4.51 接入，受控 next-link Pagination 已在 4.52 接入，page-number/cursor 与跨页
+  Rule execution budgets 已在 4.53 接入；完整 XPath/JSONPath 语法、Cookie/Session、通用变量扩展及三种受控分页
+  之外的多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
@@ -890,7 +900,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-本轮全量回归的结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 389/389、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查、Schema/Fixture JSON 语法和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。修复提交 `c4cddcd` 的 CI `33267729513`、Docker `33267729544`、Security `33267729548` 已全部 GREEN；真实来源、阅读 3.0 和人工验收按用户决定未执行。
+当前 4.53 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 399/399、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 语法和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未通过；远端 CI/Docker/Security 尚待本轮候选提交触发。真实来源、阅读 3.0 和人工验收按用户决定未执行。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
