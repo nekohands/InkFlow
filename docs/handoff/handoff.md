@@ -63,7 +63,7 @@ Restore: PASS
 Release Build: PASS (0 warnings / 0 errors)
 Unit: PASS
 Architecture: PASS
-Integration: LOCAL BLOCKED (70 total: 6 passed / 2 skipped / 62 Docker-blocked); previous baseline PASS (CI 33244304809: 62 passed / 2 skipped; current Outbox/Inbox candidate CI NOT RUN)
+Integration: LOCAL BLOCKED (71 total: 6 passed / 2 skipped / 63 Docker-blocked); PASS (CI 33252929657: 69 passed / 2 skipped, including 7/7 Messaging tests)
 Contract: PASS (10/10)
 Compose validation: PASS
 Runtime smoke: PASS
@@ -345,7 +345,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 实现：新增有界 JSON `IntegrationMessage`、消息类型/载荷摘要校验、`messaging.outbox_messages` 与 `messaging.inbox_messages` Migration；Outbox 用 `FOR UPDATE SKIP LOCKED` + lease + attempt 支持 at-least-once，Inbox 用消息 ID 主键和处理成功标记实现幂等。
 - 事务接线：`ITransactionalOutboxWriter` 要求业务 DbContext 已有活动事务；Crawler `AddAsync` 将任务行与最小 `crawler.task.created` 消息同事务提交，载荷不含 variables、章节 ID 或 credential reference。其他模块尚未自动接入，不能扩大宣称范围。
 - 本地证据：Release Build 0 warnings / 0 errors、Unit 327/327、Architecture 1/1、Contract 10/10 PASS；新增 7 项真实 PostgreSQL 集成测试因本机 Docker `npipe://./pipe/docker_engine` 不可用 BLOCKED。
-- 远端状态：候选尚未提交/推送，CI/Docker/Security/远端 PostgreSQL 为 NOT RUN。提交后必须先读 CI 结果，失败需修复并全量回归，不能以本地编译代替 PostgreSQL 证据。
+- 远端证据：提交 `dd80e2d` 的 CI `33252929657`、Docker `33252929642`、Security `33252929646` 均 GREEN；CI 真实 PostgreSQL 集成 71 项为 69 通过/2 跳过，新增 7 项 Messaging 用例全部通过，且 Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 均通过；Docker 四镜像与 Collector 扫描通过，Security 的 NuGet/SBOM/Trivy/CodeQL 通过。保留既有 Actions Node 20 弃用提示。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
@@ -401,7 +401,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Compose OTLP Collector 监控基线：固定版本 Collector + 内部 OTLP 接收 + loopback 健康 smoke + 三宿主默认接线（`3a891ef`；CI `33248301675` / Docker `33248301684` / Security `33248301664` GREEN；生产后端/窗口/告警/保留仍待定）
 ✅ Core SLO Runtime 合成探针基线：四服务面固定入口 + 有界状态/延迟采样 + UTC JSON artifact（`d5a8ef3`；CI `33249393448` / Docker `33249393438` / Security `33249393437` GREEN；生产 OTLP 后端/长窗口/告警/保留与人工验收待定）
   ✅ Core SLO Collector metrics 到达验证：1 秒 CI metrics 导出 + signal-specific receipt smoke + 四面 instrument/tag 校验（`0a1200e`；CI `33250749036` / Docker `33250749038` / Security `33250749023` GREEN；生产后端/长窗口/告警/保留与人工验收待定）
-  → Transactional Outbox / Inbox 基础恢复：消息契约 + PostgreSQL Migration + Crawler 任务同事务写入 + lease/幂等集成测试（本工作包；远端验证待执行）
+  ✅ Transactional Outbox / Inbox 基础恢复：消息契约 + PostgreSQL Migration + Crawler 任务同事务写入 + lease/幂等集成测试（`dd80e2d`；CI `33252929657` / Docker `33252929642` / Security `33252929646` GREEN；其他模块接入与人工/真实业务验收仍待定）
   ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
