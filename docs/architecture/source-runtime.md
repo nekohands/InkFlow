@@ -40,6 +40,11 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 
 ## 3. RuleAdapter DSL v1
 
+当前已落地的是最小声明式契约：`SourceRuleDslJson` 以版本化严格边界读取/写出 Rule JSON，配套
+`docs/contracts/source-rule-dsl-v1.schema.json` 与离线 Fixture；未知属性、未知转换类型、缺失核心字段、
+超大文档和超出集合/表达式预算的文档必须 fail-closed。`trim` / `replace` 以显式 `kind` 表示，新的持久化
+文档使用字符串枚举和稳定 wire shape。
+
 允许：
 
 - HTTP GET / POST
@@ -50,6 +55,12 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 - Replace / Trim
 - Variable / Template
 - Pagination
+
+上面的列表描述 DSL v1 的目标 AST 能力，不等同于当前执行器全部可用。现阶段 `RuleAdapter` 的执行基线
+覆盖 GET/POST、Header/Query/Form、路径占位符、CSS 选择器、带超时 Regex、Trim/Replace 和 Search/TOC
+列表绑定；Schema 保留 XPath/JSONPath 枚举以保持 AST 的前向兼容，但当前 `CssSelectorEvaluator` 只执行 CSS。
+XPath/JSONPath 引擎、Cookie/Session、Pagination、通用变量扩展和完整 Rule execution budgets 接入前，不能
+仅凭 JSON 解析通过将规则标记为 Published 或宣称真实来源可用。
 
 禁止：
 

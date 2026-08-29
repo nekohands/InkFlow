@@ -86,6 +86,11 @@ Quality 决策必须输出可解释 Evidence 和 AlgorithmVersion，并支持人
 - RuleAdapter：声明式 DSL，覆盖大多数普通站点。
 - CodeAdapter：仅可信官方源，用于复杂签名、登录或 Playwright 场景。
 
+RuleAdapter 的 Rule JSON 经过版本化严格 codec 和离线 Fixture 边界；未知属性/转换类型、缺失核心字段、
+超大文档和超出集合/表达式上限的规则必须 fail-closed。当前执行基线覆盖 GET/POST、Header/Query/Form、路径
+占位符、CSS、带超时 Regex、Trim/Replace 及列表绑定；XPath/JSONPath 等 AST 扩展和 Cookie/Session、
+Pagination、完整执行预算仍需对应运行时引擎与独立回归，不能由解析通过替代真实执行验收。
+
 抓取分层：
 
 1. HttpClient + HTML/JSON

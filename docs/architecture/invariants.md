@@ -34,6 +34,7 @@
 30. Outbox/Inbox 保留清理只能删除 `ProcessedAt` 已设置且早于各自配置 cutoff 的记录；未处理、失败待重试、仍在 lease/锁定中的消息必须保留。清理每轮必须受批量与批次数上限约束，且不得成为消息事实的唯一来源。
 31. Migration 流程在 `MigrateAsync` 前必须拒绝模型与快照漂移，且 CI 必须使用固定版本工具覆盖全部 `DbContext`；检测失败时不得对数据库执行结构变更。
 32. `audit.events` 普通路径必须保持追加式：更新和直接删除由数据库拒绝；过期清理只能通过 `AuditRetentionService` / `IAuditRetentionStore` 的 UTC cutoff seam 执行，且每轮受批量与批次数上限约束。该代码边界不替代生产法律保留、归档和删除授权治理。
+33. Source Rule DSL 的 JSON 输入与持久化结果必须经过版本化严格 codec/schema；未知属性、未知转换类型、缺失核心字段、超大文档和超出集合/表达式边界的规则必须 fail-closed，Fixture 回归不得依赖真实第三方网络。AST 声明能力不等同于运行时执行能力。
 
 ## 工程完成定义
 
