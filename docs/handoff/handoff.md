@@ -3,7 +3,7 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：Phase 1B — Dual Source Validation；1.0 Release Candidate 商业基础已接入，外部验收进行中
+- 当前阶段：1.0 Release Candidate（Phase 1B/商业基础自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-28；dev 骨架重建更新：2026-08-25

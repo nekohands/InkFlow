@@ -101,27 +101,27 @@ Phase 0 开发过程中真实发现并修复：
 
 **Phase 0：Accepted / Completed。**
 
-## 4. 当前正在做 — Phase 1A
+## 4. 当前阶段 — 1.0 Release Candidate
 
-> **分支说明（2026-08-25）**：项目已切换到 `dev` 分支重新起步，`dev` 为唯一开发主线，完成后经 PR 合入 `main`。`dev` 目前仅包含基础设施骨架（见第 8 节）；Phase 1A 各工作包按原顺序与设计文档在 `dev` 上重新推进。
+> **分支说明（2026-08-29）**：项目已切换到 `dev` 分支重新起步，`dev` 为唯一开发主线，完成后经 PR 合入 `main`。Phase 1A/1B、用户产品和商业基础已在 `dev` 上按原设计文档重建；当前自动化 Release Gate 已通过，真实设备、真实来源和真实账户验收仍按第 6 节待定事项执行。
 
-按以下顺序推进，每一项继续执行完整工程闭环：
+Phase 1A 自动化工作包状态：
 
 1. ✅ Source DSL v1 与校验模型。（已实现，本地验证通过）
 2. ✅ `RuleAdapter` 与 Fixture 驱动执行器。（已实现，本地验证通过）
-3. 🚧 Safe HTTP / SSRF 基础防线、请求预算与错误分类。（当前）
+3. ✅ Safe HTTP / SSRF 基础防线、请求预算与错误分类。（已实现，含连接级校验）
 4. ✅ Crawler Task / Lease / Retry / DeadLetter。（已实现）
-5. ⏳ SourceBook / SourceChapter 持久化。
-6. ⏳ Canonical Book 创建与 Match Candidate 基础。
-7. ⏳ Canonical Chapter / Chapter Mapping。
-8. ⏳ Content AST / ContentVersion / ContentHash。
-9. ⏳ 最小 Quality Engine 与 Selected Version。
-10. ⏳ Public API：Search / Book / TOC / Chapter。
-11. ⏳ Legado v1 API Contract。
-12. ⏳ `ILegadoRuleGenerator` 与 `/legado/book-source.json`。
-13. ⏳ Web Reader 最小纵向体验。
-14. ⏳ 单来源自动追更链路。
-15. ⏳ Phase 1A E2E / Contract / Runtime 验收。
+5. ✅ SourceBook / SourceChapter 持久化。
+6. ✅ Canonical Book 创建与 Match Candidate 基础。
+7. ✅ Canonical Chapter / Chapter Mapping。
+8. ✅ Content AST / ContentVersion / ContentHash。
+9. ✅ 最小 Quality Engine 与 Selected Version。
+10. ✅ Public API：Search / Book / TOC / Chapter。
+11. ✅ Legado v1 API Contract。
+12. ✅ `ILegadoRuleGenerator` 与 `/legado/book-source.json`。
+13. ✅ Web Reader 最小纵向体验（自动化基线已完成）。
+14. ✅ 单来源自动追更链路（自动化基线已完成）。
+15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
 ### 4.1 Phase 1A 已完成工作包记录
 
