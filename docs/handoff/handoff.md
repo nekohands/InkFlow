@@ -480,6 +480,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 非目标：不包含持久化/跨执行状态、next-link 派生模板、递归/MaxDepth、通用请求序列、完整 XPath/JSONPath 或真实来源/阅读 3.0 人工验收。
 - 当前状态：有界响应派生变量为通过候选门禁的 `Implemented` 基线；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。来源默认绑定、Owner/Admin 凭据管理、真实 SecretProvider、持久会话、真实来源/切源、阅读 3.0 和人工验收仍待处理。
 
+### 4.58 Source 级默认 CredentialReference 绑定（本轮，2026-08-30）
+
+- 缺口：任务显式 CredentialReference 已接入，但来源型规则/Worker 缺少来源级默认引用回退。
+- 实现：Source 增加可选非敏感 DefaultCredentialReferenceId、Domain 校验、设置/清除和显式优先解析；RuleBasedSourceAdapter 与 RuleCrawlerTaskExecutor 未提供显式引用时回退；Sources 表新增可空 256 字符列和 Migration，任务载荷不复制默认值。
+- 安全/边界：secret 仍只由 ISourceCredentialProvider 解析，默认绑定不保存或输出 secret；Provider 继续负责 Owner Scope/跨租户授权，CodeAdapter 不继承规则型默认值，Owner/Admin 管理、真实 SecretProvider、持久会话和人工验收不在本轮。
+- 回归与证据：Unit 442/442、Architecture 1/1、Contract 10/10、迁移模型 11/11、API `/health` 200；Integration 81 项中 6 通过、2 跳过、73 项因本机 Docker 管道不可用 BLOCKED。候选提交 `6d9c2ec` 的 [CI 33277737624](https://github.com/nekohands/InkFlow/actions/runs/33277737624)、[Docker 33277737577](https://github.com/nekohands/InkFlow/actions/runs/33277737577)、[Security 33277737675](https://github.com/nekohands/InkFlow/actions/runs/33277737675) 均 GREEN。
+- 当前状态：来源级默认 CredentialReference 为通过候选门禁的 Implemented 基线；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -810,6 +818,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证和有界响应派生变量；来源级默认绑定、Owner/Admin 凭据管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证、有界响应派生变量和来源级默认 CredentialReference 回退；Owner/Admin 凭据管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。

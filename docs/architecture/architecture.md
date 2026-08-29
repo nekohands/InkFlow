@@ -91,10 +91,12 @@ RuleAdapter 的 Rule JSON 经过版本化严格 codec 和离线 Fixture 边界�
 占位符、CSS、受控 XPath/JSONPath、带超时 Regex、Trim/Replace、列表绑定和三种受控 Pagination；路径、Header、
 Query、Form 模板均支持有界的调用方变量上下文，执行器已应用有限的请求数、请求/响应字节、执行时间、正则
 时间、结果大小和变量上下文预算，生产 HTTP 读取也有流式响应体上限。
-任务级 `CredentialReferenceId` 已通过 `SourceExecutionContext` 贯通活动 Worker 的 TOC/Content 链路，
-由 `ISourceCredentialProvider` 解析并仅投影为 Bearer、Basic 或受限 API-Key Header；无效引用、提供器异常、
-超时、非法材料和头冲突均在出网前失败关闭，secret 不进入任务/规则/日志/结果。配置提供器只是本地/容器
-适配器，Owner Scope、真实 SecretProvider、来源级默认绑定和管理入口仍需独立治理。
+任务级 `CredentialReferenceId` 已通过 `SourceExecutionContext` 贯通活动 Worker 的 TOC/Content 链路；
+`Source.DefaultCredentialReferenceId` 提供来源级可选的非敏感默认绑定，RuleAdapter/Worker 仅在调用方
+未提供显式引用时回退，显式引用优先。两者均由 `ISourceCredentialProvider` 解析并仅投影为 Bearer、Basic
+或受限 API-Key Header；无效引用、提供器异常、超时、非法材料和头冲突均在出网前失败关闭，secret 不进入
+任务/规则/日志/结果。配置提供器只是本地/容器适配器，Owner Scope、真实 SecretProvider 和管理入口仍需
+独立治理；CodeAdapter 不继承规则型来源默认绑定。
 统一 `RuleSelectorEvaluator` 对 CSS、XML/HTML XPath 和受限 JSONPath 做分派；不支持的选择器语法、
 DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePagination` 只为 Search/TOC 列表提供
 同源 next-link、有限 page-number 或有限 cursor；next-link 后续以 GET 跟随，页码/游标只改写规则已声明
@@ -103,7 +105,8 @@ DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePaginati
 Domain/Path/Secure、生命周期和数量/字节边界发送到后续请求，Cookie 不写入 Rule JSON 值、日志、任务载荷
 或跨执行存储。`CapabilityRule.ResponseVariables` 仅在 page-number/cursor 续页存在时从当前响应派生
 临时请求变量，复用同一变量预算，缺失/非法/超限在续页出网前整体失败且不进入结果或日志；不提供
-持久化或跨执行状态。来源级默认绑定、持久化 Session，以及三种受控分页之外的多请求/递归执行所需的完整 Redirect/Depth 策略仍需
+持久化或跨执行状态。来源级默认 CredentialReference 回退已接入，但持久化 Session，以及三种受控分页之外的
+多请求/递归执行所需的完整 Redirect/Depth 策略仍需
 对应运行时引擎与独立回归，不能由解析通过替代真实执行验收。
 
 抓取分层：

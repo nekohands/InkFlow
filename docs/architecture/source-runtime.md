@@ -85,8 +85,8 @@ MaxResultSize，以及调用方临时请求模板变量上下文的数量、名�
 变量边界为 32 个、名称 128 字符、单值 2,048 字符、累计 16 KiB。`RuleRequest` 的路径、Header、Query
 和 Form 模板值可使用 `{name}` 占位符；发布期与执行期都会拒绝未闭合/非法占位符、非法变量名和控制字符，
 执行失败不回显变量值。生产 HTTP 客户端在解码前按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、
-来源级默认绑定、Owner/Admin 凭据管理和真实 SecretProvider 之外的基于 CredentialReference 的任务级初始
-认证已形成 typed Bearer/Basic/API-Key Header 基线；持久化 Session，以及
+Owner/Admin 凭据管理和真实 SecretProvider 之外，基于 CredentialReference 的任务级初始认证及来源级默认
+绑定已形成 typed Bearer/Basic/API-Key Header 基线；持久化 Session，以及
 next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
@@ -95,6 +95,11 @@ next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirec
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。
 派生值缺失、非法或超限会在下一次续页请求前整体失败，失败结果不暴露已抓响应、派生值或部分页面；
 最后一页不要求派生变量。该能力不提供持久化状态、跨执行状态、通用多请求序列或递归编排。
+
+`Source.DefaultCredentialReferenceId` 是来源级可选的非敏感默认绑定：规则型来源在调用方未提供显式
+`CredentialReferenceId` 时使用它，显式引用优先；RuleAdapter/Worker 只把该引用交给
+`ISourceCredentialProvider`，任务载荷仍不写入 secret。默认绑定本身不实现 Owner/Admin 管理，Provider
+仍必须执行 Owner Scope/跨租户授权；CodeAdapter 不会静默继承规则型来源默认绑定。
 
 禁止：
 
@@ -172,10 +177,14 @@ Task Payload 不包含明文账号、Cookie、Token 或代理密码，只传 `Cr
 Docker Secret、Vault 或云 Secret Manager。当前只允许 Bearer、Basic 和受限 API-Key Header 三种 typed
 请求头投影；不支持凭据的 CodeAdapter 必须拒绝带引用的上下文。
 
+`Source.DefaultCredentialReferenceId` 可作为来源级非敏感默认引用：RuleAdapter 与活动 Worker 仅在调用方
+没有显式 `CredentialReferenceId` 时回退，显式引用始终优先；默认值不复制到 Task Payload，也不绕过
+`ISourceCredentialProvider` 的 Owner Scope/跨租户授权。CodeAdapter 不继承规则型来源默认绑定。
+
 引用 ID、材料和最终请求头均有长度/字符/禁止头名边界，引用解析受 Rule 执行时间预算约束；无效引用、
 提供器缺失/失败/超时、非法材料和请求头冲突都在 HTTP seam 前失败关闭。secret 不进入 Task Payload、
 Variables、Rule JSON、日志、错误文本、结果或对象的 `ToString()`。Provider 仍负责 Owner Scope、
-跨租户授权和安全存储；本轮不提供来源级默认绑定、Admin 凭据管理或跨执行持久会话。
+跨租户授权和安全存储；本轮不提供 Admin 凭据管理或跨执行持久会话。
 
 `RuleSession` 只处理本次 RuleAdapter 链路中由来源响应产生的短期 Cookie，不是凭据存储，也不能替代
 `CredentialReferenceId`、初始登录、跨任务会话接管或人工 CAPTCHA 流程。
