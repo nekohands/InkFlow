@@ -34,6 +34,20 @@ public sealed class RuleCrawlerTaskExecutorTests
         }
     }
 
+    private sealed class FixedCredentialProvider(SourceCredential credential) : ISourceCredentialProvider
+    {
+        public string? ReferenceId { get; private set; }
+
+        public Task<SourceCredential?> ResolveAsync(
+            string sourceId,
+            string credentialReferenceId,
+            CancellationToken cancellationToken = default)
+        {
+            ReferenceId = credentialReferenceId;
+            return Task.FromResult<SourceCredential?>(credential);
+        }
+    }
+
     private sealed class PassthroughSelectorEvaluator : ISelectorEvaluator
     {
         public string? EvaluateFirst(string documentBody, RuleSelector selector, string? attributeName = null) =>
@@ -42,7 +56,7 @@ public sealed class RuleCrawlerTaskExecutorTests
         public IReadOnlyList<SelectorElementSnapshot> SelectAll(string documentBody, RuleSelector selector) => [];
     }
 
-    private static Source SourceWithSearchRule() =>
+    private static Source SourceWithSearchRule(string? defaultCredentialReferenceId = null) =>
         Source.Rehydrate(
             "example-source",
             "示例来源",
@@ -55,7 +69,8 @@ public sealed class RuleCrawlerTaskExecutorTests
                     [new RuleField("title", new RuleSelector(SelectorKind.Css, "h1.title"), null, [])]),
             ]),
             T0,
-            T0);
+            T0,
+            defaultCredentialReferenceId);
 
     private static CrawlerTask SearchTask() =>
         CrawlerTask.Create(
@@ -147,5 +162,49 @@ public sealed class RuleCrawlerTaskExecutorTests
 
         Assert.IsFalse(outcome.Succeeded);
         StringAssert.Contains(outcome.FailureReason!, "500");
+    }
+
+    [TestMethod]
+    public async Task Task_Without_Explicit_Credential_Uses_Source_Default()
+    {
+        var http = new FakeHttpClient();
+        var provider = new FixedCredentialProvider(SourceCredential.BearerToken("default-secret"));
+        var executor = new RuleCrawlerTaskExecutor(
+            new FakeSourceRepository(SourceWithSearchRule("platform-reader")),
+            new RuleAdapter(
+                http,
+                new PassthroughSelectorEvaluator(),
+                credentialProvider: provider));
+
+        var outcome = await executor.ExecuteAsync(SearchTask());
+
+        Assert.IsTrue(outcome.Succeeded, outcome.FailureReason);
+        Assert.AreEqual("platform-reader", provider.ReferenceId);
+    }
+
+    [TestMethod]
+    public async Task Task_Explicit_Credential_Overrides_Source_Default()
+    {
+        var http = new FakeHttpClient();
+        var provider = new FixedCredentialProvider(SourceCredential.BearerToken("explicit-secret"));
+        var executor = new RuleCrawlerTaskExecutor(
+            new FakeSourceRepository(SourceWithSearchRule("platform-reader")),
+            new RuleAdapter(
+                http,
+                new PassthroughSelectorEvaluator(),
+                credentialProvider: provider));
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                "example-source",
+                SourceCapability.Search,
+                new Dictionary<string, string> { ["query"] = "剑来" },
+                "user-reader"),
+            maxAttempts: 3,
+            T0);
+
+        var outcome = await executor.ExecuteAsync(task);
+
+        Assert.IsTrue(outcome.Succeeded, outcome.FailureReason);
+        Assert.AreEqual("user-reader", provider.ReferenceId);
     }
 }

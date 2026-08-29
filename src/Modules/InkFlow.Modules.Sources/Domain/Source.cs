@@ -13,6 +13,11 @@ public sealed class Source
     public string DisplayName { get; private set; } = null!;
     public string BaseUrl { get; private set; } = null!;
     public SourceRuleDsl? RuleDsl { get; private set; }
+    /// <summary>
+    /// 规则型来源在调用方没有提供显式引用时使用的非敏感凭据引用。
+    /// 引用本身不包含 secret；解析和 Owner Scope 由凭据 Provider 负责。
+    /// </summary>
+    public string? DefaultCredentialReferenceId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
@@ -35,16 +40,22 @@ public sealed class Source
 
     public static Source Rehydrate(
         string id, string displayName, string baseUrl, SourceRuleDsl? ruleDsl,
-        DateTimeOffset createdAt, DateTimeOffset updatedAt) =>
-        new()
+        DateTimeOffset createdAt, DateTimeOffset updatedAt,
+        string? defaultCredentialReferenceId = null)
+    {
+        ValidateDefaultCredentialReference(defaultCredentialReferenceId);
+
+        return new Source
         {
             Id = id,
             DisplayName = displayName,
             BaseUrl = baseUrl,
             RuleDsl = ruleDsl,
+            DefaultCredentialReferenceId = defaultCredentialReferenceId,
             CreatedAt = createdAt,
             UpdatedAt = updatedAt,
         };
+    }
 
     /// <summary>安装/更新规则文档。校验失败的文档绝不进入聚合。</summary>
     public void UpdateRuleDsl(SourceRuleDsl dsl, DateTimeOffset now)
@@ -59,6 +70,25 @@ public sealed class Source
         RuleDsl = dsl;
         UpdatedAt = now;
     }
+
+    /// <summary>
+    /// 设置或清除来源级默认凭据引用。只保存非敏感引用；实际 secret 由 Provider 按自身
+    /// Owner/租户策略解析。传入 null 表示清除默认绑定。
+    /// </summary>
+    public void SetDefaultCredentialReference(string? credentialReferenceId, DateTimeOffset now)
+    {
+        ValidateDefaultCredentialReference(credentialReferenceId);
+        DefaultCredentialReferenceId = credentialReferenceId;
+        UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// 解析一次执行的有效引用。非空调用方引用优先；null/空字符串表示未指定，回退到来源默认引用。
+    /// </summary>
+    public string? ResolveCredentialReference(string? requestedReferenceId) =>
+        string.IsNullOrEmpty(requestedReferenceId)
+            ? DefaultCredentialReferenceId
+            : requestedReferenceId;
 
     public void UpdateMetadata(string displayName, DateTimeOffset now)
     {
@@ -95,6 +125,17 @@ public sealed class Source
         {
             throw new ArgumentException(
                 $"{paramName} failed SSRF inspection: {string.Join("; ", errors)}", nameof(baseUrl));
+        }
+    }
+
+    private static void ValidateDefaultCredentialReference(string? credentialReferenceId)
+    {
+        if (credentialReferenceId is not null &&
+            !SourceCredentialReferenceRules.IsValid(credentialReferenceId))
+        {
+            throw new ArgumentException(
+                "default credential reference is invalid.",
+                nameof(credentialReferenceId));
         }
     }
 }

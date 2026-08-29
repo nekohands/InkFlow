@@ -63,7 +63,9 @@ public sealed class SourceRepositoryTests
         return db;
     }
 
-    private static Source NewSourceWithRules(string sourceId) =>
+    private static Source NewSourceWithRules(
+        string sourceId,
+        string? defaultCredentialReferenceId = null) =>
         Source.Rehydrate(
             sourceId,
             "示例来源",
@@ -81,20 +83,49 @@ public sealed class SourceRepositoryTests
                         IdSuffixToStrip: string.Empty)),
             ]),
             T0,
-            T0);
+            T0,
+            defaultCredentialReferenceId);
 
     [TestMethod]
     public async Task Source_With_Rule_Dsl_Roundtrips()
     {
         var repo = CreateRepository();
-        var source = NewSourceWithRules("roundtrip-source");
+        var source = NewSourceWithRules("roundtrip-source", "platform-reader");
         await repo.AddAsync(source).ConfigureAwait(false);
 
         var loaded = await repo.GetAsync("roundtrip-source").ConfigureAwait(false);
         Assert.IsNotNull(loaded);
         Assert.AreEqual("https://books.example.com", loaded.BaseUrl);
+        Assert.AreEqual("platform-reader", loaded.DefaultCredentialReferenceId);
         Assert.IsNotNull(loaded.RuleDsl, "jsonb 规则文档应完整往返");
         Assert.IsNotNull(loaded.FindRule(SourceCapability.Search));
+    }
+
+    [TestMethod]
+    public async Task Save_Updates_And_Clears_Default_Credential_Reference()
+    {
+        var repo = CreateRepository();
+        await repo.AddAsync(NewSourceWithRules("default-credential-save-source", "initial-reader"))
+            .ConfigureAwait(false);
+
+        var loaded = (await repo
+            .GetAsync("default-credential-save-source")
+            .ConfigureAwait(false))!;
+        loaded.SetDefaultCredentialReference("rotated-reader", T0.AddMinutes(1));
+        await repo.SaveAsync(loaded).ConfigureAwait(false);
+
+        var rotated = (await repo
+            .GetAsync("default-credential-save-source")
+            .ConfigureAwait(false))!;
+        Assert.AreEqual("rotated-reader", rotated.DefaultCredentialReferenceId);
+
+        rotated.SetDefaultCredentialReference(null, T0.AddMinutes(2));
+        await repo.SaveAsync(rotated).ConfigureAwait(false);
+
+        var cleared = await repo
+            .GetAsync("default-credential-save-source")
+            .ConfigureAwait(false);
+        Assert.IsNull(cleared!.DefaultCredentialReferenceId);
     }
 
     [TestMethod]

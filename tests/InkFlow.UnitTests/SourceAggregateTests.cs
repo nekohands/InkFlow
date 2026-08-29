@@ -59,4 +59,26 @@ public sealed class SourceAggregateTests
         Assert.IsNotNull(source.FindRule(SourceCapability.Search));
         Assert.IsNull(source.FindRule(SourceCapability.Toc), "未声明的能力应返回 null");
     }
+
+    [TestMethod]
+    public void Default_Credential_Reference_Is_Bounded_And_Can_Be_Cleared()
+    {
+        var source = Source.Create("example-source", "示例", "https://books.example.com", T0);
+
+        source.SetDefaultCredentialReference("platform-reader", T0.AddMinutes(1));
+
+        Assert.AreEqual("platform-reader", source.DefaultCredentialReferenceId);
+        Assert.AreEqual("platform-reader", source.ResolveCredentialReference(null));
+        Assert.AreEqual("explicit-reader", source.ResolveCredentialReference("explicit-reader"));
+        Assert.AreEqual(T0.AddMinutes(1), source.UpdatedAt);
+
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            source.SetDefaultCredentialReference("../secret", T0.AddMinutes(2)));
+        Assert.AreEqual("platform-reader", source.DefaultCredentialReferenceId);
+
+        source.SetDefaultCredentialReference(null, T0.AddMinutes(3));
+
+        Assert.IsNull(source.DefaultCredentialReferenceId);
+        Assert.AreEqual(T0.AddMinutes(3), source.UpdatedAt);
+    }
 }

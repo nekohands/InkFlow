@@ -1,4 +1,5 @@
 using System.Text;
+using InkFlow.Modules.Sources.Domain;
 
 namespace InkFlow.Modules.Sources.Application;
 
@@ -199,34 +200,11 @@ public sealed record SourceExecutionContext(
 /// <summary>来源凭据引用 ID 的 fail-closed 语法边界，亦防止配置节路径注入。</summary>
 public static class SourceCredentialReference
 {
-    public const int MaxLength = 256;
+    public const int MaxLength = SourceCredentialReferenceRules.MaxLength;
 
-    public static bool IsValid(string? referenceId)
-    {
-        if (string.IsNullOrEmpty(referenceId) || referenceId.Length > MaxLength)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < referenceId.Length; index++)
-        {
-            var character = referenceId[index];
-            var isAlphaNumeric = character is >= 'a' and <= 'z' or
-                >= 'A' and <= 'Z' or
-                >= '0' and <= '9';
-            if (index == 0 && !isAlphaNumeric)
-            {
-                return false;
-            }
-
-            if (!isAlphaNumeric && character is not ('.' or '_' or '-'))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    /// <summary>兼容旧 Application 命名空间的转发入口；规则本身属于 Sources Domain。</summary>
+    public static bool IsValid(string? referenceId) =>
+        SourceCredentialReferenceRules.IsValid(referenceId);
 }
 
 /// <summary>

@@ -222,14 +222,16 @@ public sealed class RuleBasedSourceAdapter(
     private SourceExecutionContext NormalizeExecutionContext(
         SourceExecutionContext? executionContext)
     {
-        var context = executionContext ?? new SourceExecutionContext(source.Id);
-        if (!string.Equals(context.SourceId, source.Id, StringComparison.Ordinal))
+        if (executionContext is not null &&
+            !string.Equals(executionContext.SourceId, source.Id, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
                 "source execution context does not match adapter source.");
         }
 
-        return context;
+        var credentialReferenceId = source.ResolveCredentialReference(
+            executionContext?.CredentialReferenceId);
+        return new SourceExecutionContext(source.Id, credentialReferenceId);
     }
 
     private static SourceRuleExecutionLimits ResolveLimits(

@@ -351,6 +351,75 @@ public sealed class SourceCredentialTests
     }
 
     [TestMethod]
+    public async Task Rule_Based_Source_Adapter_Uses_Source_Default_When_Context_Reference_Is_Absent()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search"),
+            [],
+            List: new RuleListBinding("a.book", "href", "/book/", string.Empty));
+        var source = Source.Rehydrate(
+            "example-source",
+            "示例来源",
+            BaseUrl,
+            new SourceRuleDsl("1", "example-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            defaultCredentialReferenceId: "platform-reader");
+        var provider = new FixedCredentialProvider(SourceCredential.BearerToken("default-secret"));
+        var http = new RecordingHttpClient();
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(
+                http,
+                new PassthroughSelectorEvaluator(),
+                credentialProvider: provider),
+            new PassthroughSelectorEvaluator());
+
+        var results = await adapter.SearchAsync("keyword");
+
+        Assert.AreEqual(0, results.Count);
+        Assert.AreEqual("platform-reader", provider.ReferenceId);
+        Assert.AreEqual("Bearer default-secret", http.Requests.Single().Headers["Authorization"]);
+    }
+
+    [TestMethod]
+    public async Task Explicit_Credential_Reference_Overrides_Source_Default()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search"),
+            [],
+            List: new RuleListBinding("a.book", "href", "/book/", string.Empty));
+        var source = Source.Rehydrate(
+            "example-source",
+            "示例来源",
+            BaseUrl,
+            new SourceRuleDsl("1", "example-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            defaultCredentialReferenceId: "platform-reader");
+        var provider = new FixedCredentialProvider(SourceCredential.BearerToken("explicit-secret"));
+        var http = new RecordingHttpClient();
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(
+                http,
+                new PassthroughSelectorEvaluator(),
+                credentialProvider: provider),
+            new PassthroughSelectorEvaluator());
+
+        var results = await adapter.SearchAsync(
+            "keyword",
+            default,
+            new SourceExecutionContext("example-source", "user-reader"));
+
+        Assert.AreEqual(0, results.Count);
+        Assert.AreEqual("user-reader", provider.ReferenceId);
+        Assert.AreEqual("Bearer explicit-secret", http.Requests.Single().Headers["Authorization"]);
+    }
+
+    [TestMethod]
     public async Task Configuration_Provider_Is_Source_And_Reference_Bounded()
     {
         var configuration = new ConfigurationBuilder()
