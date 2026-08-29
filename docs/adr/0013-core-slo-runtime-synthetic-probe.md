@@ -14,6 +14,7 @@ Core SLO v1 已有低基数指标、窗口证据评估器和 Compose OTLP Collec
 - 每个服务面默认执行 5 次请求，可通过环境变量调整为 1–20 次；单请求超时默认 10 秒且最多 60 秒。脚本不自动重试，传输失败、超时或非预期状态立即失败。
 - 脚本生成包含 UTC 窗口、固定证据来源、请求数、5xx 数、延迟样本数和最近秩 p95 毫秒值的 JSON 证据；`durationSampleCount` 与 `requestCount` 必须一致，字段映射到 `CoreSloWindowEvidence` 的统一契约。
 - CI 在源码 Compose Runtime smoke 成功后执行探针，并上传 JSON 作为短期构建产物，供审查和后续窗口聚合使用。
+- 为使短时 Runtime smoke 能观察到 OTLP metrics，CI 通过 Compose 将 `OTEL_METRIC_EXPORT_INTERVAL` 设为 1000 毫秒；Collector metrics pipeline 使用 1 秒 batch。CI 临时将 signal-specific `debug/metrics` 设为 `detailed`，receipt smoke 校验 `inkflow.slo.requests`、`inkflow.slo.request.duration` 及四个稳定服务面标签；默认 Compose 仍使用 `basic`。
 
 ## 非目标
 
@@ -23,4 +24,4 @@ Core SLO v1 已有低基数指标、窗口证据评估器和 Compose OTLP Collec
 
 ## 后果
 
-CI 现在能在真实 Compose 运行时固定覆盖四个 Core SLO 服务面，并留下可复核的短窗口合成证据；脚本失败会阻断该次 Runtime 门禁。由于证据窗口短且流量为合成流量，生产 `Accepted/Completed` 仍必须等待部署环境的后端到达、长窗口聚合、告警/保留治理以及用户已明确延后的人工/真实来源验收。
+CI 现在能在真实 Compose 运行时固定覆盖四个 Core SLO 服务面，确认对应 metrics 已到达 Collector，并留下可复核的短窗口合成证据；脚本或 receipt smoke 失败会阻断该次 Runtime 门禁。由于证据窗口短且流量为合成流量，生产 `Accepted/Completed` 仍必须等待部署环境的后端到达、长窗口聚合、告警/保留治理以及用户已明确延后的人工/真实来源验收。

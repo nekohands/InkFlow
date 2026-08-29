@@ -31,6 +31,8 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector:0.159.0
     command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY: "${INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY:-basic}"
     volumes:
       - ./deploy/observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
     ports:
@@ -66,6 +68,7 @@ services:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       ConnectionStrings__Redis: redis:6379,abortConnect=false
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
     ports:
       - "8080:8080"
     depends_on:
@@ -95,6 +98,7 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
     ports:
       - "8081:8080"
     depends_on:
@@ -124,6 +128,7 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
     ports:
       - "8082:8080"
     depends_on:

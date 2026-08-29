@@ -10,10 +10,15 @@ processors:
   batch:
     timeout: 5s
     send_batch_size: 256
+  batch/metrics:
+    timeout: 1s
+    send_batch_size: 256
 
 exporters:
   debug:
     verbosity: basic
+  debug/metrics:
+    verbosity: "${env:INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY:-basic}"
 
 extensions:
   health_check:
@@ -28,5 +33,5 @@ service:
       exporters: [debug]
     metrics:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [debug]
+      processors: [batch/metrics]
+      exporters: [debug/metrics]

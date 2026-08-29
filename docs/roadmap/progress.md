@@ -673,6 +673,14 @@ Phase 1A 自动化工作包状态：
 - 远端证据：提交 `d5a8ef3` 的 CI `33249393448`、Docker `33249393438`、Security `33249393437` 均 **GREEN**；CI 的 Runtime smoke、四面探针和 evidence artifact 上传均通过。
 - 当前状态：自动化合成探针基线已进入 Release Gate，仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；生产 OTLP 后端、长窗口 SLO、错误预算治理及人工/真实来源验收继续待定。
 
+### 4.42 Core SLO Collector metrics 到达验证（本轮，2026-08-29）
+
+- 缺口：上一轮合成探针已经产生四面 HTTP/延迟 JSON，但 Collector 日志只看到 traces；.NET metrics 的默认周期可能晚于短 Runtime smoke，无法仅凭 Collector 健康或 traces 证明 Core SLO metrics 已到达。
+- 实现：Compose 将 `OTEL_METRIC_EXPORT_INTERVAL` 透传，默认保持 60000 毫秒；CI Runtime smoke 显式使用 1000 毫秒。Collector 为 metrics 使用独立 1 秒 batch 和 signal-specific `debug/metrics`，默认 basic；CI 临时切换 detailed，并由 receipt smoke 校验 `inkflow.slo.requests`、`inkflow.slo.request.duration` 及 `public_api`、`legado_api`、`developer_api`、`reader` 四个服务面标签。
+- 安全/边界：详细输出只在 CI 运行时打开，仍只读取已有低基数 metrics；不新增公开 `/metrics`、不保存响应正文、不携带真实凭据或触发真实来源。debug exporter 仍不是生产持久化、查询、告警或保留后端。
+- 本地证据：已完成配置/工作流 diff 检查；本机 Docker CLI 不存在，Compose config、Collector receipt 和 Docker 相关集成继续 **BLOCKED**，待远端门禁给出真实容器证据。
+- 当前状态：保持 `1.0 Release Candidate`；本轮只推进 Compose/CI metrics 到达自动化门禁，不代表生产 SLO 窗口、告警/保留治理或人工/真实来源验收完成。决策延续 ADR 0013。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

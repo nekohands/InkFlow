@@ -73,7 +73,7 @@ Separate trust zones conceptually and in production deployment where possible:
 - HTTP Crawler Worker
 - Browser Worker
 
-Compose 中的 OTLP Collector 只在内部网络接收 API、Worker、Scheduler 的遥测；4317/4318 不发布到宿主机，健康端口 13133 仅绑定 loopback。Collector 配置只读挂载并以 read-only、`no-new-privileges`、`cap_drop: ALL` 运行；当前 debug exporter 仅用于本地/CI 诊断，不承担生产保留或告警，生产后端需要单独进行访问控制、保留和出口治理。
+Compose 中的 OTLP Collector 只在内部网络接收 API、Worker、Scheduler 的遥测；4317/4318 不发布到宿主机，健康端口 13133 仅绑定 loopback。Collector 配置只读挂载并以 read-only、`no-new-privileges`、`cap_drop: ALL` 运行；当前 debug exporter 仅用于本地/CI 诊断，不承担生产保留或告警。CI 可临时启用 signal-specific metrics 详细输出以确认低基数 instrument/服务面到达，默认 Compose 保持 basic，生产后端需要单独进行访问控制、保留和出口治理。
 
 Browser Workers must not receive broad database/network access. They consume bounded task contracts and short-lived credential references.
 

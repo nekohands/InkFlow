@@ -330,6 +330,14 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 远端证据：提交 `d5a8ef3` 的 CI `33249393448`、Docker `33249393438`、Security `33249393437` 均 GREEN；CI Runtime smoke、四面合成探针和 evidence artifact 上传均通过。
 - 当前状态：自动化合成探针基线已进入 Release Gate，仍保持 `1.0 Release Candidate`；真实 OTLP 后端、长窗口聚合、错误预算告警、保留治理以及用户决定延后的人工/真实来源验收继续按待定清单执行。
 
+### 4.42 Core SLO Collector metrics 到达验证（本轮，2026-08-29）
+
+- 缺口：上一轮合成探针的四面 JSON 已通过，但短 Runtime smoke 未必等到 metrics 默认导出周期，Collector 日志未能证明 Core SLO metrics 到达。
+- 实现：Compose 透传 `OTEL_METRIC_EXPORT_INTERVAL`；CI 使用 1000 毫秒，Collector metrics 使用独立 1 秒 batch。新增 signal-specific `debug/metrics`，默认 basic，CI 临时 detailed；receipt smoke 校验两个 Core SLO instrument 和四个稳定服务面标签。
+- 安全/边界：详细 metrics 诊断只在 CI 期间启用，不新增公开 metrics API，不保存响应正文、身份、Token 或真实来源内容；生产仍需受治理 OTLP 后端、窗口聚合、告警和保留策略。
+- 本地证据：配置/工作流 diff 检查已完成；Docker CLI 不存在，Compose config/Collector receipt/源码 Compose 仍为 **BLOCKED**，等待远端三门。
+- 当前状态：继续保持 `1.0 Release Candidate`，本轮只把 Collector metrics 到达纳入自动化门禁，不标记 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。

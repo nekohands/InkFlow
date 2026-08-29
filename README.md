@@ -143,6 +143,7 @@ docker compose -f docker-compose.build.yml up -d --build
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | 未配置（Compose 默认为 `http://otel-collector:4317`） | OTLP Collector 基地址；Compose 内部默认接收 traces/metrics，部署环境可覆盖为受管端点 |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | 未配置 | 可选 traces 专用 OTLP endpoint |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | 未配置 | 可选 metrics 专用 OTLP endpoint |
+| `OTEL_METRIC_EXPORT_INTERVAL` | `60000`（Compose；CI smoke 为 `1000`） | metrics 周期导出间隔，单位为毫秒 |
 
 ### 部署验证
 
@@ -183,6 +184,8 @@ Core SLO v1 通过 OpenTelemetry 记录 `public_api`、`legado_api`、`developer
 当前 Collector 使用 `deploy/observability/otel-collector-config.yaml` 的 `debug` exporter，仅作为本地/CI 接收与诊断基线，不提供持久化、查询、告警或长期保留。生产环境必须通过 `OTEL_EXPORTER_OTLP_ENDPOINT` 或替换 Collector 配置接入受治理的后端，并另行取得窗口证据、错误预算告警、访问控制和保留策略验收；Collector 健康通过不等同于 Core SLO 月度达标。决策见 [ADR 0012](docs/adr/0012-compose-otel-collector-baseline.md)。
 
 CI Runtime smoke 随后执行 `scripts/core-slo-runtime-smoke.sh`，对四个服务面各发起 5 次有界请求：公共目录、空查询 Legado、预期 401 的未授权 Developer API 和 Reader 页面。脚本计算每面 p95 并上传 UTC JSON 证据；空查询不触发真实来源，探针不使用真实凭据或保存响应正文。该证据是 Compose/CI 合成基线，不等同于生产窗口达标，决策见 [ADR 0013](docs/adr/0013-core-slo-runtime-synthetic-probe.md)。
+
+同一门禁还会等待 metrics 周期导出，并从 Collector 的临时诊断输出校验两个 Core SLO instrument 和四个服务面标签确实到达；详细 metrics 输出只由 CI 显式打开，默认 Compose 保持 basic 诊断。
 
 `.github/workflows/docker.yml` 会先扫描 Compose 使用的固定版本 OTLP Collector，再构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描；全部通过后才推送业务镜像标签。该基线不替代生产镜像准入、报告保留、Secret 轮换和部署环境策略治理。
 

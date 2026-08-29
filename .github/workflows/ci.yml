@@ -42,6 +42,9 @@ jobs:
           bash scripts/tests/core-slo-runtime-smoke.test.sh
 
       - name: Runtime smoke test
+        env:
+          OTEL_METRIC_EXPORT_INTERVAL: "1000"
+          INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY: "detailed"
         run: |
           docker compose -f docker-compose.build.yml up -d --build --wait api worker scheduler otel-collector
           curl --fail --silent http://localhost:13133/
@@ -211,6 +214,24 @@ jobs:
         run: |
           chmod +x scripts/core-slo-runtime-smoke.sh
           scripts/core-slo-runtime-smoke.sh http://localhost:8080
+
+      - name: Core SLO telemetry receipt smoke
+        run: |
+          sleep 3
+          collector_logs="$(docker compose -f docker-compose.build.yml logs --no-color --tail=2000 otel-collector)"
+          for instrument in inkflow.slo.requests inkflow.slo.request.duration; do
+            if ! printf '%s\n' "$collector_logs" | grep -Fq "$instrument"; then
+              echo "Collector did not receive Core SLO instrument: $instrument"
+              exit 1
+            fi
+          done
+          for surface in public_api legado_api developer_api reader; do
+            if ! printf '%s\n' "$collector_logs" | grep -Fq "$surface"; then
+              echo "Collector did not receive Core SLO surface: $surface"
+              exit 1
+            fi
+          done
+          echo "Collector received Core SLO metrics for all four surfaces."
 
       - name: Upload Core SLO synthetic evidence
         if: always()
