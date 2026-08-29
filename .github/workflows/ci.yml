@@ -220,13 +220,13 @@ jobs:
           sleep 3
           collector_logs="$(docker compose -f docker-compose.build.yml logs --no-color --tail=2000 otel-collector)"
           for instrument in inkflow.slo.requests inkflow.slo.request.duration; do
-            if ! printf '%s\n' "$collector_logs" | grep -Fq "$instrument"; then
+            if [[ "$collector_logs" != *"$instrument"* ]]; then
               echo "Collector did not receive Core SLO instrument: $instrument"
               exit 1
             fi
           done
           for surface in public_api legado_api developer_api reader; do
-            if ! printf '%s\n' "$collector_logs" | grep -Fq "$surface"; then
+            if [[ "$collector_logs" != *"$surface"* ]]; then
               echo "Collector did not receive Core SLO surface: $surface"
               exit 1
             fi
