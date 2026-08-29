@@ -36,7 +36,8 @@ jobs:
 
       - name: Runtime smoke test
         run: |
-          docker compose -f docker-compose.build.yml up -d --build --wait api worker scheduler
+          docker compose -f docker-compose.build.yml up -d --build --wait api worker scheduler otel-collector
+          curl --fail --silent http://localhost:13133/
           curl --fail --silent http://localhost:8080/health
           curl --fail --silent http://localhost:8081/health
           curl --fail --silent http://localhost:8082/health

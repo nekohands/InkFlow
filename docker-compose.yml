@@ -28,6 +28,22 @@ services:
       timeout: 3s
       retries: 10
 
+  otel-collector:
+    image: otel/opentelemetry-collector:0.159.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:13133:13133"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   migrations:
     image: ghcr.io/nekohands/inkflow-migrations:dev
     environment:
@@ -49,6 +65,7 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       ConnectionStrings__Redis: redis:6379,abortConnect=false
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
     ports:
       - "8080:8080"
     depends_on:
@@ -56,6 +73,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -75,6 +94,7 @@ services:
     image: ghcr.io/nekohands/inkflow-worker:dev
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
     ports:
       - "8081:8080"
     depends_on:
@@ -82,6 +102,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -101,6 +123,7 @@ services:
     image: ghcr.io/nekohands/inkflow-scheduler:dev
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
     ports:
       - "8082:8080"
     depends_on:
@@ -108,6 +131,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     restart: unless-stopped
     read_only: true
     tmpfs:

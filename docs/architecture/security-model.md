@@ -73,6 +73,8 @@ Separate trust zones conceptually and in production deployment where possible:
 - HTTP Crawler Worker
 - Browser Worker
 
+Compose 中的 OTLP Collector 只在内部网络接收 API、Worker、Scheduler 的遥测；4317/4318 不发布到宿主机，健康端口 13133 仅绑定 loopback。Collector 配置只读挂载并以 read-only、`no-new-privileges`、`cap_drop: ALL` 运行；当前 debug exporter 仅用于本地/CI 诊断，不承担生产保留或告警，生产后端需要单独进行访问控制、保留和出口治理。
+
 Browser Workers must not receive broad database/network access. They consume bounded task contracts and short-lived credential references.
 
 ## 6. Secrets
@@ -124,11 +126,11 @@ Ordinary administrators cannot silently edit audit history through normal CRUD A
 
 ## 12. Supply Chain and Runtime
 
-CI 现已建立可回归的供应链扫描基线：`.github/workflows/security.yml` 执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞、Secret 与 Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM，并将报告作为构建产物归档。`.github/workflows/docker.yml` 对 API、Migrations、Scheduler、Worker 四个镜像执行 Trivy HIGH/CRITICAL 漏洞扫描，只有全部通过后才发布镜像标签。
+CI 现已建立可回归的供应链扫描基线：`.github/workflows/security.yml` 执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞、Secret 与 Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM，并将报告作为构建产物归档。`.github/workflows/docker.yml` 先扫描 Compose 使用的固定版本 OTLP Collector，再对 API、Migrations、Scheduler、Worker 四个镜像执行 Trivy HIGH/CRITICAL 漏洞扫描，只有全部通过后才发布业务镜像标签。
 
 当前仓库未启用 GitHub Code Scanning API，CodeQL/Trivy 结果保留为工作流产物而不上传到代码扫描面板；`ignore-unfixed` 仍表示无法修复的漏洞不会阻塞本基线。生产镜像准入、扫描报告长期保留、动作版本固定、Secret 轮换和部署环境策略仍需后续治理。
 
-Production containers run non-root where practical, drop unnecessary capabilities, use resource limits and avoid host mounts. Image/runtime versions are pinned rather than relying indefinitely on `latest`.
+Production containers run non-root where practical, drop unnecessary capabilities, use resource limits and avoid host mounts. Image/runtime versions are pinned rather than relying indefinitely on `latest`; the Compose Collector is likewise pinned to `otel/opentelemetry-collector:0.159.0` and does not expose its OTLP intake ports publicly.
 
 ## 13. Incident Response
 

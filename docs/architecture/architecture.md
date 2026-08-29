@@ -152,4 +152,6 @@ Core SLO v1 以 `public_api`、`legado_api`、`developer_api` 和 `reader` 四�
 
 `CoreSloEvidenceEvaluator` 对外部聚合出的明确时间窗口执行纯函数评估：四个服务面必须具备正请求量、匹配的延迟样本和合法 p95，结果区分 Passed、Failed、InsufficientEvidence 与 InvalidEvidence，并计算错误预算剩余量。它不保存或发送观测事实，真实 Collector、探针、告警和保留策略仍属于部署治理。
 
+两份 Compose 编排提供固定版本的官方 OTLP Collector 作为观测接收基线：API、Worker、Scheduler 默认经内部网络发送到 `otel-collector:4317`，4317/4318 不发布到宿主机，健康端口 13133 仅绑定 loopback。Collector 配置只读挂载，并启用只读文件系统、临时目录、`no-new-privileges` 和全量 capability drop。当前 debug exporter 只服务本地/CI 诊断，不是生产事实存储；生产 OTLP 后端、窗口聚合、告警与保留策略仍需单独治理，详见 ADR 0012。
+
 当前 CI 在 Runtime smoke 产生真实审计数据后执行 PostgreSQL custom-format 备份恢复演练：恢复到隔离数据库，并比较所有非系统表的行数签名与 `audit.events` 数量。该验证证明数据库归档可恢复，不等同于生产异地备份、保留策略、RPO/RTO 或告警治理。

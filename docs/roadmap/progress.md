@@ -654,6 +654,15 @@ Phase 1A 自动化工作包状态：
 - 远端验收：提交 `71aa1a8` 的 CI `33247413751`、Docker `33247413755`、Security `33247413756` 均 **GREEN**；CI 的 Restore/Build/Test、Compose、Runtime smoke、Redis 限流和备份恢复演练，Docker 四镜像构建/扫描，以及 Security 的 NuGet、Trivy、CodeQL、SBOM 均完成。Security 保留既有 `upload-artifact@v4` Node 20 弃用提示，未影响结论。
 - 当前状态：本工作包继续保持 `1.0 Release Candidate`，代码/自动化契约已完成但不等同于生产 SLO 达标；真实 OTLP Collector、合成探针、窗口证据和错误预算告警仍按第 6 节待定事项执行。
 
+### 4.40 Compose OTLP Collector 监控基线（本轮，2026-08-29）
+
+- 缺口：应用已经能够按配置导出 OTLP，Core SLO 窗口评估契约也已建立，但两份 Compose 没有接收端，Runtime smoke 无法验证 telemetry 出口具备明确的运行时边界。
+- 实现：新增固定版本 `otel/opentelemetry-collector:0.159.0`，配置文件为 `deploy/observability/otel-collector-config.yaml`；OTLP gRPC/HTTP 仅在 Compose 内部监听，健康端口 `13133` 只绑定宿主机 loopback。API、Worker、Scheduler 默认指向 `http://otel-collector:4317`，同时保留 `OTEL_EXPORTER_OTLP_ENDPOINT` 覆盖入口；Collector 使用只读挂载、read-only、tmpfs、`no-new-privileges` 和 `cap_drop: ALL`。
+- 验证边界：CI Runtime smoke 新增 Collector 健康请求，Docker 门禁先扫描固定版本 Collector 再扫描四个业务镜像；当前 `debug` exporter 只用于本地/CI 接收与诊断，不提供生产持久化、查询、告警或长期保留。Collector 健康通过不等同于四个 Core SLO 服务面有生产窗口证据或月度达标，决策见 ADR 0012。
+- 本地证据：`Get-Command docker` 显示 Docker CLI 不存在，因此 Compose config、Collector Runtime smoke 和依赖 Docker 的 Integration 仍为 **BLOCKED**；未以本地应用测试替代该证据。
+- 远端证据：候选提交推送后补录 CI/Docker/Security 三个工作流结果；任一未触发、Pending 或失败均不标记为完成。
+- 当前状态：保持 `1.0 Release Candidate`；Compose 接收/健康基线进入自动化门禁，但生产 OTLP 后端、SLO 窗口、合成探针、错误预算告警与保留治理仍属于 Release Gate。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -747,6 +756,7 @@ Official Source
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
+- [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境把 Collector 接入受治理的持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，执行合成探针与窗口聚合，验证错误预算告警、访问控制和保留策略；Compose 的 debug exporter 与健康 smoke 仅是接收基线，不替代生产证据。
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
@@ -761,7 +771,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Core SLO v1 已建立指标契约，但真实 OTLP Collector、SLO 窗口/合成探针、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收与 loopback 健康基线，但真实生产 OTLP 后端、四个服务面的到达、SLO 窗口/合成探针、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

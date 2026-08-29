@@ -313,6 +313,14 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 远端证据：提交 `71aa1a8` 的 CI `33247413751`、Docker `33247413755`、Security `33247413756` 均 **GREEN**；Security 仅有既有 `upload-artifact@v4` Node 20 弃用提示，不影响工作流结论。
 - 当前状态：保持 `1.0 Release Candidate`，本工作包的自动化契约已完成，但不标记 `Accepted/Completed`。
 
+### 4.40 Compose OTLP Collector 监控基线（本轮，2026-08-29）
+
+- 缺口：应用 OTLP exporter 和 Core SLO 窗口评估契约已就绪，但 Compose 没有接收端，无法在 Runtime smoke 中确认观测出口的启动与健康边界。
+- 实现：两份 Compose 加入固定版本官方 `otel/opentelemetry-collector:0.159.0`，配置位于 `deploy/observability/otel-collector-config.yaml`；OTLP gRPC/HTTP 只在内部网络监听，健康端口 `13133` 仅绑定 loopback。API、Worker、Scheduler 默认指向 `http://otel-collector:4317`，并保留 `OTEL_EXPORTER_OTLP_ENDPOINT` 覆盖入口。
+- 安全/边界：Collector 配置只读挂载，服务启用 read-only、tmpfs、`no-new-privileges` 和 `cap_drop: ALL`；Docker 门禁先扫描固定版本 Collector，再扫描四个业务镜像。当前 debug exporter 只作本地/CI 接收诊断，不提供生产持久化、查询、告警或保留。健康 smoke 不等同于生产 SLO 月度达标，决策见 ADR 0012。
+- 本地证据：Docker CLI 不存在，Compose config/Runtime smoke/Testcontainers 仍为 BLOCKED；远端候选提交推送后补录 CI、Docker、Security 三门结果。
+- 当前状态：保持 `1.0 Release Candidate`。生产 OTLP 后端、四服务面到达、合成探针/窗口、错误预算告警和保留治理仍是 Release Gate。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -363,6 +371,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Operations Center Alert History UI v1：管理员历史刷新/不透明游标分页 + opened/resolved 转折展示 + Operator 权限提示（`734c626`；CI `33245390370` / Docker `33245390354` / Security `33245390350` GREEN；真实与人工验收待定）
 ✅ Core SLO Observability v1：四类服务面 + 可用性/延迟/5xx 低基数指标 + OTLP 显式配置（`a87c5ae`；CI `33246490603` / Docker `33246490571` / Security `33246490589` GREEN；真实 SLO 窗口与人工验收待定）
 ✅ Core SLO 窗口证据评估契约：四面完整性 + p95/可用性 + 错误预算 + 缺证据 fail-closed（本轮；真实 Collector/合成探针窗口待定）
+✅ Compose OTLP Collector 监控基线：固定版本 Collector + 内部 OTLP 接收 + loopback 健康 smoke + 三宿主默认接线（本轮；生产后端/窗口/告警/保留仍待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
@@ -494,6 +503,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - [ ] **linovelib 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → Content，并把该来源纳入真实第二来源/故障切换演练；本轮仅完成离线规则回归，未触网。
 - [ ] **17K 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向；本轮仅完成 Fixture 回归，未触网。
 - [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 48 项中 41 项因 `docker_engine` 不可用而 BLOCKED，1 项跳过，不记为通过。
+- [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
 
 扩展新来源的方式(书源兼容层):
 - 规则型站点:在 sources 表登记含 RuleDsl 的 Source 记录,零代码;

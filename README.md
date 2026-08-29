@@ -140,7 +140,7 @@ docker compose -f docker-compose.build.yml up -d --build
 | `Operations__Alerts__UnavailableCapabilityCountThreshold` | `1` | 告警快照触发来源能力不可用阈值 |
 | `Operations__Alerts__ConsistencyIssueCountThreshold` | `1` | 告警快照触发一致性问题阈值 |
 | `Operations__Alerts__MaxReturnedAlerts` | `100` | 单次告警快照最大返回数量 |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | 未配置 | 可选 OTLP Collector 基地址；配置后导出 traces/metrics |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | 未配置（Compose 默认为 `http://otel-collector:4317`） | OTLP Collector 基地址；Compose 内部默认接收 traces/metrics，部署环境可覆盖为受管端点 |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | 未配置 | 可选 traces 专用 OTLP endpoint |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | 未配置 | 可选 metrics 专用 OTLP endpoint |
 
@@ -176,7 +176,13 @@ Core SLO v1 通过 OpenTelemetry 记录 `public_api`、`legado_api`、`developer
 
 `CoreSloEvidenceEvaluator` 将 OTLP/合成探针聚合出的单窗口数据转换为可审计结果：四个服务面必须都有正流量、完整延迟样本和 p95，缺证据或非法聚合不会被判为通过；结果同时给出 99.5% 可用性、p95 目标和错误预算剩余量。该评估器不连接生产 Collector、不保存窗口报告，也不替代真实月度窗口验收，契约见 [ADR 0011](docs/adr/0011-core-slo-window-evidence-evaluation.md)。
 
-`.github/workflows/docker.yml` 会先构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描；全部通过后才推送各镜像标签。该基线不替代生产镜像准入、报告保留、Secret 轮换和部署环境策略治理。
+### Compose OTLP Collector 监控基线
+
+两份 Compose 编排均包含固定版本的官方 `otel/opentelemetry-collector:0.159.0`。API、Worker、Scheduler 默认通过 Compose 内部网络把 traces/metrics 发送到 `otel-collector:4317`；OTLP 接收端口不发布到宿主机，Collector 健康端口 `13133` 仅绑定 loopback。CI Runtime smoke 会实际请求该健康端点，验证 Collector 已启动并可提供健康响应。
+
+当前 Collector 使用 `deploy/observability/otel-collector-config.yaml` 的 `debug` exporter，仅作为本地/CI 接收与诊断基线，不提供持久化、查询、告警或长期保留。生产环境必须通过 `OTEL_EXPORTER_OTLP_ENDPOINT` 或替换 Collector 配置接入受治理的后端，并另行取得窗口证据、错误预算告警、访问控制和保留策略验收；Collector 健康通过不等同于 Core SLO 月度达标。决策见 [ADR 0012](docs/adr/0012-compose-otel-collector-baseline.md)。
+
+`.github/workflows/docker.yml` 会先扫描 Compose 使用的固定版本 OTLP Collector，再构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描；全部通过后才推送业务镜像标签。该基线不替代生产镜像准入、报告保留、Secret 轮换和部署环境策略治理。
 
 ### 生产注意事项
 
