@@ -835,6 +835,240 @@ public sealed class RuleAdapterTests
     }
 
     [TestMethod]
+    public async Task Page_Number_Continuation_Uses_Bounded_Response_Derived_Variables()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>
+                {
+                    ["page"] = "ignored",
+                    ["token"] = "{token}",
+                },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.JsonPath, "$.hasNext"),
+                null,
+                MaxPages: 2)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+                StartPage = 1,
+                PageStep = 1,
+            },
+            ResponseVariables: [
+                new RuleResponseVariable(
+                    "token",
+                    new RuleSelector(SelectorKind.JsonPath, "$.nextToken"),
+                    null,
+                    [new TrimTransform()]),
+            ]);
+        var requests = new List<SourceHttpRequest>();
+        var http = new FakeHttpClient
+        {
+            Responder = request =>
+            {
+                requests.Add(request);
+                return requests.Count == 1
+                    ? new SourceHttpResponse(200, "page-1")
+                    : new SourceHttpResponse(200, "page-2");
+            },
+        };
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (body, selector) => selector.Expression switch
+            {
+                "$.hasNext" => body == "page-1" ? "true" : null,
+                "$.nextToken" => body == "page-1" ? "  rotated-token  " : null,
+                _ => null,
+            },
+        };
+
+        var result = await new RuleAdapter(http, evaluator).ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string> { ["token"] = "initial-token" });
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(2, requests.Count);
+        StringAssert.Contains(requests[0].Url, "token=initial-token");
+        StringAssert.Contains(requests[1].Url, "token=rotated-token");
+        Assert.AreEqual(0, result.Values.Count, "derived variables must remain transient");
+    }
+
+    [TestMethod]
+    public async Task Missing_Response_Derived_Variable_Fails_Before_Continuation()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>
+                {
+                    ["page"] = "ignored",
+                    ["token"] = "{token}",
+                },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.JsonPath, "$.hasNext"),
+                null,
+                MaxPages: 2)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+            },
+            ResponseVariables: [
+                new RuleResponseVariable(
+                    "token",
+                    new RuleSelector(SelectorKind.JsonPath, "$.nextToken"),
+                    null,
+                    []),
+            ]);
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(200, "page-1"),
+        };
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (_, selector) => selector.Expression == "$.hasNext" ? "true" : null,
+        };
+
+        var result = await new RuleAdapter(http, evaluator).ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string> { ["token"] = "initial-token" });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("responseVariables")));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Cursor_Continuation_Uses_Response_Derived_Regex_In_Request_Header()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string> { ["X-Next-Token"] = "{token}" },
+                new Dictionary<string, string> { ["cursor"] = string.Empty },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("$.items[*]", "id", string.Empty, string.Empty, SelectorKind.JsonPath),
+            Pagination: new RulePagination(MaxPages: 2)
+            {
+                Mode = RulePaginationMode.Cursor,
+                ParameterName = "cursor",
+                CursorSelector = new RuleSelector(SelectorKind.JsonPath, "$.cursor"),
+            },
+            ResponseVariables: [
+                new RuleResponseVariable(
+                    "token",
+                    null,
+                    new RuleRegex(@"next-token=([^;]+)", 200),
+                    [new TrimTransform()]),
+            ]);
+        var requests = new List<SourceHttpRequest>();
+        var http = new FakeHttpClient
+        {
+            Responder = request =>
+            {
+                requests.Add(request);
+                return requests.Count == 1
+                    ? new SourceHttpResponse(200, "next-token= rotated-token ; cursor=c2")
+                    : new SourceHttpResponse(200, "done");
+            },
+        };
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (body, selector) =>
+                selector.Expression == "$.cursor" && body.Contains("cursor=c2", StringComparison.Ordinal)
+                    ? "c2"
+                    : null,
+        };
+
+        var result = await new RuleAdapter(http, evaluator).ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string> { ["token"] = "initial-token" });
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(2, requests.Count);
+        Assert.AreEqual("initial-token", requests[0].Headers["X-Next-Token"]);
+        Assert.AreEqual("rotated-token", requests[1].Headers["X-Next-Token"]);
+    }
+
+    [TestMethod]
+    public async Task Oversized_Response_Derived_Variable_Fails_Without_Leaking_Value()
+    {
+        var marker = "derived-secret";
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>
+                {
+                    ["page"] = "ignored",
+                    ["token"] = "{token}",
+                },
+                new Dictionary<string, string>()),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.JsonPath, "$.hasNext"),
+                null,
+                MaxPages: 2)
+            {
+                Mode = RulePaginationMode.PageNumber,
+                ParameterName = "page",
+            },
+            ResponseVariables: [
+                new RuleResponseVariable(
+                    "token",
+                    new RuleSelector(SelectorKind.JsonPath, "$.nextToken"),
+                    null,
+                    []),
+            ]);
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(200, "page-1"),
+        };
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (_, selector) => selector.Expression switch
+            {
+                "$.hasNext" => "true",
+                "$.nextToken" => marker + new string('x', 2_050),
+                _ => null,
+            },
+        };
+
+        var result = await new RuleAdapter(http, evaluator).ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string> { ["token"] = "initial-token" });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("variable")));
+        Assert.IsFalse(result.Errors.Any(error => error.Contains(marker)));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
     public async Task Cursor_Pagination_Injects_The_Selected_Cursor_And_Stops_When_Absent()
     {
         var rule = new CapabilityRule(

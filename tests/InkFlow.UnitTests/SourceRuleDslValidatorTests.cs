@@ -333,6 +333,60 @@ public sealed class SourceRuleDslValidatorTests
     }
 
     [TestMethod]
+    public void Response_Derived_Variables_Require_Page_Number_Or_Cursor_Continuation()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            ResponseVariables = [
+                new RuleResponseVariable(
+                    "token",
+                    new RuleSelector(SelectorKind.JsonPath, "$.token"),
+                    null,
+                    []),
+            ],
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "response-variable-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("page-number or cursor")));
+    }
+
+    [TestMethod]
+    public void Response_Derived_Variable_Names_Must_Be_Unique_And_Bounded()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            Pagination = new RulePagination(
+                new RuleSelector(SelectorKind.JsonPath, "$.hasNext"),
+                null,
+                MaxPages: 2)
+            {
+                Mode = RulePaginationMode.Cursor,
+                ParameterName = "cursor",
+                CursorSelector = new RuleSelector(SelectorKind.JsonPath, "$.cursor"),
+            },
+            ResponseVariables = [
+                new RuleResponseVariable(
+                    "token",
+                    new RuleSelector(SelectorKind.JsonPath, "$.token"),
+                    null,
+                    []),
+                new RuleResponseVariable(
+                    "token",
+                    new RuleSelector(SelectorKind.JsonPath, "$.other"),
+                    null,
+                    []),
+            ],
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "response-variable-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("duplicate response variable name")));
+    }
+
+    [TestMethod]
     public void Validator_Returns_All_Violations_At_Once()
     {
         var dsl = new SourceRuleDsl("42", "", []);

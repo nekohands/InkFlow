@@ -5,7 +5,8 @@ namespace InkFlow.Modules.Sources.Domain;
 /// 单结果能力(BookInfo/Content)使用 <see cref="Fields"/>；
 /// 多结果能力(Toc/Search)通过 <see cref="List"/> 声明条目集抽取；
 /// 可选的 <see cref="Pagination"/> 只允许声明受控的同源 next-link、页码或游标链路；
-/// 可选的 <see cref="Session"/> 只在本次执行内接收并转发受限响应 Cookie。
+/// 可选的 <see cref="Session"/> 只在本次执行内接收并转发受限响应 Cookie；
+/// 可选的 <see cref="ResponseVariables"/> 只为 page-number/cursor 续页请求提供当前响应派生变量。
 /// </summary>
 public sealed record CapabilityRule(
     SourceCapability Capability,
@@ -13,4 +14,5 @@ public sealed record CapabilityRule(
     IReadOnlyList<RuleField> Fields,
     RuleListBinding? List = null,
     RulePagination? Pagination = null,
-    RuleSession? Session = null);
+    RuleSession? Session = null,
+    IReadOnlyList<RuleResponseVariable>? ResponseVariables = null);

@@ -14,6 +14,7 @@ public static class SourceRuleDslValidator
     public const int MaxRegexTimeoutMilliseconds = 2_000;
     public const int MaxRules = 32;
     public const int MaxFieldsPerRule = 64;
+    public const int MaxResponseVariablesPerRule = 32;
     public const int MaxTransformsPerField = 16;
     public const int MaxMapEntries = 64;
     public const int MaxSourceIdLength = 128;
@@ -36,6 +37,8 @@ public static class SourceRuleDslValidator
 
     private static readonly System.Text.RegularExpressions.Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex VariableNamePattern =
+        new(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
 
     public static IReadOnlyList<string> Validate(SourceRuleDsl? dsl)
     {
@@ -98,6 +101,7 @@ public static class SourceRuleDslValidator
             ValidateList(rule, errors);
             ValidatePagination(rule, errors);
             ValidateSession(rule, errors);
+            ValidateResponseVariables(rule, errors);
         }
 
         return errors;
@@ -510,6 +514,18 @@ public static class SourceRuleDslValidator
         return errors;
     }
 
+    /// <summary>
+    /// 只校验单条能力规则的响应派生变量声明，供执行器在未经过 JSON codec 时复用。
+    /// 该能力仅服务有界的 page-number/cursor 续页，不构成通用多请求编排。
+    /// </summary>
+    public static IReadOnlyList<string> ValidateResponseVariables(CapabilityRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        var errors = new List<string>();
+        ValidateResponseVariables(rule, errors);
+        return errors;
+    }
+
     private static void ValidateSession(CapabilityRule rule, List<string> errors)
     {
         var session = rule.Session;
@@ -536,6 +552,198 @@ public static class SourceRuleDslValidator
             errors.Add(
                 $"{prefix}: maxCookieLifetimeSeconds must be between 1 and " +
                 $"{MaxSessionCookieLifetimeSeconds}.");
+        }
+    }
+
+    private static void ValidateResponseVariables(CapabilityRule rule, List<string> errors)
+    {
+        var variables = rule.ResponseVariables;
+        if (variables is null || variables.Count == 0)
+        {
+            return;
+        }
+
+        var prefix = $"rules[{rule.Capability}] responseVariables";
+        if (rule.Pagination?.Mode is not (RulePaginationMode.PageNumber or RulePaginationMode.Cursor))
+        {
+            errors.Add(
+                $"{prefix}: response variables require page-number or cursor pagination.");
+        }
+
+        if (variables.Count > MaxResponseVariablesPerRule)
+        {
+            errors.Add(
+                $"{prefix}: must contain at most {MaxResponseVariablesPerRule} entries.");
+        }
+
+        var seenNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var variable in variables)
+        {
+            if (variable is null)
+            {
+                errors.Add($"{prefix}: entries must not be null.");
+                continue;
+            }
+
+            var variablePrefix = $"{prefix}['{variable.Name}']";
+            if (string.IsNullOrWhiteSpace(variable.Name))
+            {
+                errors.Add($"{variablePrefix}: variable name is invalid.");
+            }
+            else
+            {
+                if (variable.Name.Length > MaxFieldNameLength ||
+                    !VariableNamePattern.IsMatch(variable.Name))
+                {
+                    errors.Add($"{variablePrefix}: variable name is invalid.");
+                }
+
+                if (!seenNames.Add(variable.Name))
+                {
+                    errors.Add($"{variablePrefix}: duplicate response variable name.");
+                }
+            }
+
+            var hasSelector = variable.Selector is not null;
+            var hasRegex = variable.Regex is not null;
+            if (hasSelector == hasRegex)
+            {
+                errors.Add(
+                    $"{variablePrefix}: keep exactly one extraction source — " +
+                    "either a selector or a regex.");
+            }
+
+            if (variable.Selector is { } selector)
+            {
+                ValidateResponseVariableSelector(variablePrefix, selector, variable.Attribute, errors);
+            }
+
+            if (variable.Regex is not null && variable.Attribute is not null)
+            {
+                errors.Add($"{variablePrefix}: attribute is only valid with a selector.");
+                ValidateMaxLength(
+                    variable.Attribute,
+                    MaxAttributeNameLength,
+                    $"{variablePrefix} attribute",
+                    errors);
+                if (string.IsNullOrWhiteSpace(variable.Attribute))
+                {
+                    errors.Add($"{variablePrefix}: attribute name must not be blank when specified.");
+                }
+                if (variable.Attribute.Any(char.IsControl))
+                {
+                    errors.Add($"{variablePrefix}: attribute name must not contain control characters.");
+                }
+            }
+
+            if (variable.Regex is { } regex)
+            {
+                if (string.IsNullOrWhiteSpace(regex.Pattern))
+                {
+                    errors.Add($"{variablePrefix}: regex pattern must not be empty.");
+                }
+
+                ValidateMaxLength(
+                    regex.Pattern,
+                    MaxRegexPatternLength,
+                    $"{variablePrefix} regex pattern",
+                    errors);
+
+                if (regex.TimeoutMilliseconds <= 0 ||
+                    regex.TimeoutMilliseconds > MaxRegexTimeoutMilliseconds)
+                {
+                    errors.Add(
+                        $"{variablePrefix}: regex timeout must be within (0, " +
+                        $"{MaxRegexTimeoutMilliseconds}] ms.");
+                }
+            }
+
+            ValidateResponseVariableTransforms(variablePrefix, variable.Transforms, errors);
+        }
+    }
+
+    private static void ValidateResponseVariableSelector(
+        string prefix,
+        RuleSelector selector,
+        string? attribute,
+        List<string> errors)
+    {
+        if (!Enum.IsDefined(selector.Kind))
+        {
+            errors.Add($"{prefix}: unknown selector kind '{selector.Kind}'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(selector.Expression))
+        {
+            errors.Add($"{prefix}: selector expression must not be empty.");
+        }
+
+        ValidateMaxLength(
+            selector.Expression,
+            MaxSelectorExpressionLength,
+            $"{prefix} selector expression",
+            errors);
+
+        var expression = selector.Expression?.TrimStart() ?? string.Empty;
+        if (selector.Kind == SelectorKind.JsonPath && !expression.StartsWith('$'))
+        {
+            errors.Add($"{prefix}: JSONPath selector must start with '$'.");
+        }
+
+        if (selector.Kind == SelectorKind.XPath &&
+            !expression.StartsWith('/') && !expression.StartsWith('.'))
+        {
+            errors.Add($"{prefix}: XPath selector must start with '/' or '.'.");
+        }
+
+        if (attribute is not null && string.IsNullOrWhiteSpace(attribute))
+        {
+            errors.Add($"{prefix}: attribute name must not be blank when specified.");
+        }
+
+        if (attribute?.Any(char.IsControl) == true)
+        {
+            errors.Add($"{prefix}: attribute name must not contain control characters.");
+        }
+
+        ValidateMaxLength(attribute, MaxAttributeNameLength, $"{prefix} attribute", errors);
+    }
+
+    private static void ValidateResponseVariableTransforms(
+        string prefix,
+        IReadOnlyList<RuleTransform>? transforms,
+        List<string> errors)
+    {
+        if (transforms is null)
+        {
+            errors.Add($"{prefix}: transforms must be an array.");
+            return;
+        }
+
+        if (transforms.Count > MaxTransformsPerField)
+        {
+            errors.Add(
+                $"{prefix}: transforms must contain at most {MaxTransformsPerField} entries.");
+        }
+
+        foreach (var transform in transforms)
+        {
+            if (transform is null)
+            {
+                errors.Add($"{prefix}: transform entries must not be null.");
+                continue;
+            }
+
+            if (transform is ReplaceTransform { From: null or "" })
+            {
+                errors.Add($"{prefix}: replace transform requires a non-empty 'from'.");
+            }
+
+            if (transform is ReplaceTransform replace)
+            {
+                ValidateMaxLength(replace.From, MaxTransformValueLength, $"{prefix} replace 'from'", errors);
+                ValidateMaxLength(replace.To, MaxTransformValueLength, $"{prefix} replace 'to'", errors);
+            }
         }
     }
 

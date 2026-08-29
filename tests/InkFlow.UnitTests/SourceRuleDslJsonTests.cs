@@ -376,6 +376,53 @@ public sealed class SourceRuleDslJsonTests
     }
 
     [TestMethod]
+    public void Serialize_Roundtrips_Response_Derived_Variable_Metadata()
+    {
+        var dsl = new SourceRuleDsl(
+            "1",
+            "response-variable-source",
+            [new CapabilityRule(
+                SourceCapability.Search,
+                new RuleRequest(
+                    RuleHttpMethod.Get,
+                    "/search",
+                    new Dictionary<string, string>(),
+                    new Dictionary<string, string>
+                    {
+                        ["page"] = "1",
+                        ["token"] = "{token}",
+                    },
+                    new Dictionary<string, string>()),
+                [],
+                new RuleListBinding("$.items[*]", "id", string.Empty, string.Empty, SelectorKind.JsonPath),
+                new RulePagination(
+                    new RuleSelector(SelectorKind.JsonPath, "$.hasNext"),
+                    null,
+                    3)
+                {
+                    Mode = RulePaginationMode.Cursor,
+                    ParameterName = "page",
+                    CursorSelector = new RuleSelector(SelectorKind.JsonPath, "$.cursor"),
+                },
+                ResponseVariables: [
+                    new RuleResponseVariable(
+                        "token",
+                        new RuleSelector(SelectorKind.JsonPath, "$.token"),
+                        null,
+                        [new TrimTransform()]),
+                ])]);
+
+        var json = SourceRuleDslJson.Serialize(dsl);
+        var result = SourceRuleDslJson.Parse(json);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        var responseVariable = result.Document!.Rules[0].ResponseVariables!.Single();
+        Assert.AreEqual("token", responseVariable.Name);
+        Assert.AreEqual("$.token", responseVariable.Selector!.Expression);
+        StringAssert.Contains(json, "\"responseVariables\"");
+    }
+
+    [TestMethod]
     public void Serialize_Roundtrips_Bounded_Session_Metadata_Without_Cookie_Values()
     {
         var dsl = new SourceRuleDsl(

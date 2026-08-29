@@ -76,6 +76,13 @@ public sealed class RuleAdapter
             }
         }
 
+        var responseVariableDeclarationErrors =
+            SourceRuleDslValidator.ValidateResponseVariables(rule);
+        if (responseVariableDeclarationErrors.Count > 0)
+        {
+            return RuleExecutionResult.Fail(responseVariableDeclarationErrors);
+        }
+
         var initialParameterName = pagination?.Mode == RulePaginationMode.PageNumber
             ? pagination.ParameterName
             : null;
@@ -145,6 +152,9 @@ public sealed class RuleAdapter
         var pageBodies = new List<string>();
         var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
+        var continuationVariables = new Dictionary<string, string>(
+            variables,
+            StringComparer.Ordinal);
         long responseBytes = 0;
 
         for (var page = 1; ; page++)
@@ -298,6 +308,18 @@ public sealed class RuleAdapter
                         return RuleExecutionResult.Fail([limitError]);
                     }
 
+                    var responseVariableErrors = TryBuildResponseVariables(
+                        rule,
+                        response.Body,
+                        continuationVariables,
+                        out var updatedVariables);
+                    if (responseVariableErrors.Count > 0)
+                    {
+                        return RuleExecutionResult.Fail(responseVariableErrors);
+                    }
+
+                    continuationVariables = updatedVariables!;
+
                     var nextPageValue = (long)pagination.StartPage +
                         (long)page * pagination.PageStep;
                     if (nextPageValue > SourceRuleDslValidator.MaxPaginationPageValue)
@@ -309,7 +331,7 @@ public sealed class RuleAdapter
                     var pageBuildErrors = TryBuildRequest(
                         rule,
                         baseUrl,
-                        variables,
+                        continuationVariables,
                         pagination.ParameterName,
                         nextPageValue.ToString(CultureInfo.InvariantCulture),
                         out var nextRequest);
@@ -358,6 +380,18 @@ public sealed class RuleAdapter
                         return RuleExecutionResult.Fail([limitError]);
                     }
 
+                    var responseVariableErrors = TryBuildResponseVariables(
+                        rule,
+                        response.Body,
+                        continuationVariables,
+                        out var updatedVariables);
+                    if (responseVariableErrors.Count > 0)
+                    {
+                        return RuleExecutionResult.Fail(responseVariableErrors);
+                    }
+
+                    continuationVariables = updatedVariables!;
+
                     var cursor = rawCursor.Trim();
                     if (cursor.Length > SourceRuleDslValidator.MaxPaginationCursorLength ||
                         cursor.Any(char.IsControl))
@@ -374,7 +408,7 @@ public sealed class RuleAdapter
                     var cursorBuildErrors = TryBuildRequest(
                         rule,
                         baseUrl,
-                        variables,
+                        continuationVariables,
                         pagination.ParameterName,
                         cursor,
                         out var nextRequest);
@@ -497,6 +531,92 @@ public sealed class RuleAdapter
         };
         preparedRequest = request with { Headers = headers };
         return true;
+    }
+
+    private List<string> TryBuildResponseVariables(
+        CapabilityRule rule,
+        string body,
+        IReadOnlyDictionary<string, string> currentVariables,
+        out Dictionary<string, string>? updatedVariables)
+    {
+        updatedVariables = null;
+        var responseVariables = rule.ResponseVariables;
+        if (responseVariables is null || responseVariables.Count == 0)
+        {
+            updatedVariables = new Dictionary<string, string>(
+                currentVariables,
+                StringComparer.Ordinal);
+            return [];
+        }
+
+        var candidate = new Dictionary<string, string>(
+            currentVariables,
+            StringComparer.Ordinal);
+        var errors = new List<string>();
+
+        foreach (var variable in responseVariables)
+        {
+            string? extracted;
+            var errorPrefix =
+                $"rules[{rule.Capability}] responseVariables['{variable.Name}']";
+
+            if (variable.Selector is { } selector)
+            {
+                extracted = _selectorEvaluator.EvaluateFirst(
+                    body,
+                    selector,
+                    variable.Attribute);
+            }
+            else if (variable.Regex is { } regexSpec)
+            {
+                extracted = EvaluateRegex(
+                    body,
+                    regexSpec,
+                    errorPrefix,
+                    _limits.MaxRegexTime,
+                    errors);
+            }
+            else
+            {
+                errors.Add($"{errorPrefix}: no extraction source defined.");
+                continue;
+            }
+
+            if (extracted is null)
+            {
+                errors.Add($"{errorPrefix}: no match found in response.");
+                continue;
+            }
+
+            foreach (var transform in variable.Transforms)
+            {
+                extracted = transform switch
+                {
+                    TrimTransform => extracted.Trim(),
+                    ReplaceTransform replace => extracted.Replace(replace.From, replace.To),
+                    _ => extracted,
+                };
+            }
+
+            // Derived values are transient request context. Reuse the same bounded
+            // validation as caller variables before they can reach a continuation URL,
+            // header, query, or form value.
+            candidate[variable.Name] = extracted;
+        }
+
+        if (errors.Count > 0)
+        {
+            return errors;
+        }
+
+        var variableErrors = ValidateVariables(candidate);
+        if (variableErrors.Count > 0)
+        {
+            return variableErrors;
+        }
+
+        updatedVariables = candidate;
+        return [];
     }
 
     private bool TryContinueAfterPage(
@@ -819,8 +939,7 @@ public sealed class RuleAdapter
                 extracted = EvaluateRegex(
                     body,
                     regexSpec,
-                    field.Name,
-                    rule.Capability,
+                    $"rules[{rule.Capability}]['{field.Name}']",
                     _limits.MaxRegexTime,
                     errors);
             }
@@ -863,8 +982,7 @@ public sealed class RuleAdapter
     private static string? EvaluateRegex(
         string body,
         RuleRegex regexSpec,
-        string fieldName,
-        SourceCapability capability,
+        string errorPrefix,
         TimeSpan maxRegexTime,
         List<string> errors)
     {
@@ -889,12 +1007,12 @@ public sealed class RuleAdapter
         }
         catch (ArgumentException ex)
         {
-            errors.Add($"rules[{capability}]['{fieldName}']: invalid regex pattern — {ex.Message}");
+            errors.Add($"{errorPrefix}: invalid regex pattern — {ex.Message}");
             return null;
         }
         catch (RegexMatchTimeoutException)
         {
-            errors.Add($"rules[{capability}]['{fieldName}']: regex evaluation timed out.");
+            errors.Add($"{errorPrefix}: regex evaluation timed out.");
             return null;
         }
     }
