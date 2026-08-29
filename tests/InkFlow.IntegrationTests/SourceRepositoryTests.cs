@@ -63,7 +63,12 @@ public sealed class SourceRepositoryTests
                 new CapabilityRule(
                     SourceCapability.Search,
                     RuleRequest.Get("/search?q={query}"),
-                    [new RuleField("title", new RuleSelector(SelectorKind.Css, "h1"), null, [])]),
+                    [new RuleField("title", new RuleSelector(SelectorKind.Css, "h1"), null, [])],
+                    List: new RuleListBinding(
+                        ItemsSelector: ".result a",
+                        ExternalIdAttribute: "href",
+                        IdPrefixToStrip: string.Empty,
+                        IdSuffixToStrip: string.Empty)),
             ]),
             T0,
             T0);
