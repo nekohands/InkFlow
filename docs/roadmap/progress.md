@@ -633,7 +633,8 @@ Phase 1A 自动化工作包状态：
 - 实现：管理员可在 `/admin/operations` 刷新最新告警历史并使用不透明游标加载更早记录；页面展示稳定告警代码、资源坐标、发生时间、出现次数及“已触发/已恢复”状态。Operator 不发起平台级历史请求，只看到权限提示，后端 Administrator-only 边界保持不变。
 - UX/安全：历史表格沿用 Operations Center 既有 token、响应式横向承载、可见键盘焦点和 `aria-live` 状态；数据全部通过 `textContent`/DOM 节点写入，前端不缓存认证响应，不展示动态 message、异常原文、Token、任务变量或正文。
 - 自动化证据：本机 Release Build 0 warnings / 0 errors PASS；Unit 317/317、Architecture 1/1、Contract 10/10 PASS；Operations 页面包含历史 API、分页控件和恢复文案，匿名历史 API 仍返回 401；脚本通过 Node syntax check；完整 Integration 64 项仍为 6 通过、2 跳过、56 项因本机 Docker Engine 不可用而 BLOCKED。
-- 当前状态：本工作包保持 `1.0 Release Candidate`，候选提交远端 CI/Docker/Security 待验证；真实凭据下的管理员/Operator 操作、移动/桌面/宽屏视觉与截图仍按第 6 节待定事项执行，不等同于 `Accepted/Completed`。
+- 远端验收：候选提交 `734c626` 的 CI `33245390370` GREEN（64 项集成测试 62 通过、2 跳过，含 Restore/Build/Test/Compose/Runtime smoke/Redis 限流/备份恢复/Diagnostics），Docker `33245390354` GREEN，Security `33245390350` GREEN（NuGet、SBOM、Trivy 和 CodeQL）。
+- 当前状态：本工作包保持 `1.0 Release Candidate`，自动化 Release Gate 已通过；真实凭据下的管理员/Operator 操作、移动/桌面/宽屏视觉与截图仍按第 6 节待定事项执行，不等同于 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
