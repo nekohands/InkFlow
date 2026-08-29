@@ -503,7 +503,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 安全/边界：Platform 不带 OwnerId，User/Organization 必须带稳定 Guid；Source/Reference/Scope 组合输入有界且非法时在 Provider/HTTP seam 前失败。配置 Provider 仅解析 Platform，不接收用户/组织范围；secret 不进入上下文、任务载荷、规则 JSON、日志、错误或结果。
 - 回归与证据：定向凭据回归 24/24；本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 455/455、Architecture 1/1、Contract 10/10；API/Worker/Scheduler `/health` 均 200。完整 Integration 81 项中 6 项通过、2 项跳过、73 项因本机 Docker 管道 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
 - 非目标：不实现用户/组织/租户实体、真实 Vault/Cloud SecretProvider、secret 材料管理、轮换、持久会话或用户/组织凭据管理；真实来源、切源、阅读 3.0 和人工验收仍待处理。
-- 当前状态：本工作包已完成代码和本地自动化验证，候选提交的 CI/Docker/Security 尚未触发；未达到 `Accepted/Completed`。下一步为提交推送并确认三类远端门禁。
+- 当前状态：本工作包已完成代码、本地自动化验证和候选提交后的三类远端门禁；[CI 33280448686](https://github.com/nekohands/InkFlow/actions/runs/33280448686)、[Docker 33280448680](https://github.com/nekohands/InkFlow/actions/runs/33280448680)、[Security 33280448687](https://github.com/nekohands/InkFlow/actions/runs/33280448687) 均 GREEN，且均指向 `ee20afef2f9247fdb774ca6dda35a0f81b7452fe`。仍未达到 `Accepted/Completed`，真实 Provider、真实来源、阅读 3.0 与人工验收继续按待定清单处理。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
@@ -576,7 +576,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Source Rule page-number/cursor Pagination：声明式 query/form 参数注入 + 有界执行/失败关闭（`0e9164b`；CI `33269606086` / Docker `33269606076` / Security `33269606147` GREEN；真实来源与人工验收待定）
 ✅ Source Rule 有界请求模板变量：路径/Header/Query/Form 占位符 + 变量上下文预算 + 控制字符/语法失败关闭（`dd39396`；CI `33272774115` / Docker `33272774105` / Security `33272774138` GREEN；真实来源与人工验收待定）
 ✅ Source 默认 CredentialReference 管理 API：Administrator-only 设置/清除 + 有界理由 + 命令审计（`dee61d3`；CI `33279039667` / Docker `33279039645` / Security `33279039666` GREEN；真实 Provider 与人工验收待定）
-✅ Source Credential Owner Scope 契约：Provider 强制携带 Platform/User/Organization 范围；默认绑定固定 Platform，显式用户/组织引用透传范围（本轮；候选提交后 CI/Docker/Security 待确认，真实 Provider 与人工验收待定）
+✅ Source Credential Owner Scope 契约：Provider 强制携带 Platform/User/Organization 范围；默认绑定固定 Platform，显式用户/组织引用透传范围（`ee20afe`；CI `33280448686` / Docker `33280448680` / Security `33280448687` GREEN，真实 Provider 与人工验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）

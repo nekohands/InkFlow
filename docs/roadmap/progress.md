@@ -861,7 +861,7 @@ Phase 1A 自动化工作包状态：
 - 回归：新增用户/组织/平台范围透传、默认绑定不继承用户范围、空身份/非法 Source 上下文、配置 Provider 拒绝非 Platform 范围测试；目标凭据回归 24/24 通过。
 - 非目标：不新增用户/组织/租户实体，不实现真实 Vault/Cloud SecretProvider、secret 材料管理、轮换、持久会话或用户/组织凭据管理；真实来源、切源、阅读 3.0 和人工验收继续按待定清单处理。
 - 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 455/455、Architecture 1/1、Contract 10/10 PASS；三宿主 `/health` 均返回 200；完整 Integration 81 项中 6 项通过、2 项跳过、73 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。未写入真实凭据。
-- 远端证据：候选提交尚未创建，CI/Docker/Security 为 `PENDING`；提交推送后必须确认目标 Commit 的三类门禁真实完成并全部通过。
+- 远端证据：候选提交 `ee20afe` 已推送；[CI 33280448686](https://github.com/nekohands/InkFlow/actions/runs/33280448686)、[Docker 33280448680](https://github.com/nekohands/InkFlow/actions/runs/33280448680)、[Security 33280448687](https://github.com/nekohands/InkFlow/actions/runs/33280448687) 均为 GREEN，且三项 Run 的 headSha 均为 `ee20afef2f9247fdb774ca6dda35a0f81b7452fe`。
 - 当前状态：本工作包为 `Implemented`，尚未达到 `Accepted/Completed`；整体继续保持 `1.0 Release Candidate`。真实 SecretProvider、secret 材料管理、Owner/Admin 凭据管理、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
 
 ## 5. Phase 1A 核心验收链路
@@ -981,7 +981,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-当前 4.60 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 455/455、Architecture 1/1、Contract 10/10 PASS；API、Worker、Scheduler `/health` 均 200；Integration 81 项中 6 项通过、2 项跳过、73 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行；候选提交后的 CI/Docker/Security 仍待触发。
+当前 4.60 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 455/455、Architecture 1/1、Contract 10/10 PASS；API、Worker、Scheduler `/health` 均 200；Integration 81 项中 6 项通过、2 项跳过、73 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。候选提交 `ee20afe` 的 CI `33280448686`、Docker `33280448680`、Security `33280448687` 均 GREEN，三项 Run 的 headSha 均为 `ee20afef2f9247fdb774ca6dda35a0f81b7452fe`。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
