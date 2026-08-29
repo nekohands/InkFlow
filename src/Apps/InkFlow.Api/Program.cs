@@ -143,6 +143,9 @@ builder.Services.AddAuthorization(options =>
         IdentityPolicies.PermissionManagement,
         policy => policy.RequireRole(UserRole.Administrator.ToString()));
     options.AddPolicy(
+        IdentityPolicies.SourceCredentialManagement,
+        policy => policy.RequireRole(UserRole.Administrator.ToString()));
+    options.AddPolicy(
         IdentityPolicies.CommercialManagement,
         policy => policy.RequireRole(UserRole.Administrator.ToString()));
     options.AddPolicy(
@@ -190,6 +193,9 @@ builder.Services.AddSingleton(SourceRuleExecutionLimits.Default);
 builder.Services.AddScoped<SourceHealthService>();
 builder.Services.AddScoped<ISourceHealthReader>(sp => sp.GetRequiredService<SourceHealthService>());
 builder.Services.AddScoped<ISourceHealthOperations>(sp => sp.GetRequiredService<SourceHealthService>());
+builder.Services.AddScoped<SourceCredentialBindingService>();
+builder.Services.AddScoped<ISourceCredentialBindingService>(sp =>
+    sp.GetRequiredService<SourceCredentialBindingService>());
 
 // 规则型/代码型适配器组合根(与 Worker 同源):健康感知由 BookDiscoveryService 内部执行。
 builder.Services.AddSingleton<IIpAddressResolver, DnsIpAddressResolver>();
@@ -1091,6 +1097,55 @@ sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", a
         sourceId,
         actorId,
         normalizedReason,
+        httpContext,
+        auditSink,
+        clock,
+        ct);
+});
+
+var sourceCredentialManagement = api.MapGroup("/admin/sources")
+    .RequireAuthorization(IdentityPolicies.SourceCredentialManagement);
+
+sourceCredentialManagement.MapPut("/{sourceId}/credential-binding", async (
+    string sourceId,
+    SourceCredentialBindingRequest? request,
+    ClaimsPrincipal principal,
+    ISourceCredentialBindingService service,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!SourceCredentialBindingEndpointResults.TryNormalizeSourceId(
+            sourceId,
+            out var normalizedSourceId) ||
+        request is null ||
+        !SourceCredentialBindingEndpointResults.TryNormalizeReason(
+            request.Reason,
+            out var reason))
+    {
+        return (IResult)Results.BadRequest(new { error = "invalid_credential_binding_request" });
+    }
+
+    if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            principal,
+            out var actorId,
+            out _))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var result = await service.SetDefaultAsync(
+        normalizedSourceId,
+        request.CredentialReferenceId,
+        ct).ConfigureAwait(false);
+    return SourceCredentialBindingEndpointResults.Command(
+        result,
+        request.CredentialReferenceId is null
+            ? SourceCredentialBindingCommandAction.Clear
+            : SourceCredentialBindingCommandAction.Set,
+        actorId.ToString("D"),
+        reason,
         httpContext,
         auditSink,
         clock,

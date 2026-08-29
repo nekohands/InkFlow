@@ -88,6 +88,7 @@ public static class IdentityPolicies
     public const string SourceOperations = "identity-source-operations";
     public const string CommercialManagement = "identity-commercial-management";
     public const string PermissionManagement = "identity-permission-management";
+    public const string SourceCredentialManagement = "identity-source-credential-management";
     public const string LegadoRead = "identity-legado-read";
 }
 
