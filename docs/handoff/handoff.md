@@ -223,7 +223,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 安全与审计：授予、撤销和拒绝结果记录认证操作者、来源、理由、结果及资源 reference；理由有界并拒绝控制字符，响应不返回凭据、Token 或正文。
 - 当前证据：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 279/279、Architecture 1/1、Contract 3/3 PASS。完整 Integration 51 项中 6 通过、43 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过；本轮未执行带凭据的本地 Runtime/人工验收。
 - 远端证据：修复后的提交 `a663cef` 的 CI `33137358470`、Docker `33137358485`、Security `33137358428` 均 GREEN；CI 的 Runtime smoke、Redis 分布式限流、PostgreSQL 备份恢复和 Diagnostics，Docker 四镜像发布前扫描，以及 Security 的 NuGet/SBOM/Trivy/CodeQL 均通过。
-- 边界：本轮不宣称完成 MuMu/阅读 3.0、真实来源/故障切换或带真实凭据的来源授权/Operations 人工验收；更广泛资源、组织/租户权限治理和审计保留策略仍待后续。
+- 边界：本轮不宣称完成 MuMu/阅读 3.0、真实来源/故障切换或带真实凭据的来源授权/Operations 人工验收；更广泛资源、组织/租户权限治理以及审计生产法律/合同保留、归档和删除授权仍待后续。
 
 ### 4.31 Legado Contract Release Gate v1（本轮，2026-08-28）
 
@@ -372,6 +372,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：候选提交 `5878652` 的 CI `33256728058`、Docker `33256728051`、Security `33256728081` 均 GREEN；CI 新增 `Verify migrations` 实际逐一检查 11 个上下文并通过，Docker 的 Migrations/API/Worker/Scheduler 镜像与 Collector 检查通过，Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过。保留既有 `actions/upload-artifact@v4` Node 20 弃用提示。
 - 当前状态：Migration 自动安全门禁已实现并取得三类远端门禁证据，整体仍保持 `1.0 Release Candidate`；真实 PostgreSQL Migrations/Compose、人工验收和真实来源验收仍按待定清单执行。
 
+### 4.47 审计事实保留治理与 Worker 周期接线（本轮，2026-08-29）
+
+- 缺口：`audit.events` 已具备追加式持久化和受保护查询，但此前没有可配置的过期清理；无限增长会增加审计表和索引维护成本，同时普通删除必须继续被数据库拒绝。
+- 实现：新增 `AuditRetentionOptions`、`AuditRetentionService`、`IAuditRetentionStore` 和 PostgreSQL `EfAuditRetentionStore`。默认保留 365 天，按 `BatchSize` / `MaxBatchesPerRun` 双重上限，以 `(OccurredAt, Id)` 索引、事务和 `FOR UPDATE SKIP LOCKED` 分批删除 `OccurredAt < cutoff` 的事件；Worker 启动延迟后每小时执行。
+- 安全/边界：新增 Migration 将追加式触发器调整为只对 retention transaction-local 标记放行删除，更新和普通直接删除仍失败；没有新增 API 或用户触发入口。生产法律保留、归档、恢复授权、删除审批和实际策略仍需部署治理，决策见 ADR 0014。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 342/342、Architecture 1/1、Contract 10/10 PASS；`bash -n scripts/verify-migrations.sh` 与 PowerShell 等价的 11 个迁移模型检查 PASS；完整 Integration 78 项中 6 项通过、2 项跳过、70 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，新增 2 项审计保留集成测试已实际尝试但未取得本机容器证据；`git diff --check` PASS。
+- 远端证据：候选提交 `b8046af` 的 CI `33257996992`、Docker `33257996951`、Security `33257996953` 均 GREEN。CI Test 为 78 项、76 通过/2 跳过，11 个迁移模型检查、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 全部通过；Docker 的 Collector 与 API/Migrations/Scheduler/Worker 四镜像构建、扫描和发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过，保留既有 Actions Node 20 弃用提示。
+- 当前状态：审计保留代码基线和 Worker 周期接线已完成并取得远端证据，整体继续保持 `1.0 Release Candidate`；生产法律/合同保留策略、归档与删除授权治理、本机 Docker 集成、真实来源、阅读 3.0 和人工验收仍按第 6 节待定。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -429,7 +438,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Transactional Outbox / Inbox 基础恢复：消息契约 + PostgreSQL Migration + Crawler 任务同事务写入 + lease/幂等集成测试（`dd80e2d`；CI `33252929657` / Docker `33252929642` / Security `33252929646` GREEN；其他模块接入与人工/真实业务验收仍待定）
 ✅ Transactional Outbox / Inbox 执行层：Dispatcher/Consumer + 稳定失败码 + 有界重试（`fa81db7`；CI `33253938424` / Docker `33253938404` / Security `33253938443` GREEN；传输适配与宿主后台接线仍待选型）
 ✅ Messaging Outbox/Inbox 保留清理：过期已处理消息有界删除 + Worker 每小时周期接线（`bf6eae1`；CI `33255354693` / Docker `33255354699` / Security `33255354684` GREEN；本机 Docker 集成与真实/人工验收仍待定）
-  ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
+✅ Audit retention：过期审计事实有界删除 + 追加式触发器受控例外 + Worker 每小时周期接线（`b8046af`；CI `33257996992` / Docker `33257996951` / Security `33257996953` GREEN；生产法律/合同保留与归档治理仍待定）
+✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
 ✅ Private Library v1 后端基础：独立 PrivateBook/PrivateBookId + UserId 范围仓储 + 迁移 + 受保护元数据 CRUD（本轮；真实账户/公共路径隔离人工验收待定）
@@ -457,7 +467,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ### 4.3 API 安全与可观测性基线
 
 - `ApiRateLimitOptions` / `ApiRateLimitPolicies`：公共 API 与 Legado 独立 fixed-window 策略，匿名按连接层 IP、认证主体按 `sub` / `client_id` 短哈希分桶；未配置可信代理前不信任 `X-Forwarded-For`。
-- `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志，数据库触发器保证普通路径追加式写入。Operations Center 已补齐粗粒度查询 policy；高风险命令的 before/after、资源级查询授权和保留策略仍未完成。
+- `RequestAuditMiddleware` / `IAuditEventSink`：业务 API 请求和 `429` 拒绝均记录结构化 `AuditEvent`，去除 query string；`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志，数据库触发器保证普通路径追加式写入。Operations Center 已补齐粗粒度查询 policy；高风险命令的 before/after、资源级查询授权和生产保留治理仍未完成，有界清理代码见 4.47。
 - `SsrfGuard` / `SsrfSafeHttpMessageHandler`：来源请求先做字面量与 DNS 全结果检查，再由连接回调直接连接同一批已校验地址；环境代理关闭，80/443 之外端口和超过 5 跳的自动重定向被拒绝。真实网络策略扫描和 live 来源证据仍未完成。
 - 自动化证据：新增安全测试使 Unit 达到 133/133；Architecture 1/1、Contract 1/1、Release Build 0 warnings / 0 errors。API 本地烟测实际验证 `429` 与 `Retry-After: 60`；首次业务请求受本机 PostgreSQL 不可用影响返回 500。
 - 全量测试仍有 20 个 Testcontainers 用例因本机 Docker 不可用而 BLOCKED，1 个跳过；远端 CI `33057431574` 与 Docker `33057431610` 已 GREEN，具体以远端实际记录为准。
@@ -536,7 +546,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ### 4.13 安全审计持久化基线（本轮，2026-08-28）
 
 - `AuditDbContext` 在独立 `audit` schema 中持久化不可变 `AuditEvent` 行；`PersistentAuditEventSink` 负责追加写入，API 的 `CompositeAuditEventSink` 同时保留结构化日志可见性。
-- `AddAuditEvents` Migration 创建 `audit.events`、时间索引和数据库追加式触发器；更新/删除被拒绝，避免普通应用路径静默改写审计历史。
+- `AddAuditEvents` Migration 创建 `audit.events`、时间索引和数据库追加式触发器；更新和普通删除被拒绝，避免普通应用路径静默改写审计历史；受控 retention 删除见 4.47。
 - `RequestAuditMiddleware` 继续覆盖 `/api`、`/legado` 和 `429`，不记录 query string；持久化失败隔离于请求结果，并输出运维错误。
 - 证据：本机 Release Build 0 warnings / 0 errors、Unit 189/189、Architecture 1/1、Contract 1/1、API `/health` 200；本机 PostgreSQL Testcontainers 因 `docker_engine` 不可用 BLOCKED。远端 CI `33096635143`、Docker `33096635237` GREEN，审计集成测试通过、Runtime diagnostics 记录审计事件。
 - 未含：认证/授权、公开 Admin/Repair Center、命令级 before/after 审计、查询授权、保留策略、告警和 Redis 分布式限流。
@@ -660,7 +670,7 @@ Phase 1A / 1B 外部验收：
 Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
-- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练、告警快照/阈值/内部历史去重与恢复、来源级授权 v1 和已落地高风险命令审计基线已完成；外部告警路由、生产异地备份/保留/RPO-RTO、安全扫描治理、组织/更广泛资源权限和更完整的审计保留治理仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级。
+- Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练、告警快照/阈值/内部历史去重与恢复、来源级授权 v1 和已落地高风险命令审计基线已完成；审计有界 retention 代码基线已完成，但生产法律/合同保留、归档、删除授权和证据治理仍待部署环境确定。外部告警路由、生产异地备份/RPO-RTO、安全扫描治理、组织/更广泛资源权限仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级。
 - 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1、Private Library 私有正文/TXT/EPUB 导入导出自动化基础和 Developer API / Entitlement / Billing v1 候选基线已完成；PWA 实际安装/离线/跨设备验收、Private Library 与 Developer API 真实账户/凭据验收、Organization、Community Marketplace 仍未完成。
 
 更后阶段：Developer API / Commercial Foundation 的真实运营与产品化深化、Organization、Community Marketplace、Enterprise Deployment。

@@ -107,7 +107,7 @@ Task 支持：TaskId、Type、SourceId、Priority、Attempt、MaxAttempts、Sche
 
 死信修复通过 Crawling.Application 的受控 Repair/Replay seam 进入，而不是手工修改数据库：PostgreSQL 事务锁定原死信和任务，原任务保持 `DeadLettered`，只创建新的 `Pending` 重放任务并追加可追溯的操作者、理由、时间和任务 ID。当前 API 已通过 Identity opaque Bearer 认证和 `Operator` / `Administrator` policy 暴露受保护的死信列表与 replay 入口，命令额外写入 `crawler.dead_letter.replay` 审计事件；同一 Admin 组提供只读 `GET /api/v1/admin/consistency` 和 `GET /api/v1/admin/operations/overview`，前者汇总四个模块 schema 的最小关系快照，后者以有界读模型聚合来源健康、死信和一致性状态，并以稳定区块状态隔离查询故障。完整 Center UI、自动修复、细粒度权限管理与运维治理仍待后续实现；请求审计和一致性报告基线不等同于完整的管理平台。
 
-Source Health Operator Controls v1 已补齐受保护的来源能力健康查询以及带理由的单能力 disable/enable 命令；状态仍由 Sources 健康聚合和 PostgreSQL 事实表驱动，恢复只回到 `Unknown`，不绕过真实探针。Operations Center Read Model v1 已提供独立查询授权和有界聚合视图，Center UI v1 已提供快照、受控操作和管理员告警历史展示；自动修复、外部通知路由、生产保留治理和备份治理仍待后续实现。
+Source Health Operator Controls v1 已补齐受保护的来源能力健康查询以及带理由的单能力 disable/enable 命令；状态仍由 Sources 健康聚合和 PostgreSQL 事实表驱动，恢复只回到 `Unknown`，不绕过真实探针。Operations Center Read Model v1 已提供独立查询授权和有界聚合视图，Center UI v1 已提供快照、受控操作和管理员告警历史展示；自动修复、外部通知路由、生产告警治理和备份治理仍待后续实现。
 
 API 公共/Legado/Developer 限流由 ASP.NET Core policy 承载，计数通过 Redis Lua 原子脚本共享到多个 API 实例；Redis 操作使用配置化的有界超时（`RateLimiting:RedisOperationTimeoutMilliseconds`），连接故障时使用相同配额/窗口的有界本地降级并记录恢复转折，避免故障时无界放行。Redis 只保存可重建的限流计数，不承载任何业务事实。Developer API v1 使用生产环境 opaque API Key 和 `catalog.read` scope，仅暴露已落库公共目录/正文；Free/Pro/Developer 内置套餐通过 Entitlement 授予能力，PostgreSQL `usage_periods` 以用户+UTC 月份锁定累计加权单位，`usage_ledger` 按调用保存不可变事实，超额返回 `429/Retry-After`，Redis 配额快照只用于展示加速。
 
@@ -126,6 +126,7 @@ Developer API / Commercial Foundation v1 的组合根由 `InkFlow.Api` 组装：
 - Inbox 以消息 ID 主键去重，处理成功后才写入 `ProcessedAt`；消费者崩溃或 lease 到期后允许再次领取。类型/载荷摘要不一致视为身份冲突并拒绝消费。
 - `OutboxDispatcher` 与 `IntegrationMessageConsumer` 提供可复用的执行层：发布器/处理器成功返回后才确认事实表；发布失败使用稳定失败码和有界指数退避释放租约，未知消息类型或处理失败不伪造成功。传输适配器、宿主后台循环和具体 Handler 由各 Host/模块组合根接入，本 Building Block 不绑定未选定的 MQ。
 - 已处理的 Outbox/Inbox 记录由 `MessageRetentionService` 以配置化 cutoff 和 `BatchSize` / `MaxBatchesPerRun` 上限分批清理；PostgreSQL 使用事务内 `FOR UPDATE SKIP LOCKED`，只匹配 `ProcessedAt` 已设置且已过期的记录，失败、待重试、未处理和锁定中的消息保留。Worker 负责启动延迟后的每小时清理周期；该周期不替代消息事实表，也不意味着已接入 MQ。
+- `audit.events` 的普通路径保持追加式；`AuditRetentionService` 按 `Audit:Retention` 计算 UTC cutoff，以 `(OccurredAt, Id)` 索引和事务内 `FOR UPDATE SKIP LOCKED` 分批清理过期事件。每轮受 `BatchSize` / `MaxBatchesPerRun` 双重上限约束，数据库触发器只对 retention transaction-local 标记放行删除，Worker 启动延迟后每小时执行。该代码基线不替代生产法律保留、归档和删除授权治理，决策见 ADR 0014。
 - 当前已接入 Crawler `AddAsync` 的 `crawler.task.created` 最小稳定事件；其他模块的业务写入必须在接入相同事务 seam 后才能发布事件。
 - 不追求依赖 MQ 的理论 Exactly Once。
 
@@ -166,4 +167,4 @@ CI Runtime smoke 使用 `scripts/core-slo-runtime-smoke.sh` 对四个服务面�
 
 CI 同时将 metrics 周期导出缩短到 1 秒，Collector metrics batch 缩短到 1 秒，并在临时 signal-specific debug 输出中校验 `inkflow.slo.requests`、`inkflow.slo.request.duration` 和四个服务面标签；默认 Compose 保持 basic 诊断，生产仍需受治理的后端。
 
-当前 CI 在 Runtime smoke 产生真实审计数据后执行 PostgreSQL custom-format 备份恢复演练：恢复到隔离数据库，并比较所有非系统表的行数签名与 `audit.events` 数量。该验证证明数据库归档可恢复，不等同于生产异地备份、保留策略、RPO/RTO 或告警治理。
+当前 CI 在 Runtime smoke 产生真实审计数据后执行 PostgreSQL custom-format 备份恢复演练：恢复到隔离数据库，并比较所有非系统表的行数签名与 `audit.events` 数量。该验证证明数据库归档可恢复，不等同于生产异地备份、审计法律保留、删除授权、RPO/RTO 或告警治理。

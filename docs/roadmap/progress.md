@@ -562,7 +562,7 @@ Phase 1A 自动化工作包状态：
 - 审计/安全：授权授予、撤销和拒绝结果记录认证操作者、来源、理由、结果和资源 reference；输入理由有界并拒绝控制字符，响应不返回密钥、凭据或正文。匿名、Reader 以及没有对应 active grant 的 Operator 均不能读取或管理目标来源。
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 279/279、Architecture 1/1、Contract 3/3 PASS。完整 Integration 51 项中 6 通过、43 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED、2 项跳过，不记为本机集成通过；本轮未执行带凭据的本地 Runtime/人工验收。
 - 远端验收：修复后的提交 `a663cef` 的 CI `33137358470`、Docker `33137358485`、Security `33137358428` 均 **GREEN**；CI 含 Runtime smoke、Redis 分布式限流集成、PostgreSQL 备份恢复演练和 Diagnostics，Docker 完成四镜像发布前扫描，Security 的 NuGet、SBOM、Trivy 和 CodeQL 全部通过。
-- 边界：本轮完成来源级授权机制和自动化验证，但 MuMu/阅读 3.0、真实来源/故障切换、Operations/授权凭据人工验收仍按第 6 节待定；更广泛资源、组织/租户权限治理和审计保留策略仍未完成。
+- 边界：本轮完成来源级授权机制和自动化验证，但 MuMu/阅读 3.0、真实来源/故障切换、Operations/授权凭据人工验收仍按第 6 节待定；更广泛资源、组织/租户权限治理以及审计生产法律/合同保留、归档和删除授权仍未完成。
 
 **Legado Contract Release Gate v1（本轮，2026-08-28）**：
 
@@ -718,6 +718,15 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `5878652` 的 CI `33256728058`、Docker `33256728051`、Security `33256728081` 均 **GREEN**；CI 新增 `Verify migrations` 实际逐一检查 11 个上下文并通过，Docker 的 Migrations/API/Worker/Scheduler 镜像与 Collector 检查通过，Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过。保留既有 `actions/upload-artifact@v4` Node 20 弃用提示。
 - 当前状态：Migration 自动安全门禁已实现并取得三类远端门禁证据，整体仍保持 `1.0 Release Candidate`；真实 PostgreSQL Migrations/Compose、人工验收和真实来源验收仍按第 6 节待定。
 
+### 4.47 审计事实保留治理与 Worker 周期接线（本轮，2026-08-29）
+
+- 缺口：`audit.events` 已具备追加式持久化和受保护查询，但此前没有可配置的过期清理；无限增长会增加审计表和索引维护成本，同时普通删除必须继续被数据库拒绝。
+- 实现：新增 `AuditRetentionOptions`、`AuditRetentionService`、`IAuditRetentionStore` 和 PostgreSQL `EfAuditRetentionStore`。默认保留 365 天，按 `BatchSize` / `MaxBatchesPerRun` 双重上限，以 `(OccurredAt, Id)` 索引、事务和 `FOR UPDATE SKIP LOCKED` 分批删除 `OccurredAt < cutoff` 的事件；Worker 启动延迟后每小时执行。
+- 安全/边界：新增 Migration 将追加式触发器调整为只对 retention transaction-local 标记放行删除，更新和普通直接删除仍失败；没有新增 API 或用户触发入口。生产法律保留、归档、恢复授权、删除审批和实际策略仍需部署治理，决策见 ADR 0014。
+- 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 342/342、Architecture 1/1、Contract 10/10 PASS；`bash -n scripts/verify-migrations.sh` 与 PowerShell 等价的 11 个迁移模型检查 PASS；完整 Integration 78 项中 6 项通过、2 项跳过、70 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，新增 2 项审计保留集成测试已实际尝试但未取得本机容器证据；`git diff --check` PASS。
+- 远端证据：候选提交 `b8046af` 的 CI `33257996992`、Docker `33257996951`、Security `33257996953` 均 **GREEN**。CI Test 为 78 项、76 通过/2 跳过，11 个迁移模型检查、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 全部通过；Docker 的 Collector 与 API/Migrations/Scheduler/Worker 四镜像构建、扫描和发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过，保留既有 Actions Node 20 弃用提示。
+- 当前状态：审计保留代码基线和 Worker 周期接线已完成并取得远端证据，整体继续保持 `1.0 Release Candidate`；生产法律/合同保留策略、归档与删除授权治理、本机 Docker 集成、真实来源、阅读 3.0 和人工验收仍按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -816,7 +825,7 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理、管理员历史查询和 Operations Center 历史展示；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由、生产告警治理和审计保留策略仍待后续 Operations/Identity/商业化工作包。
+- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理、管理员历史查询和 Operations Center 历史展示；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由和生产告警治理仍待后续 Operations/Identity/商业化工作包；审计已具备有界 retention 代码基线，但生产法律/合同保留、归档和删除授权治理仍待部署环境确定。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
