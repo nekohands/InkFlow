@@ -178,11 +178,26 @@ public static partial class ReaderHtml
           .operations-dialog__status { min-height: 1.4rem; margin: 0.8rem 0 0; color: var(--reader-muted); font-size: 0.86rem; }
           .operations-dialog__status--danger { color: #8e321f; }
           .operations-dialog__status--ready { color: #27643d; }
+          .operations-history-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.65rem;
+            margin-top: 0.9rem;
+          }
+          .operations-history-controls__actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+          .operations-history-controls .button { min-height: 2.45rem; padding-block: 0.45rem; font-size: 0.86rem; }
+          .operations-history__transition { font-weight: 750; }
+          .operations-history__meta { color: var(--reader-muted); font-size: 0.8rem; overflow-wrap: anywhere; }
           @media (max-width: 640px) {
             .operations-toolbar { align-items: stretch; flex-direction: column; }
             .operations-toolbar .button { width: 100%; }
             .operations-panel__header { align-items: flex-start; flex-direction: column; }
             .operations-card__header { flex-direction: column; }
+            .operations-history-controls { align-items: stretch; flex-direction: column; }
+            .operations-history-controls__actions { flex-direction: column; }
+            .operations-history-controls .button { width: 100%; }
           }
         </style>
         """;
@@ -203,6 +218,12 @@ public static partial class ReaderHtml
           const actionStatus = document.getElementById("operations-action-status");
           const actionReason = document.getElementById("operations-action-reason");
           const actionSubmit = document.getElementById("operations-action-submit");
+          const historyPanel = document.getElementById("operations-history");
+          const historyStatus = document.getElementById("operations-history-status");
+          const historyTable = document.getElementById("operations-history-table");
+          const historyBody = document.getElementById("operations-history-body");
+          const historyRefresh = document.getElementById("operations-history-refresh");
+          const historyMore = document.getElementById("operations-history-more");
           const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           const operationRoles = new Set(["Operator", "Administrator"]);
           const capabilities = new Set(["Search", "BookInfo", "Toc", "Content", "Update"]);
@@ -215,6 +236,8 @@ public static partial class ReaderHtml
           let currentRole = null;
           let pendingAction = null;
           let loading = false;
+          let historyLoading = false;
+          let historyCursor = null;
 
           const text = (value, fallback = "") => {
             if (value === null || value === undefined) return fallback;
@@ -236,8 +259,8 @@ public static partial class ReaderHtml
           const healthLabel = (status) => ({ Unknown: "待探测", Healthy: "健康", Degraded: "降级", Unhealthy: "不健康", Disabled: "已停用" }[status] || text(status, "未知"));
           const statusTone = (value) => {
             const normalized = String(value || "").toLowerCase();
-            if (["ready", "healthy", "replayed"].includes(normalized)) return "ready";
-            if (["partial", "degraded", "unknown"].includes(normalized)) return "partial";
+            if (["ready", "healthy", "replayed", "resolved"].includes(normalized)) return "ready";
+            if (["partial", "degraded", "unknown", "opened"].includes(normalized)) return "partial";
             if (["unavailable", "unhealthy", "disabled", "issues_found", "error"].includes(normalized)) return "danger";
             return "neutral";
           };
@@ -457,6 +480,135 @@ public static partial class ReaderHtml
               list?.append(item);
             }
           };
+          const transitionLabel = (transition) => ({
+            opened: "已触发",
+            resolved: "已恢复"
+          }[String(transition || "").toLowerCase()] || "未知转折");
+          const setHistoryStatus = (message, tone = "neutral") => {
+            if (!historyStatus) return;
+            historyStatus.replaceChildren(node(
+              "p",
+              "operations-state operations-state--" + tone,
+              message));
+          };
+          const renderHistoryRestricted = () => {
+            historyCursor = null;
+            historyBody?.replaceChildren();
+            if (historyTable) historyTable.hidden = true;
+            if (historyRefresh) {
+              historyRefresh.hidden = true;
+              historyRefresh.disabled = true;
+            }
+            if (historyMore) {
+              historyMore.hidden = true;
+              historyMore.disabled = true;
+            }
+            setHistoryStatus("平台告警历史仅管理员可查看。", "partial");
+          };
+          const renderHistory = (payload, append) => {
+            const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+            if (!append) historyBody?.replaceChildren();
+            for (const entry of entries) {
+              const row = node("tr");
+              const transition = text(entry?.transition, "unknown");
+              const transitionCell = node("td");
+              transitionCell.append(badge(transition, transitionLabel(transition)));
+              transitionCell.append(node(
+                "div",
+                "operations-history__meta",
+                "事件 " + (asGuid(entry?.id) || "无有效 ID")));
+              const alertCell = node("td");
+              alertCell.append(node("strong", null, text(entry?.code, "unknown_alert")));
+              alertCell.append(node(
+                "div",
+                "operations-history__meta",
+                text(entry?.severity, "未知级别")));
+              const resourceCell = node("td", "operations-history__meta");
+              resourceCell.textContent = text(entry?.resourceType, "资源") + " · " +
+                text(entry?.resourceId, "无资源 ID");
+              const timeCell = node("td", "operations-history__meta", dateLabel(entry?.occurredAt));
+              const countCell = node(
+                "td",
+                "operations-history__meta",
+                String(Math.max(0, Math.trunc(asNumber(entry?.occurrenceCount)))));
+              row.append(transitionCell, alertCell, resourceCell, timeCell, countCell);
+              historyBody?.append(row);
+            }
+            historyCursor = text(payload?.nextCursor, "") || null;
+            const visibleCount = historyBody?.children.length || 0;
+            if (historyTable) historyTable.hidden = visibleCount === 0;
+            if (historyMore) {
+              historyMore.hidden = !historyCursor;
+              historyMore.disabled = !historyCursor || historyLoading;
+            }
+            if (visibleCount === 0) {
+              setHistoryStatus(
+                append ? "没有更多历史记录。" : "暂无告警转折记录。",
+                "ready");
+            } else {
+              setHistoryStatus(
+                "已加载 " + visibleCount + " 条告警转折记录。" +
+                (historyCursor ? "可继续加载更早记录。" : ""),
+                "ready");
+            }
+          };
+          const historyErrorMessage = (status) => {
+            if (status === 401) return "会话已失效，请重新登录。";
+            if (status === 403) return "平台告警历史仅管理员可查看。";
+            if (status === 503) return "告警历史暂时不可用，请稍后重试。";
+            return "告警历史请求失败，请刷新后重试。";
+          };
+          const loadHistory = async (reset = false) => {
+            if (currentRole !== "Administrator" || historyLoading || !client?.isSignedIn()) return;
+            const cursor = reset ? null : historyCursor;
+            historyLoading = true;
+            if (reset) {
+              historyCursor = null;
+              historyBody?.replaceChildren();
+              if (historyTable) historyTable.hidden = true;
+            }
+            if (historyRefresh) historyRefresh.disabled = true;
+            if (historyMore) historyMore.disabled = true;
+            setHistoryStatus(reset ? "正在加载告警历史…" : "正在加载更早历史记录…");
+            const query = new URLSearchParams({ limit: "50" });
+            if (cursor) query.set("cursor", cursor);
+            let response = null;
+            try {
+              response = await client.apiFetch(
+                "/api/v1/admin/operations/alerts/history?" + query.toString());
+            } catch {
+              response = null;
+            }
+            if (response === null) {
+              setHistoryStatus("告警历史请求失败，请检查网络后重试。", "danger");
+              historyLoading = false;
+              if (historyRefresh) historyRefresh.disabled = false;
+              return;
+            }
+            if (response.status === 401) {
+              client.clearSession();
+              historyLoading = false;
+              showLogin("会话已失效，请重新登录后访问运维中心。");
+              return;
+            }
+            if (response.status === 403) {
+              historyLoading = false;
+              renderHistoryRestricted();
+              return;
+            }
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+              setHistoryStatus(historyErrorMessage(response.status), "danger");
+              historyLoading = false;
+              if (historyRefresh) historyRefresh.disabled = false;
+              if (historyMore) historyMore.disabled = !historyCursor;
+              return;
+            }
+            renderHistory(payload, !reset);
+            historyLoading = false;
+            if (historyRefresh) historyRefresh.disabled = false;
+            if (historyMore) historyMore.disabled = !historyCursor;
+          };
           const renderSnapshot = (snapshot) => {
             if (!snapshot || typeof snapshot !== "object") {
               setNotice(authStatus, "运维快照格式异常，请稍后重试。", "danger");
@@ -473,6 +625,16 @@ public static partial class ReaderHtml
             if (!operationRoles.has(currentRole)) {
               showForbidden();
               return false;
+            }
+            if (historyPanel) historyPanel.hidden = false;
+            if (currentRole === "Administrator") {
+              if (historyRefresh) {
+                historyRefresh.hidden = false;
+                historyRefresh.disabled = false;
+              }
+              setHistoryStatus("管理员可查看平台告警历史。", "neutral");
+            } else {
+              renderHistoryRestricted();
             }
             if (refreshButton) refreshButton.disabled = false;
             setNotice(authStatus, "已验证 " + roleLabel(currentRole) + " 身份，可以读取运维快照。", "ready");
@@ -534,6 +696,7 @@ public static partial class ReaderHtml
             }
             renderSnapshot(payload);
             setNotice(authStatus, "已更新 · " + dateLabel(payload?.generatedAt) + " · " + roleLabel(currentRole), "ready");
+            void loadHistory(true);
             loading = false;
             if (refreshButton) refreshButton.disabled = false;
           };
@@ -602,6 +765,8 @@ public static partial class ReaderHtml
           };
 
           refreshButton?.addEventListener("click", () => { void loadSnapshot(); });
+          historyRefresh?.addEventListener("click", () => { void loadHistory(true); });
+          historyMore?.addEventListener("click", () => { void loadHistory(false); });
           document.getElementById("operations-action-close")?.addEventListener("click", closeActionDialog);
           document.getElementById("operations-action-cancel")?.addEventListener("click", closeActionDialog);
           actionForm?.addEventListener("submit", (event) => {
@@ -625,7 +790,7 @@ public static partial class ReaderHtml
               <section class="page-intro" aria-labelledby="operations-title">
                 <p class="eyebrow">InkFlow Operations</p>
                 <h1 id="operations-title">运维中心</h1>
-                <p class="muted">集中查看来源健康、采集死信和跨模块一致性。页面只消费受保护的有限快照，不展示凭据、任务变量或正文载荷。</p>
+                <p class="muted">集中查看来源健康、采集死信、跨模块一致性与告警恢复记录。页面只消费受保护的有限数据，不展示凭据、任务变量或正文载荷。</p>
               </section>
               <section class="operations-toolbar" aria-label="运维中心控制">
                 <p id="operations-auth-status" class="notice" role="status" aria-live="polite">正在检查运维权限…</p>
@@ -660,6 +825,27 @@ public static partial class ReaderHtml
                       <thead><tr><th scope="col">来源</th><th scope="col">失败原因</th><th scope="col">尝试次数</th><th scope="col">进入时间</th><th scope="col">状态</th><th scope="col">操作</th></tr></thead>
                       <tbody id="operations-crawler-body"></tbody>
                     </table>
+                  </div>
+                </section>
+                <section class="operations-panel" id="operations-history" aria-labelledby="operations-history-title">
+                  <header class="operations-panel__header">
+                    <h2 id="operations-history-title">告警历史</h2>
+                    <span class="muted">触发与恢复转折</span>
+                  </header>
+                  <div id="operations-history-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                  <div id="operations-history-table" class="operations-table-wrap" hidden>
+                    <table class="operations-table">
+                      <caption class="sr-only">告警历史记录</caption>
+                      <thead><tr><th scope="col">转折</th><th scope="col">告警</th><th scope="col">资源</th><th scope="col">发生时间</th><th scope="col">出现次数</th></tr></thead>
+                      <tbody id="operations-history-body"></tbody>
+                    </table>
+                  </div>
+                  <div class="operations-history-controls">
+                    <span class="operations-history__meta">仅管理员可查看平台级历史。</span>
+                    <div class="operations-history-controls__actions">
+                      <button id="operations-history-refresh" class="button" type="button" hidden>刷新历史</button>
+                      <button id="operations-history-more" class="button" type="button" hidden>加载更早记录</button>
+                    </div>
                   </div>
                 </section>
                 <section class="operations-panel" aria-labelledby="operations-consistency-title">

@@ -59,6 +59,8 @@ jobs:
           test "$operations_overview_status" = "401"
           operations_alerts_status=$(curl --silent --output /tmp/operations-alerts.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/operations/alerts)
           test "$operations_alerts_status" = "401"
+          operations_alert_history_status=$(curl --silent --output /tmp/operations-alert-history.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/operations/alerts/history)
+          test "$operations_alert_history_status" = "401"
           audit_read_status=$(curl --silent --output /tmp/audit-read.json --write-out '%{http_code}' http://localhost:8080/api/v1/admin/audit/events)
           test "$audit_read_status" = "401"
           reading_status=$(curl --silent --output /tmp/reading-shelf.json --write-out '%{http_code}' http://localhost:8080/api/v1/me/reading/shelf)
@@ -185,6 +187,8 @@ jobs:
           operations_page=$(curl --fail --silent http://localhost:8080/admin/operations)
           printf '%s' "$operations_page" | grep -q 'id="operations-content"' &&
           printf '%s' "$operations_page" | grep -q '/api/v1/admin/operations/overview' &&
+          printf '%s' "$operations_page" | grep -q '/api/v1/admin/operations/alerts/history?' &&
+          printf '%s' "$operations_page" | grep -q 'operations-history-more' &&
           printf '%s' "$operations_page" | grep -q 'operations-action-reason' || {
             echo "operations center page failed; dumping api logs:"
             docker compose logs --no-color api

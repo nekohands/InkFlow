@@ -284,7 +284,15 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 - 安全边界：历史不写入动态 message、异常原文、Token、IP、连接串或正文；外部通知渠道、生产路由/治理不在本轮实现。
 - 本地证据：Release Build 0 warnings / 0 errors；Unit 317/317、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、2 跳过、56 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，其中新增 4 项 Operations PostgreSQL Testcontainers 均已实际尝试；EF model pending-check、`git diff --check` PASS；API `/health` 200，匿名历史入口 401。
 - 远端证据：候选提交 `4ef206f` 的 CI `33244304809` GREEN（64 项集成测试 62 通过、2 跳过，含 Restore/Build/Test/Compose/Runtime smoke/Redis 限流/备份恢复/Diagnostics），Docker `33244304814` GREEN，Security `33244304804` GREEN（NuGet、SBOM、Trivy 和 CodeQL）。
-- 当前状态：保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；Operations Center 历史分页、真实 PostgreSQL/Redis、真实来源、阅读 3.0 和其他人工验收继续按待定清单执行。
+- 当前状态：保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；Operations Center 历史 API/UI 的自动化已补齐，真实 PostgreSQL/Redis、真实来源、阅读 3.0 和管理员/Operator 人工验收继续按待定清单执行。
+
+### 4.37 Operations Center 告警历史 UI 增量（本轮，2026-08-29）
+
+- 目标：把 4.36 的管理员告警历史 API 接入已有 Operations Center 页面，形成当前快照、历史转折与恢复状态的连续排查路径。
+- 实现：管理员可刷新最新历史并加载更早页；页面使用不透明游标，展示稳定告警代码、资源坐标、发生时间、出现次数及“已触发/已恢复”。Operator 不发起平台级历史请求，只显示权限提示，服务端 Administrator-only 约束保持不变。
+- UX/安全：沿用既有 Operations Center token、响应式表格和可访问状态提示；历史数据全部通过安全 DOM 节点写入，不展示动态 message、异常原文、Token、任务变量或正文，也不缓存认证响应。
+- 本地证据：Release Build 0 warnings / 0 errors；Unit 317/317、Architecture 1/1、Contract 10/10 PASS；页面结构包含历史 API、分页控件和恢复文案，匿名历史 API 401，脚本 Node syntax check PASS；完整 Integration 64 项仍有 56 项因本机 Docker Engine 不可用而 BLOCKED。
+- 边界：候选提交的远端 CI/Docker/Security 待验证；真实管理员/Operator 凭据、移动/桌面/宽屏视觉、键盘/对比度和截图验收继续保留在待定事项。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
@@ -333,6 +341,7 @@ CI: GREEN (CI 33244304809; Docker 33244304814; Security 33244304804)
 ✅ Redis Distributed Rate Limit v1：Redis Lua 原子 fixed-window + 独立连接集成验证 + 有界本地降级（`2bace7d`，CI `33131258779` / Docker `33131258754` 均 GREEN）
 ✅ Operations Alert Snapshot v1：来源健康/死信/一致性/Redis 告警快照 + 配置化阈值 + OperationsRead 保护（本工作包）
 ✅ Operations Alert History v1：PostgreSQL incident 去重/恢复 + opened/resolved 历史 + 保留清理 + Administrator-only 有界查询（`4ef206f`；CI `33244304809` / Docker `33244304814` / Security `33244304804` GREEN）
+✅ Operations Center Alert History UI v1：管理员历史刷新/不透明游标分页 + opened/resolved 转折展示 + Operator 权限提示（本轮；候选提交远端门禁待验证）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）

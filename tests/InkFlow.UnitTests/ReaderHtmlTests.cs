@@ -243,6 +243,13 @@ public sealed class ReaderHtmlTests
 
         StringAssert.Contains(html, "运维中心");
         StringAssert.Contains(html, "/api/v1/admin/operations/overview?limit=50");
+        StringAssert.Contains(html, "/api/v1/admin/operations/alerts/history?");
+        StringAssert.Contains(html, "operations-history");
+        StringAssert.Contains(html, "operations-history-more");
+        StringAssert.Contains(html, "renderHistoryRestricted");
+        StringAssert.Contains(html, "URLSearchParams");
+        StringAssert.Contains(html, "仅管理员可查看平台级历史");
+        StringAssert.Contains(html, "已恢复");
         StringAssert.Contains(html, "/api/v1/admin/crawler/dead-letters/");
         StringAssert.Contains(html, "/api/v1/admin/sources/");
         StringAssert.Contains(html, "operations-action-reason");

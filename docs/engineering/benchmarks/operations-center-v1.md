@@ -1,12 +1,20 @@
 # Operations/Repair Center UI v1 Benchmark Note
 
-日期：2026-08-28
+日期：2026-08-29（告警历史分页增量）
 
 ## Page
 
 - 目标用户：`Operator` / `Administrator`；用于观察来源健康、采集死信与一致性，不向普通读者暴露。
-- 页面性质：只读运维快照 + 受控修复入口。当前基线 API 为 `GET /api/v1/admin/operations/overview`，查询结果有界且按区块隔离故障。
+- 页面性质：只读运维快照 + 告警历史 + 受控修复入口。当前基线 API 为 `GET /api/v1/admin/operations/overview` 与 `GET /api/v1/admin/operations/alerts/history`，查询结果有界且按区块隔离故障。
 - 非目标：自动修复、直接改数据库、把凭据/任务变量/正文载荷放入仪表盘。
+
+## 本次增量参考
+
+- Grafana Alert State History：用独立历史视图呈现告警状态转折，并允许继续缩小范围查看事件；InkFlow 采用更小的表格和不透明游标，只提供管理员需要的稳定事件字段。
+- GitHub Actions Workflow Run History：以时间顺序列出运行记录，并将状态与详细日志分开；InkFlow 将“刷新最新”和“加载更早记录”分成明确操作，不在首屏堆叠全部历史。
+- Prometheus Alertmanager：将 firing/resolved 作为生命周期状态，并把通知投递与告警状态分开；InkFlow 本轮只展示内部 opened/resolved 转折，外部通知仍由后续运维集成负责。
+
+取舍：保留“当前快照”作为默认工作面，历史作为第二级区块；平台级历史仅 Administrator 可见，Operator 继续使用来源过滤快照。移动端允许历史表横向滚动，操作按钮保持可触控和可键盘访问。
 
 ## 状态分组
 
@@ -15,7 +23,8 @@
 1. **Sources / 来源健康**：按来源再按能力展示 `Healthy`、`Degraded`、`Unhealthy`、`Disabled`、`Unknown`；同时显示连续失败次数、最近成功/失败、失败原因、算法版本和更新时间。`Disabled` 是人工禁用，`Unknown` 表示尚未由真实探针确认可用。
 2. **Crawler / 死信队列**：显示原因、尝试次数、进入死信时间和重放状态；区分未重放、已重放及重放任务 ID，并明确“还有更多”分页提示。
 3. **Consistency / 一致性**：显示总体状态、问题总数、截断标记和问题列表；问题至少保留代码、资源类型/ID和可行动消息。
-4. **页面总览状态**：区块全为 `ready` 时为 `ready`；任一区块失败时为 `partial`。区块级 `partial` / `unavailable` 必须独立呈现，不能用整页成功或失败覆盖局部事实。
+4. **Alert History / 告警历史**：管理员查看按时间倒序排列的 opened/resolved 转折；显示稳定告警代码、资源坐标、发生时间和出现次数，支持刷新最新页与加载更早页，不显示动态 message、异常原文或凭据。
+5. **页面总览状态**：区块全为 `ready` 时为 `ready`；任一区块失败时为 `partial`。区块级 `partial` / `unavailable` 必须独立呈现，不能用整页成功或失败覆盖局部事实。
 
 ## 错误与空状态
 
@@ -47,6 +56,7 @@
 - 普通读者导航不显示 Source/Crawler/ContentVersion 等内部概念；Center 使用独立 Admin 信息架构。
 - 前端只消费受保护 API，不缓存认证响应、死信详情或其他管理数据；不显示秘密、凭据引用、任务变量或正文载荷。
 - Center 的正式实现仍需补充 Mobile / Tablet / Desktop / Wide Desktop 人工验收、键盘/对比度检查和截图证据；本记录不替代这些验收。
+- 告警历史的管理员角色、分页边界、恢复转折和服务不可用提示已有自动化结构/运行时基线；真实凭据操作和视觉截图仍属于待定验收。
 
 ## 来源
 
@@ -60,3 +70,6 @@
 - `docs/architecture/architecture.md:94-100` — 任务、Repair/Replay、Operations Center 的架构不变量。
 - `docs/architecture/security-model.md:30-38, 109-115` — 角色策略、理由、审计和敏感数据边界。
 - `docs/engineering/frontend-design.md:1-8, 14-16, 20, 26, 30, 40` — 状态设计、WCAG 2.2 AA、错误/空状态、响应式与 UI 验收要求。
+- [Grafana Alert State History](https://grafana.com/docs/grafana/latest/alerting/monitor-status/view-alert-state-history/) — 状态转折历史与筛选模式。
+- [GitHub Actions workflow run history](https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/monitoring-workflows/viewing-workflow-run-history) — 时间序列状态列表与详情分层。
+- [Prometheus Alertmanager notification model](https://prometheus.io/docs/alerting/latest/notifications/) — firing/resolved 生命周期与通知分离。

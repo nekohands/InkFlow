@@ -627,6 +627,14 @@ Phase 1A 自动化工作包状态：
 - 远端验收：候选提交 `4ef206f` 的 CI `33244304809` GREEN，64 项集成测试 62 通过、2 跳过；Docker `33244304814` GREEN；Security `33244304804` GREEN，NuGet、SBOM、Trivy 文件系统扫描和 CodeQL 均通过。
 - 当前状态：本工作包保持 `1.0 Release Candidate`，自动化 Release Gate 已通过；不等同于 `Accepted/Completed`，人工 Operations Center、真实 PostgreSQL/Redis、真实来源和阅读 3.0 验收仍按第 6 节待定清单执行。
 
+### 4.37 Operations Center 告警历史 UI 增量（本轮，2026-08-29）
+
+- 目标：将 4.36 已完成的告警历史 API 接入运维中心页面，形成当前快照、历史转折和恢复状态的连续排查路径。
+- 实现：管理员可在 `/admin/operations` 刷新最新告警历史并使用不透明游标加载更早记录；页面展示稳定告警代码、资源坐标、发生时间、出现次数及“已触发/已恢复”状态。Operator 不发起平台级历史请求，只看到权限提示，后端 Administrator-only 边界保持不变。
+- UX/安全：历史表格沿用 Operations Center 既有 token、响应式横向承载、可见键盘焦点和 `aria-live` 状态；数据全部通过 `textContent`/DOM 节点写入，前端不缓存认证响应，不展示动态 message、异常原文、Token、任务变量或正文。
+- 自动化证据：本机 Release Build 0 warnings / 0 errors PASS；Unit 317/317、Architecture 1/1、Contract 10/10 PASS；Operations 页面包含历史 API、分页控件和恢复文案，匿名历史 API 仍返回 401；脚本通过 Node syntax check；完整 Integration 64 项仍为 6 通过、2 跳过、56 项因本机 Docker Engine 不可用而 BLOCKED。
+- 当前状态：本工作包保持 `1.0 Release Candidate`，候选提交远端 CI/Docker/Security 待验证；真实凭据下的管理员/Operator 操作、移动/桌面/宽屏视觉与截图仍按第 6 节待定事项执行，不等同于 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -724,11 +732,11 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
-- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理和管理员历史查询；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由、生产告警治理和审计保留策略仍待后续 Operations/Identity/商业化工作包。
+- API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理、管理员历史查询和 Operations Center 历史展示；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由、生产告警治理和审计保留策略仍待后续 Operations/Identity/商业化工作包。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
-- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态和内部保留清理已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
+- Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
 
