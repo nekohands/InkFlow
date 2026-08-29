@@ -396,8 +396,9 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 缺口：Source Rule 执行此前没有统一的请求数、请求/响应体大小、执行时间、正则时间和结构化结果大小边界；生产 HTTP 客户端读取响应时会先完整载入再解码。
 - 实现：新增不可变 `SourceRuleExecutionLimits`，默认 MaxRequests=1、MaxBytes=2 MiB、MaxExecutionTime=20 秒、MaxRegexTime=2 秒、MaxResultSize=512 KiB；API/Worker/Scheduler 注册同一默认快照。`RuleAdapter`、`RuleBasedSourceAdapter` 和 `ProductionSafeSourceHttpClient` 分别在请求、字段/列表结果和流式响应读取边界 fail-closed，预算超限不暴露部分结果，内部执行超时不泄漏异常文本。
 - 非目标：当前只完成单请求执行预算；自动重定向仍为 SSRF Handler 固定 5 跳，XPath/JSONPath、Cookie/Session、Pagination 和递归 MaxDepth 仍需后续运行时工作包，真实来源和阅读 3.0 人工验收继续保留在待定事项。
-- 本地/远端证据：待本轮门禁完成后补录。
-- 下一步：完成本轮候选 Commit 的 CI/Docker/Security 验证；之后继续处理真实第二 Official Source/故障切换与用户已延期的人工验收。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 363/363、Architecture 1/1、Contract 10/10 PASS；完整 Solution Test 的 Integration 为 79 项，其中 6 通过、2 跳过、71 项在类初始化时因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
+- 远端证据：候选提交 `143685f` 的 CI `33261900485`、Docker `33261900470`、Security `33261900542` 均 **GREEN**。CI Test 为 79 项、77 通过/2 跳过，Restore/Build、11 个迁移模型检查、Compose、Runtime smoke、Core SLO probe/telemetry、Redis 分布式限流、PostgreSQL 备份恢复和 diagnostics 均通过；Docker 四业务镜像构建/扫描通过；Security 的 NuGet、Filesystem/Trivy、CodeQL 和 SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
+- 下一步：继续处理真实第二 Official Source/故障切换与用户已延期的人工验收；本机 Docker 恢复后重跑 Integration 以取得本地容器证据。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。

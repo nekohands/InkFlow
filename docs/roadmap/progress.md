@@ -742,7 +742,8 @@ Phase 1A 自动化工作包状态：
 - 缺口：Source Rule 执行虽已有 DSL 严格解析和 SSRF 连接约束，但请求数、请求/响应体大小、执行时间、正则时间和结构化结果大小此前没有在执行器统一 fail-closed；生产客户端读取响应时也会先完整载入再解码。
 - 实现：新增不可变 `SourceRuleExecutionLimits`，默认限制为 MaxRequests=1、MaxBytes=2 MiB、MaxExecutionTime=20 秒、MaxRegexTime=2 秒、MaxResultSize=512 KiB，并在 API/Worker/Scheduler 组合根共享同一快照。`RuleAdapter` 对零请求预算、表单/解码后响应字节、HTTP 总等待时间、严格正则超时和字段聚合结果统一返回稳定错误；`RuleBasedSourceAdapter` 对 Search/TOC 列表结果超限整体返回空结果。`ProductionSafeSourceHttpClient` 先检查 Content-Length，再以有界流读取，未知长度超限也不会继续累积。
 - 安全与非目标：超限不暴露部分结果，调用方取消仍按原语义传播；自动重定向仍由 SSRF Handler 固定最多 5 跳，XPath/JSONPath、Cookie/Session、Pagination 及递归 MaxDepth 仍未进入执行器，本轮不以 AST 解析替代真实来源验收。
-- 本地/远端证据：待本轮 Release Build、Unit/Architecture/Contract、集成尝试、候选 Commit 和 CI/Docker/Security 门禁完成后补录。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 363/363、Architecture 1/1、Contract 10/10 PASS；完整 Solution Test 的 Integration 为 79 项，其中 6 通过、2 跳过、71 项在类初始化时因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
+- 远端证据：候选提交 `143685f` 的 CI `33261900485`、Docker `33261900470`、Security `33261900542` 均 **GREEN**。CI Test 为 79 项、77 通过/2 跳过，Restore/Build、11 个迁移模型检查、Compose、Runtime smoke、Core SLO probe/telemetry、Redis 分布式限流、PostgreSQL 备份恢复和 diagnostics 均通过；Docker 四业务镜像构建/扫描通过；Security 的 NuGet、Filesystem/Trivy、CodeQL 和 SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
 - 当前状态：执行预算与响应体内存边界已实现，整体继续保持 `1.0 Release Candidate`；真实来源、真实故障切换、阅读 3.0、人工验收和生产治理仍按第 6 节待定，不等同于 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
