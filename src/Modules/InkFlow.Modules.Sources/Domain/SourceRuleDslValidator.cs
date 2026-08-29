@@ -123,15 +123,8 @@ public static class SourceRuleDslValidator
         {
             errors.Add($"{prefix}: pathTemplate must start with '/'.");
         }
-        else
-        {
-            // 占位符必须形如 {name}；任何残留的花括号都是模板书写错误。
-            var withoutPlaceholders = PlaceholderPattern.Replace(request.PathTemplate, string.Empty);
-            if (withoutPlaceholders.Contains('{') || withoutPlaceholders.Contains('}'))
-            {
-                errors.Add($"{prefix}: pathTemplate contains a malformed placeholder.");
-            }
-        }
+
+        ValidateTemplate(request.PathTemplate, $"{prefix}.pathTemplate", errors);
 
         ValidateMaxLength(
             request.PathTemplate,
@@ -142,6 +135,43 @@ public static class SourceRuleDslValidator
         ValidateMap(request.Headers, $"{prefix}.headers", errors);
         ValidateMap(request.Query, $"{prefix}.query", errors);
         ValidateMap(request.Form, $"{prefix}.form", errors);
+
+        if (request.Headers is not null)
+        {
+            foreach (var header in request.Headers)
+            {
+                ValidateTemplate(
+                    header.Value,
+                    $"{prefix}.headers['{header.Key}']",
+                    errors);
+            }
+        }
+
+        if (request.Query is not null)
+        {
+            foreach (var query in request.Query)
+            {
+                ValidateTemplate(
+                    query.Value,
+                    $"{prefix}.query['{query.Key}']",
+                    errors);
+            }
+        }
+
+        if (request.Form is not null)
+        {
+            foreach (var form in request.Form)
+            {
+                ValidateTemplate(
+                    form.Key,
+                    $"{prefix}.form key",
+                    errors);
+                ValidateTemplate(
+                    form.Value,
+                    $"{prefix}.form['{form.Key}']",
+                    errors);
+            }
+        }
 
         if (request.Headers is null)
         {
@@ -155,6 +185,11 @@ public static class SourceRuleDslValidator
                 {
                     errors.Add($"{prefix}: headers must have non-empty key and value.");
                     break;
+                }
+
+                if (header.Key.Any(char.IsControl) || header.Value.Any(char.IsControl))
+                {
+                    errors.Add($"{prefix}: header names and values must not contain control characters.");
                 }
             }
 
@@ -768,6 +803,24 @@ public static class SourceRuleDslValidator
         if (value is not null && value.Length > maximum)
         {
             errors.Add($"{path}: length must be at most {maximum} characters.");
+        }
+    }
+
+    private static void ValidateTemplate(
+        string? template,
+        string path,
+        List<string> errors)
+    {
+        if (template is null)
+        {
+            return;
+        }
+
+        // 占位符必须形如 {name}；任何未被识别的花括号都是模板书写错误。
+        var withoutPlaceholders = PlaceholderPattern.Replace(template, string.Empty);
+        if (withoutPlaceholders.Contains('{') || withoutPlaceholders.Contains('}'))
+        {
+            errors.Add($"{path}: contains a malformed placeholder.");
         }
     }
 

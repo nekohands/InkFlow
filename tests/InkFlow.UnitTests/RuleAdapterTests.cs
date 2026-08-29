@@ -74,6 +74,141 @@ public sealed class RuleAdapterTests
     }
 
     [TestMethod]
+    public async Task Header_Templates_Use_Provided_Variables()
+    {
+        var rule = SearchRule();
+        rule = rule with
+        {
+            Request = rule.Request with
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    ["X-Trace"] = "trace-{requestId}",
+                },
+            },
+        };
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string>
+            {
+                ["query"] = "q",
+                ["page"] = "1",
+                ["requestId"] = "abc-123",
+            });
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual("trace-abc-123", http.LastRequest!.Headers["X-Trace"]);
+    }
+
+    [TestMethod]
+    public async Task Header_Template_Control_Characters_Fail_Closed_Without_Leaking_Value()
+    {
+        var rule = SearchRule();
+        rule = rule with
+        {
+            Request = rule.Request with
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    ["X-Trace"] = "{requestId}",
+                },
+            },
+        };
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator());
+        const string secretValue = "secret-value";
+
+        var result = await adapter.ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string>
+            {
+                ["query"] = "q",
+                ["page"] = "1",
+                ["requestId"] = $"{secretValue}\r\nX-Evil: yes",
+        });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("control characters")));
+        Assert.IsFalse(result.Errors.Any(error => error.Contains(secretValue)));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
+    public async Task Oversized_Template_Variable_Fails_Before_Http_Without_Leaking_Value()
+    {
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator());
+        const string marker = "oversized-secret";
+        var oversizedValue = marker + new string('x', 2_050);
+
+        var result = await adapter.ExecuteAsync(
+            SearchRule(),
+            BaseUrl,
+            new Dictionary<string, string>
+            {
+                ["query"] = oversizedValue,
+                ["page"] = "1",
+            });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("variable")));
+        Assert.IsFalse(result.Errors.Any(error => error.Contains(marker)));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
+    public async Task Too_Many_Template_Variables_Fail_Before_Http()
+    {
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator());
+        var variables = Enumerable.Range(0, 33)
+            .ToDictionary(index => $"variable{index}", _ => "value");
+
+        var result = await adapter.ExecuteAsync(SearchRule(), BaseUrl, variables);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("count budget")));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
+    public async Task Invalid_Template_Variable_Name_Fails_Before_Http()
+    {
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator());
+        var variables = new Dictionary<string, string>
+        {
+            ["bad-name"] = "value",
+        };
+
+        var result = await adapter.ExecuteAsync(SearchRule(), BaseUrl, variables);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("variable name is invalid")));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
+    public async Task Template_Variable_Context_Byte_Budget_Fails_Before_Http()
+    {
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(http, new FakeSelectorEvaluator());
+        var variables = Enumerable.Range(0, 9)
+            .ToDictionary(index => $"variable{index}", _ => new string('x', 2_000));
+
+        var result = await adapter.ExecuteAsync(SearchRule(), BaseUrl, variables);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("byte budget")));
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
     public async Task Missing_Template_Variable_Fails_Without_Hitting_Http()
     {
         var http = new FakeHttpClient();

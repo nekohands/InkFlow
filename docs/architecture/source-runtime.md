@@ -81,9 +81,11 @@ scheme/host/port 同源；所有模式都受 `maxPages`、`MaxRequests`、响应
 循环链接、重复游标、跨源/带凭据/带 fragment 的链接、非法游标和超出边界的链路整体失败，
 不暴露已抓页面。
 `SourceRuleExecutionLimits` 已接入有限的 MaxRequests、MaxBytes、MaxExecutionTime、MaxRegexTime 和
-MaxResultSize，默认 `MaxRequests=8`（未声明 Pagination 的规则仍只发一个请求），生产 HTTP 客户端在解码前
-按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、基于 CredentialReference 的初始认证/持久化
-Session、通用变量扩展，以及
+MaxResultSize，以及调用方临时请求模板变量上下文的数量、名称、单值长度和累计 UTF-8 字节预算；默认
+变量边界为 32 个、名称 128 字符、单值 2,048 字符、累计 16 KiB。`RuleRequest` 的路径、Header、Query
+和 Form 模板值可使用 `{name}` 占位符；发布期与执行期都会拒绝未闭合/非法占位符、非法变量名和控制字符，
+执行失败不回显变量值。生产 HTTP 客户端在解码前按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法、
+基于 CredentialReference 的初始认证/持久化 Session、响应派生变量，以及
 next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 

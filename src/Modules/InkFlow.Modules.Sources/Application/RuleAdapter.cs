@@ -11,12 +11,15 @@ namespace InkFlow.Modules.Sources.Application;
 /// 规则执行器：把声明式 DSL 变成一次或一组有界的真实抓取。
 /// 执行顺序固定为：URL 构建 → SSRF 字面量校验 → 发请求（经 ISourceHttpClient）→
 /// 状态码检查 → 字段抽取 → 变换管道。任一环节失败即整体失败，不产生部分结果；
-/// 请求、响应、时间、正则、分页和结果预算由 <see cref="SourceRuleExecutionLimits"/> 强制约束。
+/// 请求、响应、时间、正则、分页、模板变量和结果预算由
+/// <see cref="SourceRuleExecutionLimits"/> 强制约束。
 /// </summary>
 public sealed class RuleAdapter
 {
     private static readonly Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
+    private static readonly Regex VariableNamePattern =
+        new(@"^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
     private const int MaxPaginationLinkLength = 2_048;
 
     private readonly ISourceHttpClient _httpClient;
@@ -43,6 +46,12 @@ public sealed class RuleAdapter
         CancellationToken cancellationToken = default)
     {
         variables ??= new Dictionary<string, string>();
+
+        var variableErrors = ValidateVariables(variables);
+        if (variableErrors.Count > 0)
+        {
+            return RuleExecutionResult.Fail(variableErrors);
+        }
 
         var pagination = rule.Pagination;
         if (pagination is not null)
@@ -527,6 +536,26 @@ public sealed class RuleAdapter
                 ? overrideParameterValue ?? string.Empty
                 : FillTemplate($"{prefix}.query['{pair.Key}']", pair.Value, variables, errors));
 
+        var headers = rule.Request.Headers.ToDictionary(
+            pair => pair.Key,
+            pair => FillTemplate($"{prefix}.headers['{pair.Key}']", pair.Value, variables,
+                errors, encodeValues: false),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var header in headers)
+        {
+            if (header.Key.Any(char.IsControl))
+            {
+                errors.Add($"{prefix}.headers: header name contains control characters.");
+            }
+
+            if (header.Value.Any(char.IsControl))
+            {
+                errors.Add(
+                    $"{prefix}.headers['{header.Key}']: rendered value contains control characters.");
+            }
+        }
+
         if (errors.Count > 0)
         {
             return errors;
@@ -558,7 +587,7 @@ public sealed class RuleAdapter
         request = new SourceHttpRequest(
             rule.Request.Method,
             builder.Uri.AbsoluteUri,
-            rule.Request.Headers,
+            headers,
             formBody);
 
         return errors;
@@ -571,6 +600,12 @@ public sealed class RuleAdapter
         List<string> errors,
         bool encodeValues = true)
     {
+        var withoutPlaceholders = PlaceholderPattern.Replace(template, string.Empty);
+        if (withoutPlaceholders.Contains('{') || withoutPlaceholders.Contains('}'))
+        {
+            errors.Add($"{errorPrefix}: contains a malformed placeholder.");
+        }
+
         return PlaceholderPattern.Replace(template, match =>
         {
             var name = match.Groups[1].Value;
@@ -583,6 +618,50 @@ public sealed class RuleAdapter
             // 路径和查询模板先编码；表单在最终拼接时统一编码一次。
             return encodeValues ? Uri.EscapeDataString(value) : value;
         });
+    }
+
+    private List<string> ValidateVariables(IReadOnlyDictionary<string, string> variables)
+    {
+        var errors = new List<string>();
+        if (variables.Count > _limits.MaxVariableCount)
+        {
+            errors.Add("execution: variable context exceeds count budget.");
+        }
+
+        long totalBytes = 0;
+        foreach (var variable in variables)
+        {
+            var key = variable.Key;
+            var value = variable.Value;
+
+            if (string.IsNullOrWhiteSpace(key) ||
+                key.Length > _limits.MaxVariableNameLength ||
+                !VariableNamePattern.IsMatch(key))
+            {
+                errors.Add("execution: variable name is invalid.");
+            }
+
+            if (value is null || value.Length > _limits.MaxVariableValueLength)
+            {
+                errors.Add("execution: variable value exceeds the length budget.");
+                continue;
+            }
+
+            if (value.Any(char.IsControl))
+            {
+                errors.Add("execution: variable value contains control characters.");
+            }
+
+            totalBytes += (long)Encoding.UTF8.GetByteCount(key ?? string.Empty) +
+                Encoding.UTF8.GetByteCount(value);
+        }
+
+        if (totalBytes > _limits.MaxVariableBytes)
+        {
+            errors.Add("execution: variable context exceeds byte budget.");
+        }
+
+        return errors;
     }
 
     private static bool IsCookieHeaderName(string name) =>

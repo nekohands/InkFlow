@@ -373,4 +373,34 @@ public sealed class SourceRuleDslValidatorTests
 
         Assert.IsTrue(result.Any(error => error.Contains("Cookie/Set-Cookie")));
     }
+
+    [TestMethod]
+    public void Malformed_Header_Template_Placeholder_Is_Rejected()
+    {
+        var request = RuleRequest.Get("/search") with
+        {
+            Headers = new Dictionary<string, string> { ["X-Trace"] = "trace-{requestId" },
+        };
+        var rule = ValidDsl().Rules[0] with { Request = request };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "template-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("malformed placeholder")));
+    }
+
+    [TestMethod]
+    public void Header_Control_Characters_Are_Rejected_At_Publish_Boundary()
+    {
+        var request = RuleRequest.Get("/search") with
+        {
+            Headers = new Dictionary<string, string> { ["X-Trace"] = "trace-\r\nX-Evil: yes" },
+        };
+        var rule = ValidDsl().Rules[0] with { Request = request };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "template-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("control characters")));
+    }
 }
