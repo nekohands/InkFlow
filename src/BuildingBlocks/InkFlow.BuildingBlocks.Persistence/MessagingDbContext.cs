@@ -42,6 +42,7 @@ public sealed class MessagingDbContext(DbContextOptions<MessagingDbContext> opti
             builder.Property(message => message.MessageType).HasMaxLength(128).IsRequired();
             builder.Property(message => message.Payload).HasColumnType("jsonb").IsRequired();
             builder.Property(message => message.PayloadHash).HasMaxLength(64).IsRequired();
+            builder.Property(message => message.TraceId).HasMaxLength(128);
             builder.Property(message => message.LockOwner).HasMaxLength(128);
             builder.Property(message => message.LastError).HasMaxLength(128);
             builder.HasIndex(message => new { message.ProcessedAt, message.ReceivedAt });

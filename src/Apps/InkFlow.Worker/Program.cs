@@ -20,6 +20,7 @@ using InkFlow.BuildingBlocks.Messaging;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.BuildingBlocks.Observability;
+using InkFlow.Worker;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,12 +46,20 @@ builder.Services.AddSingleton(
     MessageRetentionOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddSingleton(
     AuditRetentionOptions.FromConfiguration(builder.Configuration));
+var relayOptions = OutboxRelayOptions.FromConfiguration(builder.Configuration);
+builder.Services.AddSingleton(relayOptions);
+builder.Services.AddSingleton(relayOptions.CreateDispatcherOptions(
+    relayOptions.CreateOwner(Environment.MachineName)));
 builder.Services.AddScoped<EfMessagingMessageStore>();
 builder.Services.AddScoped<IOutboxStore>(sp => sp.GetRequiredService<EfMessagingMessageStore>());
 builder.Services.AddScoped<IInboxStore>(sp => sp.GetRequiredService<EfMessagingMessageStore>());
+builder.Services.AddScoped<IInboxTransportStore>(sp =>
+    sp.GetRequiredService<EfMessagingMessageStore>());
 builder.Services.AddScoped<IMessageRetentionStore>(sp =>
     sp.GetRequiredService<EfMessagingMessageStore>());
 builder.Services.AddScoped<IMessageRetentionService, MessageRetentionService>();
+builder.Services.AddScoped<IIntegrationMessagePublisher, PostgreSqlInboxMessagePublisher>();
+builder.Services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
 builder.Services.AddScoped<EfAuditRetentionStore>();
 builder.Services.AddScoped<IAuditRetentionStore>(sp =>
     sp.GetRequiredService<EfAuditRetentionStore>());
@@ -116,6 +125,7 @@ builder.Services.AddScoped<IChainedContentPublisher, MappingContentPublisher>();
 builder.Services.AddScoped<CompositeTaskExecutor>();
 builder.Services.AddHostedService<TaskPollingService>();
 builder.Services.AddHostedService<SourceSeedService>();
+builder.Services.AddHostedService<OutboxRelayBackgroundService>();
 builder.Services.AddHostedService<MessageRetentionBackgroundService>();
 builder.Services.AddHostedService<AuditRetentionBackgroundService>();
 

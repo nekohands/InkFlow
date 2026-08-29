@@ -335,6 +335,80 @@ public sealed class MessagingPersistenceTests
     }
 
     [TestMethod]
+    public async Task PostgreSql_Relay_Publishes_Outbox_To_Idempotent_Inbox()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var message = IntegrationMessage.Create(
+            "test.relay.real",
+            "{\"value\":14}",
+            T0,
+            traceId: "trace-relay-real",
+            id: Guid.CreateVersion7());
+
+        await using (var enqueueDb = CreateMessagingDb())
+        {
+            await new EfMessagingMessageStore(enqueueDb)
+                .EnqueueAsync(message)
+                .ConfigureAwait(false);
+        }
+
+        await using var relayDb = CreateMessagingDb();
+        var store = new EfMessagingMessageStore(relayDb);
+        var publisher = new PostgreSqlInboxMessagePublisher(
+            store,
+            new FixedTimeProvider(T0.AddSeconds(2)));
+        var dispatcher = new OutboxDispatcher(
+            store,
+            publisher,
+            new FixedTimeProvider(T0.AddSeconds(2)),
+            new OutboxDispatcherOptions
+            {
+                Owner = "relay-real",
+                LeaseDuration = TimeSpan.FromMinutes(2),
+                BatchSize = 10,
+            });
+
+        var result = await dispatcher.DispatchOnceAsync().ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ClaimedCount);
+        Assert.AreEqual(1, result.PublishedCount);
+        Assert.AreEqual(0, result.FailedCount);
+
+        var duplicateRecord = new OutboxMessageRecord(
+            message.Id,
+            message.MessageType,
+            message.OccurredAt,
+            message.OccurredAt,
+            message.Payload,
+            message.PayloadHash,
+            message.TraceId,
+            1,
+            null,
+            null,
+            T0.AddSeconds(2),
+            null);
+        await publisher.PublishAsync(duplicateRecord).ConfigureAwait(false);
+
+        await using var verify = CreateMessagingDb();
+        var storedInbox = await verify.InboxMessages
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == message.Id)
+            .ConfigureAwait(false);
+        var storedOutbox = await verify.OutboxMessages
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == message.Id)
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(message.MessageType, storedInbox.MessageType);
+        Assert.AreEqual(message.Payload, storedInbox.Payload);
+        Assert.AreEqual(message.PayloadHash, storedInbox.PayloadHash);
+        Assert.AreEqual(message.TraceId, storedInbox.TraceId);
+        Assert.AreEqual(T0.AddSeconds(2), storedInbox.ReceivedAt);
+        Assert.IsNull(storedInbox.ProcessedAt);
+        Assert.IsNotNull(storedOutbox.ProcessedAt);
+    }
+
+    [TestMethod]
     public async Task Outbox_Dispatcher_Releases_Transport_Failure_For_Retry()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);
@@ -648,6 +722,7 @@ public sealed class MessagingPersistenceTests
             MessageType = message.MessageType,
             Payload = message.Payload,
             PayloadHash = message.PayloadHash,
+            TraceId = message.TraceId,
             ReceivedAt = message.OccurredAt,
             AttemptCount = 1,
             ProcessedAt = processedAt,

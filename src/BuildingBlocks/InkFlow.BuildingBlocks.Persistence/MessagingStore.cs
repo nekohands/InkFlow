@@ -41,7 +41,7 @@ public sealed class EfTransactionalOutboxWriter : ITransactionalOutboxWriter
 
 /// <summary>PostgreSQL Outbox/Inbox 的 EF 持久化实现。</summary>
 public sealed class EfMessagingMessageStore(MessagingDbContext db)
-    : IOutboxStore, IInboxStore, IMessageRetentionStore
+    : IOutboxStore, IInboxStore, IInboxTransportStore, IMessageRetentionStore
 {
     public async Task EnqueueAsync(
         IntegrationMessage message,
@@ -49,6 +49,20 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
     {
         ArgumentNullException.ThrowIfNull(message);
         await MessagingSql.InsertOutboxAsync(db.Database, message, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task EnqueueAsync(
+        IntegrationMessage message,
+        DateTimeOffset receivedAt,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        await MessagingSql.InsertInboxAsync(
+                db.Database,
+                message,
+                receivedAt.ToUniversalTime(),
+                cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -529,11 +543,12 @@ internal static class MessagingSql
     {
         var affected = await database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "messaging"."inbox_messages" AS target
-                ("Id", "MessageType", "Payload", "PayloadHash", "ReceivedAt", "AttemptCount",
-                 "LockOwner", "LockedUntil", "ProcessedAt", "LastError")
+                ("Id", "MessageType", "Payload", "PayloadHash", "TraceId", "ReceivedAt",
+                 "AttemptCount", "LockOwner", "LockedUntil", "ProcessedAt", "LastError")
             VALUES
                 ({message.Id}, {message.MessageType}, {message.Payload}::jsonb,
-                 {message.PayloadHash}, {receivedAt}, 0, NULL, NULL, NULL, NULL)
+                 {message.PayloadHash}, {message.TraceId}, {receivedAt}, 0,
+                 NULL, NULL, NULL, NULL)
             ON CONFLICT ("Id") DO UPDATE
                 SET "Id" = EXCLUDED."Id"
               WHERE target."MessageType" = EXCLUDED."MessageType"

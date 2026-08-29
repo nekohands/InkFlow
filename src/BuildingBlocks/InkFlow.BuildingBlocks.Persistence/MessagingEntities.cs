@@ -27,6 +27,7 @@ public sealed class InboxMessageEntity
     public string MessageType { get; set; } = null!;
     public string Payload { get; set; } = null!;
     public string PayloadHash { get; set; } = null!;
+    public string? TraceId { get; set; }
     public DateTimeOffset ReceivedAt { get; set; }
     public int AttemptCount { get; set; }
     public string? LockOwner { get; set; }

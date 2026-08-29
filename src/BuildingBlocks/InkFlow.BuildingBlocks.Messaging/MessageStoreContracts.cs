@@ -59,6 +59,18 @@ public interface IOutboxStore
 }
 
 /// <summary>
+/// 将已领取的 Outbox 消息写入受治理的 Inbox 事实表。
+/// 实现必须以消息 ID 幂等入队，并保留第一次写入的接收时间。
+/// </summary>
+public interface IInboxTransportStore
+{
+    Task EnqueueAsync(
+        IntegrationMessage message,
+        DateTimeOffset receivedAt,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Inbox 端口。先 claim、成功后 mark processed；处理器崩溃时 lease 到期后可再次领取。
 /// </summary>
 public interface IInboxStore
