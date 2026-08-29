@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <ProjectReference Include="../InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
   </ItemGroup>
 </Project>

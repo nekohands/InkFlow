@@ -189,7 +189,7 @@ CI Runtime smoke 随后执行 `scripts/core-slo-runtime-smoke.sh`，对四个服
 
 ### Transactional Outbox / Inbox
 
-跨模块消息事实保存在 PostgreSQL 的 `messaging.outbox_messages` 和 `messaging.inbox_messages`。业务 DbContext 通过 `ITransactionalOutboxWriter` 在同一事务中追加 Outbox；`OutboxDispatcher` / `IntegrationMessageConsumer` 以成功后确认、lease、稳定失败码和有界退避支持至少一次执行，Inbox 以消息 ID、类型和载荷摘要保护重复消费与消息身份。发布传输、宿主后台循环和具体 Handler 仍由宿主按需接入，本 Building Block 不绑定未选定的 MQ。当前 Crawler 任务创建已接入 `crawler.task.created` 最小事件，消息不包含变量或凭据引用；其他业务事件需按相同事务 seam 接入。
+跨模块消息事实保存在 PostgreSQL 的 `messaging.outbox_messages` 和 `messaging.inbox_messages`。业务 DbContext 通过 `ITransactionalOutboxWriter` 在同一事务中追加 Outbox；`OutboxDispatcher` / `IntegrationMessageConsumer` 以成功后确认、lease、稳定失败码和有界退避支持至少一次执行，Inbox 以消息 ID、类型和载荷摘要保护重复消费与消息身份。已处理记录由 Worker 按 `Messaging:Retention` 配置以有界批次周期清理，失败/待重试/未处理记录保留。发布传输、宿主后台循环和具体 Handler 仍由宿主按需接入，本 Building Block 不绑定未选定的 MQ。当前 Crawler 任务创建已接入 `crawler.task.created` 最小事件，消息不包含变量或凭据引用；其他业务事件需按相同事务 seam 接入。
 
 `.github/workflows/docker.yml` 会先扫描 Compose 使用的固定版本 OTLP Collector，再构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描；全部通过后才推送业务镜像标签。该基线不替代生产镜像准入、报告保留、Secret 轮换和部署环境策略治理。
 

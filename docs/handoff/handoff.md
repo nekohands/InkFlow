@@ -63,7 +63,7 @@ Restore: PASS
 Release Build: PASS (0 warnings / 0 errors)
 Unit: PASS
 Architecture: PASS
-Integration: LOCAL BLOCKED (74 total: 6 passed / 2 skipped / 66 Docker-blocked); PASS (CI 33253938424: 72 passed / 2 skipped, including 10/10 Messaging persistence/execution tests)
+Integration: LOCAL BLOCKED (76 total: 6 passed / 2 skipped / 68 Docker-blocked); current Messaging Persistence/Execution/Retention scope is 12 tests; remote gate for this work package is pending.
 Contract: PASS (10/10)
 Compose validation: PASS
 Runtime smoke: PASS
@@ -354,6 +354,14 @@ CI: GREEN (CI 33253938424; Docker 33253938404; Security 33253938443)
 - 边界：本轮只提供可测试的执行层和传输/处理接口，不选择或接入未定义的 MQ，也不扩大宿主后台生命周期；实际适配器、宿主轮询和业务 Handler 接入仍需后续按模块推进。
 - 本地证据：Release Build 0 warnings / 0 errors、Unit 334/334、Architecture 1/1、Contract 10/10 PASS；完整 Integration 74 项中 6 项通过、2 项跳过、66 项因本机 Docker `npipe://./pipe/docker_engine` 不可用 BLOCKED；Messaging Persistence/Execution 10 项已实际尝试但无法取得本机容器证据。
 - 远端证据：提交 `fa81db7` 的 CI `33253938424`、Docker `33253938404`、Security `33253938443` 均 GREEN；CI 真实 PostgreSQL 集成 74 项为 72 通过/2 跳过，10/10 Messaging Persistence/Execution 用例通过，Unit 334/334、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 均通过；Docker 四镜像与 Collector 扫描通过，Security 的 NuGet/SBOM/Trivy/CodeQL 通过。保留既有 Actions Node 20 弃用提示。
+
+### 4.45 Messaging Outbox/Inbox 保留清理与 Worker 周期接线（本轮，2026-08-29）
+
+- 缺口：Outbox/Inbox 已具备成功确认和失败重试语义，但已处理历史记录没有有界保留清理；长期积压会增加事实表与索引维护成本。
+- 实现：新增 `MessageRetentionOptions`、`MessageRetentionService` 和 `IMessageRetentionStore`。按 `BatchSize` 与 `MaxBatchesPerRun` 双重上限计算 Outbox/Inbox cutoff，只删除 `ProcessedAt` 已设置且早于 cutoff 的记录；失败、待重试、未处理和仍被锁定的消息保留。PostgreSQL 使用事务内 `FOR UPDATE SKIP LOCKED` 分批删除；Worker 注册 `MessagingDbContext`，按 `Messaging:Retention` 配置在启动延迟后每小时执行清理。
+- 边界：本轮只接入消息事实表保留清理，不选择 MQ、Publisher 或业务 Handler；传输适配和业务事件宿主仍需后续按模块推进。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 338/338、Architecture 1/1、Contract 10/10 PASS；完整 Integration 76 项中 6 项通过、2 项跳过、68 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。新增 Retention 单测 4/4 通过；Messaging Persistence/Execution/Retention 12 项已实际尝试但未取得本机容器证据；`git diff --check` PASS。
+- 远端证据：候选提交推送后补录 CI、Docker、Security 运行编号；在门禁完成前不标记 `Accepted/Completed`。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。

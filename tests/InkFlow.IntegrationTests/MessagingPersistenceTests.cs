@@ -442,6 +442,151 @@ public sealed class MessagingPersistenceTests
         Assert.IsNull(stored.LockOwner);
     }
 
+    [TestMethod]
+    public async Task Message_Retention_Deletes_Only_Expired_Processed_Records()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var oldAt = T0.AddDays(-60);
+        var oldOutbox = IntegrationMessage.Create(
+            "test.retention.old.outbox",
+            "{\"value\":21}",
+            oldAt,
+            id: Guid.CreateVersion7());
+        var pendingOutbox = IntegrationMessage.Create(
+            "test.retention.pending.outbox",
+            "{\"value\":22}",
+            oldAt.AddMinutes(1),
+            id: Guid.CreateVersion7());
+        var oldInbox = IntegrationMessage.Create(
+            "test.retention.old.inbox",
+            "{\"value\":23}",
+            oldAt,
+            id: Guid.CreateVersion7());
+        var pendingInbox = IntegrationMessage.Create(
+            "test.retention.pending.inbox",
+            "{\"value\":24}",
+            oldAt.AddMinutes(1),
+            id: Guid.CreateVersion7());
+        var freshOutbox = IntegrationMessage.Create(
+            "test.retention.fresh.outbox",
+            "{\"value\":25}",
+            T0.AddDays(-1),
+            id: Guid.CreateVersion7());
+        var freshInbox = IntegrationMessage.Create(
+            "test.retention.fresh.inbox",
+            "{\"value\":26}",
+            T0.AddDays(-1),
+            id: Guid.CreateVersion7());
+
+        await using (var seedDb = CreateMessagingDb())
+        {
+            seedDb.OutboxMessages.AddRange(
+                ToOutboxEntity(oldOutbox, oldAt.AddMinutes(1)),
+                ToOutboxEntity(pendingOutbox, null),
+                ToOutboxEntity(freshOutbox, T0.AddDays(-1)));
+            seedDb.InboxMessages.AddRange(
+                ToInboxEntity(oldInbox, oldAt.AddMinutes(1)),
+                ToInboxEntity(pendingInbox, null),
+                ToInboxEntity(freshInbox, T0.AddDays(-1)));
+            await seedDb.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        MessageRetentionResult result;
+        await using (var cleanupDb = CreateMessagingDb())
+        {
+            result = await new MessageRetentionService(
+                    new EfMessagingMessageStore(cleanupDb),
+                    new FixedTimeProvider(T0))
+                .CleanupAsync(new MessageRetentionOptions
+                {
+                    OutboxRetentionDays = 30,
+                    InboxRetentionDays = 30,
+                    BatchSize = 100,
+                    MaxBatchesPerRun = 1,
+                })
+                .ConfigureAwait(false);
+        }
+
+        Assert.AreEqual(1, result.OutboxDeletedCount);
+        Assert.AreEqual(1, result.InboxDeletedCount);
+
+        await using var verify = CreateMessagingDb();
+        Assert.IsNull(await verify.OutboxMessages
+            .AsNoTracking()
+            .SingleOrDefaultAsync(message => message.Id == oldOutbox.Id)
+            .ConfigureAwait(false));
+        Assert.IsNotNull(await verify.OutboxMessages
+            .AsNoTracking()
+            .SingleOrDefaultAsync(message => message.Id == pendingOutbox.Id)
+            .ConfigureAwait(false));
+        Assert.IsNotNull(await verify.OutboxMessages
+            .AsNoTracking()
+            .SingleOrDefaultAsync(message => message.Id == freshOutbox.Id)
+            .ConfigureAwait(false));
+        Assert.IsNull(await verify.InboxMessages
+            .AsNoTracking()
+            .SingleOrDefaultAsync(message => message.Id == oldInbox.Id)
+            .ConfigureAwait(false));
+        var pendingInboxRecord = await verify.InboxMessages
+            .AsNoTracking()
+            .SingleAsync(message => message.Id == pendingInbox.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual(MessageFailureCodes.HandlerFailed, pendingInboxRecord.LastError);
+        Assert.IsNotNull(await verify.InboxMessages
+            .AsNoTracking()
+            .SingleOrDefaultAsync(message => message.Id == freshInbox.Id)
+            .ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task Message_Retention_Enforces_Per_Run_Batch_Bound()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var oldAt = T0.AddDays(-90);
+        var messages = Enumerable.Range(0, 3)
+            .Select(index => IntegrationMessage.Create(
+                $"test.retention.batch.{index}",
+                $"{{\"value\":{index}}}",
+                oldAt.AddMinutes(index),
+                id: Guid.CreateVersion7()))
+            .ToArray();
+
+        await using (var seedDb = CreateMessagingDb())
+        {
+            seedDb.OutboxMessages.AddRange(messages.Select(message =>
+                ToOutboxEntity(message, oldAt.AddMinutes(10))));
+            await seedDb.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        MessageRetentionResult result;
+        await using (var cleanupDb = CreateMessagingDb())
+        {
+            result = await new MessageRetentionService(
+                    new EfMessagingMessageStore(cleanupDb),
+                    new FixedTimeProvider(T0))
+                .CleanupAsync(new MessageRetentionOptions
+                {
+                    OutboxRetentionDays = 30,
+                    InboxRetentionDays = 30,
+                    BatchSize = 2,
+                    MaxBatchesPerRun = 1,
+                })
+                .ConfigureAwait(false);
+        }
+
+        Assert.AreEqual(2, result.OutboxDeletedCount);
+        Assert.AreEqual(0, result.InboxDeletedCount);
+
+        await using var verify = CreateMessagingDb();
+        var messageIds = messages.Select(message => message.Id).ToArray();
+        Assert.AreEqual(
+            1,
+            await verify.OutboxMessages
+                .AsNoTracking()
+                .CountAsync(message => messageIds.Contains(message.Id))
+                .ConfigureAwait(false));
+    }
+
     private static async Task MigrateAllRequiredSchemasAsync()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);
@@ -476,6 +621,38 @@ public sealed class MessagingPersistenceTests
         new(new DbContextOptionsBuilder<CrawlingDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
             .Options);
+
+    private static OutboxMessageEntity ToOutboxEntity(
+        IntegrationMessage message,
+        DateTimeOffset? processedAt) =>
+        new()
+        {
+            Id = message.Id,
+            MessageType = message.MessageType,
+            OccurredAt = message.OccurredAt,
+            AvailableAt = message.OccurredAt,
+            Payload = message.Payload,
+            PayloadHash = message.PayloadHash,
+            TraceId = message.TraceId,
+            AttemptCount = 1,
+            ProcessedAt = processedAt,
+            LastError = processedAt is null ? MessageFailureCodes.HandlerFailed : null,
+        };
+
+    private static InboxMessageEntity ToInboxEntity(
+        IntegrationMessage message,
+        DateTimeOffset? processedAt) =>
+        new()
+        {
+            Id = message.Id,
+            MessageType = message.MessageType,
+            Payload = message.Payload,
+            PayloadHash = message.PayloadHash,
+            ReceivedAt = message.OccurredAt,
+            AttemptCount = 1,
+            ProcessedAt = processedAt,
+            LastError = processedAt is null ? MessageFailureCodes.HandlerFailed : null,
+        };
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {

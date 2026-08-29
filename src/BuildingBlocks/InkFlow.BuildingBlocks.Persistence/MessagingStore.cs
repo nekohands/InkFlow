@@ -40,7 +40,8 @@ public sealed class EfTransactionalOutboxWriter : ITransactionalOutboxWriter
 }
 
 /// <summary>PostgreSQL Outbox/Inbox 的 EF 持久化实现。</summary>
-public sealed class EfMessagingMessageStore(MessagingDbContext db) : IOutboxStore, IInboxStore
+public sealed class EfMessagingMessageStore(MessagingDbContext db)
+    : IOutboxStore, IInboxStore, IMessageRetentionStore
 {
     public async Task EnqueueAsync(
         IntegrationMessage message,
@@ -164,6 +165,37 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db) : IOutboxStor
         message.LastError = normalizedFailure;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<MessageRetentionBatchResult> DeleteProcessedBatchAsync(
+        DateTimeOffset outboxCutoff,
+        DateTimeOffset inboxCutoff,
+        int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateCutoff(outboxCutoff, nameof(outboxCutoff));
+        ValidateCutoff(inboxCutoff, nameof(inboxCutoff));
+        ValidateRetentionLimit(batchSize);
+
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var outboxDeleted = await DeleteOutboxBatchAsync(
+                db.Database,
+                outboxCutoff.ToUniversalTime(),
+                batchSize,
+                cancellationToken)
+            .ConfigureAwait(false);
+        var inboxDeleted = await DeleteInboxBatchAsync(
+                db.Database,
+                inboxCutoff.ToUniversalTime(),
+                batchSize,
+                cancellationToken)
+            .ConfigureAwait(false);
+        db.ChangeTracker.Clear();
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+        return new(outboxDeleted, inboxDeleted);
     }
 
     public async Task<InboxClaimResult> TryClaimAsync(
@@ -378,11 +410,27 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db) : IOutboxStor
         }
     }
 
+    private static void ValidateRetentionLimit(int limit)
+    {
+        if (limit is < 1 or > 1_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        }
+    }
+
     private static void ValidateId(Guid id)
     {
         if (id == Guid.Empty)
         {
             throw new ArgumentException("message ID must not be empty.", nameof(id));
+        }
+    }
+
+    private static void ValidateCutoff(DateTimeOffset cutoff, string parameterName)
+    {
+        if (cutoff == DateTimeOffset.MinValue || cutoff == DateTimeOffset.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(parameterName);
         }
     }
 
@@ -403,6 +451,46 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db) : IOutboxStor
     }
 
     private static int Increment(int value) => value == int.MaxValue ? int.MaxValue : value + 1;
+
+    private static Task<int> DeleteOutboxBatchAsync(
+        DatabaseFacade database,
+        DateTimeOffset cutoff,
+        int batchSize,
+        CancellationToken cancellationToken) =>
+        database.ExecuteSqlInterpolatedAsync($"""
+            WITH candidates AS (
+                SELECT "Id"
+                  FROM "messaging"."outbox_messages"
+                 WHERE "ProcessedAt" IS NOT NULL
+                   AND "ProcessedAt" < {cutoff}
+                 ORDER BY "ProcessedAt", "Id"
+                 LIMIT {batchSize}
+                 FOR UPDATE SKIP LOCKED
+            )
+            DELETE FROM "messaging"."outbox_messages" AS target
+             USING candidates
+             WHERE target."Id" = candidates."Id";
+            """, cancellationToken);
+
+    private static Task<int> DeleteInboxBatchAsync(
+        DatabaseFacade database,
+        DateTimeOffset cutoff,
+        int batchSize,
+        CancellationToken cancellationToken) =>
+        database.ExecuteSqlInterpolatedAsync($"""
+            WITH candidates AS (
+                SELECT "Id"
+                  FROM "messaging"."inbox_messages"
+                 WHERE "ProcessedAt" IS NOT NULL
+                   AND "ProcessedAt" < {cutoff}
+                 ORDER BY "ProcessedAt", "Id"
+                 LIMIT {batchSize}
+                 FOR UPDATE SKIP LOCKED
+            )
+            DELETE FROM "messaging"."inbox_messages" AS target
+             USING candidates
+             WHERE target."Id" = candidates."Id";
+            """, cancellationToken);
 }
 
 internal static class MessagingSql

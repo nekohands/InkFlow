@@ -123,6 +123,7 @@ Developer API / Commercial Foundation v1 的组合根由 `InkFlow.Api` 组装：
 - Outbox Dispatcher 以 `FOR UPDATE SKIP LOCKED` 领取可投递行，用 lease、attempt、AvailableAt 和失败代码支持 At-Least-Once；发布成功后才写入 `ProcessedAt`。
 - Inbox 以消息 ID 主键去重，处理成功后才写入 `ProcessedAt`；消费者崩溃或 lease 到期后允许再次领取。类型/载荷摘要不一致视为身份冲突并拒绝消费。
 - `OutboxDispatcher` 与 `IntegrationMessageConsumer` 提供可复用的执行层：发布器/处理器成功返回后才确认事实表；发布失败使用稳定失败码和有界指数退避释放租约，未知消息类型或处理失败不伪造成功。传输适配器、宿主后台循环和具体 Handler 由各 Host/模块组合根接入，本 Building Block 不绑定未选定的 MQ。
+- 已处理的 Outbox/Inbox 记录由 `MessageRetentionService` 以配置化 cutoff 和 `BatchSize` / `MaxBatchesPerRun` 上限分批清理；PostgreSQL 使用事务内 `FOR UPDATE SKIP LOCKED`，只匹配 `ProcessedAt` 已设置且已过期的记录，失败、待重试、未处理和锁定中的消息保留。Worker 负责启动延迟后的每小时清理周期；该周期不替代消息事实表，也不意味着已接入 MQ。
 - 当前已接入 Crawler `AddAsync` 的 `crawler.task.created` 最小稳定事件；其他模块的业务写入必须在接入相同事务 seam 后才能发布事件。
 - 不追求依赖 MQ 的理论 Exactly Once。
 

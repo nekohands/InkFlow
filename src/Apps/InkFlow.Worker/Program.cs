@@ -16,6 +16,7 @@ using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.BuildingBlocks.Application;
+using InkFlow.BuildingBlocks.Messaging;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.BuildingBlocks.Observability;
@@ -36,8 +37,17 @@ builder.Services.AddDbContext<CrawlingDbContext>(o => o.UseNpgsql(connectionStri
 builder.Services.AddDbContext<SourcesDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<LibraryDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<ContentDbContext>(o => o.UseNpgsql(connectionString));
+builder.Services.AddDbContext<MessagingDbContext>(o => o.UseNpgsql(connectionString));
 
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(
+    MessageRetentionOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddScoped<EfMessagingMessageStore>();
+builder.Services.AddScoped<IOutboxStore>(sp => sp.GetRequiredService<EfMessagingMessageStore>());
+builder.Services.AddScoped<IInboxStore>(sp => sp.GetRequiredService<EfMessagingMessageStore>());
+builder.Services.AddScoped<IMessageRetentionStore>(sp =>
+    sp.GetRequiredService<EfMessagingMessageStore>());
+builder.Services.AddScoped<IMessageRetentionService, MessageRetentionService>();
 builder.Services.AddScoped<ITransactionalOutboxWriter, EfTransactionalOutboxWriter>();
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
@@ -97,6 +107,7 @@ builder.Services.AddScoped<IChainedContentPublisher, MappingContentPublisher>();
 builder.Services.AddScoped<CompositeTaskExecutor>();
 builder.Services.AddHostedService<TaskPollingService>();
 builder.Services.AddHostedService<SourceSeedService>();
+builder.Services.AddHostedService<MessageRetentionBackgroundService>();
 
 
 var app = builder.Build();
@@ -286,5 +297,49 @@ internal sealed class TaskPollingService(
         }
 
         await tasks.SaveAsync(task, stoppingToken).ConfigureAwait(false);
+    }
+}
+
+/// <summary>
+/// 周期性删除已成功处理且超过保留期的消息；失败/待重试消息不会被清理。
+/// </summary>
+internal sealed class MessageRetentionBackgroundService(
+    IServiceScopeFactory scopeFactory,
+    MessageRetentionOptions options,
+    TimeProvider clock) : BackgroundService
+{
+    private static readonly TimeSpan InitialDelay = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await Task.Delay(InitialDelay, stoppingToken).ConfigureAwait(false);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var retention = scope.ServiceProvider
+                    .GetRequiredService<IMessageRetentionService>();
+                var result = await retention
+                    .CleanupAsync(options, stoppingToken)
+                    .ConfigureAwait(false);
+                Console.WriteLine(
+                    $"message retention cleanup at {clock.GetUtcNow():O}: " +
+                    $"outbox={result.OutboxDeletedCount}, inbox={result.InboxDeletedCount}.");
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(
+                    $"message retention cleanup failed: {exception.GetType().Name}.");
+            }
+
+            await Task.Delay(Interval, stoppingToken).ConfigureAwait(false);
+        }
     }
 }
