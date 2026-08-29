@@ -268,6 +268,7 @@ app.Use(async (context, next) =>
 
     await next().ConfigureAwait(false);
 });
+app.UseMiddleware<CoreSloMetricsMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 

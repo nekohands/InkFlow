@@ -140,6 +140,9 @@ docker compose -f docker-compose.build.yml up -d --build
 | `Operations__Alerts__UnavailableCapabilityCountThreshold` | `1` | 告警快照触发来源能力不可用阈值 |
 | `Operations__Alerts__ConsistencyIssueCountThreshold` | `1` | 告警快照触发一致性问题阈值 |
 | `Operations__Alerts__MaxReturnedAlerts` | `100` | 单次告警快照最大返回数量 |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | 未配置 | 可选 OTLP Collector 基地址；配置后导出 traces/metrics |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | 未配置 | 可选 traces 专用 OTLP endpoint |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | 未配置 | 可选 metrics 专用 OTLP endpoint |
 
 ### 部署验证
 
@@ -166,6 +169,10 @@ CI 在 Runtime smoke 产生审计数据后执行 `scripts/backup-restore-drill.s
 ### CI 安全扫描基线
 
 `.github/workflows/security.yml` 在 `main` / `dev` 的 push 和 Pull Request 上执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞与 Secret/Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM，并将审计、扫描、SAST 与 SBOM 报告作为构建产物保留。当前仓库未启用 GitHub Code Scanning API，因此 CodeQL/Trivy 结果不上传到代码扫描面板，而以可下载报告作为证据。
+
+### Core SLO 可观测性
+
+Core SLO v1 通过 OpenTelemetry 记录 `public_api`、`legado_api`、`developer_api` 和 `reader` 四个服务面：`inkflow.slo.requests`（可用性好/坏事件）、`inkflow.slo.request.duration`（毫秒延迟）和 `inkflow.slo.server.errors`（5xx）。指标只携带稳定服务面和有限结果标签，不包含 URL 参数、用户、IP、Token 或异常原文；目标与正式达标条件见 [ADR 0010](docs/adr/0010-core-slo-and-observability-metrics.md)。配置 OTLP endpoint 后才启用 exporter，没有 Collector 时不会默认向本机端口发送数据。
 
 `.github/workflows/docker.yml` 会先构建并加载 API、Migrations、Scheduler、Worker 四个镜像，逐一执行 Trivy HIGH/CRITICAL 漏洞扫描；全部通过后才推送各镜像标签。该基线不替代生产镜像准入、报告保留、Secret 轮换和部署环境策略治理。
 
