@@ -51,7 +51,12 @@ public sealed class SourceHealthService(
         string sourceId,
         SourceCapability capability,
         CancellationToken cancellationToken = default) =>
-        MutateAsync(sourceId, capability, health => health.RecordSuccess(clock.GetUtcNow()), cancellationToken);
+        MutateAsync(
+            sourceId,
+            capability,
+            SourceHealthMutationKind.RecordSuccess,
+            reason: null,
+            cancellationToken);
 
     public Task<SourceCapabilityHealth> RecordFailureAsync(
         string sourceId,
@@ -61,7 +66,8 @@ public sealed class SourceHealthService(
         MutateAsync(
             sourceId,
             capability,
-            health => health.RecordFailure(reason, clock.GetUtcNow()),
+            SourceHealthMutationKind.RecordFailure,
+            reason,
             cancellationToken);
 
     public Task<SourceCapabilityHealth> DisableAsync(
@@ -72,35 +78,32 @@ public sealed class SourceHealthService(
         MutateAsync(
             sourceId,
             capability,
-            health => health.Disable(reason, clock.GetUtcNow()),
+            SourceHealthMutationKind.Disable,
+            reason,
             cancellationToken);
 
     public Task<SourceCapabilityHealth> EnableAsync(
         string sourceId,
         SourceCapability capability,
         CancellationToken cancellationToken = default) =>
-        MutateAsync(sourceId, capability, health => health.Enable(clock.GetUtcNow()), cancellationToken);
+        MutateAsync(
+            sourceId,
+            capability,
+            SourceHealthMutationKind.Enable,
+            reason: null,
+            cancellationToken);
 
-    private async Task<SourceCapabilityHealth> MutateAsync(
+    private Task<SourceCapabilityHealth> MutateAsync(
         string sourceId,
         SourceCapability capability,
-        Action<SourceCapabilityHealth> mutation,
+        SourceHealthMutationKind mutation,
+        string? reason,
         CancellationToken cancellationToken)
-    {
-        var health = await repository
-            .GetAsync(sourceId, capability, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (health is null)
-        {
-            health = SourceCapabilityHealth.Create(sourceId, capability, clock.GetUtcNow());
-            mutation(health);
-            await repository.AddAsync(health, cancellationToken).ConfigureAwait(false);
-            return health;
-        }
-
-        mutation(health);
-        await repository.SaveAsync(health, cancellationToken).ConfigureAwait(false);
-        return health;
-    }
+        => repository.MutateAsync(
+            sourceId,
+            capability,
+            mutation,
+            reason,
+            clock.GetUtcNow(),
+            cancellationToken);
 }

@@ -1,3 +1,4 @@
+using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -44,13 +45,22 @@ public sealed class SourceRepositoryTests
 
     private static EfSourceHealthRepository CreateHealthRepository()
     {
+        return new EfSourceHealthRepository(CreateHealthDbContext(migrate: true));
+    }
+
+    private static SourcesDbContext CreateHealthDbContext(bool migrate = false)
+    {
         var options = new DbContextOptionsBuilder<SourcesDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
             .Options;
 
         var db = new SourcesDbContext(options);
-        db.Database.Migrate();
-        return new EfSourceHealthRepository(db);
+        if (migrate)
+        {
+            db.Database.Migrate();
+        }
+
+        return db;
     }
 
     private static Source NewSourceWithRules(string sourceId) =>
@@ -222,5 +232,38 @@ public sealed class SourceRepositoryTests
         var unhealthyRow = result.Single();
         Assert.AreEqual(SourceCapability.Search, unhealthyRow.Capability);
         Assert.AreEqual(SourceHealthStatus.Unhealthy, unhealthyRow.Status);
+    }
+
+    [TestMethod]
+    public async Task Concurrent_Health_Mutations_Preserve_All_Failures()
+    {
+        await using (CreateHealthDbContext(migrate: true))
+        {
+        }
+
+        const string sourceId = "concurrent-health-source";
+        var mutations = Enumerable.Range(0, 8).Select(async _ =>
+        {
+            await using var db = CreateHealthDbContext();
+            var service = new SourceHealthService(
+                new EfSourceHealthRepository(db),
+                TimeProvider.System);
+
+            return await service.RecordFailureAsync(
+                sourceId,
+                SourceCapability.Content,
+                "upstream-503").ConfigureAwait(false);
+        });
+
+        await Task.WhenAll(mutations).ConfigureAwait(false);
+
+        await using var verificationDb = CreateHealthDbContext();
+        var loaded = await new EfSourceHealthRepository(verificationDb)
+            .GetAsync(sourceId, SourceCapability.Content)
+            .ConfigureAwait(false);
+
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual(8, loaded.ConsecutiveFailures);
+        Assert.AreEqual(SourceHealthStatus.Unhealthy, loaded.Status);
     }
 }

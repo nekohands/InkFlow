@@ -18,6 +18,17 @@ public interface ISourceHealthRepository
         SourceCapabilityHealth health,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 在权威存储内串行读取、执行一次领域变更并保存；实现必须按来源能力复合键保证原子性。
+    /// </summary>
+    Task<SourceCapabilityHealth> MutateAsync(
+        string sourceId,
+        SourceCapability capability,
+        SourceHealthMutationKind mutation,
+        string? reason,
+        DateTimeOffset occurredAt,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<SourceCapabilityHealth>> ListForSourceAsync(
         string sourceId,
         CancellationToken cancellationToken = default);

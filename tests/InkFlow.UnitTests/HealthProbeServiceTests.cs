@@ -311,6 +311,44 @@ public sealed class HealthProbeServiceTests
             SourceCapabilityHealth health,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        public Task<SourceCapabilityHealth> MutateAsync(
+            string sourceId,
+            SourceCapability capability,
+            SourceHealthMutationKind mutation,
+            string? reason,
+            DateTimeOffset occurredAt,
+            CancellationToken cancellationToken = default)
+        {
+            var health = Store.SingleOrDefault(existing =>
+                existing.SourceId == sourceId && existing.Capability == capability)
+                ?? SourceCapabilityHealth.Create(sourceId, capability, occurredAt);
+
+            if (!Store.Contains(health))
+            {
+                Store.Add(health);
+            }
+
+            switch (mutation)
+            {
+                case SourceHealthMutationKind.RecordSuccess:
+                    health.RecordSuccess(occurredAt);
+                    break;
+                case SourceHealthMutationKind.RecordFailure:
+                    health.RecordFailure(reason ?? string.Empty, occurredAt);
+                    break;
+                case SourceHealthMutationKind.Disable:
+                    health.Disable(reason ?? string.Empty, occurredAt);
+                    break;
+                case SourceHealthMutationKind.Enable:
+                    health.Enable(occurredAt);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mutation), mutation, null);
+            }
+
+            return Task.FromResult(health);
+        }
+
         public Task<IReadOnlyList<SourceCapabilityHealth>> ListForSourceAsync(
             string sourceId,
             CancellationToken cancellationToken = default) =>

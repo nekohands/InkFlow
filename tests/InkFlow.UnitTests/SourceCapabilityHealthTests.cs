@@ -202,6 +202,27 @@ public sealed class SourceCapabilityHealthTests
             SourceCapabilityHealth health,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        public Task<SourceCapabilityHealth> MutateAsync(
+            string sourceId,
+            SourceCapability capability,
+            SourceHealthMutationKind mutation,
+            string? reason,
+            DateTimeOffset occurredAt,
+            CancellationToken cancellationToken = default)
+        {
+            var health = Store.SingleOrDefault(existing =>
+                existing.SourceId == sourceId && existing.Capability == capability)
+                ?? SourceCapabilityHealth.Create(sourceId, capability, occurredAt);
+
+            if (!Store.Contains(health))
+            {
+                Store.Add(health);
+            }
+
+            ApplyMutation(health, mutation, reason, occurredAt);
+            return Task.FromResult(health);
+        }
+
         public Task<IReadOnlyList<SourceCapabilityHealth>> ListForSourceAsync(
             string sourceId,
             CancellationToken cancellationToken = default) =>
@@ -212,6 +233,123 @@ public sealed class SourceCapabilityHealthTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SourceCapabilityHealth>>(
                 Store.Where(health => health.Status == SourceHealthStatus.Unhealthy).ToList());
+
+        private static void ApplyMutation(
+            SourceCapabilityHealth health,
+            SourceHealthMutationKind mutation,
+            string? reason,
+            DateTimeOffset occurredAt)
+        {
+            switch (mutation)
+            {
+                case SourceHealthMutationKind.RecordSuccess:
+                    health.RecordSuccess(occurredAt);
+                    break;
+                case SourceHealthMutationKind.RecordFailure:
+                    health.RecordFailure(reason ?? string.Empty, occurredAt);
+                    break;
+                case SourceHealthMutationKind.Disable:
+                    health.Disable(reason ?? string.Empty, occurredAt);
+                    break;
+                case SourceHealthMutationKind.Enable:
+                    health.Enable(occurredAt);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mutation), mutation, null);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task Service_Uses_Atomic_Mutation_Seam_To_Preserve_Concurrent_Failures()
+    {
+        var repository = new AtomicOnlyHealthRepository();
+        var service = new SourceHealthService(repository, new FixedClock(T0));
+
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(_ =>
+            service.RecordFailureAsync(
+                "official-a",
+                SourceCapability.Content,
+                "upstream-503")));
+
+        Assert.AreEqual(8, repository.MutationCallCount);
+        Assert.AreEqual(8, repository.Current!.ConsecutiveFailures);
+        Assert.AreEqual(SourceHealthStatus.Unhealthy, repository.Current.Status);
+    }
+
+    private sealed class AtomicOnlyHealthRepository : ISourceHealthRepository
+    {
+        private readonly SemaphoreSlim _gate = new(1, 1);
+
+        public int MutationCallCount { get; private set; }
+        public SourceCapabilityHealth? Current { get; private set; }
+
+        public Task<SourceCapabilityHealth?> GetAsync(
+            string sourceId,
+            SourceCapability capability,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("health mutations must use the atomic repository seam");
+
+        public Task AddAsync(
+            SourceCapabilityHealth health,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("health mutations must use the atomic repository seam");
+
+        public Task SaveAsync(
+            SourceCapabilityHealth health,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("health mutations must use the atomic repository seam");
+
+        public async Task<SourceCapabilityHealth> MutateAsync(
+            string sourceId,
+            SourceCapability capability,
+            SourceHealthMutationKind mutation,
+            string? reason,
+            DateTimeOffset occurredAt,
+            CancellationToken cancellationToken = default)
+        {
+            await _gate.WaitAsync(cancellationToken);
+            try
+            {
+                MutationCallCount++;
+                Current ??= SourceCapabilityHealth.Create(sourceId, capability, occurredAt);
+
+                switch (mutation)
+                {
+                    case SourceHealthMutationKind.RecordSuccess:
+                        Current.RecordSuccess(occurredAt);
+                        break;
+                    case SourceHealthMutationKind.RecordFailure:
+                        Current.RecordFailure(reason ?? string.Empty, occurredAt);
+                        break;
+                    case SourceHealthMutationKind.Disable:
+                        Current.Disable(reason ?? string.Empty, occurredAt);
+                        break;
+                    case SourceHealthMutationKind.Enable:
+                        Current.Enable(occurredAt);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(mutation), mutation, null);
+                }
+
+                return Current;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        public Task<IReadOnlyList<SourceCapabilityHealth>> ListForSourceAsync(
+            string sourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SourceCapabilityHealth>>(
+                Current is not null && Current.SourceId == sourceId ? [Current] : []);
+
+        public Task<IReadOnlyList<SourceCapabilityHealth>> ListUnhealthyAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SourceCapabilityHealth>>(
+                Current?.Status == SourceHealthStatus.Unhealthy ? [Current] : []);
     }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
