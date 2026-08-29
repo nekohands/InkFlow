@@ -816,9 +816,9 @@ Phase 1A 自动化工作包状态：
 - 安全与失败关闭：引用 ID 最长 256 字符并拒绝路径注入；secret 不进入 Task Payload、Variables、Rule JSON、日志、错误文本、结果或 `ToString()`。凭据只在 URL/SSRF/请求预算通过后解析，并受 `MaxExecutionTime` 约束；Bearer/Basic/API-Key 的头名、头值、材料长度和禁止头名均有界，缺失提供器、解析异常、超时、非法材料或规则头冲突均在 HTTP seam 前失败关闭。自定义 Provider 仍必须执行 Owner Scope 与跨租户授权。
 - 回归：新增 Bearer/Basic/API-Key 头注入、分页复用、配置解析、TOC/Content 任务传播、CodeAdapter 拒绝、提供器超时/异常脱敏、非法引用和头冲突不出网测试；本轮本地 Unit 430/430、Architecture 1/1、Contract 10/10 通过。
 - 非目标：不实现来源级默认凭据绑定、Scheduler/Admin 凭据管理、真实 Vault/Docker Secret SDK、跨任务/跨来源持久会话、响应派生变量、递归/通用多请求、完整 XPath/JSONPath 语法；真实来源、故障切换、阅读 3.0 和人工验收继续按第 6 节待定清单处理。
-- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 430/430、Architecture 1/1、Contract 10/10 PASS。候选提交前的完整 Integration、迁移等价检查、Schema/Fixture、API Runtime smoke 和 `git diff --check` 将在本轮候选门禁中复核；Docker 不可用导致的本机 Integration 限制仍按既有待定状态保留。
-- 远端证据：待本轮候选提交推送后运行 CI、Docker、Security 三类门禁。
-- 当前状态：任务级 CredentialReference 初始认证已形成 `Implemented` 本地基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；来源默认绑定、持久会话、真实凭据后端、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 430/430、Architecture 1/1、Contract 10/10 PASS；完整 Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 解析、API `/health` 200 和 `git diff --check` PASS。Git Bash 迁移 wrapper 在 Windows 中仍因找不到 `dotnet` 未完成执行。
+- 远端证据：候选提交 `c32dc80` 已推送；[CI 33274911972](https://github.com/nekohands/InkFlow/actions/runs/33274911972)、[Docker 33274911930](https://github.com/nekohands/InkFlow/actions/runs/33274911930)、[Security 33274911943](https://github.com/nekohands/InkFlow/actions/runs/33274911943) 均为 GREEN。CI 真实测试为 Unit 430/430、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成 11 个迁移检查、Compose、Runtime smoke、Core SLO、Redis、PostgreSQL 备份恢复与 diagnostics；Docker 四业务镜像及 Collector 扫描/发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 通过，保留既有 Node 20 弃用与 CodeQL 权限提示。
+- 当前状态：任务级 CredentialReference 初始认证已形成通过候选门禁的 `Implemented` 基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；来源默认绑定、持久会话、真实凭据后端、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -935,7 +935,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-当前 4.55 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 418/418、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 语法和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未完成执行。远端候选提交 `dd39396` 的 CI `33272774115`、Docker `33272774105`、Security `33272774138` 均 GREEN，真实来源、阅读 3.0 和人工验收按用户决定未执行。
+当前 4.56 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 430/430、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11、Schema/Fixture JSON 解析和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未完成执行。远端候选提交 `c32dc80` 的 CI `33274911972`、Docker `33274911930`、Security `33274911943` 均 GREEN，真实来源、阅读 3.0 和人工验收按用户决定未执行。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

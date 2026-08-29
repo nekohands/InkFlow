@@ -467,7 +467,9 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 安全/边界：引用 ID 最长 256 字符并拒绝路径注入；secret 不进入 Task Payload、Variables、Rule JSON、日志、错误文本、结果或 `ToString()`。凭据只在 URL/SSRF/请求预算通过后解析，并受 `MaxExecutionTime` 约束；缺失提供器、解析异常、超时、非法材料或规则头冲突均在 HTTP seam 前失败关闭。自定义 Provider 仍必须执行 Owner Scope 与跨租户授权。
 - 回归：新增凭据三种 typed 头、分页复用、配置解析、TOC/Content 任务传播、CodeAdapter 拒绝和失败关闭测试；本地 Unit 430/430、Architecture 1/1、Contract 10/10 通过。
 - 非目标：来源级默认凭据绑定、Scheduler/Admin 凭据管理、真实 SecretManager SDK、跨任务/跨来源持久会话、响应派生变量、递归/通用多请求和完整 XPath/JSONPath 语法仍未实现；真实来源、故障切换、阅读 3.0 和人工验收保留在待定清单。
-- 当前状态：任务级 CredentialReference 初始认证为 `Implemented` 本地基线；远端候选门禁待本轮提交推送后执行，整体仍为 `1.0 Release Candidate`。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 430/430、Architecture 1/1、Contract 10/10 PASS；完整 Integration 80 项 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；迁移模型检查 11/11、Schema/Fixture JSON、API `/health` 和 `git diff --check` PASS。Git Bash 迁移 wrapper 在 Windows 中因找不到 `dotnet` 未完成执行。
+- 远端证据：候选提交 `c32dc80` 的 [CI 33274911972](https://github.com/nekohands/InkFlow/actions/runs/33274911972)、[Docker 33274911930](https://github.com/nekohands/InkFlow/actions/runs/33274911930)、[Security 33274911943](https://github.com/nekohands/InkFlow/actions/runs/33274911943) 均 GREEN；CI Unit 430/430、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并完成迁移、Compose、Runtime smoke、SLO、Redis、PostgreSQL 恢复和 diagnostics；Docker 四业务镜像/Collector 通过，Security 扫描通过并保留既有 Node 20/CodeQL 权限提示。
+- 当前状态：任务级 CredentialReference 初始认证为通过候选门禁的 `Implemented` 基线；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
