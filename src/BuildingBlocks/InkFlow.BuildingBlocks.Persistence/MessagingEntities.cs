@@ -9,6 +9,8 @@ public sealed class OutboxMessageEntity
     public DateTimeOffset AvailableAt { get; set; }
     public string Payload { get; set; } = null!;
     public string PayloadHash { get; set; } = null!;
+    /// <summary>保留消息创建时的 JSON 原文，避免 jsonb 读回规范化后无法重建 hash。</summary>
+    public string? RawPayload { get; set; }
     public string? TraceId { get; set; }
     public int AttemptCount { get; set; }
     public string? LockOwner { get; set; }
@@ -27,6 +29,8 @@ public sealed class InboxMessageEntity
     public string MessageType { get; set; } = null!;
     public string Payload { get; set; } = null!;
     public string PayloadHash { get; set; } = null!;
+    /// <summary>保留消息接收时的 JSON 原文，避免 jsonb 读回规范化后无法重建 hash。</summary>
+    public string? RawPayload { get; set; }
     public string? TraceId { get; set; }
     public DateTimeOffset ReceivedAt { get; set; }
     public int AttemptCount { get; set; }

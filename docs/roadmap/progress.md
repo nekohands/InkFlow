@@ -867,11 +867,11 @@ Phase 1A 自动化工作包状态：
 ### 4.61 PostgreSQL Outbox Relay 与 Worker 宿主接线（本轮，2026-08-30）
 
 - 缺口：4.43–4.45 已有 Outbox/Inbox 事实、事务写入、执行层和保留清理，但没有实际 Publisher 与 Worker 后台循环，消息无法在运行时从 Outbox 进入 Inbox。
-- 实现：新增 `IInboxTransportStore` 与 `PostgreSqlInboxMessagePublisher`，按类型、PayloadHash、TraceId 重建并核对 Envelope，使用消息 ID 幂等写入 Inbox，成功写入后由 `OutboxDispatcher` 确认 Outbox；Inbox 新增可选 TraceId 和独立 `AddInboxMessageTraceId` Migration。Worker 注册有界 `OutboxRelayOptions` 与 `OutboxRelayBackgroundService`，按 `Messaging:Relay` 配置运行批量 relay，owner 含实例名和随机 ID；日志不记录载荷或异常文本。
+- 实现：新增 `IInboxTransportStore` 与 `PostgreSqlInboxMessagePublisher`，按类型、PayloadHash、TraceId 重建并核对 Envelope，使用消息 ID 幂等写入 Inbox，成功写入后由 `OutboxDispatcher` 确认 Outbox；为抵抗 PostgreSQL `jsonb` 读回规范化，Outbox/Inbox 追加受消息大小上限约束的 `RawPayload` 原文列，旧记录缺少原文时使用显式持久化恢复路径。Inbox 新增可选 TraceId 和独立 `AddInboxMessageTraceId` Migration，RawPayload 由独立 Migration 增加。Worker 注册有界 `OutboxRelayOptions` 与 `OutboxRelayBackgroundService`，按 `Messaging:Relay` 配置运行批量 relay，owner 含实例名和随机 ID；日志不记录载荷或异常文本。
 - 边界：本轮只选择同一 PostgreSQL 事实库作为内部 relay，不引入未选定的外部 MQ；Inbox 消费轮询和具体 Handler 等待接收模块/消息类型明确后再接入，不扩大为“所有 Integration Event 已消费”。
 - 回归：新增 Publisher 身份/TraceId/接收时间和配置上限 Unit；新增 PostgreSQL Outbox→Inbox、重复投递不覆盖接收时间、Outbox 成功确认 Integration 用例。
-- 本地证据：`dotnet test ... --filter FullyQualifiedName~MessagingRelayTests` 4/4 PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；PostgreSQL Relay 集成用例已实际尝试，但因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
-- 远端证据：待本轮候选提交推送后确认 CI、Docker、Security 三类门禁均指向同一 head SHA；在此之前不标记本工作包为远端完成。
+- 本地证据：首次候选提交的 Relay Integration 暴露了 `jsonb` 规范化导致的 PayloadHash 误判，已修复并新增 RawPayload/旧记录回归；修复后定向 Unit、Release Build、迁移模型和完整门禁需重新执行。PostgreSQL Relay 集成此前已实际尝试，当前本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
+- 远端证据：首次候选 `a3741cf` 的 Docker `33281790174` GREEN，但 CI `33281790176` 因 Relay 集成断言失败而 RED；修复提交推送后必须确认 CI、Docker、Security 三类门禁均指向同一 head SHA，在此之前不标记本工作包为远端完成。
 - 当前状态：代码已 `Implemented`，整体继续保持 `1.0 Release Candidate`，尚未达到 `Accepted/Completed`；本机 Docker、Inbox Handler/消费模块、真实来源、阅读 3.0、人工验收、生产 SLO/告警和其他第 6 节事项仍待关闭。
 
 ## 5. Phase 1A 核心验收链路

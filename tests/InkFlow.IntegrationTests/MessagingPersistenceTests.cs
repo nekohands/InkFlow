@@ -386,7 +386,8 @@ public sealed class MessagingPersistenceTests
             null,
             null,
             T0.AddSeconds(2),
-            null);
+            null,
+            message.Payload);
         await publisher.PublishAsync(duplicateRecord).ConfigureAwait(false);
 
         await using var verify = CreateMessagingDb();
@@ -400,7 +401,7 @@ public sealed class MessagingPersistenceTests
             .ConfigureAwait(false);
 
         Assert.AreEqual(message.MessageType, storedInbox.MessageType);
-        Assert.AreEqual(message.Payload, storedInbox.Payload);
+        Assert.AreEqual(message.Payload, storedInbox.RawPayload);
         Assert.AreEqual(message.PayloadHash, storedInbox.PayloadHash);
         Assert.AreEqual(message.TraceId, storedInbox.TraceId);
         Assert.AreEqual(T0.AddSeconds(2), storedInbox.ReceivedAt);
@@ -707,6 +708,7 @@ public sealed class MessagingPersistenceTests
             AvailableAt = message.OccurredAt,
             Payload = message.Payload,
             PayloadHash = message.PayloadHash,
+            RawPayload = message.Payload,
             TraceId = message.TraceId,
             AttemptCount = 1,
             ProcessedAt = processedAt,
@@ -722,6 +724,7 @@ public sealed class MessagingPersistenceTests
             MessageType = message.MessageType,
             Payload = message.Payload,
             PayloadHash = message.PayloadHash,
+            RawPayload = message.Payload,
             TraceId = message.TraceId,
             ReceivedAt = message.OccurredAt,
             AttemptCount = 1,

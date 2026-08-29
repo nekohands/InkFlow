@@ -57,6 +57,29 @@ public sealed class MessagingRelayTests
     }
 
     [TestMethod]
+    public async Task PostgreSqlInboxPublisher_Restores_Legacy_Record_Using_Persisted_Hash()
+    {
+        var message = IntegrationMessage.Create(
+            "test.relay.legacy",
+            "{\"value\":44}",
+            T0,
+            id: Guid.CreateVersion7());
+        var inbox = new RecordingInboxTransportStore();
+        var publisher = new PostgreSqlInboxMessagePublisher(
+            inbox,
+            new FixedTimeProvider(T0));
+
+        await publisher.PublishAsync(
+            ToRecord(message) with
+            {
+                Payload = "{\"value\": 44}",
+                RawPayload = null,
+            }).ConfigureAwait(false);
+
+        Assert.AreEqual(message.PayloadHash, inbox.Messages.Single().Message.PayloadHash);
+    }
+
+    [TestMethod]
     public void RelayOptions_Read_And_Create_Bounded_Dispatcher_Settings()
     {
         var configuration = new ConfigurationBuilder()
@@ -111,7 +134,8 @@ public sealed class MessagingRelayTests
             "relay-test",
             T0.AddMinutes(2),
             null,
-            null);
+            null,
+            message.Payload);
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {

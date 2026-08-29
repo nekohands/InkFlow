@@ -362,14 +362,15 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
             message.MessageType,
             message.OccurredAt,
             message.AvailableAt,
-            message.Payload,
+            message.RawPayload ?? message.Payload,
             message.PayloadHash,
             message.TraceId,
             message.AttemptCount,
             message.LockOwner,
             message.LockedUntil,
             message.ProcessedAt,
-            message.LastError);
+            message.LastError,
+            message.RawPayload);
 
     private static void EnsureMessageMatches(
         string storedType,
@@ -516,13 +517,13 @@ internal static class MessagingSql
     {
         var affected = await database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "messaging"."outbox_messages" AS target
-                ("Id", "MessageType", "OccurredAt", "AvailableAt", "Payload",
+                ("Id", "MessageType", "OccurredAt", "AvailableAt", "Payload", "RawPayload",
                  "PayloadHash", "TraceId", "AttemptCount", "LockOwner", "LockedUntil",
                  "ProcessedAt", "LastError")
             VALUES
                 ({message.Id}, {message.MessageType}, {message.OccurredAt}, {message.OccurredAt},
-                 {message.Payload}::jsonb, {message.PayloadHash}, {message.TraceId}, 0,
-                 NULL, NULL, NULL, NULL)
+                 {message.Payload}::jsonb, {message.Payload}, {message.PayloadHash},
+                 {message.TraceId}, 0, NULL, NULL, NULL, NULL)
             ON CONFLICT ("Id") DO UPDATE
                 SET "Id" = EXCLUDED."Id"
               WHERE target."MessageType" = EXCLUDED."MessageType"
@@ -543,12 +544,13 @@ internal static class MessagingSql
     {
         var affected = await database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "messaging"."inbox_messages" AS target
-                ("Id", "MessageType", "Payload", "PayloadHash", "TraceId", "ReceivedAt",
-                 "AttemptCount", "LockOwner", "LockedUntil", "ProcessedAt", "LastError")
+                ("Id", "MessageType", "Payload", "RawPayload", "PayloadHash", "TraceId",
+                 "ReceivedAt", "AttemptCount", "LockOwner", "LockedUntil", "ProcessedAt",
+                 "LastError")
             VALUES
                 ({message.Id}, {message.MessageType}, {message.Payload}::jsonb,
-                 {message.PayloadHash}, {message.TraceId}, {receivedAt}, 0,
-                 NULL, NULL, NULL, NULL)
+                 {message.Payload}, {message.PayloadHash}, {message.TraceId}, {receivedAt},
+                 0, NULL, NULL, NULL, NULL)
             ON CONFLICT ("Id") DO UPDATE
                 SET "Id" = EXCLUDED."Id"
               WHERE target."MessageType" = EXCLUDED."MessageType"

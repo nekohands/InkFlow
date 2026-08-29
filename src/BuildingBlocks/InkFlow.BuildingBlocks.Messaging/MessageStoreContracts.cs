@@ -12,7 +12,9 @@ public sealed record OutboxMessageRecord(
     string? LockOwner,
     DateTimeOffset? LockedUntil,
     DateTimeOffset? ProcessedAt,
-    string? LastError);
+    string? LastError,
+    /// <summary>JSON 原文；用于跨 jsonb 规范化边界稳定重建 PayloadHash。</summary>
+    string? RawPayload = null);
 
 public enum InboxClaimStatus
 {

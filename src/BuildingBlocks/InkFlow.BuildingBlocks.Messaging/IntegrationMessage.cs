@@ -53,6 +53,45 @@ public sealed record IntegrationMessage
             messageType,
             nameof(messageType),
             MaxMessageTypeLength);
+        ValidatePayload(payload);
+        var normalizedTraceId = NormalizeOptionalTraceId(traceId);
+        var payloadHash = ComputePayloadHash(payload);
+        var messageId = NormalizeId(id ?? Guid.CreateVersion7(), nameof(id));
+
+        return new IntegrationMessage(
+            messageId,
+            normalizedType,
+            occurredAt.ToUniversalTime(),
+            payload,
+            payloadHash,
+            normalizedTraceId);
+    }
+
+    /// <summary>
+    /// 从持久化记录恢复 Envelope。持久化层可能把 JSON 存为 jsonb，调用方必须传入
+    /// 已保存的 hash；此方法校验结构和 hash 格式，但不把规范化后的 JSON 再当作原文重算。
+    /// </summary>
+    public static IntegrationMessage Restore(
+        string messageType,
+        string payload,
+        DateTimeOffset occurredAt,
+        string payloadHash,
+        string? traceId,
+        Guid id)
+    {
+        var created = Create(messageType, payload, occurredAt, traceId, id);
+        ValidatePayloadHash(payloadHash);
+        return new IntegrationMessage(
+            created.Id,
+            created.MessageType,
+            created.OccurredAt,
+            created.Payload,
+            payloadHash,
+            created.TraceId);
+    }
+
+    private static void ValidatePayload(string payload)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(payload);
 
         if (Encoding.UTF8.GetByteCount(payload) > MaxPayloadBytes)
@@ -73,28 +112,41 @@ public sealed record IntegrationMessage
                 nameof(payload),
                 exception);
         }
+    }
 
-        var normalizedTraceId = string.IsNullOrWhiteSpace(traceId)
+    private static string? NormalizeOptionalTraceId(string? traceId) =>
+        string.IsNullOrWhiteSpace(traceId)
             ? null
             : NormalizeRequired(traceId, nameof(traceId), MaxTraceIdLength);
-        var payloadHash = Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(payload)))
-            .ToLowerInvariant();
 
-        var messageId = id ?? Guid.CreateVersion7();
-        if (messageId == Guid.Empty)
+    private static Guid NormalizeId(Guid id, string parameterName)
+    {
+        if (id == Guid.Empty)
         {
-            throw new ArgumentException("message ID must not be empty.", nameof(id));
+            throw new ArgumentException("message ID must not be empty.", parameterName);
         }
 
-        return new IntegrationMessage(
-            messageId,
-            normalizedType,
-            occurredAt.ToUniversalTime(),
-            payload,
-            payloadHash,
-            normalizedTraceId);
+        return id;
     }
+
+    private static string ComputePayloadHash(string payload) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload)))
+            .ToLowerInvariant();
+
+    private static void ValidatePayloadHash(string payloadHash)
+    {
+        if (string.IsNullOrWhiteSpace(payloadHash) ||
+            payloadHash.Length != 64 ||
+            payloadHash.Any(character => !IsLowerHex(character)))
+        {
+            throw new ArgumentException(
+                "persisted payload hash must be lowercase SHA-256 hex.",
+                nameof(payloadHash));
+        }
+    }
+
+    private static bool IsLowerHex(char character) =>
+        character is >= '0' and <= '9' or >= 'a' and <= 'f';
 
     private static string NormalizeRequired(string value, string name, int maxLength)
     {

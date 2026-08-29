@@ -31,12 +31,20 @@ public sealed class PostgreSqlInboxMessagePublisher(
         IntegrationMessage envelope;
         try
         {
-            envelope = IntegrationMessage.Create(
-                message.MessageType,
-                message.Payload,
-                message.OccurredAt,
-                message.TraceId,
-                message.Id);
+            envelope = message.RawPayload is null
+                ? IntegrationMessage.Restore(
+                    message.MessageType,
+                    message.Payload,
+                    message.OccurredAt,
+                    message.PayloadHash,
+                    message.TraceId,
+                    message.Id)
+                : IntegrationMessage.Create(
+                    message.MessageType,
+                    message.RawPayload,
+                    message.OccurredAt,
+                    message.TraceId,
+                    message.Id);
         }
         catch (ArgumentException)
         {
@@ -44,8 +52,13 @@ public sealed class PostgreSqlInboxMessagePublisher(
         }
 
         if (!string.Equals(message.MessageType, envelope.MessageType, StringComparison.Ordinal) ||
-            !string.Equals(message.PayloadHash, envelope.PayloadHash, StringComparison.Ordinal) ||
             !string.Equals(message.TraceId, envelope.TraceId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("outbox message identity is invalid.");
+        }
+
+        if (message.RawPayload is not null &&
+            !string.Equals(message.PayloadHash, envelope.PayloadHash, StringComparison.Ordinal))
         {
             throw new InvalidOperationException("outbox message identity is invalid.");
         }
