@@ -32,6 +32,7 @@
 28. 业务事实与 Transactional Outbox 必须在同一 PostgreSQL 事务中提交；Integration Message 的 ID、类型和载荷摘要必须稳定可核对，Inbox 只有在消费成功后才标记已处理，消息载荷不得携带凭据、Token 或不必要的私有业务变量。
 29. Outbox Dispatcher 只有在发布调用成功后才能确认消息；发布失败必须保留稳定失败码并按有界退避重新变为可领取，确认异常不得伪造成功。Inbox Consumer 只有在 Handler 成功后才能确认消费，未知类型和 Handler 异常必须可追踪且不得把异常文本写入消息事实。
 30. Outbox/Inbox 保留清理只能删除 `ProcessedAt` 已设置且早于各自配置 cutoff 的记录；未处理、失败待重试、仍在 lease/锁定中的消息必须保留。清理每轮必须受批量与批次数上限约束，且不得成为消息事实的唯一来源。
+31. Migration 流程在 `MigrateAsync` 前必须拒绝模型与快照漂移，且 CI 必须使用固定版本工具覆盖全部 `DbContext`；检测失败时不得对数据库执行结构变更。
 
 ## 工程完成定义
 

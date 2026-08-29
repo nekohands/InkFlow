@@ -363,6 +363,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 338/338、Architecture 1/1、Contract 10/10 PASS；完整 Integration 76 项中 6 项通过、2 项跳过、68 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。新增 Retention 单测 4/4 通过；Messaging Persistence/Execution/Retention 12 项已实际尝试但未取得本机容器证据；`git diff --check` PASS。
 - 远端证据：候选提交 `bf6eae1` 的 CI `33255354693`、Docker `33255354699`、Security `33255354684` 均 GREEN。CI 真实 PostgreSQL 集成 76 项为 74 通过/2 跳过，12/12 Messaging Persistence/Execution/Retention 用例通过，Unit 338/338、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 均通过；Docker 的 Collector 与四业务镜像构建/扫描/发布通过；Security 的 NuGet、Trivy、CodeQL、SBOM 全部通过，保留既有 `actions/upload-artifact@v4` Node 20 弃用提示。
 
+### 4.46 Migration 漂移安全与完整性门禁（本轮，2026-08-29）
+
+- 缺口：Migrations 入口会对 11 个上下文自动执行 `MigrateAsync`，此前没有在执行前拒绝模型快照漂移，CI 也没有逐一覆盖全部上下文。
+- 实现：`InkFlow.Migrations` 在每个上下文的 `MigrateAsync` 前调用 `HasPendingModelChanges()`；检测到漂移时输出稳定错误并以退出码 1 停止。新增 `.config/dotnet-tools.json` 锁定 `dotnet-ef` 10.0.4，`scripts/verify-migrations.sh` 通过 API 启动项目、Release 产物和 `--no-build` 逐一检查 11 个上下文。
+- 本地证据：`dotnet tool restore` PASS；Migrations Release Build 0 warnings / 0 errors PASS；11 个 `has-pending-model-changes` 检查全部 PASS；`bash -n scripts/verify-migrations.sh` 与 `git diff --check` PASS。当前尚未对真实 PostgreSQL 运行 Migrations，因本机 Docker/数据库环境不可用。
+- 边界：本轮建立模型漂移 fail-closed 与上下文覆盖门禁，不替代生产 Expand → Migrate → Contract 评审、真实数据库迁移演练或人工/真实来源验收。
+- 当前状态：Migration 自动安全门禁已实现，整体仍保持 `1.0 Release Candidate`；本轮候选提交的 CI、Docker、Security 结果待推送后取得。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。

@@ -38,6 +38,13 @@ foreach (var context in contexts)
 {
     await using (context)
     {
+        if (context.Database.HasPendingModelChanges())
+        {
+            Console.Error.WriteLine(
+                $"InkFlow.Migrations[{context.GetType().Name}]: model drift detected; generate and review a migration before applying database changes.");
+            return 1;
+        }
+
         var pending = await context.Database.GetPendingMigrationsAsync().ConfigureAwait(false);
         await context.Database.MigrateAsync().ConfigureAwait(false);
         Console.WriteLine(pending.Any()

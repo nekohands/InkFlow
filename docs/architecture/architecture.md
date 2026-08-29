@@ -14,6 +14,8 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 
 第一阶段部署采用 Single-Region HA + Offsite DR；架构预留未来 Multi-Region，但不提前实现全球多活。
 
+`InkFlow.Migrations` 对 11 个模块/基础设施 `DbContext` 逐一应用迁移；每个上下文在 `MigrateAsync` 前必须通过 `HasPendingModelChanges` 检查，发现模型与快照漂移即以非零退出码停止，不对数据库做隐式结构变更。Release Build 后由 `scripts/verify-migrations.sh` 使用仓库锁定的 `dotnet-ef` 版本逐一复核全部上下文；这项门禁不替代 Expand → Migrate → Contract 的破坏性变更评审。
+
 ## 2. 模块边界
 
 目标模块：

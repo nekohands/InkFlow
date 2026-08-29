@@ -174,6 +174,7 @@ Bug 修复原则上必须先有可复现测试，修复后该测试通过，并�
 - Docker Compose 服务可启动。
 - PostgreSQL / Redis 健康检查通过。
 - Migration 能对空数据库执行。
+- Release Build 后运行 `scripts/verify-migrations.sh`，确认所有 DbContext 的当前模型与迁移快照无漂移。
 - 对已有数据库的兼容 Migration 路径可验证时必须验证。
 - API / Worker / Scheduler 能启动。
 - Health Endpoint 返回预期结果。
@@ -193,6 +194,7 @@ Bug 修复原则上必须先有可复现测试，修复后该测试通过，并�
 - Community Source 沙箱边界。
 - API Rate Limit / Token Scope。
 - Migration 是否存在破坏性数据风险。
+- Migration 模型漂移是否在应用迁移前 fail-closed，且所有 DbContext 都纳入检查。
 - Redis 是否被误当作唯一事实来源。
 - Canonical 数据是否被 Source 数据直接覆盖。
 - Content Version 是否被错误覆盖。

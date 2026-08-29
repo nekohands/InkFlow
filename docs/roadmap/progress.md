@@ -709,6 +709,14 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `bf6eae1` 的 CI `33255354693`、Docker `33255354699`、Security `33255354684` 均 **GREEN**。CI 真实 PostgreSQL 集成共 76 项，74 通过、2 跳过；Messaging Persistence/Execution/Retention 12 项全部通过，Unit 338/338、Compose、Runtime smoke、Core SLO receipt、Redis、备份恢复和 diagnostics 也全部通过。Docker 的 Collector 与四业务镜像构建/扫描/发布通过；Security 的 NuGet、Trivy、CodeQL、SBOM 全部通过，保留既有 `actions/upload-artifact@v4` Node 20 弃用提示。
 - 当前状态：保留清理代码与 Worker 周期接线已完成，整体继续保持 `1.0 Release Candidate`；本机 Docker、真实来源/切源、阅读 3.0、人工 UX、生产 OTLP/SLO 长窗口和外部通知治理仍按第 6 节待定。
 
+### 4.46 Migration 漂移安全与完整性门禁（本轮，2026-08-29）
+
+- 缺口：Migrations 入口会对 11 个上下文自动执行 `MigrateAsync`，此前没有在执行前拒绝模型快照漂移，CI 也没有逐一覆盖全部上下文。
+- 实现：`InkFlow.Migrations` 在每个上下文的 `MigrateAsync` 前调用 `HasPendingModelChanges()`；检测到漂移时输出稳定错误并以退出码 1 停止。新增 `.config/dotnet-tools.json` 锁定 `dotnet-ef` 10.0.4，`scripts/verify-migrations.sh` 通过 API 启动项目、Release 产物和 `--no-build` 逐一检查 Identity、Audit、Messaging、Developers、Billing、Operations、Crawling、Library、Reading、Sources、Content 11 个上下文。
+- 本地证据：`dotnet tool restore` PASS；Migrations Release Build 0 warnings / 0 errors PASS；PowerShell 等价执行的 11 个 `has-pending-model-changes` 检查全部 PASS；`bash -n scripts/verify-migrations.sh` 与 `git diff --check` PASS。当前尚未对真实 PostgreSQL 运行 Migrations，因本机 Docker/数据库环境不可用。
+- 边界：本轮建立模型漂移 fail-closed 与上下文覆盖门禁，不替代生产 Expand → Migrate → Contract 评审、真实数据库迁移演练或后续人工/真实来源验收。
+- 当前状态：Migration 自动安全门禁已实现，整体仍保持 `1.0 Release Candidate`；本轮候选提交的 CI、Docker、Security 结果待推送后取得。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

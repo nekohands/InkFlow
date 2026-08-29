@@ -25,8 +25,14 @@ jobs:
       - name: Restore
         run: dotnet restore InkFlow.sln
 
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
       - name: Build
         run: dotnet build InkFlow.sln --configuration Release --no-restore
+
+      - name: Verify migrations
+        run: bash scripts/verify-migrations.sh
 
       - name: Test
         run: dotnet test InkFlow.sln --configuration Release --no-build --verbosity normal

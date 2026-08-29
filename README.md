@@ -199,6 +199,7 @@ CI Runtime smoke 随后执行 `scripts/core-slo-runtime-smoke.sh`，对四个服
 - 修改 `INKFLOW_DB_PASSWORD`,数据持久化在命名卷 `inkflow-postgres` / `inkflow-redis`;
 - worker/scheduler/api 容器以 read-only 文件系统、no-new-privileges、drop capabilities 运行;
 - 数据库结构变更由 migrations 服务在启动链路中自动应用(Expand → Migrate → Contract)。
+- Migrations 服务在应用前拒绝模型快照漂移；Release 构建后可运行 `dotnet tool restore` 与 `bash scripts/verify-migrations.sh` 复核全部 11 个数据库上下文。
 
 ## 核心文档
 
