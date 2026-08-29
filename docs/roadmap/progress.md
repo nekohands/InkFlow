@@ -765,6 +765,17 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `2f16b6e` 的 CI `33265352562`、Docker `33265352563`、Security `33265352595` 均 **GREEN**。CI Unit 376/376、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过；Restore/Build、11 个迁移检查、Compose、Runtime smoke、SLO/Telemetry、Redis、PostgreSQL 备份恢复和 diagnostics 均通过。Security 保留既有 Actions Node 20 弃用提示，未影响门禁。
 - 当前状态：受控 XPath/JSONPath 执行基线已取得本地与远端门禁证据，整体继续保持 `1.0 Release Candidate`；完整 XPath/JSONPath 语法、Cookie/Session、Pagination、通用变量、多请求/递归预算、真实来源/故障切换、阅读 3.0 和人工验收仍按第 6 节待定，不等同于 `Accepted/Completed`。
 
+### 4.52 Source Rule 受控 next-link Pagination / 多请求预算（本轮，2026-08-30）
+
+- 缺口：RuleAdapter 之前即使规则声明了列表能力也只执行一次 HTTP 请求，无法安全聚合带有“下一页”链接的 Search/TOC 响应；单次预算也没有覆盖页面循环、重复链接和跨页累计响应。
+- 实现：新增可选 `RulePagination(nextPageSelector, nextPageAttribute, maxPages)` DSL。仅允许 Search/TOC 的 List 绑定；首个请求保留规则配置的方法和表单，后续 next-link 固定使用 GET。CSS 选择器必须明确链接属性，XPath/JSONPath 使用既有受控求值器；`RuleBasedSourceAdapter` 将所有已验证页面统一投影为 Search/TOC 结果，旧的非分页 Rule JSON 仍保持单请求兼容。
+- 安全与失败关闭：后续链接必须与首请求保持完全相同的 scheme/host/port，并再次经过 SSRF 字面量检查；拒绝 userinfo、fragment、控制字符、过长/非法链接、循环、跨源链接和无效选择器。`maxPages` 为有限的 1..32，默认 8；全执行共享 MaxRequests、累计响应字节和一个执行超时。达到页面/请求边界、累计响应超限或传输失败时整次执行失败，不向上游暴露部分页面或部分结果。
+- 回归：新增 RuleAdapter 分页聚合、请求耗尽、页数耗尽、跨源、循环、POST→GET、跨页累计字节预算回归；新增 Search/TOC HTML 与 JSON 多页投影、DSL JSON 往返及 Validator/schema 边界回归。当前定向结果为 RuleAdapter 分页 6/6、分页列表 2/2、Validator 类 20/20、JSON 往返 1/1、累计字节 1/1 PASS。
+- 非目标：本轮不实现 page-number/cursor 分页、通用变量或 Cookie/Session、超出 next-link 的多请求编排、递归 MaxDepth、完整 XPath/JSONPath 语法；真实 Official Source、故障切换、阅读 3.0 和人工验收继续按待定清单处理。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 389/389、Architecture 1/1、Contract 10/10 PASS；PowerShell 等价迁移模型检查 11/11 PASS；Schema/Fixture JSON 语法和 API `/health` 200 PASS；完整 Solution Test 的 Integration 为 80 项，其中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
+- 远端证据：本候选提交推送后补录 CI、Docker 和 Security 工作流结果；在结果确认前不标记远端门禁完成。
+- 当前状态：受控 next-link Pagination 与多请求预算已形成候选实现，整体继续保持 `1.0 Release Candidate`；仍不等同于 `Accepted/Completed`，真实来源、故障切换、阅读 3.0 和人工验收继续按待定清单处理。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -868,8 +879,9 @@ Official Source
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
 - Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；受控 XPath/JSONPath
-  选择器运行时已在 4.51 接入，单请求 Rule execution budgets 已在 4.49 接入；完整 XPath/JSONPath 语法、
-  Cookie/Session、Pagination、通用变量扩展及多请求/递归预算仍待后续工程工作包。
+  选择器运行时已在 4.51 接入，受控 next-link Pagination 与跨页 Rule execution budgets 已在 4.52 接入；完整
+  XPath/JSONPath 语法、Cookie/Session、page-number/cursor、通用变量扩展及 next-link 之外的多请求/递归预算仍待
+  后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
@@ -878,7 +890,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-本轮全量回归的结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 364/364、Architecture 1/1、Contract 10/10 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Sources Capability Health 并发测试已编译并实际尝试，但本机未取得容器执行证据；远端 CI `33263255422` 已在真实 PostgreSQL 中通过 80 项中的 78 项、跳过 2 项。候选提交 `3ba51a1` 的 CI `33263255422`、Docker `33263255437`、Security `33263255420` 已全部 GREEN。
+本轮全量回归的结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 389/389、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查、Schema/Fixture JSON 语法和 API `/health` 200 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。本候选提交的 CI、Docker、Security 结果待推送后补录；真实来源、阅读 3.0 和人工验收按用户决定未执行。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

@@ -214,6 +214,55 @@ public sealed class SourceRuleDslValidatorTests
     }
 
     [TestMethod]
+    public void Pagination_Requires_A_Search_Or_Toc_List_Binding()
+    {
+        var bad = new CapabilityRule(
+            SourceCapability.Content,
+            RuleRequest.Get("/chapter/1"),
+            [new RuleField("content", new RuleSelector(SelectorKind.Css, ".content"), null, [])],
+            Pagination: new RulePagination(new RuleSelector(SelectorKind.Css, "a.next")));
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "paged-source", [bad]));
+
+        Assert.IsTrue(result.Any(e => e.Contains("Search/Toc list binding")));
+    }
+
+    [TestMethod]
+    public void Pagination_MaxPages_Is_Finite()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            Pagination = new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                SourceRuleDslValidator.MaxPaginationPages + 1)
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "paged-source", [rule]));
+
+        Assert.IsTrue(result.Any(e => e.Contains("maxPages")));
+    }
+
+    [TestMethod]
+    public void Css_Pagination_Selector_Requires_A_Link_Attribute()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            Pagination = new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                null,
+                3)
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "paged-source", [rule]));
+
+        Assert.IsTrue(result.Any(e => e.Contains("CSS next-page selector requires")));
+    }
+
+    [TestMethod]
     public void Validator_Returns_All_Violations_At_Once()
     {
         var dsl = new SourceRuleDsl("42", "", []);

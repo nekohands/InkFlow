@@ -268,4 +268,39 @@ public sealed class SourceRuleDslJsonTests
         StringAssert.Contains(json, "\"itemsSelectorKind\": \"jsonPath\"");
         StringAssert.Contains(json, "\"textAttribute\": \"title\"");
     }
+
+    [TestMethod]
+    public void Serialize_Roundtrips_Json_Next_Link_Pagination_Metadata()
+    {
+        var dsl = new SourceRuleDsl(
+            "1",
+            "json-paged-source",
+            [new CapabilityRule(
+                SourceCapability.Search,
+                RuleRequest.Get("/search"),
+                [],
+                new RuleListBinding(
+                    "$.items[*]",
+                    "id",
+                    string.Empty,
+                    string.Empty,
+                    SelectorKind.JsonPath,
+                    "title"),
+                new RulePagination(
+                    new RuleSelector(SelectorKind.JsonPath, "$.next"),
+                    null,
+                    3))]);
+
+        var json = SourceRuleDslJson.Serialize(dsl);
+        var result = SourceRuleDslJson.Parse(json);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        var pagination = result.Document!.Rules[0].Pagination!;
+        Assert.AreEqual(SelectorKind.JsonPath, pagination.NextPageSelector.Kind);
+        Assert.AreEqual("$.next", pagination.NextPageSelector.Expression);
+        Assert.IsNull(pagination.NextPageAttribute);
+        Assert.AreEqual(3, pagination.MaxPages);
+        StringAssert.Contains(json, "\"pagination\"");
+        StringAssert.Contains(json, "\"nextPageSelector\"");
+    }
 }

@@ -1,13 +1,13 @@
 namespace InkFlow.Modules.Sources.Application;
 
 /// <summary>
-/// A bounded execution policy for the currently supported single-request RuleAdapter.
+/// A bounded execution policy for the RuleAdapter, including its optional next-link pagination.
 /// The values are deliberately finite: a source rule must not be able to consume an
 /// unbounded amount of network, CPU, or memory even when its input is untrusted.
 /// </summary>
 public sealed record SourceRuleExecutionLimits
 {
-    public const int DefaultMaxRequests = 1;
+    public const int DefaultMaxRequests = 8;
     public const int DefaultMaxBytes = 2 * 1024 * 1024;
     public const int DefaultMaxResultSize = 512 * 1024;
     public static readonly TimeSpan DefaultMaxExecutionTime = TimeSpan.FromSeconds(20);

@@ -26,6 +26,7 @@ public static class SourceRuleDslValidator
     public const int MaxAttributeNameLength = 128;
     public const int MaxTransformValueLength = 1_024;
     public const int MaxListTrimLength = 512;
+    public const int MaxPaginationPages = 32;
 
     private static readonly System.Text.RegularExpressions.Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
@@ -89,6 +90,7 @@ public static class SourceRuleDslValidator
             ValidateRequest(rule, errors);
             ValidateFields(rule, errors);
             ValidateList(rule, errors);
+            ValidatePagination(rule, errors);
         }
 
         return errors;
@@ -438,6 +440,87 @@ public static class SourceRuleDslValidator
             list.TextAttribute,
             MaxAttributeNameLength,
             $"{prefix} textAttribute",
+            errors);
+    }
+
+    private static void ValidatePagination(CapabilityRule rule, List<string> errors)
+    {
+        var pagination = rule.Pagination;
+        if (pagination is null)
+        {
+            return;
+        }
+
+        var prefix = $"rules[{rule.Capability}] pagination";
+        if (rule.Capability is not (SourceCapability.Search or SourceCapability.Toc) ||
+            rule.List is null)
+        {
+            errors.Add($"{prefix}: a paginated rule requires a Search/Toc list binding.");
+        }
+
+        if (pagination.MaxPages < 1 || pagination.MaxPages > MaxPaginationPages)
+        {
+            errors.Add(
+                $"{prefix}: maxPages must be between 1 and {MaxPaginationPages}.");
+        }
+
+        var selector = pagination.NextPageSelector;
+        if (selector is null)
+        {
+            errors.Add($"{prefix}: nextPageSelector must be an object.");
+        }
+        else
+        {
+            if (!Enum.IsDefined(selector.Kind))
+            {
+                errors.Add($"{prefix}: unknown next-page selector kind '{selector.Kind}'.");
+            }
+
+            if (string.IsNullOrWhiteSpace(selector.Expression))
+            {
+                errors.Add($"{prefix}: nextPageSelector expression must not be empty.");
+            }
+
+            ValidateMaxLength(
+                selector.Expression,
+                MaxSelectorExpressionLength,
+                $"{prefix} nextPageSelector expression",
+                errors);
+
+            var expression = selector.Expression?.TrimStart() ?? string.Empty;
+            if (selector.Kind == SelectorKind.JsonPath && !expression.StartsWith('$'))
+            {
+                errors.Add($"{prefix}: JSONPath next-page selector must start with '$'.");
+            }
+
+            if (selector.Kind == SelectorKind.XPath &&
+                !expression.StartsWith('/') && !expression.StartsWith('.'))
+            {
+                errors.Add($"{prefix}: XPath next-page selector must start with '/' or '.'.");
+            }
+
+            if (selector.Kind == SelectorKind.Css &&
+                string.IsNullOrWhiteSpace(pagination.NextPageAttribute))
+            {
+                errors.Add($"{prefix}: CSS next-page selector requires a non-empty nextPageAttribute.");
+            }
+        }
+
+        if (pagination.NextPageAttribute is not null &&
+            string.IsNullOrWhiteSpace(pagination.NextPageAttribute))
+        {
+            errors.Add($"{prefix}: nextPageAttribute must not be blank when specified.");
+        }
+
+        if (pagination.NextPageAttribute?.Any(char.IsControl) == true)
+        {
+            errors.Add($"{prefix}: nextPageAttribute must not contain control characters.");
+        }
+
+        ValidateMaxLength(
+            pagination.NextPageAttribute,
+            MaxAttributeNameLength,
+            $"{prefix} nextPageAttribute",
             errors);
     }
 

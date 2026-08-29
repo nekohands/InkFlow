@@ -67,6 +67,16 @@
               "$ref": "#/$defs/list"
             }
           ]
+        },
+        "pagination": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/pagination"
+            }
+          ]
         }
       },
       "allOf": [
@@ -86,6 +96,34 @@
               "list"
             ],
             "properties": {
+              "list": {
+                "$ref": "#/$defs/list"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "pagination"
+            ],
+            "properties": {
+              "pagination": {
+                "type": "object"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "list"
+            ],
+            "properties": {
+              "capability": {
+                "enum": [
+                  "search",
+                  "toc"
+                ]
+              },
               "list": {
                 "$ref": "#/$defs/list"
               }
@@ -350,6 +388,63 @@
           ]
         }
       }
+    },
+    "pagination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nextPageSelector"
+      ],
+      "properties": {
+        "nextPageSelector": {
+          "$ref": "#/$defs/selector"
+        },
+        "nextPageAttribute": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          ]
+        },
+        "maxPages": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 8
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "nextPageSelector": {
+                "properties": {
+                  "kind": {
+                    "const": "css"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "nextPageAttribute"
+            ],
+            "properties": {
+              "nextPageAttribute": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

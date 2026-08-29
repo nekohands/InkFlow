@@ -416,6 +416,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：提交 `2f16b6e` 的 CI `33265352562`、Docker `33265352563`、Security `33265352595` 均 GREEN；CI 报告 Unit 376/376、Architecture 1/1、Contract 10/10、Integration 80 项 78 通过/2 跳过，并通过 Runtime/SLO/Redis/备份恢复/diagnostics。
 - 当前状态：受控选择器运行时完成并取得三类远端门禁，整体仍为 `1.0 Release Candidate`；完整选择器语法、Cookie/Session/Pagination/多请求递归、真实来源故障切换、阅读 3.0 和人工验收仍在待定清单，不等同于 `Accepted/Completed`。
 
+### 4.52 Source Rule 受控 next-link Pagination / 多请求预算（本轮，2026-08-30）
+
+- 缺口：RuleAdapter 之前固定只发起一次请求，Search/TOC 无法安全聚合 next-link 分页；页面循环也没有统一的请求数、累计响应字节和执行时间边界。
+- 实现：`CapabilityRule` 增加可选 `RulePagination`，仅允许 Search/TOC 的 List 绑定；首请求沿用原 method/form，后续链接固定 GET。CSS next selector 必须提供链接属性，XPath/JSONPath 复用受控选择器求值；`RuleBasedSourceAdapter` 汇总所有通过校验的页面，旧规则保持兼容。
+- 安全/失败关闭：后续 URL 必须与首请求保持相同 scheme/host/port，并重新通过 SSRF 字面量检查；拒绝 userinfo、fragment、控制字符、非法/过长链接、循环和跨源。`maxPages` 有界为 1..32，默认 8；所有页面共享 MaxRequests、累计响应字节和单一执行超时。任何边界或传输失败都整体失败，不返回部分页面/结果。
+- 定向证据：RuleAdapter 分页 6/6、分页列表 2/2、Validator 类 20/20、JSON 往返 1/1、累计响应字节 1/1 PASS；完整门禁待本轮结束后补录。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 389/389、Architecture 1/1、Contract 10/10、11 个迁移模型检查均 PASS；Schema/Fixture JSON 语法和 API `/health` 200；完整 Integration 80 项中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。
+- 远端证据：本候选提交推送后补录 CI、Docker 和 Security 工作流结果；结果确认前不标记远端门禁完成。
+- 非目标：page-number/cursor、Cookie/Session、通用变量、next-link 之外的多请求/递归 MaxDepth、完整 XPath/JSONPath 语法和真实来源/阅读 3.0 人工验收仍未完成。
+- 当前状态：受控 next-link Pagination 候选实现完成，整体保持 `1.0 Release Candidate`，尚不能标记 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -744,6 +755,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集；完整语法、Cookie/Session/Pagination 和多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集与受控 next-link Pagination；完整语法、Cookie/Session、page-number/cursor、通用变量及 next-link 之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [ ] 新 Source 网络能力必须同步安全测试。

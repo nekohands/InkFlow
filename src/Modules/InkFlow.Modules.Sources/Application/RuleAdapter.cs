@@ -7,15 +7,16 @@ using InkFlow.Modules.Sources.Domain;
 namespace InkFlow.Modules.Sources.Application;
 
 /// <summary>
-/// 规则执行器：把声明式 DSL 变成一次真实的抓取。
+/// 规则执行器：把声明式 DSL 变成一次或一组有界的真实抓取。
 /// 执行顺序固定为：URL 构建 → SSRF 字面量校验 → 发请求（经 ISourceHttpClient）→
 /// 状态码检查 → 字段抽取 → 变换管道。任一环节失败即整体失败，不产生部分结果；
-/// 请求、响应、时间、正则和结果预算由 <see cref="SourceRuleExecutionLimits"/> 强制约束。
+/// 请求、响应、时间、正则、分页和结果预算由 <see cref="SourceRuleExecutionLimits"/> 强制约束。
 /// </summary>
 public sealed class RuleAdapter
 {
     private static readonly Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
+    private const int MaxPaginationLinkLength = 2_048;
 
     private readonly ISourceHttpClient _httpClient;
     private readonly ISelectorEvaluator _selectorEvaluator;
@@ -63,58 +64,245 @@ public sealed class RuleAdapter
             return RuleExecutionResult.Fail(["request: built URL is not absolute."]);
         }
 
-        // v1 execution is one request at most. A zero request budget is an explicit
-        // fail-closed switch and must be checked before entering the HTTP seam.
+        if (rule.Pagination is not null &&
+            (rule.List is null || rule.Capability is not (SourceCapability.Search or SourceCapability.Toc)))
+        {
+            return RuleExecutionResult.Fail(
+                ["pagination: a paginated rule requires a Search/Toc list binding."]);
+        }
+
+        if (rule.Pagination is { } configuredPagination)
+        {
+            if (configuredPagination.MaxPages < 1 ||
+                configuredPagination.MaxPages > SourceRuleDslValidator.MaxPaginationPages)
+            {
+                return RuleExecutionResult.Fail(["pagination: maxPages is outside the allowed range."]);
+            }
+
+            if (configuredPagination.NextPageSelector is null)
+            {
+                return RuleExecutionResult.Fail(["pagination: nextPageSelector must be configured."]);
+            }
+
+            var nextPageExpression = configuredPagination.NextPageSelector.Expression?.TrimStart() ?? string.Empty;
+            if (!Enum.IsDefined(configuredPagination.NextPageSelector.Kind) ||
+                string.IsNullOrWhiteSpace(nextPageExpression) ||
+                nextPageExpression.Length > SourceRuleDslValidator.MaxSelectorExpressionLength)
+            {
+                return RuleExecutionResult.Fail(["pagination: nextPageSelector is invalid."]);
+            }
+
+            if (configuredPagination.NextPageSelector.Kind == SelectorKind.JsonPath &&
+                !nextPageExpression.StartsWith('$'))
+            {
+                return RuleExecutionResult.Fail(["pagination: JSONPath next-page selector must start with '$'."]);
+            }
+
+            if (configuredPagination.NextPageSelector.Kind == SelectorKind.XPath &&
+                !nextPageExpression.StartsWith('/') &&
+                !nextPageExpression.StartsWith('.'))
+            {
+                return RuleExecutionResult.Fail(
+                    ["pagination: XPath next-page selector must start with '/' or '.'."]);
+            }
+
+            if (configuredPagination.NextPageAttribute is { } nextPageAttribute &&
+                (string.IsNullOrWhiteSpace(nextPageAttribute) ||
+                 nextPageAttribute.Any(char.IsControl) ||
+                 nextPageAttribute.Length > SourceRuleDslValidator.MaxAttributeNameLength))
+            {
+                return RuleExecutionResult.Fail(["pagination: nextPageAttribute is invalid."]);
+            }
+
+            if (configuredPagination.NextPageSelector.Kind == SelectorKind.Css &&
+                string.IsNullOrWhiteSpace(configuredPagination.NextPageAttribute))
+            {
+                return RuleExecutionResult.Fail(
+                    ["pagination: CSS next-page selector requires a non-empty nextPageAttribute."]);
+            }
+        }
+
+        // A zero request budget is an explicit fail-closed switch and must be checked
+        // before entering the HTTP seam, including when pagination is declared.
         if (_limits.MaxRequests < 1)
         {
             return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
         }
 
-        if (request.FormBody is not null &&
-            Encoding.UTF8.GetByteCount(request.FormBody) > _limits.MaxBytes)
-        {
-            return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
-        }
+        var sourceOrigin = target!;
+        var currentRequest = request!;
+        var pagination = rule.Pagination;
+        var pageBodies = new List<string>();
+        var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        long responseBytes = 0;
 
-        SourceHttpResponse response;
         using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         executionCancellation.CancelAfter(_limits.MaxExecutionTime);
-        try
-        {
-            response = await _httpClient
-                .SendAsync(request, executionCancellation.Token)
-                .WaitAsync(executionCancellation.Token)
-                .ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
-        {
-            return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
-        }
-        catch (SourceResponseTooLargeException)
-        {
-            return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
-        }
-        catch (Exception ex)
-        {
-            return RuleExecutionResult.Fail([$"http: transport failure — {ex.Message}"]);
-        }
 
-        if (!response.IsSuccess)
+        for (var page = 1; ; page++)
         {
-            return RuleExecutionResult.Fail([$"http: upstream returned status {(int)response.StatusCode}."]);
-        }
+            if (page > _limits.MaxRequests)
+            {
+                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+            }
 
-        if (Encoding.UTF8.GetByteCount(response.Body) > _limits.MaxBytes)
-        {
-            return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
-        }
+            if (pagination is not null && page > pagination.MaxPages)
+            {
+                return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
+            }
 
-        return ExtractFields(rule, response.Body);
+            if (!visitedUrls.Add(currentRequest.Url))
+            {
+                return RuleExecutionResult.Fail(["pagination: next-link cycle detected."]);
+            }
+
+            if (currentRequest.FormBody is not null &&
+                Encoding.UTF8.GetByteCount(currentRequest.FormBody) > _limits.MaxBytes)
+            {
+                return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
+            }
+
+            SourceHttpResponse response;
+            try
+            {
+                response = await _httpClient
+                    .SendAsync(currentRequest, executionCancellation.Token)
+                    .WaitAsync(executionCancellation.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
+            {
+                return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
+            }
+            catch (SourceResponseTooLargeException)
+            {
+                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+            }
+            catch (Exception ex)
+            {
+                return RuleExecutionResult.Fail([$"http: transport failure — {ex.Message}"]);
+            }
+
+            if (!response.IsSuccess)
+            {
+                return RuleExecutionResult.Fail([$"http: upstream returned status {(int)response.StatusCode}."]);
+            }
+
+            responseBytes += Encoding.UTF8.GetByteCount(response.Body);
+            if (responseBytes > _limits.MaxBytes)
+            {
+                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+            }
+
+            pageBodies.Add(response.Body);
+            if (pagination is null)
+            {
+                return ExtractFields(rule, response.Body);
+            }
+
+            var nextLink = _selectorEvaluator.EvaluateFirst(
+                response.Body,
+                pagination.NextPageSelector,
+                pagination.NextPageAttribute);
+            if (string.IsNullOrWhiteSpace(nextLink))
+            {
+                var extracted = ExtractFields(rule, pageBodies[0]);
+                return extracted.IsSuccess
+                    ? extracted with { PageBodies = pageBodies.ToArray() }
+                    : extracted;
+            }
+
+            if (page >= pagination.MaxPages)
+            {
+                return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
+            }
+
+            if (page >= _limits.MaxRequests)
+            {
+                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+            }
+
+            if (!TryBuildNextRequest(
+                    currentRequest,
+                    nextLink,
+                    sourceOrigin,
+                    out var nextRequest,
+                    out var nextRequestError))
+            {
+                return RuleExecutionResult.Fail([nextRequestError]);
+            }
+
+            currentRequest = nextRequest!;
+        }
     }
+
+    private static bool TryBuildNextRequest(
+        SourceHttpRequest currentRequest,
+        string rawNextLink,
+        Uri sourceOrigin,
+        out SourceHttpRequest? nextRequest,
+        out string error)
+    {
+        nextRequest = null;
+        error = string.Empty;
+        var value = rawNextLink.Trim();
+
+        if (value.Length == 0)
+        {
+            error = "pagination: next link must not be empty.";
+            return false;
+        }
+
+        if (value.Length > MaxPaginationLinkLength || value.Any(char.IsControl))
+        {
+            error = "pagination: next link is invalid or too long.";
+            return false;
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var target) &&
+            !Uri.TryCreate(new Uri(currentRequest.Url), value, out target))
+        {
+            error = "pagination: next link is not a valid URL.";
+            return false;
+        }
+
+        if (target is null || !target.IsAbsoluteUri ||
+            target.Fragment.Length > 0 || target.UserInfo.Length > 0)
+        {
+            error = "pagination: next link is not a permitted URL.";
+            return false;
+        }
+
+        var ssrfErrors = SsrfGuard.InspectLiteral(target);
+        if (ssrfErrors.Count > 0)
+        {
+            error = $"ssrf: {string.Join("; ", ssrfErrors)}";
+            return false;
+        }
+
+        if (!IsSameOrigin(sourceOrigin, target))
+        {
+            error = "pagination: next link must stay on the source origin.";
+            return false;
+        }
+
+        nextRequest = currentRequest with
+        {
+            Method = RuleHttpMethod.Get,
+            Url = target.AbsoluteUri,
+            FormBody = null,
+        };
+        return true;
+    }
+
+    private static bool IsSameOrigin(Uri expected, Uri actual) =>
+        string.Equals(expected.Scheme, actual.Scheme, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(expected.Host, actual.Host, StringComparison.OrdinalIgnoreCase) &&
+        expected.Port == actual.Port;
 
     private static List<string> TryBuildRequest(
         CapabilityRule rule,

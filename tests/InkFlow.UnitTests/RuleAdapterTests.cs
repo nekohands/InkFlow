@@ -1,5 +1,6 @@
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
+using InkFlow.Modules.Sources.Infrastructure;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace InkFlow.UnitTests;
@@ -338,6 +339,253 @@ public sealed class RuleAdapterTests
         Assert.IsFalse(result.IsSuccess);
         Assert.IsTrue(result.Errors.Any(e => e.Contains("response exceeded byte budget")));
         Assert.IsFalse(result.Errors.Any(e => e.Contains("transport failure")));
+    }
+
+    [TestMethod]
+    public async Task Next_Link_Pagination_Returns_All_Page_Bodies_Within_Budget()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 4));
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url switch
+            {
+                "https://books.example.com/search?page=1" => new SourceHttpResponse(
+                    200,
+                    "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"/search?page=2\">next</a>"),
+                "https://books.example.com/search?page=2" => new SourceHttpResponse(
+                    200,
+                    "<a class=\"result\" href=\"/book/2\">two</a><a class=\"next\" href=\"/search?page=3\">next</a>"),
+                "https://books.example.com/search?page=3" => new SourceHttpResponse(
+                    200,
+                    "<a class=\"result\" href=\"/book/3\">three</a>"),
+                _ => new SourceHttpResponse(404, string.Empty),
+            },
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 3 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(3, http.CallCount);
+        Assert.AreEqual(3, result.ResponseBodies.Count);
+        StringAssert.Contains(result.ResponseBodies[0], "href=\"/book/1\"");
+        StringAssert.Contains(result.ResponseBodies[1], "href=\"/book/2\"");
+        StringAssert.Contains(result.ResponseBodies[2], "href=\"/book/3\"");
+    }
+
+    [TestMethod]
+    public async Task Next_Link_Pagination_Fails_Closed_When_Request_Budget_Is_Exhausted()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 4));
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"/search?page=2\">next</a>"),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 1 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("request budget exceeded")));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count, "a truncated pagination run must not expose pages");
+    }
+
+    [TestMethod]
+    public async Task Next_Link_Pagination_Rejects_Cross_Origin_Links()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 4));
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"https://other.example.com/page-2\">next</a>"),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 2 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("source origin")));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Next_Link_Pagination_Fails_Closed_When_Page_Limit_Is_Exhausted()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 1));
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"/search?page=2\">next</a>"),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 4 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("page limit exceeded")));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Next_Link_Pagination_Rejects_Cycles_Before_Repeating_A_Request()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 4));
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"/search?page=1\">next</a>"),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 4 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("cycle")));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Followed_Next_Links_Use_Get_And_Drop_The_Initial_Form()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            new RuleRequest(
+                RuleHttpMethod.Post,
+                "/search",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["query"] = "keyword" }),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 2));
+        var methods = new List<RuleHttpMethod>();
+        var forms = new List<string?>();
+        var http = new FakeHttpClient
+        {
+            Responder = request =>
+            {
+                methods.Add(request.Method);
+                forms.Add(request.FormBody);
+                return methods.Count == 1
+                    ? new SourceHttpResponse(
+                        200,
+                        "<a class=\"result\" href=\"/book/1\">one</a><a class=\"next\" href=\"/search?page=2\">next</a>")
+                    : new SourceHttpResponse(200, "<a class=\"result\" href=\"/book/2\">two</a>");
+            },
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 2 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        CollectionAssert.AreEqual(
+            new[] { RuleHttpMethod.Post, RuleHttpMethod.Get },
+            methods.ToArray());
+        Assert.AreEqual("query=keyword", forms[0]);
+        Assert.IsNull(forms[1]);
+    }
+
+    [TestMethod]
+    public async Task Paginated_Response_Bodies_Share_One_Byte_Budget()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.result", "href", string.Empty, string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 2));
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url.EndsWith("page=1", StringComparison.Ordinal)
+                ? new SourceHttpResponse(
+                    200,
+                    "<a class=\"next\" href=\"/search?page=2\">next</a>" + new string('x', 80))
+                : new SourceHttpResponse(200, new string('y', 80)),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new RuleSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 2, MaxBytes = 170 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("response exceeded byte budget")));
+        Assert.AreEqual(2, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
     }
 
     private sealed class ThrowingHttpClient : ISourceHttpClient

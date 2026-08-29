@@ -43,30 +43,33 @@ public sealed class RuleBasedSourceAdapter(
             return [];
         }
 
-        var items = selectorEvaluator.SelectAll(result.Body ?? string.Empty, ToSelector(rule.List));
         var results = new List<SourceSearchResult>();
         long resultBytes = 0;
 
-        foreach (var item in items)
+        foreach (var body in result.ResponseBodies)
         {
-            var externalId = ExtractExternalId(item, rule.List);
-            if (string.IsNullOrEmpty(externalId))
+            var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
+            foreach (var item in items)
             {
-                continue;
-            }
+                var externalId = ExtractExternalId(item, rule.List);
+                if (string.IsNullOrEmpty(externalId))
+                {
+                    continue;
+                }
 
-            const string unknownAuthor = "未知";
-            var title = GetItemText(item, rule.List);
-            var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
-                Encoding.UTF8.GetByteCount(title) +
-                Encoding.UTF8.GetByteCount(unknownAuthor);
-            if (resultBytes + itemBytes > _limits.MaxResultSize)
-            {
-                return [];
-            }
+                const string unknownAuthor = "未知";
+                var title = GetItemText(item, rule.List);
+                var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
+                    Encoding.UTF8.GetByteCount(title) +
+                    Encoding.UTF8.GetByteCount(unknownAuthor);
+                if (resultBytes + itemBytes > _limits.MaxResultSize)
+                {
+                    return [];
+                }
 
-            resultBytes += itemBytes;
-            results.Add(new SourceSearchResult(externalId, title, unknownAuthor));
+                resultBytes += itemBytes;
+                results.Add(new SourceSearchResult(externalId, title, unknownAuthor));
+            }
         }
 
         return results;
@@ -116,32 +119,35 @@ public sealed class RuleBasedSourceAdapter(
             return [];
         }
 
-        var body = result.Body ?? string.Empty;
-        var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
+        var bodies = result.ResponseBodies;
 
         var index = 0;
         var entries = new List<SourceTocEntry>();
         long resultBytes = 0;
 
-        foreach (var item in items)
+        foreach (var body in bodies)
         {
-            var externalId = ExtractExternalId(item, rule.List);
-            var title = GetItemText(item, rule.List);
-
-            if (string.IsNullOrEmpty(externalId) || string.IsNullOrEmpty(title))
+            var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
+            foreach (var item in items)
             {
-                continue;
-            }
+                var externalId = ExtractExternalId(item, rule.List);
+                var title = GetItemText(item, rule.List);
 
-            var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
-                Encoding.UTF8.GetByteCount(title);
-            if (resultBytes + itemBytes > _limits.MaxResultSize)
-            {
-                return [];
-            }
+                if (string.IsNullOrEmpty(externalId) || string.IsNullOrEmpty(title))
+                {
+                    continue;
+                }
 
-            resultBytes += itemBytes;
-            entries.Add(new SourceTocEntry(externalId, index++, title));
+                var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
+                    Encoding.UTF8.GetByteCount(title);
+                if (resultBytes + itemBytes > _limits.MaxResultSize)
+                {
+                    return [];
+                }
+
+                resultBytes += itemBytes;
+                entries.Add(new SourceTocEntry(externalId, index++, title));
+            }
         }
 
         return entries;
