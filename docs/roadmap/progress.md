@@ -746,6 +746,15 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `143685f` 的 CI `33261900485`、Docker `33261900470`、Security `33261900542` 均 **GREEN**。CI Test 为 79 项、77 通过/2 跳过，Restore/Build、11 个迁移模型检查、Compose、Runtime smoke、Core SLO probe/telemetry、Redis 分布式限流、PostgreSQL 备份恢复和 diagnostics 均通过；Docker 四业务镜像构建/扫描通过；Security 的 NuGet、Filesystem/Trivy、CodeQL 和 SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
 - 当前状态：执行预算与响应体内存边界已实现，整体继续保持 `1.0 Release Candidate`；真实来源、真实故障切换、阅读 3.0、人工验收和生产治理仍按第 6 节待定，不等同于 `Accepted/Completed`。
 
+### 4.50 Capability Health 并发变更串行化（本轮，2026-08-30）
+
+- 缺口：`SourceHealthService` 原先先读取能力健康行再执行领域变更并保存；并发 API/Worker 上报连续失败时，多个请求可能基于同一旧计数写回，导致失败深度丢失并延迟自动故障切换。
+- 实现：新增 `SourceHealthMutationKind` 与 `ISourceHealthRepository.MutateAsync` 原子变更契约；成功、失败、停用、恢复均由 `SourceHealthService` 通过该入口提交。`EfSourceHealthRepository` 在 PostgreSQL 事务内按稳定 `(SourceId, Capability)` 摘要获取 transaction-scoped advisory lock，锁内重新读取、执行领域方法、保存并提交；未新增模型字段或 Migration。
+- 安全与边界：锁键只由来源 ID 与能力枚举的 SHA-256 摘要派生，不把来源输入拼入 SQL；Domain 仍拥有状态转移与失败原因裁剪，Redis/缓存不参与事实写入。本轮不触发真实来源、阅读 3.0 或人工验收。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 364/364、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；完整 Solution Test 的 Integration 为 80 项，其中 6 通过、2 跳过、72 项在类初始化时因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；新增 PostgreSQL 并发测试已编译并实际尝试，`git diff --check` PASS。
+- 远端证据：候选提交 `3ba51a1` 的 CI `33263255422`、Docker `33263255437`、Security `33263255420` 均 **GREEN**。CI Test 为 80 项、78 通过/2 跳过，`Concurrent_Health_Mutations_Preserve_All_Failures` 通过；迁移检查、Compose、Runtime smoke、SLO、Redis、PostgreSQL 备份恢复和 diagnostics 均通过；Docker 四业务镜像构建/扫描/发布通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
+- 当前状态：并发健康状态写入已取得本地单元与远端真实 PostgreSQL 证据，整体继续保持 `1.0 Release Candidate`；真实来源故障切换、阅读 3.0、人工验收和生产治理仍按第 6 节待定，不等同于 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -835,7 +844,7 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 76 项中 68 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过）；Private Library、Developers/Billing、Operations 告警历史和 Messaging Outbox/Inbox 的迁移、隔离、并发、执行层和保留清理用例也必须取得本机真实容器证据。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 80 项中 72 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过）；Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox 和 Sources Capability Health 并发变更的迁移、隔离、并发、执行层和保留清理用例也必须取得本机真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
@@ -857,7 +866,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-本轮全量回归的结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 338/338、Architecture 1/1、Contract 10/10 PASS；Integration 76 项中 6 项通过、2 项跳过、68 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Messaging Persistence/Execution/Retention 共 12 项已编译并实际尝试，但本机未取得容器执行证据；其中新增 Retention 单测 4/4 通过。候选提交 `bf6eae1` 的远端 CI `33255354693`、Docker `33255354699`、Security `33255354684` 已全部 GREEN。
+本轮全量回归的结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 364/364、Architecture 1/1、Contract 10/10 PASS；Integration 80 项中 6 项通过、2 项跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。Sources Capability Health 并发测试已编译并实际尝试，但本机未取得容器执行证据；远端 CI `33263255422` 已在真实 PostgreSQL 中通过 80 项中的 78 项、跳过 2 项。候选提交 `3ba51a1` 的 CI `33263255422`、Docker `33263255437`、Security `33263255420` 已全部 GREEN。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

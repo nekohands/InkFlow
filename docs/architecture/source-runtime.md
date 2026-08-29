@@ -29,6 +29,11 @@
 恢复或成功探测会清除失败连续计数。状态转移保存 `source-health-v1`、时间戳和受限失败原因，
 不把 Redis 或缓存当作事实来源。
 
+所有成功、失败、停用和恢复变更均通过 `ISourceHealthRepository.MutateAsync` 在权威存储内完成；
+PostgreSQL 实现以 `(SourceId, Capability)` 的稳定摘要获取事务级 advisory lock，
+在锁内重新读取、执行领域状态转移、保存并提交，避免 API/Worker 并发上报覆盖连续失败计数。
+该并发协调不新增模型字段或 Migration，健康事实仍只由 PostgreSQL 保存。
+
 运维侧通过受 `Operator` / `Administrator` 保护的 Source Operations API 查看单来源能力健康，
 并以带理由的 disable/enable 命令控制单个 `(SourceId, Capability)`。停用立即阻止该能力进入
 调度/候选；恢复只回到 `Unknown`，必须由后续真实探针确认 `Healthy`，命令和操作者写入审计。

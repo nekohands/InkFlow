@@ -400,6 +400,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：候选提交 `143685f` 的 CI `33261900485`、Docker `33261900470`、Security `33261900542` 均 **GREEN**。CI Test 为 79 项、77 通过/2 跳过，Restore/Build、11 个迁移模型检查、Compose、Runtime smoke、Core SLO probe/telemetry、Redis 分布式限流、PostgreSQL 备份恢复和 diagnostics 均通过；Docker 四业务镜像构建/扫描通过；Security 的 NuGet、Filesystem/Trivy、CodeQL 和 SBOM 均通过，仅保留既有 Actions Node 20 弃用提示。
 - 下一步：继续处理真实第二 Official Source/故障切换与用户已延期的人工验收；本机 Docker 恢复后重跑 Integration 以取得本地容器证据。
 
+### 4.50 Capability Health 并发变更串行化（本轮，2026-08-30）
+
+- 缺口：健康服务原先采用先读后写，多个 API/Worker 实例并发上报失败时可能覆盖连续失败计数，延迟 Unhealthy 判定和自动切源。
+- 实现：新增 `SourceHealthMutationKind` 和 `ISourceHealthRepository.MutateAsync`；健康服务的成功、失败、停用、恢复统一走原子入口。PostgreSQL 仓储在事务内以稳定 `(SourceId, Capability)` 摘要获取 advisory lock，再重新读取、应用 Domain 状态转移并提交；不新增 Migration。
+- 自动化证据：本机 Restore/Release Build（0 warnings / 0 errors）、Unit 364/364、Architecture 1/1、Contract 10/10、11 个迁移模型检查均 PASS；完整 Integration 80 项中 6 通过、2 跳过、72 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。远端 CI `33263255422` 报告 Integration 80 项 78 通过/2 跳过，新增跨连接并发健康测试通过；Docker `33263255437`、Security `33263255420` 均 GREEN。
+- 当前状态：本工作包保持 `1.0 Release Candidate`，远端已取得真实 PostgreSQL 并发证据；真实来源/故障切换、阅读 3.0、人工验收和生产治理仍是待定事项，不等同于 `Accepted/Completed`。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -459,6 +466,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Transactional Outbox / Inbox 执行层：Dispatcher/Consumer + 稳定失败码 + 有界重试（`fa81db7`；CI `33253938424` / Docker `33253938404` / Security `33253938443` GREEN；传输适配与宿主后台接线仍待选型）
 ✅ Messaging Outbox/Inbox 保留清理：过期已处理消息有界删除 + Worker 每小时周期接线（`bf6eae1`；CI `33255354693` / Docker `33255354699` / Security `33255354684` GREEN；本机 Docker 集成与真实/人工验收仍待定）
 ✅ Audit retention：过期审计事实有界删除 + 追加式触发器受控例外 + Worker 每小时周期接线（`b8046af`；CI `33257996992` / Docker `33257996951` / Security `33257996953` GREEN；生产法律/合同保留与归档治理仍待定）
+✅ Capability Health 并发变更串行化：事务级 advisory lock + 服务原子变更契约 + 跨连接 PostgreSQL 并发回归（`3ba51a1`；CI `33263255422` / Docker `33263255437` / Security `33263255420` GREEN；本机 Docker、真实来源/切源和人工验收仍待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
 ✅ Resource-level Source Authorization v1：来源授权授予/列表/撤销 + 来源查询/控制过滤 + 命令审计（`a663cef`，CI `33137358470` / Security `33137358428` / Docker `33137358485`）
 ✅ Legado Contract Release Gate v1：Compatibility Profile + Rule Generator seam + Generate/JSON/Search/BookInfo/TOC/Content 自动门禁（本轮；真实来源与真机验收待定）
@@ -589,7 +597,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [ ] **linovelib 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → Content，并把该来源纳入真实第二来源/故障切换演练；本轮仅完成离线规则回归，未触网。
 - [ ] **17K 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向；本轮仅完成 Fixture 回归，未触网。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 48 项中 41 项因 `docker_engine` 不可用而 BLOCKED，1 项跳过，不记为通过。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 80 项中 72 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Sources Capability Health 并发变更测试；本机未取得真实容器证据。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
 
 扩展新来源的方式(书源兼容层):
