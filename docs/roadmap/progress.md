@@ -624,7 +624,8 @@ Phase 1A 自动化工作包状态：
 - 实现：PostgreSQL Migration 创建两张表、索引和禁止 UPDATE 的追加式触发器；仓储在事务内使用 PostgreSQL advisory lock 协调多 API 实例，重复快照只更新 last-seen/occurrence，不新增历史行；按 `HistoryRetentionDays`（默认 30 天，范围 1–3650）清理旧历史和过期 resolved 状态。未过滤的管理员告警快照接入记录，新增 Administrator-only `GET /api/v1/admin/operations/alerts/history`，默认 50、最多 100 条并使用时间戳+事件 ID 不透明游标。
 - 安全与边界：历史不写入动态描述、异常原文、Token、IP、连接串或正文；Operator 继续只能获取来源过滤快照，不能查询平台级历史；历史读取/存储失败分别返回稳定 `operations_alert_history_unavailable` 或保留当前快照可用。外部通知渠道、生产路由与治理仍不虚构，继续列为后续 Operations 工作。
 - 自动化证据：本机 `dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors PASS；Unit 317/317、Architecture 1/1、Contract 10/10 PASS；完整 Integration 64 项中 6 通过、2 跳过、56 项因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，其中新增 Operations PostgreSQL Testcontainers 4 项均已实际尝试；`dotnet ef migrations has-pending-model-changes` PASS，`git diff --check` PASS。API 本地 Runtime smoke：`/health` 200，匿名历史入口 401。
-- 当前状态：本工作包保持 `1.0 Release Candidate`，自动化实现待远端 CI/Docker/Security 验证；不等同于 `Accepted/Completed`，人工 Operations Center、真实 PostgreSQL/Redis、真实来源和阅读 3.0 验收仍按第 6 节待定清单执行。
+- 远端验收：候选提交 `4ef206f` 的 CI `33244304809` GREEN，64 项集成测试 62 通过、2 跳过；Docker `33244304814` GREEN；Security `33244304804` GREEN，NuGet、SBOM、Trivy 文件系统扫描和 CodeQL 均通过。
+- 当前状态：本工作包保持 `1.0 Release Candidate`，自动化 Release Gate 已通过；不等同于 `Accepted/Completed`，人工 Operations Center、真实 PostgreSQL/Redis、真实来源和阅读 3.0 验收仍按第 6 节待定清单执行。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -733,7 +734,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史仍待候选提交触发新的远端验证。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization 和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
