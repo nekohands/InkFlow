@@ -100,8 +100,14 @@ next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirec
 `CredentialReferenceId` 时使用它，显式引用优先；RuleAdapter/Worker 只把该引用交给
 `ISourceCredentialProvider`，任务载荷仍不写入 secret。4.59 增加受 Administrator policy 保护的
 `PUT /api/v1/admin/sources/{sourceId}/credential-binding`，仅允许设置或清除该引用并记录理由和命令审计，
-请求和响应均不承载 secret。Provider 仍必须执行 Owner Scope/跨租户授权；CodeAdapter 不会静默继承规则型来源默认绑定，
-真实 SecretProvider、secret 材料管理和跨执行持久会话仍需独立治理。
+请求和响应均不承载 secret。4.60 将 Provider 的解析输入收敛为
+`SourceCredentialResolutionContext`，强制同时携带 `SourceId`、引用和 `SourceCredentialOwnerScope`；
+范围只有 Platform、User、Organization，后两者必须带稳定 OwnerId。Worker 和来源默认绑定显式使用
+Platform；调用方显式提供用户/组织引用时，RuleAdapter 会把对应范围透传给 Provider。调用方只携带
+用户/组织范围但未提供显式引用时，来源默认引用仍归 Platform，不能把用户范围静默套到平台默认 secret。
+`ConfigurationSourceCredentialProvider` 只解析 Platform 范围，未来真实 Provider 必须依据完整上下文
+执行 Owner Scope/跨租户授权；非法范围和上下文在 Provider/HTTP seam 前 fail-closed。CodeAdapter 不会
+静默继承规则型来源默认绑定，真实 SecretProvider、secret 材料管理和跨执行持久会话仍需独立治理。
 
 禁止：
 

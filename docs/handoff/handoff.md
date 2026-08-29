@@ -72,7 +72,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-29 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现，远端 CI、Docker、Security 门禁已通过；真实凭据、真实 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐，候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。
+**当前状态（2026-08-30 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现，远端 CI、Docker、Security 门禁已通过；真实凭据、真实 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。Source Credential Owner Scope 契约 v1 已接入 Provider、RuleAdapter 与 Worker：Platform/User/Organization 范围被显式区分，来源默认引用固定按 Platform 解析，真实 secret 管理与 Provider 仍待后续。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数、受保护的 Operations 告警快照与阈值基线，以及来源级资源授权 v1。授权管理、来源过滤和撤销审计已接入；告警内部历史/去重/恢复状态已由 Operations PostgreSQL 事实表承载，外部通知路由和更完整的组织/资源权限治理仍待后续工作包。
 
@@ -496,6 +496,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 回归与证据：定向服务/接口测试 8/8；本地 Restore、Release Build 0/0、Unit 450/450、Architecture 1/1、Contract 10/10、API `/health` 200、匿名管理路由 401、`git diff --check` 通过；Integration 81 项中 6 通过、2 跳过、73 项因本机 Docker 管道不可用 BLOCKED。候选提交 `dee61d3` 的 [CI 33279039667](https://github.com/nekohands/InkFlow/actions/runs/33279039667)、[Docker 33279039645](https://github.com/nekohands/InkFlow/actions/runs/33279039645)、[Security 33279039666](https://github.com/nekohands/InkFlow/actions/runs/33279039666) 均 GREEN，headSha 均为 `dee61d31fdd9983c7cc30f57ea091cd016c5a6db`。
 - 非目标/当前状态：不实现 secret 材料管理、真实 SecretProvider、持久会话、真实来源/切源或人工验收；本包为通过候选门禁的 `Implemented` 基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。
 
+### 4.60 Source Credential Owner Scope 契约（本轮，2026-08-30）
+
+- 缺口：原 Provider 只接收 SourceId 与 CredentialReferenceId，无法在解析 seam 强制区分平台、用户和组织范围；同名引用存在跨所有者误取 secret 的风险。
+- 实现：新增 `SourceCredentialOwnerKind`、`SourceCredentialOwnerScope` 与 `SourceCredentialResolutionContext`，并将 `ISourceCredentialProvider` 改为接收完整非敏感解析上下文。Worker/Crawler 显式使用 Platform；`RuleBasedSourceAdapter` 只有在显式提供引用时才透传用户/组织范围，来源默认引用固定使用 Platform。
+- 安全/边界：Platform 不带 OwnerId，User/Organization 必须带稳定 Guid；Source/Reference/Scope 组合输入有界且非法时在 Provider/HTTP seam 前失败。配置 Provider 仅解析 Platform，不接收用户/组织范围；secret 不进入上下文、任务载荷、规则 JSON、日志、错误或结果。
+- 回归与证据：定向凭据回归 24/24；本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 455/455、Architecture 1/1、Contract 10/10；API/Worker/Scheduler `/health` 均 200。完整 Integration 81 项中 6 项通过、2 项跳过、73 项因本机 Docker 管道 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- 非目标：不实现用户/组织/租户实体、真实 Vault/Cloud SecretProvider、secret 材料管理、轮换、持久会话或用户/组织凭据管理；真实来源、切源、阅读 3.0 和人工验收仍待处理。
+- 当前状态：本工作包已完成代码和本地自动化验证，候选提交的 CI/Docker/Security 尚未触发；未达到 `Accepted/Completed`。下一步为提交推送并确认三类远端门禁。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -506,7 +515,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、Administrator 告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
 9. **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询授权、时间范围/精确过滤/游标、空结果、稳定错误和响应脱敏；本轮只完成自动化基线，未执行人工操作。
 10. **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未执行真实凭据操作。
-11. **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名拒绝、理由与 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退与显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
+11. **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名拒绝、理由与 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退按 Platform Scope、显式用户/组织引用按对应 Owner Scope 且显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
 12. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
 13. **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖和失败导入无半本书；确认不进入公共 Catalog、搜索、Legado 或公共 Reading Shelf。本轮只完成自动化基线。
 14. **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证 Developer API 的目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮只完成自动化基线，未使用真实凭据。
@@ -567,13 +576,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Source Rule page-number/cursor Pagination：声明式 query/form 参数注入 + 有界执行/失败关闭（`0e9164b`；CI `33269606086` / Docker `33269606076` / Security `33269606147` GREEN；真实来源与人工验收待定）
 ✅ Source Rule 有界请求模板变量：路径/Header/Query/Form 占位符 + 变量上下文预算 + 控制字符/语法失败关闭（`dd39396`；CI `33272774115` / Docker `33272774105` / Security `33272774138` GREEN；真实来源与人工验收待定）
 ✅ Source 默认 CredentialReference 管理 API：Administrator-only 设置/清除 + 有界理由 + 命令审计（`dee61d3`；CI `33279039667` / Docker `33279039645` / Security `33279039666` GREEN；真实 Provider 与人工验收待定）
+✅ Source Credential Owner Scope 契约：Provider 强制携带 Platform/User/Organization 范围；默认绑定固定 Platform，显式用户/组织引用透传范围（本轮；候选提交后 CI/Docker/Security 待确认，真实 Provider 与人工验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）
 → 17K 真实 Search/BookInfo/TOC/Content 验收
 → 真实追更与真实第二来源切源演练
 → Phase 1A / Phase 1B 分别完成外部验收
-→ Source 默认 CredentialReference 管理人工验收
+→ Source Credential Owner Scope / 默认 CredentialReference 管理人工验收
 → 继续推进 1.0 Release Gates
 ```
 
@@ -829,6 +839,6 @@ Phase 2 及以后：
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
 - [x] 当前租约恢复与跨进程原子领取候选改动已完成 Docker/CI 验证；真实设备、真实来源和本机 Docker 集成复验仍未完成。
-- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证、有界响应派生变量、来源级默认 CredentialReference 回退和 Administrator-only 默认绑定管理 API；secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
+- [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证、有界响应派生变量、来源级默认 CredentialReference 回退、Administrator-only 默认绑定管理 API 和 Owner Scope 解析契约；secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。

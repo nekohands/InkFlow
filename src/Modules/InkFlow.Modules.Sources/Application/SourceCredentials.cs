@@ -187,14 +187,95 @@ public sealed class SourceCredential
     }
 }
 
+/// <summary>凭据材料的所有者范围。范围是解析契约的一部分，不是 secret 的替代品。</summary>
+public enum SourceCredentialOwnerKind
+{
+    Platform = 1,
+    User = 2,
+    Organization = 3,
+}
+
+/// <summary>
+/// 一次凭据解析允许访问的 Owner Scope。
+/// Platform 不携带 OwnerId；User/Organization 必须绑定非空稳定身份。
+/// </summary>
+public sealed record SourceCredentialOwnerScope
+{
+    public SourceCredentialOwnerScope(SourceCredentialOwnerKind kind, Guid? ownerId)
+    {
+        Kind = kind;
+        OwnerId = ownerId;
+    }
+
+    public SourceCredentialOwnerKind Kind { get; }
+    public Guid? OwnerId { get; }
+
+    public static SourceCredentialOwnerScope Platform { get; } =
+        new(SourceCredentialOwnerKind.Platform, null);
+
+    public static SourceCredentialOwnerScope ForUser(Guid userId) =>
+        Create(SourceCredentialOwnerKind.User, userId, nameof(userId));
+
+    public static SourceCredentialOwnerScope ForOrganization(Guid organizationId) =>
+        Create(SourceCredentialOwnerKind.Organization, organizationId, nameof(organizationId));
+
+    public bool IsValid => Kind switch
+    {
+        SourceCredentialOwnerKind.Platform => OwnerId is null,
+        SourceCredentialOwnerKind.User or SourceCredentialOwnerKind.Organization =>
+            OwnerId is { } id && id != Guid.Empty,
+        _ => false,
+    };
+
+    private static SourceCredentialOwnerScope Create(
+        SourceCredentialOwnerKind kind,
+        Guid ownerId,
+        string parameterName) =>
+        ownerId == Guid.Empty
+            ? throw new ArgumentException("owner identifier must not be empty.", parameterName)
+            : new SourceCredentialOwnerScope(kind, ownerId);
+}
+
+/// <summary>
+/// Provider 解析所需的非敏感上下文。
+/// Provider 必须同时校验 Source、Reference 和 Owner Scope，不能只按引用 ID 全局取 secret。
+/// </summary>
+public sealed record SourceCredentialResolutionContext(
+    string SourceId,
+    string CredentialReferenceId,
+    SourceCredentialOwnerScope? OwnerScope)
+{
+    public bool IsValid =>
+        IsSafeSourceId(SourceId) &&
+        SourceCredentialReferenceRules.IsValid(CredentialReferenceId) &&
+        OwnerScope?.IsValid == true;
+
+    private static bool IsSafeSourceId(string? sourceId)
+    {
+        if (string.IsNullOrEmpty(sourceId) || sourceId.Length > 128)
+        {
+            return false;
+        }
+
+        return sourceId.All(character =>
+            character is >= 'a' and <= 'z' or
+                >= 'A' and <= 'Z' or
+                >= '0' and <= '9' or '.' or '_' or '-');
+    }
+}
+
 /// <summary>
 /// 一次来源操作的非敏感上下文。凭据只携带引用 ID，解析后的 secret 不进入此对象。
 /// </summary>
 public sealed record SourceExecutionContext(
     string SourceId,
-    string? CredentialReferenceId = null)
+    string? CredentialReferenceId = null,
+    SourceCredentialOwnerScope? CredentialOwnerScope = null)
 {
     public bool HasCredentialReference => !string.IsNullOrEmpty(CredentialReferenceId);
+
+    public SourceCredentialOwnerScope EffectiveCredentialOwnerScope =>
+        CredentialOwnerScope ?? SourceCredentialOwnerScope.Platform;
 }
 
 /// <summary>来源凭据引用 ID 的 fail-closed 语法边界，亦防止配置节路径注入。</summary>
@@ -214,7 +295,6 @@ public static class SourceCredentialReference
 public interface ISourceCredentialProvider
 {
     Task<SourceCredential?> ResolveAsync(
-        string sourceId,
-        string credentialReferenceId,
+        SourceCredentialResolutionContext context,
         CancellationToken cancellationToken = default);
 }

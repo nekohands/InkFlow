@@ -13,23 +13,21 @@ public sealed class ConfigurationSourceCredentialProvider(IConfiguration configu
     public const string ConfigurationSectionName = "SourceCredentials";
 
     public Task<SourceCredential?> ResolveAsync(
-        string sourceId,
-        string credentialReferenceId,
+        SourceCredentialResolutionContext context,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // 只允许安全的配置节路径片段；拒绝 ':'、'/' 等路径注入字符。
-        if (!IsSafeConfigurationKey(sourceId) ||
-            !SourceCredentialReference.IsValid(credentialReferenceId))
+        if (!context.IsValid ||
+            context.OwnerScope!.Kind != SourceCredentialOwnerKind.Platform)
         {
             return Task.FromResult<SourceCredential?>(null);
         }
 
         var section = configuration
             .GetSection(ConfigurationSectionName)
-            .GetSection(sourceId)
-            .GetSection(credentialReferenceId);
+            .GetSection(context.SourceId)
+            .GetSection(context.CredentialReferenceId);
         var type = section["Type"]?.Trim();
 
         SourceCredential? credential = null;
@@ -54,18 +52,5 @@ public sealed class ConfigurationSourceCredentialProvider(IConfiguration configu
         }
 
         return Task.FromResult(credential);
-    }
-
-    private static bool IsSafeConfigurationKey(string? value)
-    {
-        if (string.IsNullOrEmpty(value) || value.Length > 128)
-        {
-            return false;
-        }
-
-        return value.All(character =>
-            character is >= 'a' and <= 'z' or
-                >= 'A' and <= 'Z' or
-                >= '0' and <= '9' or '.' or '_' or '-');
     }
 }

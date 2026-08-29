@@ -31,15 +31,16 @@ public sealed class SourceCredentialTests
         public int CallCount { get; private set; }
         public string? SourceId { get; private set; }
         public string? ReferenceId { get; private set; }
+        public SourceCredentialOwnerScope? OwnerScope { get; private set; }
 
         public Task<SourceCredential?> ResolveAsync(
-            string sourceId,
-            string credentialReferenceId,
+            SourceCredentialResolutionContext context,
             CancellationToken cancellationToken = default)
         {
             CallCount++;
-            SourceId = sourceId;
-            ReferenceId = credentialReferenceId;
+            SourceId = context.SourceId;
+            ReferenceId = context.CredentialReferenceId;
+            OwnerScope = context.OwnerScope;
             return Task.FromResult(credential);
         }
     }
@@ -47,8 +48,7 @@ public sealed class SourceCredentialTests
     private sealed class ThrowingCredentialProvider(string secret) : ISourceCredentialProvider
     {
         public Task<SourceCredential?> ResolveAsync(
-            string sourceId,
-            string credentialReferenceId,
+            SourceCredentialResolutionContext context,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException($"provider failure: {secret}");
     }
@@ -59,8 +59,7 @@ public sealed class SourceCredentialTests
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<SourceCredential?> ResolveAsync(
-            string sourceId,
-            string credentialReferenceId,
+            SourceCredentialResolutionContext context,
             CancellationToken cancellationToken = default) =>
             _completion.Task;
     }
@@ -384,6 +383,47 @@ public sealed class SourceCredentialTests
     }
 
     [TestMethod]
+    public async Task Source_Default_Reference_Always_Uses_Platform_Owner_Scope()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search"),
+            [],
+            List: new RuleListBinding("a.book", "href", "/book/", string.Empty));
+        var source = Source.Rehydrate(
+            "example-source",
+            "示例来源",
+            BaseUrl,
+            new SourceRuleDsl("1", "example-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            defaultCredentialReferenceId: "platform-reader");
+        var provider = new FixedCredentialProvider(SourceCredential.BearerToken("default-secret"));
+        var http = new RecordingHttpClient();
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(
+                http,
+                new PassthroughSelectorEvaluator(),
+                credentialProvider: provider),
+            new PassthroughSelectorEvaluator());
+
+        var results = await adapter.SearchAsync(
+            "keyword",
+            default,
+            new SourceExecutionContext(
+                "example-source",
+                null,
+                SourceCredentialOwnerScope.ForUser(
+                    Guid.Parse("0198f1b3-a0ca-7b23-8a2e-0123456789ab"))));
+
+        Assert.AreEqual(0, results.Count);
+        Assert.AreEqual("platform-reader", provider.ReferenceId);
+        Assert.AreEqual(SourceCredentialOwnerKind.Platform, provider.OwnerScope!.Kind);
+        Assert.IsNull(provider.OwnerScope.OwnerId);
+    }
+
+    [TestMethod]
     public async Task Explicit_Credential_Reference_Overrides_Source_Default()
     {
         var rule = new CapabilityRule(
@@ -412,10 +452,15 @@ public sealed class SourceCredentialTests
         var results = await adapter.SearchAsync(
             "keyword",
             default,
-            new SourceExecutionContext("example-source", "user-reader"));
+            new SourceExecutionContext(
+                "example-source",
+                "user-reader",
+                SourceCredentialOwnerScope.ForUser(
+                    Guid.Parse("0198f1b3-a0ca-7b23-8a2e-0123456789ab"))));
 
         Assert.AreEqual(0, results.Count);
         Assert.AreEqual("user-reader", provider.ReferenceId);
+        Assert.AreEqual(SourceCredentialOwnerKind.User, provider.OwnerScope!.Kind);
         Assert.AreEqual("Bearer explicit-secret", http.Requests.Single().Headers["Authorization"]);
     }
 
@@ -431,7 +476,11 @@ public sealed class SourceCredentialTests
             .Build();
         var provider = new ConfigurationSourceCredentialProvider(configuration);
 
-        var credential = await provider.ResolveAsync("example-source", "reader");
+        var credential = await provider.ResolveAsync(
+            new SourceCredentialResolutionContext(
+                "example-source",
+                "reader",
+                SourceCredentialOwnerScope.Platform));
         Assert.IsNotNull(credential);
 
         var http = new RecordingHttpClient();
@@ -446,14 +495,121 @@ public sealed class SourceCredentialTests
         Assert.IsTrue(execution.IsSuccess, string.Join("; ", execution.Errors));
         Assert.AreEqual("Bearer config-secret", http.Requests.Single().Headers["Authorization"]);
 
-        var wrongSource = await provider.ResolveAsync("other-source", "reader");
+        var wrongSource = await provider.ResolveAsync(
+            new SourceCredentialResolutionContext(
+                "other-source",
+                "reader",
+                SourceCredentialOwnerScope.Platform));
         Assert.IsNull(wrongSource);
 
-        var invalidReference = await provider.ResolveAsync("example-source", "reader:other");
+        var invalidReference = await provider.ResolveAsync(
+            new SourceCredentialResolutionContext(
+                "example-source",
+                "reader:other",
+                SourceCredentialOwnerScope.Platform));
         Assert.IsNull(invalidReference);
 
         var secretNotInToString = SourceCredential.BearerToken("config-secret");
         Assert.IsFalse(secretNotInToString.ToString().Contains("config-secret", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task Rule_Execution_Preserves_Explicit_User_Owner_Scope()
+    {
+        var ownerId = Guid.Parse("0198f1b3-a0ca-7b23-8a2e-0123456789ab");
+        var provider = new FixedCredentialProvider(SourceCredential.BearerToken("user-secret"));
+        var http = new RecordingHttpClient();
+        var adapter = new RuleAdapter(
+            http,
+            new PassthroughSelectorEvaluator(),
+            credentialProvider: provider);
+
+        var result = await adapter.ExecuteAsync(
+            SingleRequestRule(),
+            BaseUrl,
+            executionContext: new SourceExecutionContext(
+                "example-source",
+                "reader",
+                SourceCredentialOwnerScope.ForUser(ownerId)));
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.IsNotNull(provider.OwnerScope);
+        Assert.AreEqual(SourceCredentialOwnerKind.User, provider.OwnerScope.Kind);
+        Assert.AreEqual(ownerId, provider.OwnerScope.OwnerId);
+    }
+
+    [TestMethod]
+    public async Task Invalid_Owner_Scope_Fails_Before_Provider_And_Http()
+    {
+        var provider = new FixedCredentialProvider(SourceCredential.BearerToken("secret"));
+        var http = new RecordingHttpClient();
+        var adapter = new RuleAdapter(
+            http,
+            new PassthroughSelectorEvaluator(),
+            credentialProvider: provider);
+
+        var result = await adapter.ExecuteAsync(
+            SingleRequestRule(),
+            BaseUrl,
+            executionContext: new SourceExecutionContext(
+                "example-source",
+                "reader",
+                new SourceCredentialOwnerScope(SourceCredentialOwnerKind.User, Guid.Empty)));
+
+        Assert.IsFalse(result.IsSuccess);
+        StringAssert.Contains(string.Join("; ", result.Errors), "owner scope");
+        Assert.AreEqual(0, provider.CallCount);
+        Assert.AreEqual(0, http.Requests.Count);
+    }
+
+    [TestMethod]
+    public async Task Configuration_Provider_Rejects_NonPlatform_Owner_Scope()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SourceCredentials:example-source:reader:Type"] = "bearer",
+                ["SourceCredentials:example-source:reader:Secret"] = "config-secret",
+            })
+            .Build();
+        var provider = new ConfigurationSourceCredentialProvider(configuration);
+
+        var credential = await provider.ResolveAsync(
+            new SourceCredentialResolutionContext(
+                "example-source",
+                "reader",
+                SourceCredentialOwnerScope.ForUser(
+                    Guid.Parse("0198f1b3-a0ca-7b23-8a2e-0123456789ab"))));
+
+        Assert.IsNull(credential);
+    }
+
+    [TestMethod]
+    public void Owner_Scope_Requires_A_Stable_Identity_And_Resolution_Context_Is_Validated()
+    {
+        Assert.Throws<ArgumentException>(() => SourceCredentialOwnerScope.ForUser(Guid.Empty));
+        Assert.Throws<ArgumentException>(
+            () => SourceCredentialOwnerScope.ForOrganization(Guid.Empty));
+
+        var organizationId = Guid.Parse("0198f1b3-a0ca-7b23-8a2e-1123456789ab");
+        var organizationScope = SourceCredentialOwnerScope.ForOrganization(organizationId);
+        Assert.AreEqual(SourceCredentialOwnerKind.Organization, organizationScope.Kind);
+        Assert.AreEqual(organizationId, organizationScope.OwnerId);
+        Assert.IsTrue(
+            new SourceCredentialResolutionContext(
+                "example-source",
+                "reader",
+                organizationScope).IsValid);
+        Assert.IsFalse(
+            new SourceCredentialResolutionContext(
+                "example-source",
+                "reader",
+                null).IsValid);
+        Assert.IsFalse(
+            new SourceCredentialResolutionContext(
+                "example/source",
+                "reader",
+                SourceCredentialOwnerScope.Platform).IsValid);
     }
 
     [TestMethod]

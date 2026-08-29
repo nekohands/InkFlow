@@ -135,6 +135,11 @@ Administrator、理由和命令级审计。`content.policy_decisions` 由数据�
 
 Source 定义能力、策略和所有权；RuleVersion 为不可变发布物。
 
+CredentialReference 只标识非敏感引用。Provider 解析必须同时接收 SourceId、引用和
+`SourceCredentialOwnerScope`；Platform 不带 OwnerId，User/Organization 必须绑定稳定身份。
+来源默认引用属于 Platform，调用方显式引用才可携带用户/组织范围。Owner Scope 是授权边界，
+不把 secret 或材料放入 Source、CrawlerTask、Rule JSON 或执行结果。
+
 Source 状态和 Rule 状态使用明确生命周期而不是大量互相冲突的 boolean。
 
 ## Crawling

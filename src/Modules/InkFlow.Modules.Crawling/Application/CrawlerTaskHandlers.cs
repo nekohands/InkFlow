@@ -28,7 +28,8 @@ public sealed class TocSyncTaskHandler(
                 cancellationToken,
                 new SourceExecutionContext(
                     task.Payload.SourceId,
-                    task.Payload.CredentialReferenceId))
+                    task.Payload.CredentialReferenceId,
+                    SourceCredentialOwnerScope.Platform))
             .ConfigureAwait(false);
 
         if (!sync.IsSuccess)
@@ -83,7 +84,8 @@ public sealed class ContentFetchTaskHandler(
                 cancellationToken,
                 new SourceExecutionContext(
                     task.Payload.SourceId,
-                    task.Payload.CredentialReferenceId))
+                    task.Payload.CredentialReferenceId,
+                    SourceCredentialOwnerScope.Platform))
             .ConfigureAwait(false);
 
         if (!outcome.IsSuccess)

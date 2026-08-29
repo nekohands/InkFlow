@@ -231,7 +231,15 @@ public sealed class RuleBasedSourceAdapter(
 
         var credentialReferenceId = source.ResolveCredentialReference(
             executionContext?.CredentialReferenceId);
-        return new SourceExecutionContext(source.Id, credentialReferenceId);
+        // 仅显式传入的引用携带调用方 Owner Scope；来源默认绑定属于 Platform Scope，
+        // 不能把用户/组织上下文静默套到平台默认凭据上。
+        var ownerScope = !string.IsNullOrEmpty(executionContext?.CredentialReferenceId)
+            ? executionContext?.CredentialOwnerScope
+            : SourceCredentialOwnerScope.Platform;
+        return new SourceExecutionContext(
+            source.Id,
+            credentialReferenceId,
+            ownerScope);
     }
 
     private static SourceRuleExecutionLimits ResolveLimits(

@@ -41,7 +41,8 @@ public sealed class RuleCrawlerTaskExecutor(
                 cancellationToken,
                 new SourceExecutionContext(
                     source.Id,
-                    source.ResolveCredentialReference(task.Payload.CredentialReferenceId)))
+                    source.ResolveCredentialReference(task.Payload.CredentialReferenceId),
+                    SourceCredentialOwnerScope.Platform))
             .ConfigureAwait(false);
 
         return result.IsSuccess

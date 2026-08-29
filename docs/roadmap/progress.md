@@ -853,6 +853,17 @@ Phase 1A 自动化工作包状态：
 - 远端证据：提交 `dee61d3` 的 [CI 33279039667](https://github.com/nekohands/InkFlow/actions/runs/33279039667)、[Docker 33279039645](https://github.com/nekohands/InkFlow/actions/runs/33279039645)、[Security 33279039666](https://github.com/nekohands/InkFlow/actions/runs/33279039666) 均 GREEN，三项 Run 的 headSha 均为 `dee61d31fdd9983c7cc30f57ea091cd016c5a6db`。
 - 当前状态：来源默认 CredentialReference 的 Administrator 管理入口已形成通过候选门禁的 Implemented 基线，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；真实 secret 管理、真实 Provider、持久会话、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
 
+### 4.60 Source Credential Owner Scope 契约（本轮，2026-08-30）
+
+- 缺口：4.56–4.59 的 Provider 解析输入只有 SourceId 与 CredentialReferenceId，未来用户/组织与平台引用重名时，无法在 Provider seam 强制区分所有者范围。
+- 实现：新增 `SourceCredentialOwnerKind`（Platform/User/Organization）、`SourceCredentialOwnerScope` 与 `SourceCredentialResolutionContext`；`ISourceCredentialProvider` 现在必须接收包含 Source、引用和 Owner Scope 的非敏感上下文。Worker/Crawler 显式使用 Platform；RuleBasedSourceAdapter 仅在调用方显式提供引用时透传用户/组织范围，来源默认引用始终回到 Platform。
+- 安全与失败关闭：User/Organization 必须绑定非空稳定 OwnerId，Platform 不带 OwnerId；Source/Reference/Scope 组合上下文有界校验，非法范围在 Provider/HTTP seam 前拒绝。现有 `ConfigurationSourceCredentialProvider` 只接受 Platform，不能把配置中的 secret 暴露给用户/组织范围；secret 仍不进入任务载荷、规则 JSON、日志、错误、结果或解析上下文。
+- 回归：新增用户/组织/平台范围透传、默认绑定不继承用户范围、空身份/非法 Source 上下文、配置 Provider 拒绝非 Platform 范围测试；目标凭据回归 24/24 通过。
+- 非目标：不新增用户/组织/租户实体，不实现真实 Vault/Cloud SecretProvider、secret 材料管理、轮换、持久会话或用户/组织凭据管理；真实来源、切源、阅读 3.0 和人工验收继续按待定清单处理。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 455/455、Architecture 1/1、Contract 10/10 PASS；三宿主 `/health` 均返回 200；完整 Integration 81 项中 6 项通过、2 项跳过、73 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。未写入真实凭据。
+- 远端证据：候选提交尚未创建，CI/Docker/Security 为 `PENDING`；提交推送后必须确认目标 Commit 的三类门禁真实完成并全部通过。
+- 当前状态：本工作包为 `Implemented`，尚未达到 `Accepted/Completed`；整体继续保持 `1.0 Release Candidate`。真实 SecretProvider、secret 材料管理、Owner/Admin 凭据管理、真实来源/切源、阅读 3.0 和人工验收仍未关闭。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -937,7 +948,7 @@ Official Source
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [ ] **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、管理员告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
 - [ ] **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块按来源过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未使用真实凭据操作。
-- [ ] **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名不能执行、理由和 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退与显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
+- [ ] **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名不能执行、理由和 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退按 Platform Scope、显式用户/组织引用按对应 Owner Scope 且显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
 - [ ] **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询 200、Reader/匿名请求 401/403、时间范围/精确过滤/游标翻页、空结果和服务不可用时的稳定错误；确认响应不暴露秘密或正文，并保留截图/请求证据。本轮只完成自动化基线。
 - [ ] **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮未使用真实凭据。
 
@@ -960,7 +971,7 @@ Official Source
   选择器运行时已在 4.51 接入，受控 next-link Pagination 已在 4.52 接入，page-number/cursor 与跨页
   Rule execution budgets 已在 4.53 接入，受控 response-cookie Session 已在 4.54 接入，有界请求模板变量已在
   4.55 接入，任务级 CredentialReference typed 初始认证已在 4.56 接入，有界响应派生变量已在 4.57 接入，
-  4.58 已接入来源级默认 CredentialReference 回退，4.59 已接入 Administrator-only 设置/清除和命令审计入口；
+  4.58 已接入来源级默认 CredentialReference 回退，4.59 已接入 Administrator-only 设置/清除和命令审计入口，4.60 已将 Provider 解析上下文收敛为带 Platform/User/Organization Owner Scope 的契约；
   secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
@@ -970,7 +981,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-当前 4.59 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 450/450、Architecture 1/1、Contract 10/10 PASS；Integration 81 项中 6 项通过、2 项跳过、73 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；API `/health` 200、匿名管理路由 401、`git diff --check` PASS。提交 `dee61d3` 的 CI `33279039667`、Docker `33279039645`、Security `33279039666` 均 GREEN，真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。
+当前 4.60 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 455/455、Architecture 1/1、Contract 10/10 PASS；API、Worker、Scheduler `/health` 均 200；Integration 81 项中 6 项通过、2 项跳过、73 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行；候选提交后的 CI/Docker/Security 仍待触发。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

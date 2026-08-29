@@ -37,13 +37,14 @@ public sealed class RuleCrawlerTaskExecutorTests
     private sealed class FixedCredentialProvider(SourceCredential credential) : ISourceCredentialProvider
     {
         public string? ReferenceId { get; private set; }
+        public SourceCredentialOwnerScope? OwnerScope { get; private set; }
 
         public Task<SourceCredential?> ResolveAsync(
-            string sourceId,
-            string credentialReferenceId,
+            SourceCredentialResolutionContext context,
             CancellationToken cancellationToken = default)
         {
-            ReferenceId = credentialReferenceId;
+            ReferenceId = context.CredentialReferenceId;
+            OwnerScope = context.OwnerScope;
             return Task.FromResult<SourceCredential?>(credential);
         }
     }
@@ -180,6 +181,8 @@ public sealed class RuleCrawlerTaskExecutorTests
 
         Assert.IsTrue(outcome.Succeeded, outcome.FailureReason);
         Assert.AreEqual("platform-reader", provider.ReferenceId);
+        Assert.AreEqual(SourceCredentialOwnerKind.Platform, provider.OwnerScope!.Kind);
+        Assert.IsNull(provider.OwnerScope.OwnerId);
     }
 
     [TestMethod]

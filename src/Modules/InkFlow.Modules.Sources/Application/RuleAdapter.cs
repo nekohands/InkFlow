@@ -449,9 +449,17 @@ public sealed class RuleAdapter
         CancellationToken callerCancellationToken,
         CancellationToken executionCancellationToken)
     {
-        if (executionContext is null || !executionContext.HasCredentialReference)
+        if (executionContext is null)
         {
             return (null, null);
+        }
+
+        if (!executionContext.HasCredentialReference)
+        {
+            return executionContext.CredentialOwnerScope is null ||
+                   executionContext.EffectiveCredentialOwnerScope.IsValid
+                ? (null, null)
+                : (null, "credential: credential owner scope is invalid.");
         }
 
         var referenceId = executionContext.CredentialReferenceId!;
@@ -466,6 +474,21 @@ public sealed class RuleAdapter
             return (null, "credential: credential reference is invalid.");
         }
 
+        var ownerScope = executionContext.EffectiveCredentialOwnerScope;
+        if (!ownerScope.IsValid)
+        {
+            return (null, "credential: credential owner scope is invalid.");
+        }
+
+        var resolutionContext = new SourceCredentialResolutionContext(
+            executionContext.SourceId,
+            referenceId,
+            ownerScope);
+        if (!resolutionContext.IsValid)
+        {
+            return (null, "credential: credential resolution context is invalid.");
+        }
+
         if (_credentialProvider is null)
         {
             return (null, "credential: credential provider is unavailable.");
@@ -475,8 +498,7 @@ public sealed class RuleAdapter
         {
             var credential = await _credentialProvider
                 .ResolveAsync(
-                    executionContext.SourceId,
-                    referenceId,
+                    resolutionContext,
                     executionCancellationToken)
                 .WaitAsync(executionCancellationToken)
                 .ConfigureAwait(false);

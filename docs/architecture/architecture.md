@@ -97,7 +97,11 @@ Query、Form 模板均支持有界的调用方变量上下文，执行器已应�
 或受限 API-Key Header；无效引用、提供器异常、超时、非法材料和头冲突均在出网前失败关闭，secret 不进入
 任务/规则/日志/结果。4.59 已增加 Administrator-only 的来源默认引用设置/清除入口，并通过命令审计记录，
 请求和响应仍只含非敏感引用 ID。配置提供器只是本地/容器适配器，Owner Scope、真实 SecretProvider、secret
-材料管理和持久会话仍需独立治理；CodeAdapter 不继承规则型来源默认绑定。
+材料管理和持久会话仍需独立治理；4.60 起 Provider 通过
+`SourceCredentialResolutionContext` 接收 Source、引用和 `SourceCredentialOwnerScope`，范围为
+Platform/User/Organization，后两者必须带稳定 OwnerId。Worker 与来源默认绑定显式使用 Platform，
+只有显式引用才能携带用户/组织范围；当前配置提供器拒绝非 Platform 范围。CodeAdapter 不继承规则型
+来源默认绑定。
 统一 `RuleSelectorEvaluator` 对 CSS、XML/HTML XPath 和受限 JSONPath 做分派；不支持的选择器语法、
 DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePagination` 只为 Search/TOC 列表提供
 同源 next-link、有限 page-number 或有限 cursor；next-link 后续以 GET 跟随，页码/游标只改写规则已声明

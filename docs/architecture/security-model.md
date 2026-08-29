@@ -92,8 +92,11 @@ Source records store references, not plaintext platform/user credentials；`Sour
 是可选的非敏感来源级默认引用，仅在 RuleAdapter/Worker 缺少显式 `CredentialReferenceId` 时使用，显式
 引用优先，且不复制到 Task Payload。4.59 的 `PUT /api/v1/admin/sources/{sourceId}/credential-binding` 由
 Administrator-only policy 保护，只处理该引用的设置/清除、理由和命令审计，不接收或返回 secret。最终解析仍必须
-经过 Provider，Provider 还必须实施 Platform / Organization / User Owner Scope 和跨租户授权；CodeAdapter 不继承
-规则型来源默认绑定。真实 SecretProvider、secret 材料管理和跨执行持久会话仍未实现。
+经过 Provider。4.60 起 Provider 必须接收同时包含 Source、引用和 Owner Scope 的
+`SourceCredentialResolutionContext`：Platform 不带 OwnerId，User/Organization 必须带非空稳定 OwnerId；
+配置 Provider 仅接受 Platform，真实 Provider 必须实施 User/Organization Owner Scope 与跨租户授权。规则型
+来源默认引用始终按 Platform 解析，只有显式引用才能携带用户/组织范围；CodeAdapter 不继承规则型来源默认绑定。
+真实 SecretProvider、secret 材料管理和跨执行持久会话仍未实现。
 
 RuleAdapter 的 `ResponseVariables` 视响应内容为不可信输入，只允许用于同一次执行的 page-number/cursor
 续页请求模板。提取结果经过变量数量、标识符、单值长度、累计 UTF-8 字节和控制字符边界；缺失、非法或
