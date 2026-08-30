@@ -884,6 +884,17 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `fa50c07b6eee042644ea72a331c75e9f61e0ba81` 的 [CI 33283884681](https://github.com/nekohands/InkFlow/actions/runs/33283884681)、[Docker 33283884682](https://github.com/nekohands/InkFlow/actions/runs/33283884682)、[Security 33283884688](https://github.com/nekohands/InkFlow/actions/runs/33283884688) 均 GREEN 且指向同一 headSha；CI 包含迁移模型 11 个上下文、Unit 464/464、Architecture 1/1、Contract 10/10、Integration 84 项（82 passed / 2 skipped）、Redis Integration 1/1、Compose/Runtime/SLO/备份恢复/diagnostics，Security 包含 NuGet/Trivy/SBOM/CodeQL。
 - 当前状态：代码与远端门禁为 `CI Green / Implemented`，仍不等于 `Accepted/Completed`；业务 Inbox Handler、完整业务消费闭环、本机 Docker、真实来源、阅读 3.0 和人工验收继续列入待定事项。
 
+### 4.63 Inbox 消费失败有界退避与终态死信（本轮，2026-08-30）
+
+- 缺口：4.62 失败消息释放 lease 后会在下一轮立即重试，缺少统一退避和终态；持续失败可能形成热循环，也无法向 Operations 暴露明确的死信计数。
+- 实现：`InboxConsumerOptions` 新增默认 5 次、1–100 有界的 `MaxAttempts`，失败复用有界指数 `IMessageRetryPolicy` 写入 `AvailableAt`；达到上限写入 `DeadLetteredAt`，清除 lease 和可重试时间，保留原始消息、attempt、稳定失败码和身份字段。单条/批量 claim 均排除未到时间、已处理和终态死信；Worker 输出并告警 dead-lettered 计数。
+- Migration/兼容：新增官方 `AddInboxFailurePolicy` Migration 和复合领取索引；新列均 nullable，旧 Inbox 行 `AvailableAt = NULL` 视为立即可领取，保留既有 `OccurredAt` / `RawPayload` 恢复兼容。普通 retention 仍只清理 `ProcessedAt` 已设置的消息。
+- 边界：当前 Worker 仍没有注册业务 Inbox Handler，空 registry 安全 idle；本轮不新增 `crawler.task.created` 业务消费、不引入外部 MQ、不新增自动重放或管理 API。业务 Handler 的事务边界和完整事件消费闭环仍是后续工程事项，决策见 ADR 0018。
+- 回归：新增 Unit 重试→退避→死信→死信不再执行 Handler 测试、Pump dead-letter 计数测试、配置读取/边界测试，以及 PostgreSQL 真实容器端到端死信持久化测试；新集成用例在远端实际通过。
+- 本地证据：`dotnet tool restore`、`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 466/466、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；API/Worker/Scheduler `/health` 均 HTTP 200；`bash -n scripts/verify-migrations.sh`、NuGet 漏洞审计、敏感信息模式检查和 `git diff --check` PASS。完整 `dotnet test InkFlow.sln --no-restore` 的 Unit/Architecture/Contract 通过，但 Integration 85 项为 6 通过、2 跳过、77 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；定向新 Inbox Integration 也因同一 Docker 阻塞，未将本机容器结果记为通过。
+- 远端证据：候选提交 `622446264c9dbee09298e8001aef6c092d235211` 的 [CI 33285403134](https://github.com/nekohands/InkFlow/actions/runs/33285403134)、[Docker 33285403140](https://github.com/nekohands/InkFlow/actions/runs/33285403140)、[Security 33285403125](https://github.com/nekohands/InkFlow/actions/runs/33285403125) 均 GREEN 且指向同一 headSha。CI Integration 85 项为 83 passed / 2 skipped，`Inbox_Handler_Failure_Uses_Bounded_Retry_And_Persists_DeadLetter` 实际通过；Docker Collector 与四业务镜像构建/扫描通过，Security NuGet、Filesystem、CodeQL、SBOM 全部通过。
+- 当前状态：本工作包为 `CI Green / Implemented`，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；业务 Handler/完整消费闭环、本机 Docker、真实来源、阅读 3.0、人工验收和生产治理继续待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -974,7 +985,7 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 80 项中 72 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过）；Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox 和 Sources Capability Health 并发变更的迁移、隔离、并发、执行层和保留清理用例也必须取得本机真实容器证据。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 85 项中 77 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过）；Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox 和 Sources Capability Health 并发变更的迁移、隔离、并发、执行层和保留清理用例也必须取得本机真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
@@ -1002,7 +1013,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-当前 4.60 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 455/455、Architecture 1/1、Contract 10/10 PASS；API、Worker、Scheduler `/health` 均 200；Integration 81 项中 6 项通过、2 项跳过、73 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；`git diff --check` PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。候选提交 `ee20afe` 的 CI `33280448686`、Docker `33280448680`、Security `33280448687` 均 GREEN，三项 Run 的 headSha 均为 `ee20afef2f9247fdb774ca6dda35a0f81b7452fe`。
+当前 4.63 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 466/466、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；API、Worker、Scheduler `/health` 均 200；Integration 85 项中 6 项通过、2 项跳过、77 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计、敏感信息模式检查和 `git diff --check` PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。候选提交 `6224462` 的 CI `33285403134`、Docker `33285403140`、Security `33285403125` 均 GREEN，三项 Run 的 headSha 均为 `622446264c9dbee09298e8001aef6c092d235211`。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

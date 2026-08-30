@@ -521,6 +521,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 回归与证据：本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 464/464、Architecture 1/1、Contract 10/10、Windows .NET 等价迁移模型检查 11/11、三宿主 `/health` HTTP 200、漏洞审计和 `git diff --check` PASS。定向 Inbox PostgreSQL Integration 两项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；WSL 包装脚本因缺少 dotnet 未执行成功。远端候选 `fa50c07b6eee042644ea72a331c75e9f61e0ba81` 的 [CI 33283884681](https://github.com/nekohands/InkFlow/actions/runs/33283884681)、[Docker 33283884682](https://github.com/nekohands/InkFlow/actions/runs/33283884682)、[Security 33283884688](https://github.com/nekohands/InkFlow/actions/runs/33283884688) 均 GREEN 且 headSha 一致；CI 为 Unit 464/464、Architecture 1/1、Contract 10/10、Integration 84（82 passed / 2 skipped），并包含迁移、Compose、Runtime/SLO、Redis、备份恢复、diagnostics 和 Security 扫描。
 - 当前状态：本工作包为 `CI Green / Implemented`，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。业务 Handler/消费闭环、本机 Docker、真实来源、阅读 3.0、人工验收和生产治理继续待定；架构决策记录见 [ADR 0017](../adr/0017-inbox-consumer-polling.md)。
 
+### 4.63 Inbox 消费失败有界退避与终态死信（本轮，2026-08-30）
+
+- 缺口：4.62 失败消息释放 lease 后会在下一轮立即重试，缺少统一退避和终态，持续失败可能形成热循环。
+- 实现：`MaxAttempts` 默认 5、范围 1–100；失败复用有界指数退避写入 `AvailableAt`，达到上限写入 `DeadLetteredAt` 并清除 lease/重试时间。单条与批量 claim 都排除未到时间、已处理和终态死信；Worker 记录并告警 dead-lettered 计数。失败只写稳定码，不保存异常原文。
+- Migration/边界：新增 `AddInboxFailurePolicy` Migration 和领取索引；旧 nullable 列兼容为立即可领取，普通 retention 不清理未处理/死信。当前 Worker 仍无业务 Handler，空 registry 安全 idle；本轮不新增 `crawler.task.created` 业务消费、不引入自动重放/API/MQ。决策见 [ADR 0018](../adr/0018-inbox-failure-policy.md)。
+- 本地证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 466/466、Architecture 1/1、Contract 10/10、迁移模型 11/11、三宿主 `/health` HTTP 200、NuGet 漏洞审计、敏感信息模式检查和 `git diff --check` PASS。完整 Integration 85 项中 6 项通过、2 项跳过、77 项因本机 Docker `npipe://./pipe/docker_engine` 不可用而 BLOCKED；定向新 Inbox Integration 同样 BLOCKED，未将本机容器结果记为通过。
+- 远端证据：提交 `622446264c9dbee09298e8001aef6c092d235211` 的 [CI 33285403134](https://github.com/nekohands/InkFlow/actions/runs/33285403134)、[Docker 33285403140](https://github.com/nekohands/InkFlow/actions/runs/33285403140)、[Security 33285403125](https://github.com/nekohands/InkFlow/actions/runs/33285403125) 均 GREEN 且 headSha 一致；CI Integration 85 项为 83 passed / 2 skipped，新 Inbox 死信集成用例实际通过，Docker 与 Security 全部通过。
+- 当前状态：本工作包为 `CI Green / Implemented`，不等同于 `Accepted/Completed`；业务 Handler/完整消费闭环、本机 Docker、真实来源、阅读 3.0、人工验收和生产治理继续待定。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -580,6 +589,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Transactional Outbox / Inbox 基础恢复：消息契约 + PostgreSQL Migration + Crawler 任务同事务写入 + lease/幂等集成测试（`dd80e2d`；CI `33252929657` / Docker `33252929642` / Security `33252929646` GREEN；其他模块接入与人工/真实业务验收仍待定）
 ✅ Transactional Outbox / Inbox 执行层：Dispatcher/Consumer + 稳定失败码 + 有界重试（`fa81db7`；CI `33253938424` / Docker `33253938404` / Security `33253938443` GREEN；传输适配与宿主后台接线仍待选型）
 ✅ Messaging Outbox/Inbox 保留清理：过期已处理消息有界删除 + Worker 每小时周期接线（`bf6eae1`；CI `33255354693` / Docker `33255354699` / Security `33255354684` GREEN；本机 Docker 集成与真实/人工验收仍待定）
+✅ Inbox 消费失败有界退避与终态死信：`MaxAttempts` + `AvailableAt` + `DeadLetteredAt` + Worker 计数告警（`6224462`；CI `33285403134` / Docker `33285403140` / Security `33285403125` GREEN；业务 Handler、完整消费闭环、本机 Docker 与人工验收仍待定）
 ✅ Audit retention：过期审计事实有界删除 + 追加式触发器受控例外 + Worker 每小时周期接线（`b8046af`；CI `33257996992` / Docker `33257996951` / Security `33257996953` GREEN；生产法律/合同保留与归档治理仍待定）
 ✅ Capability Health 并发变更串行化：事务级 advisory lock + 服务原子变更契约 + 跨连接 PostgreSQL 并发回归（`3ba51a1`；CI `33263255422` / Docker `33263255437` / Security `33263255420` GREEN；本机 Docker、真实来源/切源和人工验收仍待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
@@ -720,7 +730,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [ ] **linovelib 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → Content，并把该来源纳入真实第二来源/故障切换演练；本轮仅完成离线规则回归，未触网。
 - [ ] **17K 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向；本轮仅完成 Fixture 回归，未触网。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 80 项中 72 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Sources Capability Health 并发变更测试；本机未取得真实容器证据。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 85 项中 77 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Inbox 失败策略、Sources Capability Health 并发变更、Outbox/Inbox 和保留清理测试；本机未取得真实容器证据。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
 
 扩展新来源的方式(书源兼容层):
