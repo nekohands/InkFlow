@@ -1119,6 +1119,16 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM 证据：候选 `98e3725` 已同步；Linux SDK 容器中的受影响 Unit 2/2 通过；`docker-compose.build.yml` 源码构建、健康启动和迁移通过；前端契约、管理员/运营审计权限、采集控制及 ZIP/EPUB/TXT 打包完整性烟测均 PASS。临时账号已禁用，Compose 已停止，持久卷保留。
 - 远端门禁：文档同步候选 `b791c69` 的 [CI 33333159334](https://github.com/nekohands/InkFlow/actions/runs/33333159334)、[Docker 33333159291](https://github.com/nekohands/InkFlow/actions/runs/33333159291)、[Security 33333159324](https://github.com/nekohands/InkFlow/actions/runs/33333159324) 均 GREEN，三者 head SHA 均为 `b791c6940d4a3418c7e43dce8ece6f2714339d09`。Security 仅有既有 CodeQL 权限/Action 运行时提示，不影响门禁结论；阅读 3.0/MuMu、真实可控新增章节、真实第二来源故障切换、真实账户/生产凭据及其他第 6 节事项继续待定，本轮不标记整体 `Accepted/Completed`。
 
+### 4.91 Scheduler TOC 任务去重原子化（本轮，2026-08-31）
+
+- 缺陷：`UpdateScanService` 原先先查询再插入 TOC 任务；多个 Scheduler 实例并发扫描同一来源书籍时，可能同时观察到“无冲突”并重复入队，造成重复抓取。
+- TDD 修复：先加入 `Update_Scan_Uses_Atomic_Task_Dedupe_Gate` 单元回归并确认旧实现失败，再接入 `TryAddIfNoConflictingTaskAsync`；新增跨连接 PostgreSQL 回归 `Concurrent_Toc_Dedupe_Gate_Allows_Only_One_Task_Insert`，验证并发调用只有一个任务插入成功。
+- 实现：EF 仓储在同一 PostgreSQL 事务内按 `(source, capability, variable, value)` 获取稳定 advisory lock，再执行既有活动任务/死信冲突判断、任务插入和 `TaskCreated` Outbox 写入；冲突范围保持在具体来源书籍，旧测试替身仍可通过接口默认回退实现。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 499/499、Architecture 1/1、Contract 10/10 PASS；`git diff --check` PASS。Windows Docker Engine 不可用，受影响的 Testcontainers 集成测试在本机为 BLOCKED，不作为本机通过证据。
+- Ubuntu VM 证据：候选代码 `8cb2211` 的 Linux SDK 容器定向 `CrawlerTaskRepositoryTests` 13/13 通过；完整测试为 Unit 499/499、Architecture 1/1、Contract 10/10、Integration 92 passed / 2 skipped / 0 failed；`docker-compose.build.yml` 源码构建、Migration、API/Worker/Scheduler/Redis/PostgreSQL 健康启动通过。前端、正文、账号、私有书库、开发者 API、管理运维、采集/打包、SLO 和备份恢复 Runtime smoke 全部 PASS；临时账号已禁用，Compose 已停止，持久卷保留。
+- 远端门禁：代码候选 `8cb2211` 的 [CI 33334393155](https://github.com/nekohands/InkFlow/actions/runs/33334393155)、[Docker 33334393053](https://github.com/nekohands/InkFlow/actions/runs/33334393053)、[Security 33334393020](https://github.com/nekohands/InkFlow/actions/runs/33334393020) 均 GREEN，三者 head SHA 一致。
+- 当前状态：自动化 Release Gate 已通过，但整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实新增章节追更事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面登录后的浏览器输入验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
