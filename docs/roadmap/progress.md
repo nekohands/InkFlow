@@ -1014,6 +1014,15 @@ Phase 1A 自动化工作包状态：
 - 验收边界：该证据验证真实站点页面链路，不等于 InkFlow 的 RuleAdapter 后端直连已通过。当前普通 HTTP POST 请求仍可能得到 200/空响应体，疑似受站点会话或反爬挑战影响；不读取 Cookie、不绕过挑战、不把浏览器结果伪装成服务端适配器结果。
 - 当前状态：linovelib 公开页面只读自动验收已完成；RuleAdapter 后端直连、真实第二来源故障切换和真实追更仍列入待定事项，整体保持 1.0 Release Candidate。
 
+### 4.78 Private Library 非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 缺口：Private Library v1/v2 已有 Unit、Contract 和 PostgreSQL 集成覆盖，但缺少可在源码构建 Compose 上重复执行的 API 运行时验收，尤其是跨用户隔离、私有缓存策略、导入/导出和公共路径不泄漏。
+- 实现：新增 `scripts/private-library-runtime-smoke.sh`，在 CI 与本地可用环境中使用 `curl` + `jq` 验证未认证 401、两个唯一临时用户、书目创建/列表/详情/更新/删除、TXT 两章导入、章节顺序/正文、`private, no-store`、TXT 导出、跨用户 404，以及公共 API/公共 Legado 详情/正文 404、公共 Catalog/Reading Shelf 不含私有书名。新增脚本语法/结构回归并接入 `.github/workflows/ci.yml`。
+- TDD/回归：VM 首轮实跑发现 smoke 脚本把元数据更新误发为 POST，API 正确返回 405；修复为 PUT 后重新执行。该问题只影响验收脚本，不涉及产品代码；临时书目由脚本清理。
+- Ubuntu VM 证据：工作区快进到代码候选 `8e69b46`，使用 `docker-compose.build.yml` 从源码构建四个业务镜像并以 `--wait` 启动健康栈；临时 SDK 工具容器执行 smoke，结果为 `private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT import/read/export)`；完成后已停止 Compose，仅保留持久数据卷。
+- 远端证据：代码候选 `8e69b469ee0a56c28d3ba24ec99817cdf1a1f86a` 的 [CI 33305236784](https://github.com/nekohands/InkFlow/actions/runs/33305236784)、[Docker 33305236750](https://github.com/nekohands/InkFlow/actions/runs/33305236750)、[Security 33305236817](https://github.com/nekohands/InkFlow/actions/runs/33305236817) 均 GREEN 且 head SHA 一致；CI 的 Restore/Release Build/迁移校验/全量测试、源码 Compose Runtime、前端 smoke、私有库 smoke、SLO、备份恢复和 diagnostics 均通过，Docker 四业务镜像构建/扫描通过，Security 的 NuGet/Filesystem/SBOM/CodeQL 均通过。
+- 验收边界：本轮只创建唯一临时测试账户，未使用真实账户、阅读 3.0 或第三方登录；因当前没有账号删除 API，两个测试账户保留在 VM 持久数据库，测试书目已清理。EPUB/重复导入/失败导入、真实账户可读性和阅读 App 流程继续列入待定事项。整体保持 1.0 Release Candidate，不标记 Accepted/Completed。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1093,7 +1102,8 @@ Official Source
 - [ ] **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证个人 Search → BookInfo → TOC → Content、令牌 header 传递，以及撤销后请求失效；本轮按用户决定不执行。
 - [x] **Web Reader 浏览器自动验收（1.0 必选）**：已在移动端、平板、桌面端、宽屏检查页面路由、空/错状态、搜索点击、正文壳宽度、焦点和无横向溢出；长标题/长作者真实内容与长时间阅读仍未执行。
 - [ ] **Reader/PWA 真实账户与安装/离线补充验收（1.0 必选）**：匿名页面、表单约束、Manifest/Service Worker/图标资源契约和离线壳已由 4.75 自动化；真实账户会话、安装提示、Service Worker 实际注册、断网切换和跨设备同步仍需可用安全上下文及测试账户。
-- [ ] **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖和失败导入无半本书；确认私有内容不会出现在公共 Catalog、搜索、Legado 或公共 Reading Shelf。当前只有后端自动化基线，未执行人工操作。
+- [x] **Private Library 非阅读 App 自动化运行验收**：源码构建 Compose 已由 4.78 的 runtime smoke 覆盖认证、所有权隔离、CRUD、TXT 导入/章节/正文/导出、私有缓存头、公共 API/Legado 直接路径 404，以及公共 Catalog/Reading Shelf 不泄漏。
+- [ ] **Private Library 真实账户/文件补充验收**：使用真实账户上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖、失败导入无半本书和人工体验；本轮不使用真实账户。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。

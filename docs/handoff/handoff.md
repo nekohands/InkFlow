@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`01d09ab`（已推送，CI/Docker/Security 全部 GREEN）
+- 最新候选 Commit：`8e69b46`（代码候选已推送，CI/Docker/Security 全部 GREEN；本轮文档已同步）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -764,6 +764,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **阅读 3.0 真机**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content，并记录结果。
 - [ ] **Web Reader 人工 UX/视觉验收**：移动端、桌面端、宽屏、长标题/缺封面/长作者、加载/空/错、键盘焦点、触控和上下章导航。
 - [ ] **Reader/PWA 用户状态人工验收**：验证账户登录/注册、刷新会话、书架/历史/进度/偏好同步、登出、PWA 安装提示、Service Worker 注册和离线提示；本轮按用户决定跳过。
+- [x] **Private Library 非阅读 App 自动化 runtime smoke**：源码构建 Compose 已覆盖认证、所有权隔离、书目 CRUD、TXT 导入/章节/正文/导出、私有缓存头、公共 API/Legado 直接路径 404 和公共 Catalog/Reading Shelf 不泄漏。
+- [ ] **Private Library 真实账户/文件补充验收**：使用真实账户上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖、失败导入无半本书和人工体验；本轮不使用真实账户。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [x] **linovelib 真实公开页面只读链路**：GPT 内置浏览器已完成 Search → BookInfo → TOC → Content 页面证据；不等同于服务端 RuleAdapter 直连通过。
@@ -853,7 +855,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 - GPT 内置浏览器在 linovelib 公开站点提交 `恶魔高校`，返回 3 个搜索结果并定位 `novel/1`；详情页读取 `恶魔高校DxD` / `石踏一荣`，目录页读取 482 章，正文页读取 `Life.1 不当人类。` 的非空段落。
 - 该轮未登录、未创建账号、未写入站点数据，完成真实公开页面层面的 Search → BookInfo → TOC → Content 只读证据。
-- 边界：普通 HTTP POST 仍返回 200/空响应体，浏览器会话结果不等于 InkFlow RuleAdapter 后端直连通过；不读取 Cookie、不绕过反爬挑战。RuleAdapter 直连、真实第二来源故障切换和真实追更继续待定。
+- 边界：普通 HTTP POST 仍返回 200/空响应体，浏览器会话结果不等于 InkFlow `RuleAdapter` 后端直连通过；不读取 Cookie、不绕过反爬挑战。`RuleAdapter` 直连、真实第二来源故障切换和真实追更继续待定。
+
+### 4.78 Private Library 非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 新增 `scripts/private-library-runtime-smoke.sh` 和脚本回归，并接入 CI 源码构建 Runtime；链路覆盖未认证 401、两个唯一临时用户、书目 CRUD、TXT 两章导入、章节顺序/正文、`private, no-store`、TXT 导出、跨用户 404。
+- 公共路径隔离也纳入同一 smoke：私有书/章通过公共 API 和公共 Legado 详情/正文路径返回 404，公共 Catalog 与用户 Reading Shelf 不包含私有书名；不触发第三方来源搜索。
+- VM 源码构建证据：候选 `8e69b46` 的 `docker-compose.build.yml` 四业务镜像构建和健康启动成功，临时 SDK 容器运行结果为 `private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT import/read/export)`；随后停止 Compose，持久数据卷保留。
+- 首轮脚本实跑发现更新请求误用 POST，已修复为 PUT；修复后的代码候选 `8e69b469ee0a56c28d3ba24ec99817cdf1a1f86a` 的 [CI 33305236784](https://github.com/nekohands/InkFlow/actions/runs/33305236784)、[Docker 33305236750](https://github.com/nekohands/InkFlow/actions/runs/33305236750)、[Security 33305236817](https://github.com/nekohands/InkFlow/actions/runs/33305236817) 均 GREEN 且 head SHA 一致。
+- 边界：本轮未使用真实账户、阅读 3.0 或第三方登录；两个临时测试账户因没有账号删除 API 保留在 VM 持久数据库，测试书目已清理。EPUB/重复导入/失败导入、真实账户和阅读 App 流程仍在待定事项中，整体不标记 Accepted/Completed。
 
 ## 5. 关键架构不变量
 
