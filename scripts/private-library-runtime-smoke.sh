@@ -23,6 +23,15 @@ fail() {
   exit 1
 }
 
+not_contains() {
+  local file="$1"
+  local value="$2"
+
+  if grep -Fq -- "$value" "$file"; then
+    fail "$file contains private data that should not be publicly visible: $value"
+  fi
+}
+
 case "$base_url" in
   http://*|https://*) ;;
   *) fail 'base URL must use http or https' ;;
@@ -336,6 +345,26 @@ if ! grep -Fq -- 'private paragraph one' "$work_dir/export.txt" ||
    ! grep -Fq -- 'private paragraph two' "$work_dir/export.txt"; then
   fail 'private TXT export did not include imported paragraphs'
 fi
+
+expect_status \
+  "/api/v1/books/$imported_book_id" \
+  '' \
+  404 \
+  "$work_dir/public-book.json"
+expect_status \
+  "/api/v1/chapters/$chapter_id/content" \
+  '' \
+  404 \
+  "$work_dir/public-chapter.json"
+expect_status \
+  "/api/legado/v1/books/$imported_book_id" \
+  '' \
+  404 \
+  "$work_dir/public-legado-book.json"
+get_json /api/v1/books '' "$work_dir/public-catalog.json"
+not_contains "$work_dir/public-catalog.json" 'CI Imported Private Book'
+get_json /api/v1/me/reading/shelf "$token_a" "$work_dir/reading-shelf.json"
+not_contains "$work_dir/reading-shelf.json" 'CI Imported Private Book'
 
 expect_status \
   "/api/v1/me/private-library/books/$book_id" \
