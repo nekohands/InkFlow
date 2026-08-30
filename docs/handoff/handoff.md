@@ -5,9 +5,9 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`0597332`（管理端/运维/权限与 Reader/PWA 账户状态 API runtime smoke、PWA 自动化与 Ubuntu VM 源码运行已完成；CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新代码候选 Commit：`ecd8533`（书籍包一致性快照与租约崩溃恢复已加固；Ubuntu VM 源码构建/运行验收与 CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -944,6 +944,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM 证据：`docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations 成功，服务健康、迁移和包卷初始化成功；Linux SDK 容器中的 Crawling PostgreSQL 集成测试 12/12 通过；完整 `collection-package-runtime-smoke` PASS，覆盖 direct URL、安全拒绝、四类持久控制幂等、前置不确定进度、ZIP/EPUB/TXT 生成下载、哈希/长度完整性和审计。
 - 远端门禁：提交 `c6c4d25` 的 [CI 33328060988](https://github.com/nekohands/InkFlow/actions/runs/33328060988)、[Docker 33328060997](https://github.com/nekohands/InkFlow/actions/runs/33328060997)、[Security 33328060984](https://github.com/nekohands/InkFlow/actions/runs/33328060984) 均 GREEN，且三者 head SHA 一致。当前浏览器仅完成未认证运维页状态检查；受保护页面登录后的输入/交互验收需用户在填写临时本地账号密码前明确确认。MuMu/阅读 3.0 不执行，保留人工待定。
 - 下一步：若用户确认临时账号输入，再经本地 SSH 转发完成 `/admin/operations` 登录后页面验收，并禁用临时账户、关闭转发；不论是否执行该补充验收，整体均保持 `1.0 Release Candidate`，不得把阅读 3.0/MuMu 人工待定项标为完成。
+
+### 4.89 书籍包一致性快照与租约崩溃恢复交接（本轮，2026-08-31）
+
+- `BookPackageService` 已改为一次整书当前版本读取后建立固定快照，避免逐章读取造成的混合版本；`IContentVersionRepository.ListCurrentForBookAsync` 明确要求持久化实现使用整书一致性查询。Unit 回归覆盖该调用边界。
+- `BookPackageJob`/`EfBookPackageJobRepository` 已修复过期 Running 租约不消耗重试预算的问题：每次过期重领递增尝试次数，预算耗尽立即持久化为 Failed；Unit 2/2 与 PostgreSQL 集成 2/2 覆盖重领和耗尽分支。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 497/497、Architecture 1/1、Contract 10/10、迁移模型检查和 diff check 均通过。Windows Docker Engine 不可用，集成测试在 Ubuntu VM 验证。
+- Ubuntu VM 证据：源码构建 Compose、健康检查、Migration 和包任务集成回归通过；完整 `collection-package-runtime-smoke` 通过 direct URL、安全边界、四类控制幂等、前置进度、ZIP/EPUB/TXT、哈希/长度和审计，临时账号已禁用，Compose 已停止且卷保留。
+- 候选 `ecd8533` 已推送 `dev`；[CI 33329741035](https://github.com/nekohands/InkFlow/actions/runs/33329741035)、[Docker 33329741037](https://github.com/nekohands/InkFlow/actions/runs/33329741037)、[Security 33329741041](https://github.com/nekohands/InkFlow/actions/runs/33329741041) 均 GREEN。未执行受保护 Operations 页面登录后的浏览器输入验收，也未启动 MuMu/阅读 3.0；整体不得标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

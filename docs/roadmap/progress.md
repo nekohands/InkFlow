@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最后更新日期：2026-08-30
+- 最后更新日期：2026-08-31
 
 ## 1. 总体状态
 
@@ -1102,6 +1102,14 @@ Phase 1A 自动化工作包状态：
 - 本机：`dotnet build InkFlow.sln -c Release --no-restore` PASS；Unit 494/494 PASS；`git diff --check` PASS。Windows Docker Engine 不可用，因此本机 Testcontainers 不作为集成证据。
 - Ubuntu VM：使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations，健康检查和迁移通过；Linux SDK 容器中的 Crawler PostgreSQL 集成测试 12/12 通过（含新增并发回归）；`collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)`。验证覆盖 URL 安全边界、暂停/恢复/停止/取消幂等、前置阶段不伪造百分比、三种包的生成/下载/哈希长度完整性及审计；临时数据按 fixture 清理/禁用，Compose 停止后持久卷保留。
 - 远端：提交 `c6c4d25` 的 [CI 33328060988](https://github.com/nekohands/InkFlow/actions/runs/33328060988)、[Docker 33328060997](https://github.com/nekohands/InkFlow/actions/runs/33328060997)、[Security 33328060984](https://github.com/nekohands/InkFlow/actions/runs/33328060984) 均 GREEN，且三者 head SHA 一致。浏览器受保护运维页登录后的本轮输入验收尚未执行；阅读 3.0/MuMu 真机仍按用户决定列入人工待定事项，因此整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 4.89 书籍包一致性快照与租约崩溃恢复加固（本轮，2026-08-31）
+
+- 修复书籍包构建的一致性窗口：`BookPackageService` 现在对整本书一次读取所有当前 `ContentVersion`，再按章节建立固定快照，避免构建过程中章节版本切换造成混合版本包；新增服务级回归覆盖单次整书读取和版本/正文一致性。
+- 修复包任务崩溃恢复的重试预算：过期 `Running` 租约重新领取时消耗一次 `AttemptCount`；达到 `MaxAttempts` 的过期任务转为 `Failed`，不再无限重复领取；EF 仓储在同一事务中使用行锁、跳过竞争行并处理耗尽预算的任务。新增 Unit 与 PostgreSQL 集成回归。
+- 本机：Release Build 0 warnings / 0 errors；Unit 497/497、Architecture 1/1、Contract 10/10 PASS；EF migrations pending-model-changes 检查 PASS；`git diff --check` PASS。Windows Docker Engine 仍不可用，本机 Testcontainers 不作为集成证据。
+- Ubuntu VM：`docker-compose.build.yml` 源码构建和健康启动通过；`BookPackageJobRepositoryTests` 2/2 通过；整轮 `collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)`，结束后临时账号已禁用、Compose 已停止、持久卷保留。
+- 远端：候选 `ecd8533` 的 [CI 33329741035](https://github.com/nekohands/InkFlow/actions/runs/33329741035)、[Docker 33329741037](https://github.com/nekohands/InkFlow/actions/runs/33329741037)、[Security 33329741041](https://github.com/nekohands/InkFlow/actions/runs/33329741041) 均 GREEN，三者 head SHA 一致。受保护运维页登录后的浏览器输入验收仍需用户在输入临时凭据前明确确认；阅读 3.0/MuMu 真机按用户决定保留人工待定，整体仍为 `1.0 Release Candidate`。
 
 ## 5. Phase 1A 核心验收链路
 
