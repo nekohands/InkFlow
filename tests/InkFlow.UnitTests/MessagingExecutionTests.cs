@@ -298,6 +298,15 @@ public sealed class MessagingExecutionTests
 
         public List<Failure> Failures { get; } = [];
 
+        public Task<IReadOnlyList<InboxMessageRecord>> ClaimBatchAsync(
+            string owner,
+            DateTimeOffset now,
+            TimeSpan leaseDuration,
+            int limit,
+            IReadOnlyCollection<string> messageTypes,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<InboxClaimResult> TryClaimAsync(
             IntegrationMessage message,
             string owner,

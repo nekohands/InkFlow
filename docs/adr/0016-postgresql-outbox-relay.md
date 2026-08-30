@@ -24,8 +24,9 @@
 4. Relay 通过 `Messaging:Relay` 配置节控制 `Enabled`、owner 前缀、启动延迟、轮询间隔、
    lease 和批量大小；所有值有上下限，进程 owner 使用实例名加随机 ID，后台日志不写载荷、
    异常文本或 secret。
-5. 本 ADR 只接入 Outbox → Inbox 的耐久 relay。Inbox 消费轮询和具体业务 Handler 等待接收
-   模块与消息类型明确后再接入；在此之前不宣称所有 Integration Event 已完成消费闭环。
+5. 本 ADR 仍只决定 Outbox → Inbox 的耐久 relay；Inbox 轮询与 Handler 接入另由 ADR 0017
+   决定。即使轮询基础设施已接入，具体业务 Handler 未注册前仍不宣称所有 Integration Event
+   已完成消费闭环。
 
 ## 非目标
 

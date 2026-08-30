@@ -45,10 +45,19 @@ public sealed class MessagingDbContext(DbContextOptions<MessagingDbContext> opti
             builder.Property(message => message.PayloadHash).HasMaxLength(64).IsRequired();
             builder.Property(message => message.RawPayload).HasColumnType("text");
             builder.Property(message => message.TraceId).HasMaxLength(128);
+            builder.Property(message => message.OccurredAt);
             builder.Property(message => message.LockOwner).HasMaxLength(128);
             builder.Property(message => message.LastError).HasMaxLength(128);
             builder.HasIndex(message => new { message.ProcessedAt, message.ReceivedAt });
             builder.HasIndex(message => new { message.LockedUntil, message.ProcessedAt });
+            builder.HasIndex(message => new
+            {
+                message.MessageType,
+                message.ProcessedAt,
+                message.LockedUntil,
+                message.ReceivedAt,
+                message.Id,
+            });
         });
     }
 }

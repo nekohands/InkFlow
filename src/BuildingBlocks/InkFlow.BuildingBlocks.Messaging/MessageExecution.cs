@@ -135,6 +135,21 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
                 claimed.AttemptCount);
         }
 
+        return await ConsumeClaimedAsync(
+                new InboxMessageRecord(message, claimed.AttemptCount),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<InboxConsumeResult> ConsumeClaimedAsync(
+        InboxMessageRecord claimedMessage,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(claimedMessage);
+        var message = claimedMessage.Message;
+        ArgumentNullException.ThrowIfNull(message);
+        _options.Validate();
+
         var handler = _handlerResolver.Resolve(message.MessageType);
         if (handler is null)
         {
@@ -149,7 +164,7 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
             return new(
                 message.Id,
                 InboxConsumeStatus.NoHandler,
-                claimed.AttemptCount,
+                claimedMessage.AttemptCount,
                 MessageFailureCodes.HandlerNotRegistered);
         }
 
@@ -176,7 +191,7 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
             return new(
                 message.Id,
                 InboxConsumeStatus.Failed,
-                claimed.AttemptCount,
+                claimedMessage.AttemptCount,
                 MessageFailureCodes.HandlerFailed);
         }
 
@@ -187,6 +202,6 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
                 _clock.GetUtcNow(),
                 cancellationToken)
             .ConfigureAwait(false);
-        return new(message.Id, InboxConsumeStatus.Processed, claimed.AttemptCount);
+        return new(message.Id, InboxConsumeStatus.Processed, claimedMessage.AttemptCount);
     }
 }

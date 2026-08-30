@@ -1,3 +1,6 @@
+using System.Globalization;
+using Microsoft.Extensions.Configuration;
+
 namespace InkFlow.BuildingBlocks.Messaging;
 
 /// <summary>
@@ -25,6 +28,8 @@ public interface IIntegrationMessageHandler
 public interface IIntegrationMessageHandlerResolver
 {
     IIntegrationMessageHandler? Resolve(string messageType);
+
+    IReadOnlyCollection<string> MessageTypes { get; }
 }
 
 /// <summary>发布失败后的有界重试延迟策略。</summary>
@@ -54,14 +59,141 @@ public sealed class OutboxDispatcherOptions
 
 public sealed class InboxConsumerOptions
 {
+    public const string ConfigurationSectionName = "Messaging:Inbox";
+
     public required string Owner { get; init; }
+
+    public bool Enabled { get; init; } = true;
+
+    public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(5);
+
+    public TimeSpan StartupDelay { get; init; } = TimeSpan.FromSeconds(5);
 
     public TimeSpan LeaseDuration { get; init; } = TimeSpan.FromMinutes(2);
 
-    internal void Validate()
+    public int BatchSize { get; init; } = 50;
+
+    /// <summary>从配置读取；缺失配置使用安全默认值，非法值快速失败。</summary>
+    public static InboxConsumerOptions FromConfiguration(
+        IConfiguration configuration,
+        string owner)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var section = configuration.GetSection(ConfigurationSectionName);
+        var options = new InboxConsumerOptions
+        {
+            Owner = owner,
+            Enabled = ReadBool(section, nameof(Enabled), true),
+            PollInterval = ReadTimeSpan(
+                section,
+                nameof(PollInterval),
+                TimeSpan.FromSeconds(5)),
+            StartupDelay = ReadTimeSpan(
+                section,
+                nameof(StartupDelay),
+                TimeSpan.FromSeconds(5)),
+            LeaseDuration = ReadTimeSpan(
+                section,
+                nameof(LeaseDuration),
+                TimeSpan.FromMinutes(2)),
+            BatchSize = ReadInt(section, nameof(BatchSize), 50),
+        };
+        options.Validate();
+        return options;
+    }
+
+    public void Validate()
     {
         MessageExecutionValidation.ValidateOwner(Owner);
         MessageExecutionValidation.ValidateLease(LeaseDuration);
+        ValidateRange(
+            PollInterval,
+            TimeSpan.FromMilliseconds(100),
+            TimeSpan.FromMinutes(5),
+            nameof(PollInterval));
+        ValidateRange(
+            StartupDelay,
+            TimeSpan.Zero,
+            TimeSpan.FromMinutes(5),
+            nameof(StartupDelay));
+        if (BatchSize is < 1 or > 100)
+        {
+            throw new InvalidOperationException(
+                $"{ConfigurationSectionName}:{nameof(BatchSize)} must be between 1 and 100.");
+        }
+    }
+
+    private static bool ReadBool(
+        IConfiguration section,
+        string key,
+        bool defaultValue)
+    {
+        var raw = section[key];
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        if (!bool.TryParse(raw, out var value))
+        {
+            throw new InvalidOperationException(
+                $"{ConfigurationSectionName}:{key} must be a boolean.");
+        }
+
+        return value;
+    }
+
+    private static int ReadInt(
+        IConfiguration section,
+        string key,
+        int defaultValue)
+    {
+        var raw = section[key];
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        if (!int.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var value))
+        {
+            throw new InvalidOperationException(
+                $"{ConfigurationSectionName}:{key} must be an integer.");
+        }
+
+        return value;
+    }
+
+    private static TimeSpan ReadTimeSpan(
+        IConfiguration section,
+        string key,
+        TimeSpan defaultValue)
+    {
+        var raw = section[key];
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        if (!TimeSpan.TryParse(raw, CultureInfo.InvariantCulture, out var value))
+        {
+            throw new InvalidOperationException(
+                $"{ConfigurationSectionName}:{key} must be a valid duration.");
+        }
+
+        return value;
+    }
+
+    private static void ValidateRange(
+        TimeSpan value,
+        TimeSpan minimum,
+        TimeSpan maximum,
+        string name)
+    {
+        if (value < minimum || value > maximum)
+        {
+            throw new InvalidOperationException(
+                $"{ConfigurationSectionName}:{name} must be between {minimum} and {maximum}.");
+        }
     }
 }
 
@@ -95,6 +227,10 @@ public interface IIntegrationMessageConsumer
 {
     Task<InboxConsumeResult> ConsumeAsync(
         IntegrationMessage message,
+        CancellationToken cancellationToken = default);
+
+    Task<InboxConsumeResult> ConsumeClaimedAsync(
+        InboxMessageRecord message,
         CancellationToken cancellationToken = default);
 }
 
@@ -147,6 +283,7 @@ public sealed class ExponentialMessageRetryPolicy : IMessageRetryPolicy
 public sealed class IntegrationMessageHandlerRegistry : IIntegrationMessageHandlerResolver
 {
     private readonly IReadOnlyDictionary<string, IIntegrationMessageHandler> _handlers;
+    private readonly IReadOnlyCollection<string> _messageTypes;
 
     public IntegrationMessageHandlerRegistry(IEnumerable<IIntegrationMessageHandler> handlers)
     {
@@ -174,7 +311,10 @@ public sealed class IntegrationMessageHandlerRegistry : IIntegrationMessageHandl
         }
 
         _handlers = resolved;
+        _messageTypes = resolved.Keys.ToArray();
     }
+
+    public IReadOnlyCollection<string> MessageTypes => _messageTypes;
 
     public IIntegrationMessageHandler? Resolve(string messageType) =>
         _handlers.TryGetValue(messageType, out var handler) ? handler : null;

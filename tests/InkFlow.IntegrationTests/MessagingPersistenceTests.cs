@@ -518,6 +518,113 @@ public sealed class MessagingPersistenceTests
     }
 
     [TestMethod]
+    public async Task Inbox_Claim_Batch_Preserves_Envelope_And_Filters_Registered_Types()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var message = IntegrationMessage.Create(
+            "test.consumer.poll",
+            "{\"value\":31}",
+            T0,
+            traceId: "trace-poll",
+            id: Guid.CreateVersion7());
+        var unrelated = IntegrationMessage.Create(
+            "test.consumer.other",
+            "{\"value\":32}",
+            T0.AddSeconds(1),
+            id: Guid.CreateVersion7());
+
+        await using (var enqueueDb = CreateMessagingDb())
+        {
+            var store = new EfMessagingMessageStore(enqueueDb);
+            await store.EnqueueAsync(message, T0.AddMinutes(1)).ConfigureAwait(false);
+            await store.EnqueueAsync(unrelated, T0.AddMinutes(2)).ConfigureAwait(false);
+        }
+
+        IReadOnlyList<InboxMessageRecord> claimed;
+        await using (var claimDb = CreateMessagingDb())
+        {
+            claimed = await new EfMessagingMessageStore(claimDb)
+                .ClaimBatchAsync(
+                    "consumer-poll",
+                    T0.AddMinutes(3),
+                    TimeSpan.FromMinutes(2),
+                    10,
+                    [message.MessageType])
+                .ConfigureAwait(false);
+        }
+
+        var claimedMessage = claimed.Single();
+        Assert.AreEqual(message.Id, claimedMessage.Message.Id);
+        Assert.AreEqual(message.OccurredAt, claimedMessage.Message.OccurredAt);
+        Assert.AreEqual(message.Payload, claimedMessage.Message.Payload);
+        Assert.AreEqual(message.PayloadHash, claimedMessage.Message.PayloadHash);
+        Assert.AreEqual(message.TraceId, claimedMessage.Message.TraceId);
+        Assert.AreEqual(1, claimedMessage.AttemptCount);
+
+        await using (var acknowledgeDb = CreateMessagingDb())
+        {
+            await new EfMessagingMessageStore(acknowledgeDb)
+                .MarkProcessedAsync(
+                    message.Id,
+                    "consumer-poll",
+                    T0.AddMinutes(4))
+                .ConfigureAwait(false);
+        }
+
+        await using var verify = CreateMessagingDb();
+        var stored = await verify.InboxMessages
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == message.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual(message.OccurredAt, stored.OccurredAt);
+        Assert.IsNotNull(stored.ProcessedAt);
+        Assert.IsNull(stored.LockOwner);
+    }
+
+    [TestMethod]
+    public async Task Inbox_Claim_Batch_Restores_Legacy_Row_Without_OccurredAt_Or_RawPayload()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var message = IntegrationMessage.Create(
+            "test.consumer.legacy",
+            "{ \"value\": 33 }",
+            T0,
+            id: Guid.CreateVersion7());
+        var receivedAt = T0.AddMinutes(5);
+
+        await using (var seedDb = CreateMessagingDb())
+        {
+            seedDb.InboxMessages.Add(new InboxMessageEntity
+            {
+                Id = message.Id,
+                MessageType = message.MessageType,
+                Payload = message.Payload,
+                PayloadHash = message.PayloadHash,
+                RawPayload = null,
+                ReceivedAt = receivedAt,
+                AttemptCount = 0,
+            });
+            await seedDb.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        await using var claimDb = CreateMessagingDb();
+        var claimed = await new EfMessagingMessageStore(claimDb)
+            .ClaimBatchAsync(
+                "consumer-legacy",
+                T0.AddMinutes(6),
+                TimeSpan.FromMinutes(2),
+                10,
+                [message.MessageType])
+            .ConfigureAwait(false);
+
+        var restored = claimed.Single().Message;
+        Assert.AreEqual(message.Id, restored.Id);
+        Assert.AreEqual(message.MessageType, restored.MessageType);
+        Assert.AreEqual(receivedAt, restored.OccurredAt);
+        Assert.AreEqual(message.PayloadHash, restored.PayloadHash);
+    }
+
+    [TestMethod]
     public async Task Message_Retention_Deletes_Only_Expired_Processed_Records()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);

@@ -121,6 +121,47 @@ public sealed class MessagingRelayTests
             new OutboxRelayOptions { BatchSize = 101 }.Validate());
     }
 
+    [TestMethod]
+    public void InboxOptions_Read_And_Validate_Bounded_Settings()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Messaging:Inbox:Enabled"] = "true",
+                ["Messaging:Inbox:PollInterval"] = "00:00:02",
+                ["Messaging:Inbox:StartupDelay"] = "00:00:00",
+                ["Messaging:Inbox:LeaseDuration"] = "00:05:00",
+                ["Messaging:Inbox:BatchSize"] = "12",
+            })
+            .Build();
+
+        var options = InboxConsumerOptions.FromConfiguration(configuration, "inbox-test");
+
+        Assert.IsTrue(options.Enabled);
+        Assert.AreEqual("inbox-test", options.Owner);
+        Assert.AreEqual(TimeSpan.FromSeconds(2), options.PollInterval);
+        Assert.AreEqual(TimeSpan.Zero, options.StartupDelay);
+        Assert.AreEqual(TimeSpan.FromMinutes(5), options.LeaseDuration);
+        Assert.AreEqual(12, options.BatchSize);
+    }
+
+    [TestMethod]
+    public void InboxOptions_Reject_Unbounded_Settings()
+    {
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            new InboxConsumerOptions
+            {
+                Owner = "inbox-test",
+                PollInterval = TimeSpan.FromMilliseconds(1),
+            }.Validate());
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            new InboxConsumerOptions
+            {
+                Owner = "inbox-test",
+                BatchSize = 101,
+            }.Validate());
+    }
+
     private static OutboxMessageRecord ToRecord(IntegrationMessage message) =>
         new(
             message.Id,

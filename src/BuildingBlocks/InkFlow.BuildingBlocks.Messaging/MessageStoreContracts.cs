@@ -29,6 +29,14 @@ public sealed record InboxClaimResult(
     int AttemptCount);
 
 /// <summary>
+/// 已由 Inbox 持久化层领取、等待 Handler 处理的消息。
+/// 领取动作与后续确认分开，允许宿主在数据库租约内执行 Handler。
+/// </summary>
+public sealed record InboxMessageRecord(
+    IntegrationMessage Message,
+    int AttemptCount);
+
+/// <summary>
 /// PostgreSQL-backed Outbox 端口。实现必须以消息 ID 幂等入队，并以 lease + SKIP LOCKED
 /// 支持多个 dispatcher 的 at-least-once 投递。
 /// </summary>
@@ -77,6 +85,14 @@ public interface IInboxTransportStore
 /// </summary>
 public interface IInboxStore
 {
+    Task<IReadOnlyList<InboxMessageRecord>> ClaimBatchAsync(
+        string owner,
+        DateTimeOffset now,
+        TimeSpan leaseDuration,
+        int limit,
+        IReadOnlyCollection<string> messageTypes,
+        CancellationToken cancellationToken = default);
+
     Task<InboxClaimResult> TryClaimAsync(
         IntegrationMessage message,
         string owner,

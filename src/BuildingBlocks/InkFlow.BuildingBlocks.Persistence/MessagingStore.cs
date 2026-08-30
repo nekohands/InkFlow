@@ -1,6 +1,8 @@
 using InkFlow.BuildingBlocks.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Npgsql;
+using NpgsqlTypes;
 
 namespace InkFlow.BuildingBlocks.Persistence;
 
@@ -263,6 +265,72 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
         return new(message.Id, InboxClaimStatus.Claimed, stored.AttemptCount);
     }
 
+    public async Task<IReadOnlyList<InboxMessageRecord>> ClaimBatchAsync(
+        string owner,
+        DateTimeOffset now,
+        TimeSpan leaseDuration,
+        int limit,
+        IReadOnlyCollection<string> messageTypes,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateOwner(owner);
+        ValidateLease(leaseDuration);
+        ValidateLimit(limit);
+        ArgumentNullException.ThrowIfNull(messageTypes);
+        var normalizedTypes = NormalizeMessageTypes(messageTypes);
+        if (normalizedTypes.Length == 0)
+        {
+            return [];
+        }
+
+        now = now.ToUniversalTime();
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var messageTypesParameter = new NpgsqlParameter<string[]>(
+            "message_types",
+            normalizedTypes)
+        {
+            NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Text,
+        };
+        var messages = await db.InboxMessages
+            .FromSqlRaw(
+                """
+                SELECT *
+                  FROM "messaging"."inbox_messages"
+                 WHERE "ProcessedAt" IS NULL
+                   AND ("LockedUntil" IS NULL OR "LockedUntil" <= {0})
+                   AND "MessageType" = ANY ({1})
+                 ORDER BY "ReceivedAt", "Id"
+                 LIMIT {2}
+                 FOR UPDATE SKIP LOCKED
+                """,
+                now,
+                messageTypesParameter,
+                limit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var lockedUntil = now + leaseDuration;
+        foreach (var message in messages)
+        {
+            message.LockOwner = owner;
+            message.LockedUntil = lockedUntil;
+            message.AttemptCount = Increment(message.AttemptCount);
+            message.LastError = null;
+        }
+
+        var claimed = messages
+            .Select(message => new InboxMessageRecord(
+                RestoreInboxMessage(message),
+                message.AttemptCount))
+            .ToList();
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return claimed;
+    }
+
     public async Task MarkProcessedAsync(
         Guid messageId,
         string owner,
@@ -371,6 +439,66 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
             message.ProcessedAt,
             message.LastError,
             message.RawPayload);
+
+    private static IntegrationMessage RestoreInboxMessage(InboxMessageEntity message)
+    {
+        var occurredAt = message.OccurredAt ?? message.ReceivedAt;
+        var payload = message.RawPayload ?? message.Payload;
+        IntegrationMessage restored;
+        try
+        {
+            restored = message.RawPayload is null
+                ? IntegrationMessage.Restore(
+                    message.MessageType,
+                    payload,
+                    occurredAt,
+                    message.PayloadHash,
+                    message.TraceId,
+                    message.Id)
+                : IntegrationMessage.Create(
+                    message.MessageType,
+                    payload,
+                    occurredAt,
+                    message.TraceId,
+                    message.Id);
+        }
+        catch (ArgumentException)
+        {
+            throw new InvalidOperationException("inbox message identity is invalid.");
+        }
+
+        if (!string.Equals(message.MessageType, restored.MessageType, StringComparison.Ordinal) ||
+            !string.Equals(message.TraceId, restored.TraceId, StringComparison.Ordinal) ||
+            (message.RawPayload is not null &&
+             !string.Equals(message.PayloadHash, restored.PayloadHash, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException("inbox message identity is invalid.");
+        }
+
+        return restored;
+    }
+
+    private static string[] NormalizeMessageTypes(
+        IReadOnlyCollection<string> messageTypes)
+    {
+        var normalized = messageTypes
+            .Select(messageType => messageType?.Trim() ?? string.Empty)
+            .Where(messageType => !string.IsNullOrWhiteSpace(messageType))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        foreach (var messageType in normalized)
+        {
+            if (messageType.Length > IntegrationMessage.MaxMessageTypeLength ||
+                messageType.Any(char.IsControl))
+            {
+                throw new ArgumentException(
+                    "inbox message type is invalid.",
+                    nameof(messageTypes));
+            }
+        }
+
+        return normalized;
+    }
 
     private static void EnsureMessageMatches(
         string storedType,
@@ -545,12 +673,12 @@ internal static class MessagingSql
         var affected = await database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "messaging"."inbox_messages" AS target
                 ("Id", "MessageType", "Payload", "RawPayload", "PayloadHash", "TraceId",
-                 "ReceivedAt", "AttemptCount", "LockOwner", "LockedUntil", "ProcessedAt",
-                 "LastError")
+                 "OccurredAt", "ReceivedAt", "AttemptCount", "LockOwner", "LockedUntil",
+                 "ProcessedAt", "LastError")
             VALUES
                 ({message.Id}, {message.MessageType}, {message.Payload}::jsonb,
-                 {message.Payload}, {message.PayloadHash}, {message.TraceId}, {receivedAt},
-                 0, NULL, NULL, NULL, NULL)
+                 {message.Payload}, {message.PayloadHash}, {message.TraceId},
+                 {message.OccurredAt}, {receivedAt}, 0, NULL, NULL, NULL, NULL)
             ON CONFLICT ("Id") DO UPDATE
                 SET "Id" = EXCLUDED."Id"
               WHERE target."MessageType" = EXCLUDED."MessageType"

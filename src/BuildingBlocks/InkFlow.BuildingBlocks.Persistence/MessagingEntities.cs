@@ -32,6 +32,8 @@ public sealed class InboxMessageEntity
     /// <summary>保留消息接收时的 JSON 原文，避免 jsonb 读回规范化后无法重建 hash。</summary>
     public string? RawPayload { get; set; }
     public string? TraceId { get; set; }
+    /// <summary>消息产生时间；旧 Inbox 行为空时由 ReceivedAt 作为兼容回退。</summary>
+    public DateTimeOffset? OccurredAt { get; set; }
     public DateTimeOffset ReceivedAt { get; set; }
     public int AttemptCount { get; set; }
     public string? LockOwner { get; set; }
