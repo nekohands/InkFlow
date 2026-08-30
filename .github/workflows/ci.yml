@@ -54,6 +54,12 @@ jobs:
           bash -n scripts/tests/reader-frontend-runtime-smoke.test.sh
           bash scripts/tests/reader-frontend-runtime-smoke.test.sh
 
+      - name: Reader account smoke script regression
+        run: |
+          bash -n scripts/reader-account-runtime-smoke.sh
+          bash -n scripts/tests/reader-account-runtime-smoke.test.sh
+          bash scripts/tests/reader-account-runtime-smoke.test.sh
+
       - name: Private library smoke script regression
         run: |
           bash -n scripts/private-library-runtime-smoke.sh
@@ -191,6 +197,31 @@ jobs:
         run: |
           chmod +x scripts/reader-frontend-runtime-smoke.sh
           scripts/reader-frontend-runtime-smoke.sh http://localhost:8080
+
+      - name: Reader account runtime smoke
+        run: |
+          set -euo pipefail
+          test_password='correct horse battery staple'
+          run_id="$(date -u +%s%N)-$$"
+          reader_email="ci-reader-account-$run_id@example.com"
+          fixture_cmd=(docker compose -f docker-compose.build.yml --profile acceptance run --rm --no-deps acceptance-fixtures)
+
+          cleanup() {
+            set +e
+            "${fixture_cmd[@]}" disable-user "$reader_email" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          fixture_json="$("${fixture_cmd[@]}" ensure-catalog | tail -n 1)"
+          book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
+          chapter_id="$(printf '%s' "$fixture_json" | jq -er '.chapterId')"
+
+          env \
+            "INKFLOW_READER_ACCOUNT_SMOKE_EMAIL=$reader_email" \
+            "INKFLOW_READER_ACCOUNT_SMOKE_PASSWORD=$test_password" \
+            "INKFLOW_READER_ACCOUNT_SMOKE_BOOK_ID=$book_id" \
+            "INKFLOW_READER_ACCOUNT_SMOKE_CHAPTER_ID=$chapter_id" \
+            bash scripts/reader-account-runtime-smoke.sh http://localhost:8080
 
       - name: Private library runtime smoke
         run: |
