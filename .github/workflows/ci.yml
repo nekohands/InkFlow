@@ -60,6 +60,13 @@ jobs:
           bash -n scripts/tests/reader-account-runtime-smoke.test.sh
           bash scripts/tests/reader-account-runtime-smoke.test.sh
 
+      - name: Reader content smoke script regression
+        run: |
+          bash -n scripts/reader-content-runtime-smoke.sh
+          bash -n scripts/tests/reader-content-runtime-smoke.fixture-curl.sh
+          bash -n scripts/tests/reader-content-runtime-smoke.test.sh
+          bash scripts/tests/reader-content-runtime-smoke.test.sh
+
       - name: Private library smoke script regression
         run: |
           bash -n scripts/private-library-runtime-smoke.sh
@@ -212,7 +219,7 @@ jobs:
           }
           trap cleanup EXIT
 
-          fixture_json="$("${fixture_cmd[@]}" ensure-catalog | tail -n 1)"
+          fixture_json="$("${fixture_cmd[@]}" ensure-reader-catalog | tail -n 1)"
           book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
           chapter_id="$(printf '%s' "$fixture_json" | jq -er '.chapterId')"
 
@@ -222,6 +229,10 @@ jobs:
             "INKFLOW_READER_ACCOUNT_SMOKE_BOOK_ID=$book_id" \
             "INKFLOW_READER_ACCOUNT_SMOKE_CHAPTER_ID=$chapter_id" \
             bash scripts/reader-account-runtime-smoke.sh http://localhost:8080
+
+          env \
+            "INKFLOW_READER_CONTENT_SMOKE_CHAPTER_ID=$chapter_id" \
+            bash scripts/reader-content-runtime-smoke.sh http://localhost:8080
 
       - name: Private library runtime smoke
         run: |
