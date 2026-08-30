@@ -54,6 +54,12 @@ jobs:
           bash -n scripts/tests/reader-frontend-runtime-smoke.test.sh
           bash scripts/tests/reader-frontend-runtime-smoke.test.sh
 
+      - name: Private library smoke script regression
+        run: |
+          bash -n scripts/private-library-runtime-smoke.sh
+          bash -n scripts/tests/private-library-runtime-smoke.test.sh
+          bash scripts/tests/private-library-runtime-smoke.test.sh
+
       - name: Local env loader regression
         run: |
           bash -n scripts/load-local-env.sh
@@ -173,6 +179,11 @@ jobs:
         run: |
           chmod +x scripts/reader-frontend-runtime-smoke.sh
           scripts/reader-frontend-runtime-smoke.sh http://localhost:8080
+
+      - name: Private library runtime smoke
+        run: |
+          chmod +x scripts/private-library-runtime-smoke.sh
+          scripts/private-library-runtime-smoke.sh http://localhost:8080
 
       - name: Core SLO synthetic probe
         env:
