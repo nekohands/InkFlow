@@ -1,3 +1,4 @@
+using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -96,6 +97,28 @@ public sealed class CollectionRunTests
     }
 
     [TestMethod]
+    public async Task Reconcile_Does_Not_Overwrite_Control_State_Changed_After_Read()
+    {
+        var run = CreateRun();
+        run.MarkWorkStarted(T0.AddSeconds(1));
+        var repository = new StaleReconcileRepository(run);
+        var service = new CollectionRunService(
+            urlResolver: null!,
+            runs: repository,
+            tasks: null!,
+            clock: new FixedClock(T0.AddSeconds(2)));
+
+        await service.ReconcileAsync(run.Id);
+
+        var persisted = await repository.GetAsync(run.Id);
+        Assert.IsNotNull(persisted);
+        Assert.AreEqual(
+            CollectionRunStatus.Paused,
+            persisted!.Status,
+            "a stale reconciliation must not restore a state changed by a control command");
+    }
+
+    [TestMethod]
     public void Cancelled_Task_Is_Terminal_And_Clears_Lease()
     {
         var task = CrawlerTask.Create(
@@ -116,4 +139,85 @@ public sealed class CollectionRunTests
 
     private static CollectionRun CreateRun() =>
         CollectionRun.Create("source", "book/42", "https://example.com/book/42", T0);
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class StaleReconcileRepository(CollectionRun seed) : ICollectionRunRepository
+    {
+        private CollectionRunStatus persistedStatus = seed.Status;
+
+        public Task AddAsync(CollectionRun run, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> TryAddAsync(CollectionRun run, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<CollectionRun?> GetAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            if (id != seed.Id)
+            {
+                return Task.FromResult<CollectionRun?>(null);
+            }
+
+            return Task.FromResult<CollectionRun?>(CollectionRun.Rehydrate(
+                seed.Id,
+                seed.SourceId,
+                seed.ExternalBookId,
+                seed.InputUrl,
+                seed.CanonicalBookId,
+                persistedStatus,
+                seed.Stage,
+                seed.TotalTaskCount,
+                seed.CompletedTaskCount,
+                seed.FailedTaskCount,
+                seed.LastError,
+                seed.CreatedAt,
+                seed.UpdatedAt));
+        }
+
+        public Task<CollectionRun?> FindActiveAsync(
+            string sourceId,
+            string externalBookId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public async Task<CollectionRun?> ReconcileAsync(
+            Guid id,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            // The atomic repository contract observes the control commit before
+            // folding progress, so it must preserve Paused rather than replaying
+            // the stale Running snapshot used by SaveAsync below.
+            persistedStatus = CollectionRunStatus.Paused;
+            var current = await GetAsync(id, cancellationToken);
+            current?.Reconcile(
+                new CollectionRunTaskProgress(0, 0, 0, 0, 0, 0, 0),
+                now);
+            return current;
+        }
+
+        public Task<IReadOnlyList<CollectionRun>> ListAsync(
+            int limit,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SaveAsync(CollectionRun run, CancellationToken cancellationToken = default)
+        {
+            // Simulate a control transaction committing after the service's stale
+            // read but before its non-atomic save. The old implementation then
+            // writes the stale Running snapshot over the durable Paused state.
+            persistedStatus = CollectionRunStatus.Paused;
+            persistedStatus = run.Status;
+            return Task.CompletedTask;
+        }
+
+        public Task<CollectionRunTaskProgress> GetTaskProgressAsync(
+            Guid runId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new CollectionRunTaskProgress(0, 0, 0, 0, 0, 0, 0));
+    }
 }

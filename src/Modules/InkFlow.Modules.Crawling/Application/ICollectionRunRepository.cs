@@ -30,6 +30,18 @@ public interface ICollectionRunRepository
         return ApplyControlFallbackAsync(id, action, now, cancellationToken);
     }
 
+    /// <summary>
+    /// 在持久化层的同一原子操作中读取运行、汇总子任务并折叠进度。
+    /// 实现必须避免陈旧 Reconcile 快照覆写并发控制命令。
+    /// </summary>
+    Task<CollectionRun?> ReconcileAsync(
+        Guid id,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        return ReconcileFallbackAsync(id, now, cancellationToken);
+    }
+
     Task<CollectionRun?> FindActiveAsync(
         string sourceId,
         string externalBookId,
@@ -75,6 +87,23 @@ public interface ICollectionRunRepository
                 throw new ArgumentOutOfRangeException(nameof(action));
         }
 
+        await SaveAsync(run, cancellationToken).ConfigureAwait(false);
+        return run;
+    }
+
+    private async Task<CollectionRun?> ReconcileFallbackAsync(
+        Guid id,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var run = await GetAsync(id, cancellationToken).ConfigureAwait(false);
+        if (run is null)
+        {
+            return null;
+        }
+
+        var progress = await GetTaskProgressAsync(id, cancellationToken).ConfigureAwait(false);
+        run.Reconcile(progress, now);
         await SaveAsync(run, cancellationToken).ConfigureAwait(false);
         return run;
     }

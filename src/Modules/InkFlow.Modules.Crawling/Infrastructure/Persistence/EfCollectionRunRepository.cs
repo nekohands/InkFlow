@@ -103,6 +103,55 @@ public sealed class EfCollectionRunRepository(CrawlingDbContext db) : ICollectio
         return run;
     }
 
+    public async Task<CollectionRun?> ReconcileAsync(
+        Guid id,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Lock the current run before reading progress so a control command
+        // cannot commit between the read and the snapshot save.
+        var entity = await db.Runs
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."runs"
+                WHERE "Id" = {id}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (entity is null)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+
+        var progressStatuses = await db.Tasks
+            .AsNoTracking()
+            .Where(task => task.RunId == id)
+            .Select(task => task.Status)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var progress = new CollectionRunTaskProgress(
+            progressStatuses.Count,
+            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Pending),
+            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Leased),
+            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Running),
+            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Completed),
+            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.DeadLettered),
+            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Cancelled));
+
+        var run = CollectionRunMapper.ToDomain(entity);
+        run.Reconcile(progress, now);
+        CollectionRunMapper.ApplyDomain(run, entity);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return run;
+    }
+
     public async Task<CollectionRun?> FindActiveAsync(
         string sourceId,
         string externalBookId,

@@ -268,17 +268,9 @@ public sealed class CollectionRunService(
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        var run = await runs.GetAsync(runId, cancellationToken).ConfigureAwait(false);
-        if (run is null)
-        {
-            return;
-        }
-
-        var progress = await runs
-            .GetTaskProgressAsync(runId, cancellationToken)
+        await runs
+            .ReconcileAsync(runId, clock.GetUtcNow(), cancellationToken)
             .ConfigureAwait(false);
-        run.Reconcile(progress, clock.GetUtcNow());
-        await runs.SaveAsync(run, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<CollectionRun> RequireRunAsync(
