@@ -67,6 +67,9 @@ jobs:
           bash -n scripts/tests/reader-content-runtime-smoke.test.sh
           bash scripts/tests/reader-content-runtime-smoke.test.sh
 
+      - name: Opt-in live source acceptance script regression
+        run: bash -n scripts/kanunu-live-acceptance.sh
+
       - name: Private library smoke script regression
         run: |
           bash -n scripts/private-library-runtime-smoke.sh

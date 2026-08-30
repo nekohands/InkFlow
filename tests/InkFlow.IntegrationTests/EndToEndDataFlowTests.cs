@@ -2,6 +2,7 @@ using System.Text;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Content.Domain;
 using InkFlow.Modules.Crawling.Application;
+using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Sources.Application;
@@ -9,6 +10,8 @@ using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure;
 using InkFlow.Sources.Adapters.Kanunu8;
 using InkFlow.BuildingBlocks.Security;
+using InkFlow.BuildingBlocks.Observability;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace InkFlow.IntegrationTests;
@@ -160,6 +163,133 @@ public sealed class EndToEndDataFlowTests
         StringAssert.Contains(readable.Paragraphs[0], "时值金陵六月");
     }
 
+    [TestMethod]
+    public async Task Live_Scheduler_And_Worker_Complete_Current_Source_Content_Chain()
+    {
+        if (Environment.GetEnvironmentVariable("INKFLOW_LIVE_TESTS") != "1")
+        {
+            return; // live tests opt-in only (INKFLOW_LIVE_TESTS=1)
+        }
+
+        // ---- 组合根:真实 HTTP 适配器 + 内存持久层 ----
+        Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var resolver = new DnsIpAddressResolver();
+        using var safeHandler = new SsrfSafeHttpMessageHandler(resolver);
+        using var http = new HttpClient(safeHandler);
+        var sourceHttp = new ProductionSafeSourceHttpClient(http, resolver);
+        var kanunu = new KanunuSourceAdapter(http, resolver);
+
+        var ruleAdapter = new RuleAdapter(sourceHttp, new CssSelectorEvaluator());
+        var factory = new SourceAdapterFactory(
+            new NullSourceRepository(),
+            ruleAdapter,
+            new CssSelectorEvaluator(),
+            [kanunu]);
+
+        var sourceBooks = new InMemorySourceBooks();
+        var canonicalRepo = new InMemoryCanonicalRepo();
+        var candidates = new InMemoryCandidateRepository();
+        var mappings = new InMemoryMappingRepository();
+        var versions = new InMemoryVersions();
+        var artifacts = new InMemoryArtifacts();
+        var tasks = new InMemoryCrawlerTasks();
+
+        var catalog = new SourceCatalogService(factory, sourceBooks, TimeProvider.System);
+        var matching = new CanonicalBookMatchingService(sourceBooks, canonicalRepo, candidates);
+        var chapterMapping = new CanonicalChapterMappingService(sourceBooks, candidates, canonicalRepo, mappings);
+        var contentService = new SourceContentService(factory, sourceBooks, artifacts, TimeProvider.System);
+        var publishing = new ContentPublishingService(versions);
+        var query = new CatalogQueryService(canonicalRepo, versions, new AllowAllContentPolicyReader());
+        var contentChain = new ContentFetchChainService(sourceBooks, artifacts, tasks, TimeProvider.System);
+        var tocHandler = new TocSyncTaskHandler(catalog, chapterMapping, contentChain);
+        var contentHandler = new ContentFetchTaskHandler(
+            contentService,
+            new MappingContentPublisher(mappings, publishing));
+        var failureReporter = new CrawlerFailureReporter(
+            Array.Empty<ICrawlerFailureSink>(),
+            NullLogger<CrawlerFailureReporter>.Instance);
+        var leaseService = new CrawlerLeaseService(TimeProvider.System);
+        var tocProcessor = new CrawlerTaskProcessor(
+            tocHandler,
+            tasks,
+            TimeProvider.System,
+            new RetryPolicy { BaseDelay = TimeSpan.FromMilliseconds(1), MaxDelay = TimeSpan.FromMilliseconds(1) },
+            failureReporter);
+        var contentProcessor = new CrawlerTaskProcessor(
+            contentHandler,
+            tasks,
+            TimeProvider.System,
+            new RetryPolicy { BaseDelay = TimeSpan.FromMilliseconds(1), MaxDelay = TimeSpan.FromMilliseconds(1) },
+            failureReporter);
+
+        const string externalBookId = "book/3441";
+
+        // 1. 首次导入建立来源书目和正典映射，后续扫描完全由 Scheduler/Worker 链路驱动。
+        var import = await catalog.ImportBookInfoAsync(KanunuSourceAdapter.SourceIdValue, externalBookId);
+        Assert.IsTrue(import.IsSuccess, string.Join("; ", import.Errors));
+        var initialToc = await catalog.SyncChaptersAsync(KanunuSourceAdapter.SourceIdValue, externalBookId);
+        Assert.IsTrue(initialToc.IsSuccess, string.Join("; ", initialToc.Errors));
+        Assert.IsTrue(initialToc.Book!.Chapters.Count >= 10);
+
+        var match = await matching.CreateOrMatchAsync(KanunuSourceAdapter.SourceIdValue, externalBookId);
+        Assert.IsTrue(match.IsSuccess, string.Join("; ", match.Errors));
+        var initialMapping = await chapterMapping
+            .SyncChapterMappingAsync(KanunuSourceAdapter.SourceIdValue, externalBookId);
+        Assert.IsTrue(initialMapping.IsSuccess, string.Join("; ", initialMapping.Errors));
+        Assert.AreEqual(initialToc.Book.Chapters.Count, initialMapping.NewlyMappedCount);
+
+        // 2. Scheduler 入队，Worker 通过真实 TocSyncTaskHandler 完成重扫和正文联动入队。
+        var updateScan = new UpdateScanService(sourceBooks, tasks, TimeProvider.System);
+        Assert.AreEqual(1, await updateScan.EnqueueTocScansAsync());
+        var tocTask = tasks.Store.Single(task => task.Payload.Capability == SourceCapability.Toc);
+        Assert.IsTrue(leaseService.TryLease(tocTask, "live-source-test-worker"));
+        await tocProcessor.ProcessAsync(tocTask);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, tocTask.Status);
+
+        var contentTasks = tasks.Store
+            .Where(task => task.Payload.Capability == SourceCapability.Content)
+            .ToList();
+        Assert.AreEqual(initialToc.Book.Chapters.Count, contentTasks.Count);
+        Assert.AreEqual(
+            contentTasks.Count,
+            contentTasks.Select(task => task.Payload.Variables["chapterId"]).Distinct().Count(),
+            "Toc sync should enqueue one Content task per unfetched chapter.");
+
+        // 3. 周期重扫在正文任务尚未完成时也必须幂等，不能重复制造 Content 任务。
+        Assert.AreEqual(1, await updateScan.EnqueueTocScansAsync());
+        var repeatedTocTask = tasks.Store
+            .Where(task => task.Payload.Capability == SourceCapability.Toc)
+            .Single(task => task.Status == CrawlerTaskStatus.Pending);
+        Assert.IsTrue(leaseService.TryLease(repeatedTocTask, "live-source-test-worker"));
+        await tocProcessor.ProcessAsync(repeatedTocTask);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, repeatedTocTask.Status);
+        Assert.AreEqual(
+            contentTasks.Count,
+            tasks.Store.Count(task => task.Payload.Capability == SourceCapability.Content),
+            "An in-flight Content task must block duplicate chain enqueueing.");
+
+        // 4. Worker 消费一条真实正文任务，经 FetchArtifact 和 ContentVersion 发布后可由公共查询读取。
+        var firstContentTask = contentTasks[0];
+        Assert.IsTrue(leaseService.TryLease(firstContentTask, "live-source-test-worker"));
+        await contentProcessor.ProcessAsync(firstContentTask);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, firstContentTask.Status);
+        Assert.AreEqual(1, artifacts.Store.Count);
+        Assert.AreEqual(1, versions.Store.Count);
+
+        var firstChapterId = mappings.Store
+            .First(mapping => mapping.ExternalChapterId == firstContentTask.Payload.Variables["chapterId"])
+            .CanonicalChapterId;
+        var readable = await query.GetChapterContentAsync(firstChapterId);
+        Assert.IsNotNull(readable, "真实正文经 Worker 发布后应可经公共查询读取");
+        Assert.IsTrue(readable.Paragraphs.Count > 0);
+        StringAssert.Contains(readable.Paragraphs[0], "时值金陵六月");
+
+        Console.WriteLine(
+            $"live scheduler/content chain: source={KanunuSourceAdapter.SourceIdValue}, " +
+            $"chapters={initialToc.Book.Chapters.Count}, " +
+            $"contentTasks={contentTasks.Count}, published={versions.Store.Count}");
+    }
+
     // ---- 内存实现 ----
 
     private sealed class NullSourceRepository : ISourceRepository
@@ -288,5 +418,145 @@ public sealed class EndToEndDataFlowTests
                     Store.Where(a => a.SourceId == sourceId && a.FetchedAt >= since)
                         .Select(a => a.ExternalChapterId),
                     StringComparer.Ordinal));
+    }
+
+    private sealed class MappingContentPublisher(
+        InMemoryMappingRepository mappings,
+        ContentPublishingService publishing) : IChainedContentPublisher
+    {
+        public async Task<bool> TryPublishAsync(
+            string sourceId,
+            string externalBookId,
+            string externalChapterId,
+            string rawContent,
+            CancellationToken cancellationToken = default)
+        {
+            var mapping = await mappings
+                .FindAsync(sourceId, externalChapterId, cancellationToken)
+                .ConfigureAwait(false);
+            if (mapping is null)
+            {
+                return false;
+            }
+
+            var outcome = await publishing
+                .PublishAsync(
+                    mapping.CanonicalBookId,
+                    mapping.CanonicalChapterId,
+                    sourceId,
+                    rawContent,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!outcome.IsSuccess)
+            {
+                throw new InvalidOperationException(
+                    $"live content publish failed: {string.Join("; ", outcome.Errors)}");
+            }
+
+            return true;
+        }
+    }
+
+    private sealed class InMemoryCrawlerTasks : ICrawlerTaskRepository
+    {
+        private static readonly CrawlerTaskStatus[] BlockingStatuses =
+        [
+            CrawlerTaskStatus.Pending,
+            CrawlerTaskStatus.Leased,
+            CrawlerTaskStatus.Running,
+            CrawlerTaskStatus.DeadLettered,
+        ];
+
+        public List<CrawlerTask> Store { get; } = [];
+        public List<DeadLetterTask> DeadLetters { get; } = [];
+
+        public Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
+        {
+            Store.Add(task);
+            return Task.CompletedTask;
+        }
+
+        public Task<CrawlerTask?> GetAsync(
+            Guid id,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CrawlerTask?>(Store.SingleOrDefault(task => task.Id == id));
+
+        public Task<CrawlerTask?> TryLeaseAsync(
+            DateTimeOffset now,
+            string owner,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default)
+        {
+            var task = Store.FirstOrDefault(candidate => candidate.IsLeasable(now));
+            if (task is null)
+            {
+                return Task.FromResult<CrawlerTask?>(null);
+            }
+
+            task.Lease(owner, now, leaseDuration);
+            return Task.FromResult<CrawlerTask?>(task);
+        }
+
+        public Task<CrawlerTask?> TryLeaseAsync(
+            Guid taskId,
+            DateTimeOffset now,
+            string owner,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default)
+        {
+            var task = Store.SingleOrDefault(candidate => candidate.Id == taskId);
+            if (task is null || !task.IsLeasable(now))
+            {
+                return Task.FromResult<CrawlerTask?>(null);
+            }
+
+            task.Lease(owner, now, leaseDuration);
+            return Task.FromResult<CrawlerTask?>(task);
+        }
+
+        public Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<IReadOnlyList<CrawlerTask>> FindLeasableAsync(
+            DateTimeOffset now,
+            int limit,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<CrawlerTask>>(
+                Store.Where(task => task.IsLeasable(now)).Take(limit).ToList());
+
+        public Task AddDeadLetterAsync(
+            DeadLetterTask deadLetter,
+            CancellationToken cancellationToken = default)
+        {
+            DeadLetters.Add(deadLetter);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<DeadLetterTask>> ListDeadLettersAsync(
+            int limit,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DeadLetterTask>>(DeadLetters.Take(limit).ToList());
+
+        public Task<bool> HasActiveTaskAsync(
+            string sourceId,
+            SourceCapability capability,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Store.Any(task =>
+                task.Payload.SourceId == sourceId &&
+                task.Payload.Capability == capability &&
+                task.Status is CrawlerTaskStatus.Pending or CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running));
+
+        public Task<bool> HasConflictingTaskAsync(
+            string sourceId,
+            SourceCapability capability,
+            string variableName,
+            string variableValue,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Store.Any(task =>
+                task.Payload.SourceId == sourceId &&
+                task.Payload.Capability == capability &&
+                BlockingStatuses.Contains(task.Status) &&
+                task.Payload.Variables.TryGetValue(variableName, out var value) &&
+                value == variableValue));
     }
 }
