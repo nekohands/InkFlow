@@ -62,6 +62,12 @@ public sealed class MessagingDbContext(DbContextOptions<MessagingDbContext> opti
                 message.ReceivedAt,
                 message.Id,
             });
+            builder.HasIndex(message => new
+            {
+                message.ProcessedAt,
+                message.DeadLetteredAt,
+                message.Id,
+            });
         });
     }
 }

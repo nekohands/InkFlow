@@ -39,6 +39,40 @@ public sealed record InboxMessageRecord(
     int AttemptCount);
 
 /// <summary>
+/// Inbox 终态死信的有界观测结果。只返回数量和截断标记，不把消息载荷或失败文本带入运维读模型。
+/// </summary>
+public sealed record InboxDeadLetterSnapshot
+{
+    public InboxDeadLetterSnapshot(int returnedCount, bool hasMore)
+    {
+        if (returnedCount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(returnedCount));
+        }
+
+        ReturnedCount = returnedCount;
+        HasMore = hasMore;
+    }
+
+    public int ReturnedCount { get; }
+
+    public bool HasMore { get; }
+}
+
+/// <summary>
+/// 读取 Inbox 终态死信的运维观测 seam。实现必须有界查询，并只返回摘要信息。
+/// </summary>
+public interface IInboxDeadLetterReader
+{
+    /// <summary>单次读取的硬上限；实现可额外读取一条来表达 HasMore。</summary>
+    const int MaxQueryLimit = 100_000;
+
+    Task<InboxDeadLetterSnapshot> ReadDeadLetterSnapshotAsync(
+        int limit,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// PostgreSQL-backed Outbox 端口。实现必须以消息 ID 幂等入队，并以 lease + SKIP LOCKED
 /// 支持多个 dispatcher 的 at-least-once 投递。
 /// </summary>

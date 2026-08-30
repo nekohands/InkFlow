@@ -1,4 +1,5 @@
 using System.Globalization;
+using InkFlow.BuildingBlocks.Messaging;
 using InkFlow.Modules.Operations.Application;
 using InkFlow.Modules.Operations.Domain;
 using Microsoft.Extensions.Configuration;
@@ -15,6 +16,7 @@ public sealed class OperationsAlertOptions
     public const string ConfigurationSectionName = "Operations:Alerts";
 
     public int DeadLetterCountThreshold { get; init; } = 1;
+    public int InboxDeadLetterCountThreshold { get; init; } = 1;
     public int UnavailableCapabilityCountThreshold { get; init; } = 1;
     public int ConsistencyIssueCountThreshold { get; init; } = 1;
     public int MaxReturnedAlerts { get; init; } = 100;
@@ -29,6 +31,10 @@ public sealed class OperationsAlertOptions
             DeadLetterCountThreshold = ReadInt(
                 section,
                 nameof(DeadLetterCountThreshold),
+                1),
+            InboxDeadLetterCountThreshold = ReadInt(
+                section,
+                nameof(InboxDeadLetterCountThreshold),
                 1),
             UnavailableCapabilityCountThreshold = ReadInt(
                 section,
@@ -54,6 +60,11 @@ public sealed class OperationsAlertOptions
     public void Validate()
     {
         ValidateRange(DeadLetterCountThreshold, 1, 100_000, nameof(DeadLetterCountThreshold));
+        ValidateRange(
+            InboxDeadLetterCountThreshold,
+            1,
+            100_000,
+            nameof(InboxDeadLetterCountThreshold));
         ValidateRange(
             UnavailableCapabilityCountThreshold,
             1,
@@ -136,6 +147,7 @@ public interface IOperationsAlertReader
 public sealed class OperationsAlertReader(
     IOperationsCenterReader operations,
     IRateLimitStoreHealthReader rateLimitHealth,
+    IInboxDeadLetterReader inboxDeadLetters,
     OperationsAlertOptions options,
     TimeProvider clock,
     IOperationsAlertHistoryRepository? history = null,
@@ -144,6 +156,8 @@ public sealed class OperationsAlertReader(
     public const int DefaultLimit = 50;
 
     private readonly OperationsAlertOptions _options = ValidateOptions(options);
+    private readonly IInboxDeadLetterReader _inboxDeadLetters =
+        inboxDeadLetters ?? throw new ArgumentNullException(nameof(inboxDeadLetters));
 
     public async Task<OperationsAlertSnapshot> ReadAsync(
         int limit,
@@ -176,10 +190,37 @@ public sealed class OperationsAlertReader(
                     allowedSourceIds,
                     cancellationToken)
                 .ConfigureAwait(false);
+        InboxDeadLetterSnapshot? inboxDeadLetterSnapshot = null;
+        var inboxDeadLettersAvailable = true;
+        if (allowedSourceIds is null)
+        {
+            try
+            {
+                var readLimit = Math.Min(
+                    _options.InboxDeadLetterCountThreshold,
+                    IInboxDeadLetterReader.MaxQueryLimit);
+                inboxDeadLetterSnapshot = await _inboxDeadLetters
+                    .ReadDeadLetterSnapshotAsync(readLimit, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                inboxDeadLettersAvailable = false;
+                logger?.LogWarning(
+                    "Inbox dead-letter state could not be read; current alert snapshot is partial.");
+            }
+        }
+
         var alerts = OperationsAlertEvaluator.Evaluate(
             operationsSnapshot,
             rateLimitHealth.GetSnapshot(),
-            _options);
+            _options,
+            inboxDeadLetterSnapshot,
+            inboxDeadLettersAvailable);
+        var snapshotIsComplete =
+            string.Equals(operationsSnapshot.Status, "ready", StringComparison.OrdinalIgnoreCase) &&
+            inboxDeadLettersAvailable;
+        var snapshotStatus = snapshotIsComplete ? "ready" : "partial";
 
         if (allowedSourceIds is null && history is not null)
         {
@@ -187,10 +228,7 @@ public sealed class OperationsAlertReader(
             {
                 await history.RecordSnapshotAsync(
                         operationsSnapshot.GeneratedAt,
-                        string.Equals(
-                            operationsSnapshot.Status,
-                            "ready",
-                            StringComparison.OrdinalIgnoreCase),
+                        snapshotIsComplete,
                         alerts.Select(alert => OperationsAlertObservation.Create(
                                 alert.Code,
                                 alert.Severity,
@@ -214,7 +252,7 @@ public sealed class OperationsAlertReader(
 
         return new OperationsAlertSnapshot(
             clock.GetUtcNow(),
-            operationsSnapshot.Status,
+            snapshotStatus,
             alerts.Count,
             returnedAlerts.Count,
             returnedAlerts.Count < alerts.Count,
@@ -235,7 +273,9 @@ public static class OperationsAlertEvaluator
     public static IReadOnlyList<OperationsAlert> Evaluate(
         OperationsCenterResponse snapshot,
         RateLimitStoreHealthSnapshot rateLimitHealth,
-        OperationsAlertOptions options)
+        OperationsAlertOptions options,
+        InboxDeadLetterSnapshot? inboxDeadLetters = null,
+        bool inboxDeadLettersAvailable = true)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(rateLimitHealth);
@@ -255,6 +295,11 @@ public static class OperationsAlertEvaluator
 
         AddSourceAlerts(snapshot, options, alerts);
         AddCrawlerAlerts(snapshot, options, alerts);
+        AddInboxDeadLetterAlerts(
+            inboxDeadLetters,
+            inboxDeadLettersAvailable,
+            options,
+            alerts);
         AddConsistencyAlerts(snapshot, options, alerts);
 
         if (rateLimitHealth.Status == RateLimitStoreHealthStatus.Unavailable)
@@ -272,6 +317,38 @@ public static class OperationsAlertEvaluator
             .ThenBy(alert => alert.Code, StringComparer.Ordinal)
             .ThenBy(alert => alert.ResourceId, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static void AddInboxDeadLetterAlerts(
+        InboxDeadLetterSnapshot? snapshot,
+        bool isAvailable,
+        OperationsAlertOptions options,
+        ICollection<OperationsAlert> alerts)
+    {
+        if (!isAvailable)
+        {
+            alerts.Add(new OperationsAlert(
+                "inbox_dead_letter_snapshot_unavailable",
+                "critical",
+                "messaging",
+                "inbox-dead-letters",
+                "inbox dead-letter state could not be read"));
+            return;
+        }
+
+        if (snapshot is not null &&
+            (snapshot.ReturnedCount >= options.InboxDeadLetterCountThreshold ||
+             snapshot.HasMore))
+        {
+            alerts.Add(new OperationsAlert(
+                "inbox_dead_letters_present",
+                "critical",
+                "messaging",
+                "inbox-dead-letters",
+                $"inbox dead-letter messages are present; returned={snapshot.ReturnedCount}, " +
+                $"hasMore={snapshot.HasMore}, " +
+                $"threshold={options.InboxDeadLetterCountThreshold}"));
+        }
     }
 
     private static void AddSourceAlerts(

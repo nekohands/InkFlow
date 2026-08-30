@@ -43,7 +43,11 @@ public sealed class EfTransactionalOutboxWriter : ITransactionalOutboxWriter
 
 /// <summary>PostgreSQL Outbox/Inbox 的 EF 持久化实现。</summary>
 public sealed class EfMessagingMessageStore(MessagingDbContext db)
-    : IOutboxStore, IInboxStore, IInboxTransportStore, IMessageRetentionStore
+    : IOutboxStore,
+      IInboxStore,
+      IInboxTransportStore,
+      IInboxDeadLetterReader,
+      IMessageRetentionStore
 {
     public async Task EnqueueAsync(
         IntegrationMessage message,
@@ -66,6 +70,32 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
                 receivedAt.ToUniversalTime(),
                 cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task<InboxDeadLetterSnapshot> ReadDeadLetterSnapshotAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > IInboxDeadLetterReader.MaxQueryLimit)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        }
+
+        var ids = await db.InboxMessages
+            .AsNoTracking()
+            .Where(message =>
+                message.DeadLetteredAt != null &&
+                message.ProcessedAt == null)
+            .OrderBy(message => message.DeadLetteredAt)
+            .ThenBy(message => message.Id)
+            .Select(message => message.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new(
+            Math.Min(ids.Count, limit),
+            ids.Count > limit);
     }
 
     public async Task<IReadOnlyList<OutboxMessageRecord>> ClaimBatchAsync(

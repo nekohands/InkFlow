@@ -749,6 +749,61 @@ public sealed class MessagingPersistenceTests
     }
 
     [TestMethod]
+    public async Task Inbox_DeadLetter_Reader_Returns_Bounded_Unprocessed_Count()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var activeDeadLetters = Enumerable.Range(0, 3)
+            .Select(index => IntegrationMessage.Create(
+                $"test.consumer.dead-letter.read.{index}",
+                $"{{\"value\":{index}}}",
+                T0.AddMinutes(index),
+                id: Guid.CreateVersion7()))
+            .ToArray();
+        var alreadyProcessed = IntegrationMessage.Create(
+            "test.consumer.dead-letter.read.processed",
+            "{\"value\":99}",
+            T0.AddMinutes(4),
+            id: Guid.CreateVersion7());
+
+        await using (var seedDb = CreateMessagingDb())
+        {
+            seedDb.InboxMessages.AddRange(
+                activeDeadLetters.Select(message => new InboxMessageEntity
+                {
+                    Id = message.Id,
+                    MessageType = message.MessageType,
+                    Payload = message.Payload,
+                    RawPayload = message.Payload,
+                    PayloadHash = message.PayloadHash,
+                    ReceivedAt = message.OccurredAt,
+                    AttemptCount = 2,
+                    DeadLetteredAt = T0.AddMinutes(5),
+                    LastError = MessageFailureCodes.AttemptsExhausted,
+                }).Append(new InboxMessageEntity
+                {
+                    Id = alreadyProcessed.Id,
+                    MessageType = alreadyProcessed.MessageType,
+                    Payload = alreadyProcessed.Payload,
+                    RawPayload = alreadyProcessed.Payload,
+                    PayloadHash = alreadyProcessed.PayloadHash,
+                    ReceivedAt = alreadyProcessed.OccurredAt,
+                    AttemptCount = 2,
+                    DeadLetteredAt = T0.AddMinutes(5),
+                    ProcessedAt = T0.AddMinutes(6),
+                }));
+            await seedDb.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        await using var readDb = CreateMessagingDb();
+        var snapshot = await new EfMessagingMessageStore(readDb)
+            .ReadDeadLetterSnapshotAsync(2)
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(2, snapshot.ReturnedCount);
+        Assert.IsTrue(snapshot.HasMore);
+    }
+
+    [TestMethod]
     public async Task Inbox_Claim_Batch_Preserves_Envelope_And_Filters_Registered_Types()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);

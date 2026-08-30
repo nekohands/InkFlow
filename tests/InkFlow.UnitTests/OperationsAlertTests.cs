@@ -1,4 +1,5 @@
 using InkFlow.Api;
+using InkFlow.BuildingBlocks.Messaging;
 using InkFlow.Modules.Operations.Application;
 using InkFlow.Modules.Operations.Domain;
 using InkFlow.Modules.Sources.Domain;
@@ -19,6 +20,7 @@ public sealed class OperationsAlertTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Operations:Alerts:DeadLetterCountThreshold"] = "3",
+                ["Operations:Alerts:InboxDeadLetterCountThreshold"] = "4",
                 ["Operations:Alerts:UnavailableCapabilityCountThreshold"] = "2",
                 ["Operations:Alerts:ConsistencyIssueCountThreshold"] = "5",
                 ["Operations:Alerts:MaxReturnedAlerts"] = "20",
@@ -29,6 +31,7 @@ public sealed class OperationsAlertTests
         var options = OperationsAlertOptions.FromConfiguration(configuration);
 
         Assert.AreEqual(3, options.DeadLetterCountThreshold);
+        Assert.AreEqual(4, options.InboxDeadLetterCountThreshold);
         Assert.AreEqual(2, options.UnavailableCapabilityCountThreshold);
         Assert.AreEqual(5, options.ConsistencyIssueCountThreshold);
         Assert.AreEqual(20, options.MaxReturnedAlerts);
@@ -99,13 +102,15 @@ public sealed class OperationsAlertTests
                 2,
                 null,
                 T0),
-            new OperationsAlertOptions());
+            new OperationsAlertOptions(),
+            new InboxDeadLetterSnapshot(4, false));
 
         CollectionAssert.AreEqual(
             new[]
             {
                 "consistency_issues_found",
                 "crawler_dead_letters_present",
+                "inbox_dead_letters_present",
                 "rate_limit_store_unavailable",
                 "source_capabilities_unavailable",
             },
@@ -115,6 +120,38 @@ public sealed class OperationsAlertTests
         Assert.IsTrue(alerts.All(alert =>
             alert.ResourceId is not null &&
             !alert.ResourceId.Contains("token", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [TestMethod]
+    public void Evaluator_Reports_Inbox_DeadLetter_Read_Failure_With_Stable_Detail()
+    {
+        var response = new OperationsCenterResponse(
+            T0,
+            "ready",
+            OperationsSection<IReadOnlyList<OperationsSourceView>>.Ready([]),
+            OperationsSection<OperationsCrawlerView>.Ready(
+                new OperationsCrawlerView(0, false, [])),
+            OperationsSection<ConsistencyCheckReport>.Ready(
+                new ConsistencyCheckReport(T0, "healthy", 0, 0, false, [])));
+
+        var alerts = OperationsAlertEvaluator.Evaluate(
+            response,
+            new RateLimitStoreHealthSnapshot(
+                RateLimitStoreHealthStatus.Healthy,
+                0,
+                T0,
+                null),
+            new OperationsAlertOptions(),
+            inboxDeadLetters: null,
+            inboxDeadLettersAvailable: false);
+
+        var alert = alerts.Single(candidate =>
+            candidate.Code == "inbox_dead_letter_snapshot_unavailable");
+        Assert.AreEqual("messaging", alert.ResourceType);
+        Assert.AreEqual("inbox-dead-letters", alert.ResourceId);
+        Assert.AreEqual(
+            "inbox dead-letter state could not be read",
+            alert.Message);
     }
 
     [TestMethod]
@@ -169,6 +206,7 @@ public sealed class OperationsAlertTests
                 1,
                 null,
                 T0)),
+            new FixedInboxDeadLetterReader(new InboxDeadLetterSnapshot(0, false)),
             new OperationsAlertOptions { MaxReturnedAlerts = 3 },
             new FixedClock(T0));
 
@@ -194,6 +232,7 @@ public sealed class OperationsAlertTests
                 OperationsSection<ConsistencyCheckReport>.Ready(
                     new ConsistencyCheckReport(T0, "healthy", 0, 0, false, []))));
         var history = new FakeHistoryRepository();
+        var inbox = new FixedInboxDeadLetterReader(new InboxDeadLetterSnapshot(0, false));
         var reader = new OperationsAlertReader(
             operations,
             new FixedRateLimitHealthReader(new RateLimitStoreHealthSnapshot(
@@ -201,6 +240,7 @@ public sealed class OperationsAlertTests
                 0,
                 T0,
                 null)),
+            inbox,
             new OperationsAlertOptions(),
             new FixedClock(T0),
             history);
@@ -214,6 +254,75 @@ public sealed class OperationsAlertTests
         Assert.AreEqual(1, history.RecordedSnapshots);
         Assert.IsTrue(history.LastSnapshotWasComplete);
         Assert.AreEqual(0, history.LastAlerts.Count);
+        Assert.AreEqual(1, inbox.ReadCalls);
+    }
+
+    [TestMethod]
+    public async Task Reader_Marks_Platform_Snapshot_Partial_When_Inbox_Read_Fails()
+    {
+        var operations = new FakeOperationsCenterReader(
+            new OperationsCenterResponse(
+                T0,
+                "ready",
+                OperationsSection<IReadOnlyList<OperationsSourceView>>.Ready([]),
+                OperationsSection<OperationsCrawlerView>.Ready(
+                    new OperationsCrawlerView(0, false, [])),
+                OperationsSection<ConsistencyCheckReport>.Ready(
+                    new ConsistencyCheckReport(T0, "healthy", 0, 0, false, []))));
+        var history = new FakeHistoryRepository();
+        var reader = new OperationsAlertReader(
+            operations,
+            new FixedRateLimitHealthReader(new RateLimitStoreHealthSnapshot(
+                RateLimitStoreHealthStatus.Healthy,
+                0,
+                T0,
+                null)),
+            new ThrowingInboxDeadLetterReader(),
+            new OperationsAlertOptions(),
+            new FixedClock(T0),
+            history);
+
+        var snapshot = await reader.ReadAsync(10);
+
+        Assert.AreEqual("partial", snapshot.Status);
+        Assert.IsTrue(snapshot.Alerts.Any(alert =>
+            alert.Code == "inbox_dead_letter_snapshot_unavailable"));
+        Assert.AreEqual(1, history.RecordedSnapshots);
+        Assert.IsFalse(history.LastSnapshotWasComplete);
+    }
+
+    [TestMethod]
+    public async Task Reader_Does_Not_Read_Platform_Inbox_DeadLetters_For_Source_Scope()
+    {
+        var operations = new FakeOperationsCenterReader(
+            new OperationsCenterResponse(
+                T0,
+                "ready",
+                OperationsSection<IReadOnlyList<OperationsSourceView>>.Ready([]),
+                OperationsSection<OperationsCrawlerView>.Ready(
+                    new OperationsCrawlerView(0, false, [])),
+                OperationsSection<ConsistencyCheckReport>.Ready(
+                    new ConsistencyCheckReport(T0, "healthy", 0, 0, false, []))));
+        var inbox = new FixedInboxDeadLetterReader(new InboxDeadLetterSnapshot(10, true));
+        var reader = new OperationsAlertReader(
+            operations,
+            new FixedRateLimitHealthReader(new RateLimitStoreHealthSnapshot(
+                RateLimitStoreHealthStatus.Healthy,
+                0,
+                T0,
+                null)),
+            inbox,
+            new OperationsAlertOptions(),
+            new FixedClock(T0));
+
+        var snapshot = await reader.ReadForSourcesAsync(
+            10,
+            new HashSet<string>(StringComparer.Ordinal) { "official-a" });
+
+        Assert.AreEqual("ready", snapshot.Status);
+        Assert.IsFalse(snapshot.Alerts.Any(alert =>
+            alert.Code.StartsWith("inbox_", StringComparison.Ordinal)));
+        Assert.AreEqual(0, inbox.ReadCalls);
     }
 
     private sealed class FakeOperationsCenterReader(OperationsCenterResponse response)
@@ -243,6 +352,28 @@ public sealed class OperationsAlertTests
         : IRateLimitStoreHealthReader
     {
         public RateLimitStoreHealthSnapshot GetSnapshot() => snapshot;
+    }
+
+    private sealed class FixedInboxDeadLetterReader(InboxDeadLetterSnapshot snapshot)
+        : IInboxDeadLetterReader
+    {
+        public int ReadCalls { get; private set; }
+
+        public Task<InboxDeadLetterSnapshot> ReadDeadLetterSnapshotAsync(
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            ReadCalls++;
+            return Task.FromResult(snapshot);
+        }
+    }
+
+    private sealed class ThrowingInboxDeadLetterReader : IInboxDeadLetterReader
+    {
+        public Task<InboxDeadLetterSnapshot> ReadDeadLetterSnapshotAsync(
+            int limit,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("database connection details must not escape");
     }
 
     private sealed class FakeHistoryRepository : IOperationsAlertHistoryRepository

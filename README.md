@@ -137,6 +137,7 @@ docker compose -f docker-compose.build.yml up -d --build
 | `ConnectionStrings__Redis` | `redis:6379,abortConnect=false`（Compose） | API 分布式限流计数连接；生产环境应配置认证/TLS 连接串 |
 | `RateLimiting__RedisKeyPrefix` | `inkflow:rate-limit` | Redis 限流键前缀；客户端身份只以短哈希进入键名 |
 | `Operations__Alerts__DeadLetterCountThreshold` | `1` | 告警快照触发死信阈值 |
+| `Operations__Alerts__InboxDeadLetterCountThreshold` | `1` | 告警快照触发 Inbox 终态死信阈值 |
 | `Operations__Alerts__UnavailableCapabilityCountThreshold` | `1` | 告警快照触发来源能力不可用阈值 |
 | `Operations__Alerts__ConsistencyIssueCountThreshold` | `1` | 告警快照触发一致性问题阈值 |
 | `Operations__Alerts__MaxReturnedAlerts` | `100` | 单次告警快照最大返回数量 |
@@ -161,7 +162,7 @@ Web Reader 入口:`http://<主机>:8080/reader`。Legado 书源:`http://<主机>
 
 ### Operations 告警快照
 
-`GET /api/v1/admin/operations/alerts` 受 `Operator` / `Administrator` 保护，返回有界、可轮询的当前告警快照，覆盖来源能力不可用、死信、一致性问题、Operations 区块不可用和 Redis 限流存储不可用。阈值通过 `Operations__Alerts__*` 配置；快照不执行修复、不保存告警历史、不去重也不发送外部通知，外部监控系统需自行轮询并负责通知/保留治理。
+`GET /api/v1/admin/operations/alerts` 受 `Operator` / `Administrator` 保护，返回有界、可轮询的当前告警快照，覆盖来源能力不可用、Crawler/Inbox 终态死信、一致性问题、Operations 区块不可用和 Redis 限流存储不可用。Inbox 死信仅以数量和截断标记进入平台级快照；来源过滤的 Operator 视图不返回平台级 Inbox 状态。阈值通过 `Operations__Alerts__*` 配置；快照不执行修复、不保存告警历史、不去重也不发送外部通知，外部监控系统需自行轮询并负责通知/保留治理。
 
 ### PostgreSQL 备份恢复演练
 

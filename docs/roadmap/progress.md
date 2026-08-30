@@ -905,6 +905,14 @@ Phase 1A 自动化工作包状态：
 - 远端证据：代码候选提交 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN 且 headSha 一致；CI 为 Unit 472/472、Architecture 1/1、Contract 10/10、Integration 86（84 passed / 2 skipped），Docker 四业务镜像和 Collector 扫描通过，Security 的 CodeQL、Filesystem、SBOM、NuGet 审计通过。
 - 当前状态：本工作包为 `CI Green / Implemented`，不等同于 `Accepted/Completed`；其他 Integration Event、Docker 本机复验、真实来源、阅读 3.0 和人工验收继续按第 6 节待定。
 
+### 4.65 Inbox 终态死信纳入 Operations 告警观测（本轮，2026-08-30）
+
+- 缺口：4.63 已将 Inbox Handler 失败收敛为 `DeadLetteredAt` 终态，但 Operations 告警快照只读取 Crawler 死信；消息消费持续失败无法进入统一运维告警与历史链路。
+- 实现：新增 `IInboxDeadLetterReader` 与 PostgreSQL `EfMessagingMessageStore` 有界摘要读取，只统计 `DeadLetteredAt IS NOT NULL AND ProcessedAt IS NULL`，返回数量和 `HasMore`，不带载荷、失败文本或 TraceId；新增 `(ProcessedAt, DeadLetteredAt, Id)` 索引 Migration。Operations 增加 `InboxDeadLetterCountThreshold`，平台级快照产生 `inbox_dead_letters_present`，读取失败产生稳定 `inbox_dead_letter_snapshot_unavailable` 并将快照标为 partial；来源过滤的 Operator 视图不查询平台级 Inbox 状态。决策见 [ADR 0020](../adr/0020-inbox-dead-letter-operations-observation.md)。
+- 回归：新增告警阈值/稳定错误/partial 历史语义/来源过滤单元回归，以及 PostgreSQL 有界死信读取与已处理行排除集成回归。
+- 本地证据：Release Build 0 warnings / 0 errors；Operations 告警定向单元 9/9 PASS；新增 PostgreSQL 集成用例已编译，但因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，未记为本机集成通过。
+- 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；外部通知、真实来源、阅读 3.0、人工验收和本机 Docker 仍按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1004,6 +1012,7 @@ Official Source
 ### 6.3 后续工程事项（非本轮人工验收）
 
 - [x] **Inbox 业务消费闭环（`crawler.task.created` v1）**：已明确稳定 `IntegrationMessage` 类型、注册幂等 Handler，补充按任务 ID 原子租约、共享任务处理器、任务级重试/死信策略和 Outbox→Inbox→Handler→任务完成验证；其他 Integration Event 仍需各自接入和取得端到端证据。
+- [x] **Inbox 死信 Operations 观测 v1**：终态 Inbox 死信以有界数量/截断标记进入平台级告警；读取失败 fail-closed 为 partial，来源过滤视图不泄漏平台级消息状态（ADR 0020）。
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
 - API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理、管理员历史查询和 Operations Center 历史展示；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由和生产告警治理仍待后续 Operations/Identity/商业化工作包；审计已具备有界 retention 代码基线，但生产法律/合同保留、归档和删除授权治理仍待部署环境确定。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。

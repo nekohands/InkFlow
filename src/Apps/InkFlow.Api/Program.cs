@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using InkFlow.Api;
 using InkFlow.BuildingBlocks.Application;
+using InkFlow.BuildingBlocks.Messaging;
 using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.BuildingBlocks.Security;
@@ -54,6 +55,8 @@ var databaseConnectionString =
 
 builder.Services.AddDbContext<AuditDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
+builder.Services.AddDbContext<MessagingDbContext>(options =>
+    options.UseNpgsql(databaseConnectionString));
 builder.Services.AddDbContextFactory<OperationsDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
 builder.Services.AddDbContext<IdentityDbContext>(options =>
@@ -69,6 +72,9 @@ builder.Services.AddScoped<LoggingAuditEventSink>();
 builder.Services.AddScoped<PersistentAuditEventSink>();
 builder.Services.AddScoped<IAuditEventSink, CompositeAuditEventSink>();
 builder.Services.AddScoped<IAuditEventReader, EfAuditEventReader>();
+builder.Services.AddScoped<EfMessagingMessageStore>();
+builder.Services.AddScoped<IInboxDeadLetterReader>(sp =>
+    sp.GetRequiredService<EfMessagingMessageStore>());
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddScoped<IIdentitySessionRepository, EfIdentitySessionRepository>();
