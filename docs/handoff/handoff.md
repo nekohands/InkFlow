@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`ecd8533`（书籍包一致性快照与租约崩溃恢复已加固；Ubuntu VM 源码构建/运行验收与 CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新代码候选 Commit：`98e3725`（多书籍增量目录扫描按具体来源书籍隔离任务冲突；Ubuntu VM 源码构建/运行验收通过，文档同步后的 CI/Docker/Security 门禁待核对；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -952,6 +952,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机证据：Release Build 0 warnings / 0 errors；Unit 497/497、Architecture 1/1、Contract 10/10、迁移模型检查和 diff check 均通过。Windows Docker Engine 不可用，集成测试在 Ubuntu VM 验证。
 - Ubuntu VM 证据：源码构建 Compose、健康检查、Migration 和包任务集成回归通过；完整 `collection-package-runtime-smoke` 通过 direct URL、安全边界、四类控制幂等、前置进度、ZIP/EPUB/TXT、哈希/长度和审计，临时账号已禁用，Compose 已停止且卷保留。
 - 候选 `ecd8533` 已推送 `dev`；[CI 33329741035](https://github.com/nekohands/InkFlow/actions/runs/33329741035)、[Docker 33329741037](https://github.com/nekohands/InkFlow/actions/runs/33329741037)、[Security 33329741041](https://github.com/nekohands/InkFlow/actions/runs/33329741041) 均 GREEN。未执行受保护 Operations 页面登录后的浏览器输入验收，也未启动 MuMu/阅读 3.0；整体不得标记 `Accepted/Completed`。
+
+### 4.90 多书籍增量目录扫描冲突隔离交接（本轮，2026-08-31）
+
+- `UpdateScanService` 已修复来源级活动 TOC 任务误阻塞同源其他书籍的问题；新增回归测试先红后绿，现按 `source + capability + bookId` 判断冲突，保留 `CrawlerTask` 的 `bookId` 变量和既有幂等边界。
+- 本机：Release Build 0 warnings / 0 errors；Unit 498/498、Architecture 1/1、Contract 10/10、diff check PASS。Windows Docker Engine 缺失，Testcontainers 集成不作为本机证据。
+- Ubuntu VM：`98e3725` 经 Linux SDK 容器定向 Unit 2/2；源码构建 Compose、健康启动/迁移通过；`reader-frontend-runtime-smoke`、`admin-runtime-smoke`、`collection-package-runtime-smoke` 均 PASS，后者覆盖持久控制和 ZIP/EPUB/TXT 包的完整性/审计。临时账号已禁用，Compose 已停止，持久卷保留。
+- 交接门槛：文档提交后必须等待并核对同一 HEAD 的 CI、Docker、Security 三组门禁；真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是人工/真实环境待定项，整体保持 `1.0 Release Candidate`。
 
 ## 5. 关键架构不变量
 

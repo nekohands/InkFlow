@@ -1111,6 +1111,14 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM：`docker-compose.build.yml` 源码构建和健康启动通过；`BookPackageJobRepositoryTests` 2/2 通过；整轮 `collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)`，结束后临时账号已禁用、Compose 已停止、持久卷保留。
 - 远端：候选 `ecd8533` 的 [CI 33329741035](https://github.com/nekohands/InkFlow/actions/runs/33329741035)、[Docker 33329741037](https://github.com/nekohands/InkFlow/actions/runs/33329741037)、[Security 33329741041](https://github.com/nekohands/InkFlow/actions/runs/33329741041) 均 GREEN，三者 head SHA 一致。受保护运维页登录后的浏览器输入验收仍需用户在输入临时凭据前明确确认；阅读 3.0/MuMu 真机按用户决定保留人工待定，整体仍为 `1.0 Release Candidate`。
 
+### 4.90 多书籍增量目录扫描冲突隔离（本轮，2026-08-31）
+
+- 缺陷：`UpdateScanService` 原按 `source + capability` 判断活动 TOC 任务；同一来源下任意一本书有任务时，会错误跳过该来源的其他书，导致多书籍增量扫描漏入队。
+- TDD 修复：先新增 `Active_Toc_Task_For_One_Book_Does_Not_Block_Other_Books_From_Same_Source` 回归测试并确认旧实现失败，再改用 `HasConflictingTaskAsync(sourceId, Toc, bookId, externalBookId)`，将冲突范围收敛到具体来源书籍；测试转绿，未改变任务变量和公共 API 契约。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 498/498、Architecture 1/1、Contract 10/10 PASS；`git diff --check` PASS。Windows Docker Engine 不可用，Testcontainers 集成不作为本机通过证据。
+- Ubuntu VM 证据：候选 `98e3725` 已同步；Linux SDK 容器中的受影响 Unit 2/2 通过；`docker-compose.build.yml` 源码构建、健康启动和迁移通过；前端契约、管理员/运营审计权限、采集控制及 ZIP/EPUB/TXT 打包完整性烟测均 PASS。临时账号已禁用，Compose 已停止，持久卷保留。
+- 远端门禁：文档同步提交后需等待同一 HEAD 的 CI、Docker、Security 三组工作流并核对 head SHA；在门禁完成前不标记本轮 `Accepted/Completed`。阅读 3.0/MuMu、真实可控新增章节、真实第二来源故障切换、真实账户/生产凭据及其他第 6 节事项继续待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
