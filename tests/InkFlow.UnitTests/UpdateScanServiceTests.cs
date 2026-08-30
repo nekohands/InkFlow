@@ -31,6 +31,25 @@ public sealed class UpdateScanServiceTests
         Assert.AreEqual("healthy-source", tasks.Store.Single().Payload.SourceId);
     }
 
+    [TestMethod]
+    public async Task Active_Toc_Task_For_One_Book_Does_Not_Block_Other_Books_From_Same_Source()
+    {
+        var sourceBooks = new InMemorySourceBookRepository(
+            SourceBook.Create("shared-source", "book-1", "第一本", "作者", T0),
+            SourceBook.Create("shared-source", "book-2", "第二本", "作者", T0));
+        var tasks = new InMemoryTaskRepository("shared-source");
+        tasks.ConflictingBookIds.Add("book-1");
+        var scanner = new UpdateScanService(
+            sourceBooks,
+            tasks,
+            new FixedClock(T0));
+
+        var count = await scanner.EnqueueTocScansAsync();
+
+        Assert.AreEqual(1, count);
+        Assert.AreEqual("book-2", tasks.Store.Single().Payload.Variables["bookId"]);
+    }
+
     private sealed class InMemorySourceBookRepository(params SourceBook[] books) : ISourceBookRepository
     {
         private readonly IReadOnlyList<SourceBook> _books = books;
@@ -53,9 +72,13 @@ public sealed class UpdateScanServiceTests
             throw new NotSupportedException();
     }
 
-    private sealed class InMemoryTaskRepository : ICrawlerTaskRepository
+    private sealed class InMemoryTaskRepository(params string[] activeSourceIds) : ICrawlerTaskRepository
     {
+        private readonly HashSet<string> _activeSourceIds = activeSourceIds.ToHashSet(StringComparer.Ordinal);
+
         public List<CrawlerTask> Store { get; } = [];
+
+        public HashSet<string> ConflictingBookIds { get; } = [];
 
         public Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
         {
@@ -106,7 +129,7 @@ public sealed class UpdateScanServiceTests
             string sourceId,
             SourceCapability capability,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(false);
+            Task.FromResult(_activeSourceIds.Contains(sourceId));
 
         public Task<bool> HasConflictingTaskAsync(
             string sourceId,
@@ -114,7 +137,8 @@ public sealed class UpdateScanServiceTests
             string variableName,
             string variableValue,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(false);
+            Task.FromResult(
+                variableName == "bookId" && ConflictingBookIds.Contains(variableValue));
     }
 
     private sealed class InMemoryHealthReader(params string[] unavailable) : ISourceHealthReader

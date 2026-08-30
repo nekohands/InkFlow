@@ -5,7 +5,7 @@ using InkFlow.Modules.Sources.Domain;
 namespace InkFlow.Modules.Crawling.Application;
 
 /// <summary>
-/// 追更扫描:为每个已导入来源书目创建 Toc 同步任务(带活跃任务去重)。
+/// 追更扫描:为每个已导入来源书目创建 Toc 同步任务(按书目带阻止性任务去重)。
 /// 由 Scheduler 定时调用;Worker 消费任务完成"检测新章 → 抓取 → 落库 → 映射"。
 /// </summary>
 public sealed class UpdateScanService(
@@ -29,7 +29,12 @@ public sealed class UpdateScanService(
                 continue;
             }
 
-            if (await taskRepository.HasActiveTaskAsync(book.SourceId, SourceCapability.Toc, cancellationToken)
+            if (await taskRepository.HasConflictingTaskAsync(
+                    book.SourceId,
+                    SourceCapability.Toc,
+                    "bookId",
+                    book.ExternalBookId,
+                    cancellationToken)
                     .ConfigureAwait(false))
             {
                 continue;
