@@ -131,7 +131,7 @@ docker compose up -d
 
 ### 环境变量
 
-本地复验可先复制 [`.env.example`](.env.example) 为 `.env`，再填写本机或验证环境的值。根目录 `.env` 已被忽略，允许保存本地密码等敏感配置，但不得提交；GHCR 登录 Token 不写入仓库，也不复制到 CI。日常 Docker 验证使用 `docker-compose.build.yml`，只有发布镜像或明确进行镜像一致性复验时才使用 `docker-compose.yml`。
+本地复验可先复制 [`.env.example`](.env.example) 为 `.env`，再填写本机或验证环境的值。根目录 `.env` 已被忽略，允许保存本地密码等敏感配置，但不得提交；GHCR 登录 Token 不写入仓库，也不复制到 CI。`scripts/reader-frontend-runtime-smoke.sh`、`scripts/core-slo-runtime-smoke.sh` 和 `scripts/backup-restore-drill.sh` 会自动读取根目录 `.env`，已导出的环境变量优先；可用 `INKFLOW_ENV_FILE` 指定其他本地文件，或用 `INKFLOW_SKIP_LOCAL_ENV=1` 跳过。日常 Docker 验证使用 `docker-compose.build.yml`，只有发布镜像或明确进行镜像一致性复验时才使用 `docker-compose.yml`。
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |

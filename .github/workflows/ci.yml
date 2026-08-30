@@ -54,6 +54,12 @@ jobs:
           bash -n scripts/tests/reader-frontend-runtime-smoke.test.sh
           bash scripts/tests/reader-frontend-runtime-smoke.test.sh
 
+      - name: Local env loader regression
+        run: |
+          bash -n scripts/load-local-env.sh
+          bash -n scripts/tests/load-local-env.test.sh
+          bash scripts/tests/load-local-env.test.sh
+
       - name: Runtime smoke test
         env:
           OTEL_METRIC_EXPORT_INTERVAL: "1000"

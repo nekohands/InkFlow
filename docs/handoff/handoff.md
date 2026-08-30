@@ -807,6 +807,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本地定向结果：3/3 通过；完整 Build/Test/Runtime/CI 将随候选提交重新执行。
 - 当前状态：来源分派关键 seam 的自动化覆盖已补齐，整体仍为 `1.0 Release Candidate`；真实来源/故障切换和人工验收边界不变。
 
+### 4.72 本地 `.env` 验证脚本加载（本轮，2026-08-30）
+
+- 补充 `scripts/load-local-env.sh`，前端 smoke、Core SLO smoke 和 PostgreSQL 备份恢复脚本会自动读取根目录 `.env`；已有导出环境变量优先，支持本地文件覆盖和显式跳过。
+- 加载器只解析受限的 `KEY=value` / `export KEY=value` 赋值，不执行 `.env` 内容，也不打印值；新增脚本回归覆盖注释、空值、引号、`#`、字面量命令文本和环境变量优先级。
+- `.env.example` 增补前端 curl 超时配置和加载说明；`.env` 继续由 `.gitignore` 忽略，敏感值不进入提交、文档或 CI 日志。
+- 当前状态：本地验证入口可直接复用 `.env`，不改变源码 Compose 为日常默认和 GHCR Compose 仅用于发布/镜像复验的边界；整体仍为 `1.0 Release Candidate`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

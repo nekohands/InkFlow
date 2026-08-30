@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-compose_file="${COMPOSE_FILE:-docker-compose.build.yml}"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/load-local-env.sh"
+
+compose_file="${COMPOSE_FILE:-${INKFLOW_SOURCE_COMPOSE_FILE:-docker-compose.build.yml}}"
 database_service="${DATABASE_SERVICE:-postgres}"
 database_name="${DATABASE_NAME:-inkflow}"
 database_user="${DATABASE_USER:-inkflow}"

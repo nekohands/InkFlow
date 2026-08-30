@@ -3,6 +3,10 @@ set -Eeuo pipefail
 
 export LC_ALL=C
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/load-local-env.sh"
+
 base_url="${1:-${INKFLOW_SLO_SMOKE_BASE_URL:-http://localhost:8080}}"
 probe_count="${INKFLOW_SLO_PROBE_COUNT:-5}"
 max_time="${INKFLOW_SLO_CURL_MAX_TIME:-10}"
