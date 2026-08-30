@@ -969,6 +969,14 @@ Phase 1A 自动化工作包状态：
 - 本地脚本语法/回归均通过；候选提交 `b9c2f70` 的远端 [CI 33298192655](https://github.com/nekohands/InkFlow/actions/runs/33298192655)、[Docker 33298192688](https://github.com/nekohands/InkFlow/actions/runs/33298192688)、[Security 33298192776](https://github.com/nekohands/InkFlow/actions/runs/33298192776) 均 GREEN 且 head SHA 一致。CI 中 Unit 478/478、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）、Redis 1/1、源码 Compose Runtime、前端 smoke、SLO、备份恢复和新增 env-loader 回归均通过。
 - 当前状态：本地验证入口可直接复用 `.env`，不改变源码 Compose 为日常默认和 GHCR Compose 仅用于发布/镜像复验的边界；整体仍为 `1.0 Release Candidate`。
 
+### 4.73 BookDiscoveryService 单来源异常隔离（本轮，2026-08-30）
+
+- 缺口：搜索适配器异常原先已按来源隔离，但健康检查、适配器工厂、书目导入或 Canonical 匹配阶段的异常仍可能中止整个发现循环，导致其他来源无法继续返回结果。
+- 实现：将每个来源的发现流程置于独立异常边界；保留 `OperationCanceledException` 取消传播，其他异常转换为有界来源 warning 并继续处理后续来源，不改变公共 API、数据库结构或关键实体不变量。
+- 回归：先补充会在导入阶段抛错的 `ThrowingSourceBooks` 测试并确认旧实现红灯，再以修复后的实现验证“坏来源产生 warning、好来源仍返回命中”。本地 `dotnet restore`、Release Build（0 warnings / 0 errors）、Unit 479/479、Architecture 1/1、Contract 10/10 均通过。
+- 远端证据：候选提交 `ea562d6` 的 [CI 33299004055](https://github.com/nekohands/InkFlow/actions/runs/33299004055)、[Docker 33299004053](https://github.com/nekohands/InkFlow/actions/runs/33299004053)、[Security 33299004087](https://github.com/nekohands/InkFlow/actions/runs/33299004087) 均 GREEN 且 head SHA 一致。CI 中 Unit 479/479、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）、Redis 1/1、源码 Compose Runtime、前端 1.0 smoke、SLO、备份恢复和 Runtime diagnostics 均通过；Docker 发布前扫描、四业务镜像和发布 Compose 拉取复验通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过。
+- 验收边界：本轮不触发真实来源、真实追更、MuMu/阅读 3.0、浏览器人工验收或真实凭据操作；`.env` 仍只在本机使用并保持 ignored/untracked。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
