@@ -923,6 +923,14 @@ Phase 1A 自动化工作包状态：
 - 远端证据：最终提交 `ff7ba52eeee2d817c17fcb08e88cb0d2c087cf12` 的 [CI 33294167216](https://github.com/nekohands/InkFlow/actions/runs/33294167216)、[Docker 33294167310](https://github.com/nekohands/InkFlow/actions/runs/33294167310)、[Security 33294167234](https://github.com/nekohands/InkFlow/actions/runs/33294167234) 均 GREEN 且 headSha 一致。CI 真实测试为 Unit 475/475、Architecture 1/1、Contract 10/10、Integration 87（85 passed / 2 skipped）和 Redis 1/1；包含 Compose、Runtime smoke、Core SLO、备份恢复与 diagnostics。Docker 新增的发布后 Compose 拉取门禁通过，Security 的 SBOM、Filesystem、NuGet、CodeQL 全部通过，保留既有 Node/CodeQL 权限提示。
 - 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；真实来源/故障切换、阅读 3.0、浏览器与私有库人工验收，以及生产 OTLP/告警/备份治理仍按第 6 节待定。
 
+### 4.67 ContentVersion 当前版本切换边界修复（本轮，2026-08-30）
+
+- 缺口：`EfContentVersionRepository.SetCurrentAsync` 原先分两条更新语句执行，且第二条只按 `versionId` 设置 `IsCurrent`，未验证目标版本属于请求章节；跨章节 ID 可能被选中，第二条失败或并发切换还可能留下错误的当前状态。
+- 实现：在同一数据库事务内先校验 `(chapterId, versionId)` 归属，再以单条按章节 UPDATE 同时清除其它当前标记并设置目标版本，保持版本历史不可变且拒绝无效目标。
+- 回归：新增 `ContentVersionRepositoryTests` 两个 PostgreSQL Testcontainers 用例，覆盖跨章节拒绝且保留原当前版本，以及同章节切换后仅有一个当前版本。本机 Release Build 0 warnings / 0 errors；本机 Integration 因 Windows Docker 管道不可用仍 BLOCKED，Ubuntu VM 真实 Testcontainers 2/2 通过，测试后无遗留容器。
+- 远端证据：提交 `74b0d536af9d37f282c64fb78f6041987841300d` 的 [CI 33294984996](https://github.com/nekohands/InkFlow/actions/runs/33294984996)、[Docker 33294984938](https://github.com/nekohands/InkFlow/actions/runs/33294984938)、[Security 33294984918](https://github.com/nekohands/InkFlow/actions/runs/33294984918) 均 GREEN 且 headSha 一致；CI Unit 475/475、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）和 Redis 1/1 全部通过。
+- 当前状态：本工作包为 `Implemented`，整体仍保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；真实来源/故障切换、阅读 3.0、浏览器/私有库人工验收和生产治理仍按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1013,7 +1021,7 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中运行完整 Testcontainers 集成测试，87 项为 85 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox 和 Sources Capability Health 等持久化链路；Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次真实容器证据。
+- [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中运行完整 Testcontainers 集成测试，最新 CI 为 89 项、87 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox、Sources Capability Health 和 ContentVersion 当前选择边界等持久化链路；Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：源码 Compose 先完成基线演练，随后 GHCR 发布镜像 Compose 再次执行 `scripts/backup-restore-drill.sh`；custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=80181 bytes, audit_events=63`，隔离库已清理，PostgreSQL/Redis 验证卷保留。生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
@@ -1049,6 +1057,8 @@ Official Source
 最新可用环境复验：Ubuntu VM 上的 Linux SDK 容器执行完整 `Restore → Build → Test`，Unit 475/475、Architecture 1/1、Contract 10/10、Integration 85 passed / 2 skipped / 0 failed；源码构建 Compose 的 Migration 退出码 0，API/Worker/Scheduler 和 Collector 健康检查通过；Core SLO Runtime smoke 四服务面通过；`scripts/backup-restore-drill.sh` 恢复校验通过（archive=78516 bytes，audit_events=31）。本轮验证后已停止容器，仅保留 PostgreSQL/Redis 卷。
 
 本轮发布镜像复验：修正后的默认 GHCR Compose 在 Ubuntu VM 成功拉取全部应用镜像并启动，Migration 退出码 0，API/Worker/Scheduler 健康检查通过；默认 Core SLO 探针生成随机证据文件并通过，公开 API、Legado、Reader/PWA 入口均返回预期状态；脚本回归与备份恢复通过（archive=80181 bytes，audit_events=63）。验证后已停止容器，`inkflow_inkflow-postgres` 与 `inkflow_inkflow-redis` 数据卷保留。最终 `ff7ba52` 的 CI/Docker/Security 均 GREEN。
+
+本轮 ContentVersion 边界复验：Ubuntu VM Linux SDK 容器中的新增 PostgreSQL Testcontainers 用例 2/2 通过，验证跨章节目标拒绝且原当前版本不被清除、同章节切换保持唯一当前版本；临时测试容器已自动清理。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

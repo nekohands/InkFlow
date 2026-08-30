@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`ff7ba52`（已推送，CI/Docker/Security 全部 GREEN）
+- 最新候选 Commit：`74b0d53`（已推送，CI/Docker/Security 全部 GREEN）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -557,6 +557,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 失败修复记录：`623077c` 的 CI 回归测试未隔离 Runner `RUNNER_TEMP` 而失败，已读取日志并由 `ff7ba52` 修复后全量复绿；VM 备份脚本首次无 sudo 仅为 Docker socket 权限问题，授权重跑通过。
 - 当前状态：本工作包 `Implemented`，整体仍是 `1.0 Release Candidate`；真实来源/切源、阅读 3.0、浏览器/私有库人工验收和生产 OTLP/告警/备份治理继续待定。
 
+### 4.67 ContentVersion 当前版本切换边界修复（本轮，2026-08-30）
+
+- 缺口：`EfContentVersionRepository.SetCurrentAsync` 原先先清空章节当前标记、再按 `versionId` 无条件设置，未验证版本属于目标章节，且两条更新之间存在非原子中间状态。
+- 实现：同一数据库事务内校验目标版本归属，并以单条按章节 UPDATE 同时清除其它当前标记和设置目标版本；无效或跨章节目标抛出稳定 `InvalidOperationException`，不会清除既有当前版本。
+- 回归：新增 2 个 PostgreSQL Testcontainers 集成用例，覆盖跨章节拒绝/原当前版本保留和同章节切换唯一性。本机 Release Build 0 warnings / 0 errors；本机 Docker 不可用导致完整 Integration 仍 BLOCKED，Ubuntu VM 真实 Testcontainers 2/2 通过且测试容器已清理。
+- 远端证据：候选 `74b0d536af9d37f282c64fb78f6041987841300d` 的 [CI 33294984996](https://github.com/nekohands/InkFlow/actions/runs/33294984996)、[Docker 33294984938](https://github.com/nekohands/InkFlow/actions/runs/33294984938)、[Security 33294984918](https://github.com/nekohands/InkFlow/actions/runs/33294984918) 均 GREEN 且 headSha 一致；CI Unit 475/475、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）、Redis 1/1 全部通过。
+- 当前状态：本工作包 `Implemented`，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；真实来源/切源、阅读 3.0、浏览器/私有库人工验收和生产治理继续待定。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -760,7 +768,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [ ] **linovelib 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → Content，并把该来源纳入真实第二来源/故障切换演练；本轮仅完成离线规则回归，未触网。
 - [ ] **17K 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向；本轮仅完成 Fixture 回归，未触网。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 85 项中 77 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Inbox 失败策略、Sources Capability Health 并发变更、Outbox/Inbox 和保留清理测试；本机未取得真实容器证据。
+- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 89 项中 81 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Inbox 失败策略、Sources Capability Health 并发变更、Outbox/Inbox、保留清理和 ContentVersion 当前选择边界测试；本机未取得真实容器证据。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
 
 扩展新来源的方式(书源兼容层):
