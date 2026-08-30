@@ -914,6 +914,15 @@ Phase 1A 自动化工作包状态：
 - 远端证据：代码候选提交 `72e49b30f36e78d0405b984580e1ce2a43381b32` 的 [CI 33291943661](https://github.com/nekohands/InkFlow/actions/runs/33291943661)、[Docker 33291943632](https://github.com/nekohands/InkFlow/actions/runs/33291943632)、[Security 33291943645](https://github.com/nekohands/InkFlow/actions/runs/33291943645) 均 GREEN 且 headSha 一致；CI Integration 87 项为 85 passed / 2 skipped，包含本轮 Inbox 回归，Docker 四业务镜像与 Collector 构建/扫描/发布通过，Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过。
 - 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；外部通知、真实来源、阅读 3.0、人工验收和本机 Docker 仍按第 6 节待定。
 
+### 4.66 GHCR 发布 Compose 与 Core SLO 证据文件健壮性（本轮，2026-08-30）
+
+- 缺口：Docker 发布工作流实际推送到 `ghcr.io/nekohands/inkflow/inkflow-*`，默认 Compose 少了 `/inkflow/` 路径，导致已登录 GHCR 的部署机仍无法拉取应用镜像；Core SLO 探针默认证据文件使用固定名称，跨用户重复执行时可能被 `/tmp` 粘滞位阻止覆盖。
+- 实现：修正四个 GHCR 应用镜像引用；Docker 工作流新增 `Verify published Compose images`，在四个业务镜像全部发布后真实执行默认 Compose 拉取；Core SLO 探针在未显式指定路径时生成随机后缀证据文件，保留 `INKFLOW_SLO_EVIDENCE_FILE` 显式路径契约。
+- 回归：新增默认证据路径遇到既有不可写同名文件的 shell 回归，并隔离 GitHub Runner 的 `RUNNER_TEMP`；本地 bash 语法、脚本回归和 `git diff --check` 通过。首次候选 `623077c` 的 CI 曾因测试未隔离 `RUNNER_TEMP` 失败，读取日志后以 `ff7ba52` 修复并重新全量回归。
+- Ubuntu VM 证据：`e5af3c5` 修复后的默认 GHCR Compose 全部镜像拉取成功，Migration 退出码 0，PostgreSQL/Redis/OTel Collector 与 API/Worker/Scheduler 健康；默认 Core SLO 四服务面、公开 API/Legado/Reader/PWA 入口和脚本回归均通过。备份恢复演练通过，结果为 `archive=80181 bytes, audit_events=63`；栈已停止，验证卷保留。备份脚本首次无 sudo 因 Docker socket 权限失败，使用 VM 既有授权重跑通过，不属于应用故障。
+- 远端证据：最终提交 `ff7ba52eeee2d817c17fcb08e88cb0d2c087cf12` 的 [CI 33294167216](https://github.com/nekohands/InkFlow/actions/runs/33294167216)、[Docker 33294167310](https://github.com/nekohands/InkFlow/actions/runs/33294167310)、[Security 33294167234](https://github.com/nekohands/InkFlow/actions/runs/33294167234) 均 GREEN 且 headSha 一致。CI 真实测试为 Unit 475/475、Architecture 1/1、Contract 10/10、Integration 87（85 passed / 2 skipped）和 Redis 1/1；包含 Compose、Runtime smoke、Core SLO、备份恢复与 diagnostics。Docker 新增的发布后 Compose 拉取门禁通过，Security 的 SBOM、Filesystem、NuGet、CodeQL 全部通过，保留既有 Node/CodeQL 权限提示。
+- 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；真实来源/故障切换、阅读 3.0、浏览器与私有库人工验收，以及生产 OTLP/告警/备份治理仍按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1007,7 +1016,7 @@ Official Source
 - [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中运行完整 Testcontainers 集成测试，87 项为 85 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox 和 Sources Capability Health 等持久化链路；Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
-- [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：源码 Compose 启动并产生审计数据后执行 `scripts/backup-restore-drill.sh`，custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致；本次记录 `archive=78516 bytes, audit_events=31`，隔离库已清理，PostgreSQL/Redis 验证卷保留。生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
+- [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：源码 Compose 先完成基线演练，随后 GHCR 发布镜像 Compose 再次执行 `scripts/backup-restore-drill.sh`；custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=80181 bytes, audit_events=63`，隔离库已清理，PostgreSQL/Redis 验证卷保留。生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境把 Collector 接入受治理的持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，验证错误预算告警、访问控制和保留策略；当前 CI 合成探针与 Compose debug exporter 仅是短窗口接收基线，不替代生产证据。
 
 ### 6.3 后续工程事项（非本轮人工验收）
@@ -1038,6 +1047,8 @@ Official Source
 当前 4.64 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；Worker `/health` HTTP 200，后台业务因本机 PostgreSQL `127.0.0.1:5432` 不可用而未完成真实任务处理；Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计无漏洞、敏感信息模式检查和 `git diff --check` PASS。WSL 迁移包装脚本因当前环境找不到 `dotnet` 未执行成功，但 Windows 直接等价迁移模型检查 11/11 PASS。代码候选提交 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的远端 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。
 
 最新可用环境复验：Ubuntu VM 上的 Linux SDK 容器执行完整 `Restore → Build → Test`，Unit 475/475、Architecture 1/1、Contract 10/10、Integration 85 passed / 2 skipped / 0 failed；源码构建 Compose 的 Migration 退出码 0，API/Worker/Scheduler 和 Collector 健康检查通过；Core SLO Runtime smoke 四服务面通过；`scripts/backup-restore-drill.sh` 恢复校验通过（archive=78516 bytes，audit_events=31）。本轮验证后已停止容器，仅保留 PostgreSQL/Redis 卷。
+
+本轮发布镜像复验：修正后的默认 GHCR Compose 在 Ubuntu VM 成功拉取全部应用镜像并启动，Migration 退出码 0，API/Worker/Scheduler 健康检查通过；默认 Core SLO 探针生成随机证据文件并通过，公开 API、Legado、Reader/PWA 入口均返回预期状态；脚本回归与备份恢复通过（archive=80181 bytes，audit_events=63）。验证后已停止容器，`inkflow_inkflow-postgres` 与 `inkflow_inkflow-redis` 数据卷保留。最终 `ff7ba52` 的 CI/Docker/Security 均 GREEN。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

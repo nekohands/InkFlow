@@ -5,6 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
+- 最新候选 Commit：`ff7ba52`（已推送，CI/Docker/Security 全部 GREEN）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -548,6 +549,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：代码候选提交 `72e49b30f36e78d0405b984580e1ce2a43381b32` 的 [CI 33291943661](https://github.com/nekohands/InkFlow/actions/runs/33291943661)、[Docker 33291943632](https://github.com/nekohands/InkFlow/actions/runs/33291943632)、[Security 33291943645](https://github.com/nekohands/InkFlow/actions/runs/33291943645) 均 GREEN 且 headSha 一致；CI Integration 87 项为 85 passed / 2 skipped，包含本轮 Inbox 回归，Docker 四业务镜像与 Collector 构建/扫描/发布通过，Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过。
 - 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；外部通知、真实来源、阅读 3.0、人工验收和本机 Docker 仍按待定事项处理。
 
+### 4.66 GHCR 发布 Compose 与 Core SLO 证据文件健壮性（本轮，2026-08-30）
+
+- 缺口：Docker 发布工作流实际推送到 `ghcr.io/nekohands/inkflow/inkflow-*`，默认 Compose 少了 `/inkflow/` 路径；Core SLO 探针默认证据文件固定命名，跨用户重复执行可能因 `/tmp` 粘滞位无法覆盖。
+- 实现：修正四个 GHCR 应用镜像引用；新增发布后 `docker compose -f docker-compose.yml pull` 门禁；默认证据路径改为随机后缀，显式 `INKFLOW_SLO_EVIDENCE_FILE` 行为保持不变，并补充不可写旧文件回归。
+- 验证：Ubuntu VM 成功拉取并启动 GHCR 发布镜像，Migration 退出码 0，PostgreSQL/Redis/Collector/API/Worker/Scheduler 健康；Core SLO 四面、公开 API/Legado/Reader/PWA 入口、脚本回归通过；备份恢复为 `archive=80181 bytes, audit_events=63`，验证后已停止栈且保留数据卷。最终 [CI 33294167216](https://github.com/nekohands/InkFlow/actions/runs/33294167216)、[Docker 33294167310](https://github.com/nekohands/InkFlow/actions/runs/33294167310)、[Security 33294167234](https://github.com/nekohands/InkFlow/actions/runs/33294167234) 均 GREEN 且指向 `ff7ba52`；CI 为 Unit 475/475、Architecture 1/1、Contract 10/10、Integration 87（85 passed / 2 skipped）、Redis 1/1。
+- 失败修复记录：`623077c` 的 CI 回归测试未隔离 Runner `RUNNER_TEMP` 而失败，已读取日志并由 `ff7ba52` 修复后全量复绿；VM 备份脚本首次无 sudo 仅为 Docker socket 权限问题，授权重跑通过。
+- 当前状态：本工作包 `Implemented`，整体仍是 `1.0 Release Candidate`；真实来源/切源、阅读 3.0、浏览器/私有库人工验收和生产 OTLP/告警/备份治理继续待定。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -625,6 +634,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Inbox Consumer 轮询与 Worker 消费宿主：按已注册类型批量 claim、lease 恢复、Envelope 兼容恢复和空 registry 安全 idle（`fa50c07`；CI `33283884681` / Docker `33283884682` / Security `33283884688` GREEN；业务 Handler/真实与人工验收待定）
 ✅ `crawler.task.created` 业务 Inbox Handler：稳定契约校验 + 按任务 ID 原子租约 + 共享任务处理器 + Outbox→Inbox→任务完成验证（本轮；其他 Integration Event 仍待各自接入）
 ✅ Inbox 死信 Operations 观测：有界摘要读取 + 平台级告警阈值 + partial fail-closed + 来源过滤隔离（本轮，ADR 0020；Ubuntu VM 真实 PostgreSQL/Redis 集成、Compose Runtime 与备份恢复已复验，Windows 本机 Docker 仍不可用）
+✅ GHCR 发布 Compose 与 Core SLO 证据路径：镜像引用对齐、发布后拉取门禁、默认证据文件随机化与回归（`ff7ba52`；CI `33294167216` / Docker `33294167310` / Security `33294167234` GREEN；Ubuntu VM GHCR Runtime/备份复验通过）
 → 扩展其他业务 Integration Event 接收者并取得对应端到端证据
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
