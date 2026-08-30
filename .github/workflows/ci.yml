@@ -60,6 +60,12 @@ jobs:
           bash -n scripts/tests/private-library-runtime-smoke.test.sh
           bash scripts/tests/private-library-runtime-smoke.test.sh
 
+      - name: Developer API smoke script regression
+        run: |
+          bash -n scripts/developer-api-runtime-smoke.sh
+          bash -n scripts/tests/developer-api-runtime-smoke.test.sh
+          bash scripts/tests/developer-api-runtime-smoke.test.sh
+
       - name: Local env loader regression
         run: |
           bash -n scripts/load-local-env.sh
@@ -184,6 +190,11 @@ jobs:
         run: |
           chmod +x scripts/private-library-runtime-smoke.sh
           scripts/private-library-runtime-smoke.sh http://localhost:8080
+
+      - name: Developer API runtime smoke
+        run: |
+          chmod +x scripts/developer-api-runtime-smoke.sh
+          scripts/developer-api-runtime-smoke.sh http://localhost:8080
 
       - name: Core SLO synthetic probe
         env:
