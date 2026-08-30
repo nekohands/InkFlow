@@ -977,6 +977,16 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `ea562d6` 的 [CI 33299004055](https://github.com/nekohands/InkFlow/actions/runs/33299004055)、[Docker 33299004053](https://github.com/nekohands/InkFlow/actions/runs/33299004053)、[Security 33299004087](https://github.com/nekohands/InkFlow/actions/runs/33299004087) 均 GREEN 且 head SHA 一致。CI 中 Unit 479/479、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）、Redis 1/1、源码 Compose Runtime、前端 1.0 smoke、SLO、备份恢复和 Runtime diagnostics 均通过；Docker 发布前扫描、四业务镜像和发布 Compose 拉取复验通过；Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过。
 - 验收边界：本轮不触发真实来源、真实追更、MuMu/阅读 3.0、浏览器人工验收或真实凭据操作；`.env` 仍只在本机使用并保持 ignored/untracked。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 4.74 公共发现 warning 脱敏与 Ubuntu VM 全量本地验证（本轮，2026-08-30）
+
+- 缺口：`DiscoveryOutcome.Warnings` 会直接进入 `/api/v1/search` 响应；来源搜索或导入阶段若把底层异常原文写入 warning，可能泄露连接细节、内部路径或其他实现信息。
+- 修复：公共 warning 统一为包含阶段和来源标识的稳定提示（`search` / `discovery`），不再返回底层异常文本；`OperationCanceledException` 仍按原语义传播，单来源隔离和后续来源继续处理保持不变。
+- TDD 回归：先用包含内部路径的异常文本确认旧实现红灯，再加入安全 warning 断言并验证修复后 Unit 定向测试 7/7 通过；不改变 API schema、数据库结构或领域不变量。
+- Ubuntu VM 本地证据：将根目录 `.env` 以仅属主可读权限放入 VM（内容不输出且不纳入 Git），使用源码构建 Compose 完成四业务镜像构建；Migration 退出码 0，PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康。运行时认证/授权、阅读偏好、Personal Legado Token 创建/撤销、Reader/PWA/Operations 前端契约、四面 Core SLO 探针、OTel 指标接收和备份恢复均通过；备份归档 `84366` bytes，恢复库审计事件 `119` 条。
+- VM 全量测试：在 Ubuntu VM 的 .NET 10 SDK 容器中完成 `Restore → Release Build → Test`；Build 为 0 warnings / 0 errors，Unit 479/479、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped / 0 failed）。验证结束后已停止源码 Compose，删除本轮临时测试卷，保留 Compose 持久卷；Windows 开发机 Docker Engine 仍不可用，但不再阻塞本轮 VM 本地证据。
+- 远端证据：代码候选提交 `689a79c` 的 [CI 33299762844](https://github.com/nekohands/InkFlow/actions/runs/33299762844)、[Docker 33299762806](https://github.com/nekohands/InkFlow/actions/runs/33299762806)、[Security 33299762799](https://github.com/nekohands/InkFlow/actions/runs/33299762799) 均 GREEN 且 head SHA 为 `689a79c72c6b3ae73df1e5c4b37e95a7f9658bfa`；CI 同步覆盖源码 Compose、前端 1.0 smoke、SLO、Redis、备份恢复和 Runtime diagnostics，Docker 四业务镜像与发布前扫描、Security 的 NuGet/Filesystem/CodeQL/SBOM 门禁均通过。
+- 验收边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源/真实追更/真实故障切换、浏览器视觉/安装/长时间阅读和真实凭据操作；`.env` 在 Windows 与 VM 均保持本地 ignored/untracked，敏感值不进入提交、文档或 CI 日志。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1068,10 +1078,10 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中运行完整 Testcontainers 集成测试，最新 CI 为 89 项、87 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox、Sources Capability Health 和 ContentVersion 当前选择边界等持久化链路；Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次真实容器证据。
+- [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中完成完整 Testcontainers 集成测试；Unit 479/479、Architecture 1/1、Contract 10/10，Integration 89 项为 87 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox、Sources Capability Health 和 ContentVersion 当前选择边界等持久化链路。Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次 VM 本地容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
-- [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：源码 Compose 先完成基线演练，随后 GHCR 发布镜像 Compose 再次执行 `scripts/backup-restore-drill.sh`；custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=80181 bytes, audit_events=63`，隔离库已清理，PostgreSQL/Redis 验证卷保留。生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
+- [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：本轮源码 Compose 执行 `scripts/backup-restore-drill.sh`，custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=84366 bytes, audit_events=119`；隔离库已清理，Compose 持久卷保留。此前 GHCR 发布镜像复验也已通过；生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境把 Collector 接入受治理的持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，验证错误预算告警、访问控制和保留策略；当前 CI 合成探针与 Compose debug exporter 仅是短窗口接收基线，不替代生产证据。
 
 ### 6.3 后续工程事项（非本轮人工验收）
