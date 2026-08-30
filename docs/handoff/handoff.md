@@ -920,6 +920,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 账户生命周期：临时账户已由 AcceptanceFixtures 禁用；源码 Compose 已停止；本地 SSH 转发已关闭。浏览器操作未读取 Cookie、Storage 或密码材料。
 - 边界：该证据覆盖 VM 本地源码栈的非阅读 App 页面交互，不替代真实生产 HTTPS、安装/独立窗口、跨设备同步、长期阅读、真实章节正文和阅读 3.0 真机验收；整体仍为 `1.0 Release Candidate`。
 
+### 4.86 Reader/PWA 已发布正文自动化验收（本轮，2026-08-30）
+
+- `InkFlow.AcceptanceFixtures` 新增独立 `ensure-reader-catalog`：通过正式 `ContentPublishingService` 幂等准备已发布 Canonical Content；原 `ensure-catalog` 无正文行为不变，避免破坏空状态测试。
+- 新增 `scripts/reader-content-runtime-smoke.sh`、fixture 回归并接入 CI；脚本以稳定 ChapterId 读取 `/reader/read/{chapterId}`，断言已发布正文、进度同步脚本、章节结束标记和阅读进度元素，同时拒绝“未发布内容”提示。
+- 本机：`dotnet restore`、Release Build 0 warnings / 0 errors；Unit 482/482、Architecture 1/1、Contract 10/10 和新脚本回归通过。全量测试的 Windows IntegrationTests 因本机 Docker Engine 缺失为 6 passed / 2 skipped / 81 blocked，不作为本机集成通过。
+- VM：`593f093` 源码构建 Compose 健康启动；`ensure-reader-catalog` 两次返回同一稳定书目/章节 ID；内容烟测 PASS。内置浏览器经本地 SSH 转发实际读到 3 段已发布正文，页面含进度元素且无未发布提示。验证结束已停止 Compose/转发，持久卷保留。
+- 边界：进度/历史的认证写入由 4.84 API smoke 覆盖，本轮新增正文页面证据；未启动 MuMu/阅读 3.0、未使用真实凭据。真实账户、PWA 安装/生产 HTTPS、跨设备和长时间体验仍待定，整体不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -1046,7 +1054,7 @@ Phase 2 及以后：
 - [x] Web Reader v1 的服务端渲染、响应式结构、阅读设置与 HTML 安全回归已完成；浏览器四尺寸视觉、焦点、触控和长时间阅读仍待人工执行。
 - [x] Reader/PWA 用户状态 v1 的账户/书架/历史/进度/偏好渐进增强、公开 PWA 壳与 CI Runtime smoke 已完成；Service Worker/壳缓存/离线回退已由 4.82 在 localhost 安全上下文自动验收。
 - [x] Reader/PWA 账户与阅读状态 API 的非阅读 App runtime smoke 已由 4.84 在 Ubuntu VM 源码构建 Compose 中完成；PWA 页面内真实凭据输入仍待人工或真实环境。
-- [x] Reader/PWA 页面临时账户的 GPT 内置浏览器自动化已完成：注册/刷新会话、Catalog fixture 加入书架、书架列表、章节未发布空状态、登出和匿名保护提示均通过；临时账户已禁用。
+- [x] Reader/PWA 页面临时账户的 GPT 内置浏览器自动化已完成：注册/刷新会话、Catalog fixture 加入书架、书架列表、章节未发布空状态、登出和匿名保护提示均通过；4.86 追加已发布章节正文页面验证；临时账户已禁用。
 - [ ] Reader/PWA 真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长期体验仍待人工执行；按用户决定不执行阅读 3.0。
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
