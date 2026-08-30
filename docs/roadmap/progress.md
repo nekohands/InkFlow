@@ -1053,6 +1053,15 @@ Phase 1A 自动化工作包状态：
 - 真实断网回退通过：停止 VM API 容器后，浏览器访问 `/reader/account` 仍由 Service Worker 控制并显示“当前处于离线状态”；恢复 API 后回到正常账户表单且无离线提示。浏览器错误/警告日志为空。验证结束已停止全部 Compose 容器并关闭转发，持久卷保留。
 - 边界：内置浏览器未执行安装提示/独立窗口启动、真实账户登录/状态同步和跨设备同步；VM IP 的明文 HTTP 也不能作为生产 PWA 安全上下文证据。生产 HTTPS、安装体验、真实账户及跨设备验收继续列入待定事项；本项不替代阅读 3.0 真机验收。
 
+### 4.83 管理端/运维/权限非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 按“除阅读 App 外尽量自动化”的要求，新增 `InkFlow.AcceptanceFixtures` fixture 工具和 `scripts/admin-runtime-smoke.sh`；fixture 只通过现有 Domain/EF Repository 准备临时用户、来源和 CanonicalBook，不手写 SQL、不增加生产后门 API。源码构建 Compose 以 acceptance profile 提供只读源码挂载、临时构建目录和最小权限 launcher。
+- Admin runtime smoke 自动验证：管理员套餐列表、Operations 概览/告警/历史、Audit Read；Operator 授权前 403、授予 `source.manage` 后可读健康状态、重复授予幂等、能力停用/恢复、撤销后再次 403；默认 CredentialReference 的非 secret 引用 set/clear；Content Policy 下架/恢复及公共详情可见性；Administrator 为临时 Operator 授予 Pro 后的 Entitlement/quota；命令审计过滤。
+- 本机证据：`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 482/482、Architecture 1/1、Contract 10/10 已通过；Admin smoke launcher/script 回归 PASS；`git diff --check` PASS。Windows Docker Engine 仍不可用。
+- Ubuntu VM 证据：候选 `b7019b7` 拉取后使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations，健康检查通过；Admin runtime smoke 输出 `PASS (admin/operations, audit, source permissions and health, credential binding, content policy, entitlement)`；临时用户由 fixture 清理为 disabled，验证结束 Compose 已停止，持久卷保留，VM 工作区 CLEAN。
+- 远端证据：候选 `b7019b7c6ef7f2999a800ec65b668372c9e7643d` 的 [CI 33311294258](https://github.com/nekohands/InkFlow/actions/runs/33311294258)、[Docker 33311294256](https://github.com/nekohands/InkFlow/actions/runs/33311294256)、[Security 33311294239](https://github.com/nekohands/InkFlow/actions/runs/33311294239) 均 GREEN；CI 的 Admin runtime smoke、前端 1.0、SLO、Redis、PostgreSQL 备份恢复和 diagnostics 均实际通过。
+- 边界：未启动 MuMu/阅读 3.0，未使用真实 Web 账户、生产凭据或真实第三方来源；真实管理员/Operator 体验、生产通知/Provider、跨设备与阅读 App 流程继续保留为人工或真实环境补充，不标记整体 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1140,12 +1149,18 @@ Official Source
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
+- [x] **Content Policy 非阅读 App 自动化验收**：4.83 已用临时管理员和 CanonicalBook fixture 验证下架/恢复、公共详情可见性、权限拒绝和审计过滤。
 - [x] **Operations Center 浏览器自动验收（1.0 必选）**：匿名角色拒绝、页面结构、状态提示、刷新按钮禁用态、桌面/移动布局、焦点/无横向溢出和浏览器错误日志已由 4.75 自动化；受保护命令的 API/集成基线已自动化。
 - [ ] **Operations Center 真实凭据补充验收**：Operator/Administrator 真实登录后的命令执行、告警/来源/死信操作和生产截图仍需可用测试账户与部署环境。
-- [ ] **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块按来源过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未使用真实凭据操作。
-- [ ] **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名不能执行、理由和 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退按 Platform Scope、显式用户/组织引用按对应 Owner Scope 且显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
-- [ ] **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询 200、Reader/匿名请求 401/403、时间范围/精确过滤/游标翻页、空结果和服务不可用时的稳定错误；确认响应不暴露秘密或正文，并保留截图/请求证据。本轮只完成自动化基线。
-- [ ] **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮未使用真实凭据。
+- [x] **Operations Center 受保护 API 自动化验收**：4.83 已验证概览、告警和告警历史响应结构及管理员/Operator 运行时路径；真实凭据和生产通知仍待补充。
+- [x] **Source Authorization 非阅读 App 自动化验收**：4.83 已验证授予/列出/撤销、重复授予幂等、`source.manage` 隐含读取、健康/停用/恢复、授权前后 403 和审计。
+- [ ] **Source Authorization 人工/真实账号补充验收**：使用真实 Administrator/Operator 账户复核完整页面操作、来源过滤和生产权限配置；自动化基线已完成但未使用真实凭据。
+- [x] **Source 默认 CredentialReference 非阅读 App 自动化验收**：4.83 已验证 Administrator set/clear、非 secret 引用、权限拒绝和 set/clear 审计。
+- [ ] **Source 默认 CredentialReference 人工/真实 Provider 补充验收**：使用真实账户和可用 Provider 验证 Platform/User/Organization Owner Scope、显式引用优先与生产 secret 管理；自动化基线已完成但未使用真实凭据。
+- [x] **Admin Audit Read 非阅读 App 自动化验收**：4.83 已验证管理员审计查询、命令过滤和不暴露 secret/body 的 API 响应。
+- [ ] **Admin Audit Read 人工/真实环境补充验收**：使用真实 Operator/Administrator 复核时间范围、游标翻页、空结果、服务不可用和截图证据；自动化基线已完成。
+- [x] **Developer API / 商业基础管理员套餐自动化验收**：4.83 已验证 Administrator 为临时 Operator 授予 Pro 后的 Entitlement、quota 和审计路径。
+- [ ] **Developer API / 商业基础人工/真实账户补充验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；补充真实跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮未使用真实凭据。
 
 ### 6.2 需要可用环境复验
 

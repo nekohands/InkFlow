@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`d87fa14`（Developer API 非阅读 App runtime smoke、文档同步与 Ubuntu VM 源码运行已完成；CI/Docker/Security 门禁均 GREEN；本轮 PWA 自动化证据见 4.82）
+- 最新代码候选 Commit：`b7019b7`（管理端/运维/权限非阅读 App runtime smoke、PWA 自动化与 Ubuntu VM 源码运行已完成；CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -893,6 +893,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 浏览器证据通过：`secureContext=true`；Manifest 的 `start_url=/reader`、`scope=/reader/`、`display=standalone` 与两枚图标可读取；Service Worker `/reader/sw.js` 状态为 `activated`，刷新 `/reader/` 后已接管页面；`inkflow-reader-shell-v1` 缓存包含 `/reader/offline`、Manifest 和两枚图标。
 - 真实断网回退通过：停止 VM API 容器后，浏览器访问 `/reader/account` 仍由 Service Worker 控制并显示“当前处于离线状态”；恢复 API 后回到正常账户表单且无离线提示。浏览器错误/警告日志为空。验证结束已停止全部 Compose 容器，持久卷保留。
 - 边界：内置浏览器未执行安装提示/独立窗口启动、真实账户登录/状态同步和跨设备同步；VM IP 的明文 HTTP 不能作为生产 PWA 安全上下文证据。生产 HTTPS、安装体验、真实账户及跨设备验收继续列入待定事项；本项不替代阅读 3.0 真机验收。
+
+### 4.83 管理端/运维/权限非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 缺口：Content Policy、Operations、Source Authorization、CredentialReference 管理、Admin Audit Read 和 Administrator 套餐授予此前已有 API/集成基线，但仍缺少一条可重复的受保护运行时验收链。
+- 实现：新增 `InkFlow.AcceptanceFixtures`，通过现有 Identity/Library/Sources Domain 与 EF Repository 准备临时角色、来源和 CanonicalBook；新增 acceptance profile 的源码构建 fixture launcher，仓库只读挂载、临时构建目录、NuGet 缓存隔离、DLL 运行和非 secret 输出均有明确边界。
+- 自动化覆盖：Admin plans、Operations overview/alerts/history、Audit Read；Operator 授权前后和撤销后的 403；`source.manage` 授权幂等、健康读取、能力 disable/enable；默认 CredentialReference 非 secret 引用 set/clear；Content Policy takedown/restore 与公共详情可见性；Administrator 授予 Pro 后的 Entitlement/quota；命令审计过滤。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 482/482、Architecture 1/1、Contract 10/10；launcher 与 smoke 结构回归、`git diff --check` 均 PASS。Windows Docker Engine 不可用，因此本机 Testcontainers 仍不作为证据。
+- Ubuntu VM 证据：候选 `b7019b7` 以 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations 并通过健康等待；`admin-runtime-smoke: PASS (admin/operations, audit, source permissions and health, credential binding, content policy, entitlement)`；临时用户清理为 disabled，Compose 已停止，持久卷保留，VM 工作区 CLEAN。
+- 远端证据：候选 `b7019b7c6ef7f2999a800ec65b668372c9e7643d` 的 [CI 33311294258](https://github.com/nekohands/InkFlow/actions/runs/33311294258)、[Docker 33311294256](https://github.com/nekohands/InkFlow/actions/runs/33311294256)、[Security 33311294239](https://github.com/nekohands/InkFlow/actions/runs/33311294239) 均 GREEN；CI 实际执行新增 Admin runtime smoke，并通过前端 1.0、SLO、Redis、PostgreSQL 备份恢复和 runtime diagnostics。
+- 边界：按用户决定不启动 MuMu/阅读 3.0；未使用真实 Web 账户、生产凭据或真实第三方来源。真实管理员/Operator 体验、Provider/生产通知、跨设备和阅读 App 验收继续列在第 10 节，不将本轮标记为整体 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
