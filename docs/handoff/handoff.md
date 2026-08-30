@@ -913,6 +913,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：候选 05973324870386e67bd3cf6e8c45479b3288f4cf 的 [CI 33312963081](https://github.com/nekohands/InkFlow/actions/runs/33312963081)、[Docker 33312963065](https://github.com/nekohands/InkFlow/actions/runs/33312963065)、[Security 33312963084](https://github.com/nekohands/InkFlow/actions/runs/33312963084) 均 GREEN；CI 的 Reader account smoke script regression 与 Reader account runtime smoke 均实际通过。
 - 边界：本轮不启动 MuMu/阅读 3.0，不输入真实 Web 账户，不把 API smoke 等同于 PWA 页面内的真实登录、安装/独立窗口、跨设备同步或长期体验；整体 1.0 仍保留真实来源、真实账户/安装、阅读 3.0 与生产环境待定项。
 
+### 4.85 Reader/PWA 页面临时账户内置浏览器自动化验收（本轮，2026-08-30）
+
+- 在 Ubuntu VM 的 `docker-compose.build.yml` 源码构建栈上，使用 GPT 内置浏览器和一次性本地账户完成页面级自动验收；未使用真实账户、第三方凭据或阅读 3.0。
+- 自动化证据：注册后回到书库；账户页刷新保持登录态；Catalog fixture 详情页加入书架；书架列表展示书目；有效章节入口显示正确的未发布内容空状态；退出后账户表单恢复；匿名书架/历史显示登录提示；离线页显示离线状态和返回书库入口。
+- 账户生命周期：临时账户已由 AcceptanceFixtures 禁用；源码 Compose 已停止；本地 SSH 转发已关闭。浏览器操作未读取 Cookie、Storage 或密码材料。
+- 边界：该证据覆盖 VM 本地源码栈的非阅读 App 页面交互，不替代真实生产 HTTPS、安装/独立窗口、跨设备同步、长期阅读、真实章节正文和阅读 3.0 真机验收；整体仍为 `1.0 Release Candidate`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -1039,6 +1046,7 @@ Phase 2 及以后：
 - [x] Web Reader v1 的服务端渲染、响应式结构、阅读设置与 HTML 安全回归已完成；浏览器四尺寸视觉、焦点、触控和长时间阅读仍待人工执行。
 - [x] Reader/PWA 用户状态 v1 的账户/书架/历史/进度/偏好渐进增强、公开 PWA 壳与 CI Runtime smoke 已完成；Service Worker/壳缓存/离线回退已由 4.82 在 localhost 安全上下文自动验收。
 - [x] Reader/PWA 账户与阅读状态 API 的非阅读 App runtime smoke 已由 4.84 在 Ubuntu VM 源码构建 Compose 中完成；PWA 页面内真实凭据输入仍待人工或真实环境。
+- [x] Reader/PWA 页面临时账户的 GPT 内置浏览器自动化已完成：注册/刷新会话、Catalog fixture 加入书架、书架列表、章节未发布空状态、登出和匿名保护提示均通过；临时账户已禁用。
 - [ ] Reader/PWA 真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长期体验仍待人工执行；按用户决定不执行阅读 3.0。
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
