@@ -120,7 +120,8 @@ public sealed class UpdateScanServiceTests
             CrawlerTask task,
             string variableName,
             string variableValue,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool ignoreDeadLettered = false)
         {
             AtomicDedupeCalls++;
             if (variableName == "bookId" && ConflictingBookIds.Contains(variableValue))

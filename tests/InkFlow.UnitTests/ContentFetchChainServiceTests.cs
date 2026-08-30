@@ -98,6 +98,22 @@ public sealed class ContentFetchChainServiceTests
     }
 
     [TestMethod]
+    public async Task Uses_Atomic_Dedupe_Gate_For_Content_Tasks()
+    {
+        var book = CreateBook(("c1", "第一章"), ("c2", "第二章"));
+        var harness = CreateHarness(book);
+        harness.Tasks.RequireAtomicDedupe = true;
+
+        var enqueued = await harness.Service.EnqueuePendingContentFetchesAsync(
+            "example-source",
+            "10001");
+
+        Assert.AreEqual(2, enqueued);
+        Assert.AreEqual(2, harness.Tasks.AtomicDedupeCalls);
+        Assert.AreEqual(2, harness.Tasks.Store.Count);
+    }
+
+    [TestMethod]
     public async Task Unavailable_Content_Capability_Disables_Chaining()
     {
         var book = CreateBook(("c1", "第一章"));
@@ -254,10 +270,37 @@ public sealed class ContentFetchChainServiceTests
     {
         public List<CrawlerTask> Store { get; } = [];
 
+        public bool RequireAtomicDedupe { get; set; }
+
+        public int AtomicDedupeCalls { get; private set; }
+
         public Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
         {
+            if (RequireAtomicDedupe)
+            {
+                throw new InvalidOperationException(
+                    "ContentFetchChainService must use the atomic dedupe gate.");
+            }
+
             Store.Add(task);
             return Task.CompletedTask;
+        }
+
+        public Task<bool> TryAddIfNoConflictingTaskAsync(
+            CrawlerTask task,
+            string variableName,
+            string variableValue,
+            CancellationToken cancellationToken = default,
+            bool ignoreDeadLettered = false)
+        {
+            AtomicDedupeCalls++;
+            if (conflicts.Contains($"{task.Payload.Capability}:{variableName}={variableValue}"))
+            {
+                return Task.FromResult(false);
+            }
+
+            Store.Add(task);
+            return Task.FromResult(true);
         }
 
         public Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>

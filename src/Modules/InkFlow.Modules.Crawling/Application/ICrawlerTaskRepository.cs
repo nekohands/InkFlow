@@ -72,13 +72,15 @@ public interface ICrawlerTaskRepository
         CrawlerTask task,
         string variableName,
         string variableValue,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool ignoreDeadLettered = false)
     {
         return TryAddIfNoConflictingTaskFallbackAsync(
             task,
             variableName,
             variableValue,
-            cancellationToken);
+            cancellationToken,
+            ignoreDeadLettered);
     }
 
     /// <summary>
@@ -104,14 +106,16 @@ public interface ICrawlerTaskRepository
         CrawlerTask task,
         string variableName,
         string variableValue,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool ignoreDeadLettered)
     {
-        if (await HasConflictingTaskAsync(
+        if (await HasBlockingTaskForCollectionRunAsync(
                 task.Payload.SourceId,
                 task.Payload.Capability,
                 variableName,
                 variableValue,
-                cancellationToken)
+                cancellationToken,
+                ignoreDeadLettered)
                 .ConfigureAwait(false))
         {
             return false;

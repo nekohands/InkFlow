@@ -89,43 +89,32 @@ public sealed class ContentFetchChainService(
                 continue;
             }
 
-            var hasConflict = runId is null
-                ? await taskRepository
-                    .HasConflictingTaskAsync(
-                        sourceId, SourceCapability.Content, "chapterId", id,
-                        cancellationToken)
-                    .ConfigureAwait(false)
-                : await taskRepository
-                    .HasBlockingTaskForCollectionRunAsync(
-                        sourceId, SourceCapability.Content, "chapterId", id,
+            var task = CrawlerTask.Create(
+                new CrawlPayload(
+                    sourceId,
+                    SourceCapability.Content,
+                    new Dictionary<string, string>
+                    {
+                        ["bookId"] = externalBookId,
+                        ["chapterId"] = id,
+                        ["reason"] = forceRefresh
+                            ? "collection-run"
+                            : neverFetched ? "new" : "refetch",
+                    },
+                    credentialReferenceId,
+                    runId),
+                createdAt: now);
+            if (await taskRepository
+                    .TryAddIfNoConflictingTaskAsync(
+                        task,
+                        "chapterId",
+                        id,
                         cancellationToken,
-                        ignoreDeadLettered: true)
-                    .ConfigureAwait(false);
-            if (hasConflict)
+                        ignoreDeadLettered: runId is not null)
+                    .ConfigureAwait(false))
             {
-                continue;
+                enqueued++;
             }
-
-            await taskRepository
-                .AddAsync(
-                    CrawlerTask.Create(
-                        new CrawlPayload(
-                            sourceId,
-                            SourceCapability.Content,
-                            new Dictionary<string, string>
-                            {
-                                ["bookId"] = externalBookId,
-                                ["chapterId"] = id,
-                                ["reason"] = forceRefresh
-                                    ? "collection-run"
-                                    : neverFetched ? "new" : "refetch",
-                            },
-                            credentialReferenceId,
-                            runId),
-                        createdAt: now),
-                    cancellationToken)
-                .ConfigureAwait(false);
-            enqueued++;
         }
 
         return enqueued;

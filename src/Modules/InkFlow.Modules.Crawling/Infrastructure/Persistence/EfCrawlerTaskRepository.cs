@@ -342,7 +342,8 @@ public sealed class EfCrawlerTaskRepository(
         CrawlerTask task,
         string variableName,
         string variableValue,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool ignoreDeadLettered = false)
     {
         ArgumentNullException.ThrowIfNull(task);
         if (string.IsNullOrWhiteSpace(variableName))
@@ -376,7 +377,8 @@ public sealed class EfCrawlerTaskRepository(
                 task.Payload.Capability,
                 variableName,
                 variableValue,
-                cancellationToken)
+                cancellationToken,
+                ignoreDeadLettered)
                 .ConfigureAwait(false))
         {
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);

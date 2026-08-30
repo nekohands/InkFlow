@@ -152,6 +152,54 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task Concurrent_Content_Dedupe_Gate_Allows_Only_One_Task_Insert()
+    {
+        var sourceId = $"concurrent-content-{Guid.NewGuid():N}";
+        var first = CreateContext();
+        await using var firstDb = first.Db;
+        var second = CreateContext();
+        await using var secondDb = second.Db;
+        var firstTask = CrawlerTask.Create(
+            new CrawlPayload(
+                sourceId,
+                SourceCapability.Content,
+                new Dictionary<string, string>
+                {
+                    ["bookId"] = "book-42",
+                    ["chapterId"] = "chapter-7",
+                }),
+            createdAt: T0);
+        var secondTask = CrawlerTask.Create(
+            new CrawlPayload(
+                sourceId,
+                SourceCapability.Content,
+                new Dictionary<string, string>
+                {
+                    ["bookId"] = "book-42",
+                    ["chapterId"] = "chapter-7",
+                }),
+            createdAt: T0.AddSeconds(1));
+
+        var inserted = await Task.WhenAll(
+            first.Repo.TryAddIfNoConflictingTaskAsync(
+                firstTask,
+                "chapterId",
+                "chapter-7"),
+            second.Repo.TryAddIfNoConflictingTaskAsync(
+                secondTask,
+                "chapterId",
+                "chapter-7"));
+
+        Assert.AreEqual(1, inserted.Count(value => value));
+        await using var verifyDb = CreateContext().Db;
+        var taskCount = await verifyDb.Tasks
+            .CountAsync(task => task.SourceId == sourceId &&
+                                task.Capability == (int)SourceCapability.Content)
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, taskCount, "并发正文联动不得为同一章节创建多个 Content 任务");
+    }
+
+    [TestMethod]
     public async Task Task_Roundtrip_Preserves_Aggregate_State()
     {
         var (_, repo) = CreateContext();
