@@ -3,7 +3,7 @@
 > 持续进度账本。状态只以真实代码、测试、Runtime 和 CI 结果为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（自动化 Release Gate 已通过，前端及其他人工/真实环境验收待定）
+- 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
 - 最后更新日期：2026-08-30
 
@@ -937,7 +937,8 @@ Phase 1A 自动化工作包状态：
 - 自动化门禁：新增 `scripts/reader-frontend-runtime-smoke.sh` 及 fixture 回归，独立验证源码构建 Compose 运行时的 Reader/PWA/Operations 页面、响应式与可访问性标记、Manifest、Service Worker、图标和 Token/内部字段不泄漏；CI 新增明确的 `Frontend 1.0 runtime smoke` 步骤。`ReaderHtml` 既有单元回归继续作为渲染层门禁。
 - Docker 策略：日常开发和 Runtime 验证统一使用 `docker-compose.build.yml` 从当前源码构建；GHCR `docker-compose.yml` 仅用于发布镜像、镜像一致性或明确要求的镜像复验。CI Runtime smoke 的日志、清理和健康验证均固定指向源码构建编排。
 - 验收边界：前端自动化门禁不等于浏览器人工验收；移动/平板/桌面/宽屏视觉、UX、键盘焦点、对比度、触控、长时间阅读、PWA 安装/离线和真实账户链路仍按用户决定 `NOT RUN`，继续作为 1.0 Release Gate 待定项。
-- 当前状态：本工作包待以候选提交取得 CI/Docker/Security 证据；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 远端证据：候选提交 `1b1149d4f1bdbb3369c3c3e84baea913ef275437` 的 [CI 33295992063](https://github.com/nekohands/InkFlow/actions/runs/33295992063)、[Docker 33295992049](https://github.com/nekohands/InkFlow/actions/runs/33295992049)、[Security 33295992045](https://github.com/nekohands/InkFlow/actions/runs/33295992045) 均 GREEN 且 headSha 一致。CI 的 Restore/Build/迁移校验、Unit 475/475、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）、Redis 1/1、源码构建 Compose Runtime、`Frontend 1.0 runtime smoke`、SLO、备份恢复和 diagnostics 全部通过；Docker 的四业务镜像构建/扫描/发布与发布 Compose 拉取复验通过；Security 的 NuGet、Filesystem、SBOM、CodeQL 全部通过。
+- 当前状态：本工作包自动化门禁已通过，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；浏览器/真实设备、真实来源、真实账户和其他人工/生产验收仍待定。
 
 ## 5. Phase 1A 核心验收链路
 
