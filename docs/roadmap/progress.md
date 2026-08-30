@@ -1028,7 +1028,8 @@ Phase 1A 自动化工作包状态：
 - 缺口：4.78 已覆盖 TXT 导入和基本运行链路，但 EPUB round-trip、重复导入不覆盖原书以及损坏文件失败后不留下半本书尚未取得源码构建运行证据。
 - 实现：扩展 `scripts/private-library-runtime-smoke.sh`，验证 TXT 导出 EPUB 的 Content-Type/非空文件、EPUB 再导入后的元数据/章节顺序/正文、重复导入产生独立稳定 PrivateBook 身份且原书仍可读，以及损坏 EPUB 返回稳定 `invalid_file`/HTTP 400 且所有者书目数量不变。失败清理同时覆盖新增临时书目；脚本结构回归同步更新。
 - Ubuntu VM 证据：候选 `5b13d8e` 使用 `docker-compose.build.yml` 从源码构建 API/Worker/Scheduler/Migrations，Migration 和四服务健康检查通过；临时 SDK 工具容器执行结果为 `private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT/EPUB import/read/export, duplicate isolation, failed-import rollback)`，随后停止 Compose，仅保留持久数据卷。
-- 验收边界：本轮使用唯一临时注册账户和程序生成文件，不使用真实账户、阅读 3.0 或第三方登录；VM 上测试书目已清理，临时测试账户因没有账号删除 API 继续保留。真实账户/人工体验仍可作为补充，但本项非阅读 App 自动化门禁已闭合；整体仍为 1.0 Release Candidate，待远端门禁结果确认。
+- 远端证据：最终文档同步提交 `fd9f8b13e723ab74a9f850ecd2557959eac082b1` 的 [CI 33306505203](https://github.com/nekohands/InkFlow/actions/runs/33306505203)、[Docker 33306505188](https://github.com/nekohands/InkFlow/actions/runs/33306505188)、[Security 33306505230](https://github.com/nekohands/InkFlow/actions/runs/33306505230) 均 GREEN 且 head SHA 一致；CI 新增脚本回归与运行时 EPUB/重复/失败导入断言均通过。
+- 验收边界：本轮使用唯一临时注册账户和程序生成文件，不使用真实账户、阅读 3.0 或第三方登录；VM 上测试书目已清理，临时测试账户因没有账号删除 API 继续保留。真实账户/人工体验仍可作为补充，但本项非阅读 App 自动化门禁已闭合；整体仍为 1.0 Release Candidate。
 
 ## 5. Phase 1A 核心验收链路
 

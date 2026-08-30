@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`5b13d8e`（私有库文件边界自动化代码候选已推送；Ubuntu VM 源码运行通过，远端 CI/Docker/Security 待本轮确认）
+- 最新候选 Commit：`fd9f8b1`（私有库文件边界自动化及文档同步已推送；Ubuntu VM 源码运行、CI/Docker/Security 全部 GREEN）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -869,7 +869,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 - 扩展 `scripts/private-library-runtime-smoke.sh` 与脚本回归：TXT 导出 EPUB 后再导入，检查 EPUB 响应类型/文件非空、元数据、章节顺序和正文；重复导入检查独立 PrivateBook 身份及原书不被覆盖；损坏 EPUB 检查 HTTP 400/`invalid_file` 和导入前后书目数量不变。
 - Ubuntu VM 使用 `docker-compose.build.yml` 源码构建四业务镜像并健康启动；临时 SDK 工具容器输出 `private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT/EPUB import/read/export, duplicate isolation, failed-import rollback)`，验证结束后已停止 Compose，持久卷保留。
-- 候选提交 `5b13d8e` 已推送；本轮远端 CI/Docker/Security 尚待确认。真实账户、阅读 3.0 和第三方登录均未使用；测试书目已清理，临时账户因没有账号删除 API 保留。
+- 代码候选 `5b13d8e` 与最终文档同步提交 `fd9f8b1` 均已推送；最终 [CI 33306505203](https://github.com/nekohands/InkFlow/actions/runs/33306505203)、[Docker 33306505188](https://github.com/nekohands/InkFlow/actions/runs/33306505188)、[Security 33306505230](https://github.com/nekohands/InkFlow/actions/runs/33306505230) 均 GREEN 且 head SHA 一致。真实账户、阅读 3.0 和第三方登录均未使用；测试书目已清理，临时账户因没有账号删除 API 保留。
 
 ## 5. 关键架构不变量
 
