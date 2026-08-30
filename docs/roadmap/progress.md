@@ -1100,7 +1100,7 @@ Phase 1A 自动化工作包状态：
 - 共享包目录的首次启动权限问题已修复：`docker-compose.yml` 与 `docker-compose.build.yml` 均由一次性 `packages-init` 以 root 初始化目录并交给 `app`，API/Worker 仅在初始化成功后启动；包文件仍通过临时文件校验后原子发布。
 - 本机：`dotnet build InkFlow.sln -c Release --no-restore` PASS；Unit 494/494 PASS；`git diff --check` PASS。Windows Docker Engine 不可用，因此本机 Testcontainers 不作为集成证据。
 - Ubuntu VM：使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations，健康检查和迁移通过；`collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)`。验证覆盖 URL 安全边界、暂停/恢复/停止/取消幂等、前置阶段不伪造百分比、三种包的生成/下载/哈希长度完整性及审计；临时数据按 fixture 清理/禁用，Compose 停止后持久卷保留。
-- 远端：提交 `7365163` 的 CI、Docker、Security 正在运行，完成前不标记整体 `Accepted/Completed`。浏览器受保护运维页登录后的本轮输入验收尚未执行；阅读 3.0/MuMu 真机仍按用户决定列入人工待定事项。
+- 远端：提交 `0773d79` 的 [CI 33326811785](https://github.com/nekohands/InkFlow/actions/runs/33326811785)、[Docker 33326811835](https://github.com/nekohands/InkFlow/actions/runs/33326811835)、[Security 33326811913](https://github.com/nekohands/InkFlow/actions/runs/33326811913) 均 GREEN，且三者 head SHA 一致。浏览器受保护运维页登录后的本轮输入验收尚未执行；阅读 3.0/MuMu 真机仍按用户决定列入人工待定事项，因此整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 

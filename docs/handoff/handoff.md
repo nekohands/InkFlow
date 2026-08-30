@@ -941,8 +941,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本轮回归修复：API 阶段值改为稳定的 `bookInfo`/`toc`/`content` 契约；迁移集成断言纳入 `crawler.runs`；共享包卷新增成功完成后才允许 API/Worker 启动的 `packages-init` 权限初始化。
 - 本机证据：Release Build PASS；Unit 494/494 PASS；`git diff --check` PASS。Windows Docker Engine 缺失，不能把本机 IntegrationTests 当作通过。
 - Ubuntu VM 证据：`docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations 成功，服务健康、迁移和包卷初始化成功；完整 `collection-package-runtime-smoke` PASS，覆盖 direct URL、安全拒绝、四类持久控制幂等、前置不确定进度、ZIP/EPUB/TXT 生成下载、哈希/长度完整性和审计。
-- 远端门禁：提交 `7365163` 的 CI/Docker/Security 尚在运行，需以同一 head SHA 的最终结果为准。当前浏览器仅完成未认证运维页状态检查；受保护页面登录后的输入/交互验收需用户在填写临时本地账号密码前明确确认。MuMu/阅读 3.0 不执行，保留人工待定。
-- 下一步：等待三组 CI；若全部 GREEN，更新本节和需求状态为已完成自动化门禁但仍为 `1.0 Release Candidate`；若用户确认临时账号输入，再经本地 SSH 转发完成 `/admin/operations` 登录后页面验收，并禁用临时账户、关闭转发；最后同步 Progress/Handoff 与最终提交。
+- 远端门禁：提交 `0773d79` 的 [CI 33326811785](https://github.com/nekohands/InkFlow/actions/runs/33326811785)、[Docker 33326811835](https://github.com/nekohands/InkFlow/actions/runs/33326811835)、[Security 33326811913](https://github.com/nekohands/InkFlow/actions/runs/33326811913) 均 GREEN，且三者 head SHA 一致。当前浏览器仅完成未认证运维页状态检查；受保护页面登录后的输入/交互验收需用户在填写临时本地账号密码前明确确认。MuMu/阅读 3.0 不执行，保留人工待定。
+- 下一步：若用户确认临时账号输入，再经本地 SSH 转发完成 `/admin/operations` 登录后页面验收，并禁用临时账户、关闭转发；不论是否执行该补充验收，整体均保持 `1.0 Release Candidate`，不得把阅读 3.0/MuMu 人工待定项标为完成。
 
 ## 5. 关键架构不变量
 
