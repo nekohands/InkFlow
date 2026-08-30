@@ -73,12 +73,12 @@ public sealed class CrawlerTaskRepositoryTests
         var pending = await db.Database.GetPendingMigrationsAsync().ConfigureAwait(false);
         Assert.IsFalse(pending.Any(), "空库应用迁移后不应再有 pending migrations");
 
-        // crawler schema 的两张核心表必须存在
+        // crawler schema 的任务、运行和死信核心表必须存在
         var tables = await db.Database.SqlQuery<string>(
                 $"""SELECT table_name AS "Value" FROM information_schema.tables WHERE table_schema = 'crawler'""")
             .ToListAsync().ConfigureAwait(false);
 
-        CollectionAssert.AreEquivalent(new[] { "tasks", "dead_letters" }, tables.ToList());
+        CollectionAssert.AreEquivalent(new[] { "tasks", "runs", "dead_letters" }, tables.ToList());
 
         var deadLetterColumns = await db.Database.SqlQuery<string>(
                 $"""SELECT column_name AS "Value" FROM information_schema.columns WHERE table_schema = 'crawler' AND table_name = 'dead_letters'""")
