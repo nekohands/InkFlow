@@ -73,7 +73,40 @@ public sealed class InboxConsumerPumpTests
         Assert.IsFalse(store.Processed);
     }
 
-    private static InboxConsumerOptions Options(string owner) =>
+    [TestMethod]
+    public async Task Pump_Reports_DeadLettered_Handler_Failure()
+    {
+        var message = IntegrationMessage.Create(
+            "test.pump.dead-letter",
+            "{\"value\":9}",
+            T0,
+            id: Guid.CreateVersion7());
+        var store = new InMemoryInboxStore(message);
+        var handler = new RecordingHandler(message.MessageType) { ThrowOnHandle = true };
+        var resolver = new IntegrationMessageHandlerRegistry([handler]);
+        var options = Options("pump-dead-letter", maxAttempts: 1);
+        var consumer = new IntegrationMessageConsumer(
+            store,
+            resolver,
+            new FixedTimeProvider(T0),
+            options);
+        var pump = new InboxConsumerPump(
+            store,
+            consumer,
+            resolver,
+            new FixedTimeProvider(T0),
+            options);
+
+        var result = await pump.ConsumeOnceAsync().ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.ClaimedCount);
+        Assert.AreEqual(0, result.FailedCount);
+        Assert.AreEqual(1, result.DeadLetteredCount);
+        Assert.IsTrue(store.DeadLettered);
+        Assert.AreEqual(1, handler.CallCount);
+    }
+
+    private static InboxConsumerOptions Options(string owner, int maxAttempts = 5) =>
         new()
         {
             Owner = owner,
@@ -82,6 +115,7 @@ public sealed class InboxConsumerPumpTests
             StartupDelay = TimeSpan.Zero,
             LeaseDuration = TimeSpan.FromMinutes(2),
             BatchSize = 10,
+            MaxAttempts = maxAttempts,
         };
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
@@ -95,11 +129,18 @@ public sealed class InboxConsumerPumpTests
 
         public int CallCount { get; private set; }
 
+        public bool ThrowOnHandle { get; init; }
+
         public Task HandleAsync(
             IntegrationMessage message,
             CancellationToken cancellationToken = default)
         {
             CallCount++;
+            if (ThrowOnHandle)
+            {
+                throw new InvalidOperationException("handler details must not be persisted");
+            }
+
             return Task.CompletedTask;
         }
     }
@@ -113,6 +154,8 @@ public sealed class InboxConsumerPumpTests
         public int ClaimCount { get; private set; }
 
         public bool Processed { get; private set; }
+
+        public bool DeadLettered { get; private set; }
 
         public Task<IReadOnlyList<InboxMessageRecord>> ClaimBatchAsync(
             string owner,
@@ -163,11 +206,14 @@ public sealed class InboxConsumerPumpTests
             string owner,
             DateTimeOffset now,
             string failureCode,
+            DateTimeOffset? availableAt,
+            bool deadLettered,
             CancellationToken cancellationToken = default)
         {
             Assert.AreEqual(_lockOwner, owner);
             _lockOwner = null;
             _lockedUntil = null;
+            DeadLettered = deadLettered;
             return Task.CompletedTask;
         }
     }

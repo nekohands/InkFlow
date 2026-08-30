@@ -4,7 +4,8 @@ public sealed record InboxConsumeBatchResult(
     int ClaimedCount,
     int ProcessedCount,
     int FailedCount,
-    int SkippedCount);
+    int SkippedCount,
+    int DeadLetteredCount = 0);
 
 public interface IInboxConsumerPump
 {
@@ -61,6 +62,7 @@ public sealed class InboxConsumerPump : IInboxConsumerPump
         var processedCount = 0;
         var failedCount = 0;
         var skippedCount = 0;
+        var deadLetteredCount = 0;
         foreach (var message in claimed)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -76,8 +78,12 @@ public sealed class InboxConsumerPump : IInboxConsumerPump
                 case InboxConsumeStatus.NoHandler:
                     failedCount++;
                     break;
+                case InboxConsumeStatus.DeadLettered:
+                    deadLetteredCount++;
+                    break;
                 case InboxConsumeStatus.AlreadyProcessed:
                 case InboxConsumeStatus.AlreadyInProgress:
+                case InboxConsumeStatus.RetryScheduled:
                     skippedCount++;
                     break;
                 default:
@@ -86,6 +92,11 @@ public sealed class InboxConsumerPump : IInboxConsumerPump
             }
         }
 
-        return new(claimed.Count, processedCount, failedCount, skippedCount);
+        return new(
+            claimed.Count,
+            processedCount,
+            failedCount,
+            skippedCount,
+            deadLetteredCount);
     }
 }

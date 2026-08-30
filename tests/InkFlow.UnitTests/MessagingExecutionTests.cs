@@ -84,6 +84,54 @@ public sealed class MessagingExecutionTests
     }
 
     [TestMethod]
+    public async Task Inbox_Consumer_Retries_With_Backoff_Then_DeadLetters()
+    {
+        var message = CreateMessage("test.consume.dead-letter");
+        var store = new FakeInboxStore();
+        var handler = new RecordingHandler(message.MessageType) { ThrowOnHandle = true };
+        var clock = new MutableTimeProvider(T0);
+        var consumer = new IntegrationMessageConsumer(
+            store,
+            new IntegrationMessageHandlerRegistry([handler]),
+            clock,
+            new InboxConsumerOptions
+            {
+                Owner = "consumer-test",
+                LeaseDuration = TimeSpan.FromMinutes(2),
+                MaxAttempts = 2,
+                RetryPolicy = new ExponentialMessageRetryPolicy(
+                    TimeSpan.FromSeconds(3),
+                    TimeSpan.FromMinutes(1)),
+            });
+
+        var first = await consumer.ConsumeAsync(message).ConfigureAwait(false);
+
+        Assert.AreEqual(InboxConsumeStatus.Failed, first.Status);
+        Assert.AreEqual(T0.AddSeconds(3), store.Failures.Single().AvailableAt);
+        Assert.IsFalse(store.Failures.Single().DeadLettered);
+
+        clock.Set(T0.AddSeconds(1));
+        var tooEarly = await consumer.ConsumeAsync(message).ConfigureAwait(false);
+
+        Assert.AreEqual(InboxConsumeStatus.RetryScheduled, tooEarly.Status);
+        Assert.AreEqual(1, handler.CallCount);
+
+        clock.Set(T0.AddSeconds(3));
+        var second = await consumer.ConsumeAsync(message).ConfigureAwait(false);
+
+        Assert.AreEqual(InboxConsumeStatus.DeadLettered, second.Status);
+        Assert.AreEqual(MessageFailureCodes.HandlerFailed, second.FailureCode);
+        Assert.IsTrue(store.Failures.Last().DeadLettered);
+        Assert.IsNull(store.Failures.Last().AvailableAt);
+        Assert.AreEqual(2, handler.CallCount);
+
+        var afterDeadLetter = await consumer.ConsumeAsync(message).ConfigureAwait(false);
+
+        Assert.AreEqual(InboxConsumeStatus.DeadLettered, afterDeadLetter.Status);
+        Assert.AreEqual(2, handler.CallCount);
+    }
+
+    [TestMethod]
     public async Task Inbox_Consumer_Releases_Unknown_Message_Type_For_Retry()
     {
         var message = CreateMessage("test.consume.unregistered");
@@ -155,6 +203,15 @@ public sealed class MessagingExecutionTests
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class MutableTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        private DateTimeOffset _now = now;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Set(DateTimeOffset now) => _now = now;
     }
 
     private sealed class RecordingPublisher : IIntegrationMessagePublisher
@@ -328,11 +385,21 @@ public sealed class MessagingExecutionTests
                     state.AttemptCount));
             }
 
-            if (state.LockedUntil > now)
+            if (state.DeadLettered)
             {
                 return Task.FromResult(new InboxClaimResult(
                     message.Id,
-                    InboxClaimStatus.AlreadyInProgress,
+                    InboxClaimStatus.DeadLettered,
+                    state.AttemptCount));
+            }
+
+            if (state.LockedUntil > now || state.AvailableAt > now)
+            {
+                return Task.FromResult(new InboxClaimResult(
+                    message.Id,
+                    state.AvailableAt > now
+                        ? InboxClaimStatus.RetryScheduled
+                        : InboxClaimStatus.AlreadyInProgress,
                     state.AttemptCount));
             }
 
@@ -363,12 +430,16 @@ public sealed class MessagingExecutionTests
             string owner,
             DateTimeOffset now,
             string failureCode,
+            DateTimeOffset? availableAt,
+            bool deadLettered,
             CancellationToken cancellationToken = default)
         {
             var state = _messages[messageId];
             state.LockOwner = null;
             state.LockedUntil = default;
-            Failures.Add(new(messageId, now, failureCode));
+            state.AvailableAt = availableAt ?? DateTimeOffset.MaxValue;
+            state.DeadLettered = deadLettered;
+            Failures.Add(new(messageId, availableAt, failureCode, deadLettered));
             return Task.CompletedTask;
         }
 
@@ -381,11 +452,16 @@ public sealed class MessagingExecutionTests
             public string? LockOwner { get; set; }
 
             public DateTimeOffset LockedUntil { get; set; }
+
+            public DateTimeOffset AvailableAt { get; set; }
+
+            public bool DeadLettered { get; set; }
         }
     }
 
     private sealed record Failure(
         Guid MessageId,
-        DateTimeOffset AvailableAt,
-        string FailureCode);
+        DateTimeOffset? AvailableAt,
+        string FailureCode,
+        bool DeadLettered = false);
 }

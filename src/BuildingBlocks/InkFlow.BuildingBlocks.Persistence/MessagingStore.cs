@@ -250,10 +250,22 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
             return new(message.Id, InboxClaimStatus.AlreadyProcessed, stored.AttemptCount);
         }
 
+        if (stored.DeadLetteredAt is not null)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return new(message.Id, InboxClaimStatus.DeadLettered, stored.AttemptCount);
+        }
+
         if (stored.LockedUntil > now)
         {
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return new(message.Id, InboxClaimStatus.AlreadyInProgress, stored.AttemptCount);
+        }
+
+        if (stored.AvailableAt is { } availableAt && availableAt > now)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return new(message.Id, InboxClaimStatus.RetryScheduled, stored.AttemptCount);
         }
 
         stored.LockOwner = owner;
@@ -300,9 +312,11 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
                 SELECT *
                   FROM "messaging"."inbox_messages"
                  WHERE "ProcessedAt" IS NULL
+                   AND "DeadLetteredAt" IS NULL
+                   AND ("AvailableAt" IS NULL OR "AvailableAt" <= {0})
                    AND ("LockedUntil" IS NULL OR "LockedUntil" <= {0})
                    AND "MessageType" = ANY ({1})
-                 ORDER BY "ReceivedAt", "Id"
+                 ORDER BY "AvailableAt" NULLS FIRST, "ReceivedAt", "Id"
                  LIMIT {2}
                  FOR UPDATE SKIP LOCKED
                 """,
@@ -356,6 +370,8 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
         message.ProcessedAt = now;
         message.LockOwner = null;
         message.LockedUntil = null;
+        message.AvailableAt = null;
+        message.DeadLetteredAt = null;
         message.LastError = null;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -366,12 +382,36 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
         string owner,
         DateTimeOffset now,
         string failureCode,
+        DateTimeOffset? availableAt,
+        bool deadLettered,
         CancellationToken cancellationToken = default)
     {
         ValidateOwner(owner);
         ValidateId(messageId);
         var normalizedFailure = ValidateFailureCode(failureCode);
         now = now.ToUniversalTime();
+        if (deadLettered && availableAt is not null)
+        {
+            throw new ArgumentException(
+                "a dead-lettered message must not have a retry time.",
+                nameof(availableAt));
+        }
+
+        if (!deadLettered && availableAt is null)
+        {
+            throw new ArgumentException(
+                "a retryable failure must have a retry time.",
+                nameof(availableAt));
+        }
+
+        if (availableAt is { } retryAt && retryAt < now)
+        {
+            throw new ArgumentException(
+                "inbox retry time must not be before now.",
+                nameof(availableAt));
+        }
+
+        availableAt = availableAt?.ToUniversalTime();
 
         await using var transaction = await db.Database
             .BeginTransactionAsync(cancellationToken)
@@ -387,6 +427,8 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
         EnsureLease(message.LockOwner, message.LockedUntil, owner, now, "fail");
         message.LockOwner = null;
         message.LockedUntil = null;
+        message.AvailableAt = deadLettered ? null : availableAt;
+        message.DeadLetteredAt = deadLettered ? now : null;
         message.LastError = normalizedFailure;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -673,12 +715,12 @@ internal static class MessagingSql
         var affected = await database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "messaging"."inbox_messages" AS target
                 ("Id", "MessageType", "Payload", "RawPayload", "PayloadHash", "TraceId",
-                 "OccurredAt", "ReceivedAt", "AttemptCount", "LockOwner", "LockedUntil",
-                 "ProcessedAt", "LastError")
+                 "OccurredAt", "AvailableAt", "ReceivedAt", "AttemptCount", "LockOwner",
+                 "LockedUntil", "ProcessedAt", "DeadLetteredAt", "LastError")
             VALUES
                 ({message.Id}, {message.MessageType}, {message.Payload}::jsonb,
                  {message.Payload}, {message.PayloadHash}, {message.TraceId},
-                 {message.OccurredAt}, {receivedAt}, 0, NULL, NULL, NULL, NULL)
+                 {message.OccurredAt}, {receivedAt}, {receivedAt}, 0, NULL, NULL, NULL, NULL, NULL)
             ON CONFLICT ("Id") DO UPDATE
                 SET "Id" = EXCLUDED."Id"
               WHERE target."MessageType" = EXCLUDED."MessageType"

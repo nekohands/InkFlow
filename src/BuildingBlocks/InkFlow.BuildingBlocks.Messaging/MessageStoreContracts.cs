@@ -21,6 +21,8 @@ public enum InboxClaimStatus
     Claimed,
     AlreadyProcessed,
     AlreadyInProgress,
+    RetryScheduled,
+    DeadLettered,
 }
 
 public sealed record InboxClaimResult(
@@ -81,7 +83,8 @@ public interface IInboxTransportStore
 }
 
 /// <summary>
-/// Inbox 端口。先 claim、成功后 mark processed；处理器崩溃时 lease 到期后可再次领取。
+/// Inbox 端口。先 claim、成功后 mark processed；处理器失败时由调用方持久化下一次领取时间，
+/// 达到尝试上限后保留为终态死信。
 /// </summary>
 public interface IInboxStore
 {
@@ -106,10 +109,14 @@ public interface IInboxStore
         DateTimeOffset now,
         CancellationToken cancellationToken = default);
 
+    /// <param name="availableAt">下一次允许领取的 UTC 时间；死信时必须为空。</param>
+    /// <param name="deadLettered">是否将消息标记为终态死信；死信不会再被批量领取。</param>
     Task MarkFailedAsync(
         Guid messageId,
         string owner,
         DateTimeOffset now,
         string failureCode,
+        DateTimeOffset? availableAt,
+        bool deadLettered,
         CancellationToken cancellationToken = default);
 }

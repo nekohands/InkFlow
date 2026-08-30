@@ -132,6 +132,7 @@ public sealed class MessagingRelayTests
                 ["Messaging:Inbox:StartupDelay"] = "00:00:00",
                 ["Messaging:Inbox:LeaseDuration"] = "00:05:00",
                 ["Messaging:Inbox:BatchSize"] = "12",
+                ["Messaging:Inbox:MaxAttempts"] = "7",
             })
             .Build();
 
@@ -143,6 +144,7 @@ public sealed class MessagingRelayTests
         Assert.AreEqual(TimeSpan.Zero, options.StartupDelay);
         Assert.AreEqual(TimeSpan.FromMinutes(5), options.LeaseDuration);
         Assert.AreEqual(12, options.BatchSize);
+        Assert.AreEqual(7, options.MaxAttempts);
     }
 
     [TestMethod]
@@ -159,6 +161,12 @@ public sealed class MessagingRelayTests
             {
                 Owner = "inbox-test",
                 BatchSize = 101,
+            }.Validate());
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            new InboxConsumerOptions
+            {
+                Owner = "inbox-test",
+                MaxAttempts = 101,
             }.Validate());
     }
 

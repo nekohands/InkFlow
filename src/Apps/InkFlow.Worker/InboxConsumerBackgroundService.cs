@@ -49,12 +49,26 @@ internal sealed class InboxConsumerBackgroundService(
 
                 if (result.ClaimedCount > 0)
                 {
-                    logger.LogInformation(
-                        "inbox consumer completed a batch: claimed={ClaimedCount}, processed={ProcessedCount}, failed={FailedCount}, skipped={SkippedCount}.",
-                        result.ClaimedCount,
-                        result.ProcessedCount,
-                        result.FailedCount,
-                        result.SkippedCount);
+                    if (result.DeadLetteredCount > 0)
+                    {
+                        logger.LogWarning(
+                            "inbox consumer dead-lettered messages in a batch: claimed={ClaimedCount}, processed={ProcessedCount}, failed={FailedCount}, skipped={SkippedCount}, deadLettered={DeadLetteredCount}.",
+                            result.ClaimedCount,
+                            result.ProcessedCount,
+                            result.FailedCount,
+                            result.SkippedCount,
+                            result.DeadLetteredCount);
+                    }
+                    else
+                    {
+                        logger.LogInformation(
+                            "inbox consumer completed a batch: claimed={ClaimedCount}, processed={ProcessedCount}, failed={FailedCount}, skipped={SkippedCount}, deadLettered={DeadLetteredCount}.",
+                            result.ClaimedCount,
+                            result.ProcessedCount,
+                            result.FailedCount,
+                            result.SkippedCount,
+                            result.DeadLetteredCount);
+                    }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

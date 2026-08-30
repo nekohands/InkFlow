@@ -189,7 +189,7 @@ CI Runtime smoke 随后执行 `scripts/core-slo-runtime-smoke.sh`，对四个服
 
 ### Transactional Outbox / Inbox
 
-跨模块消息事实保存在 PostgreSQL 的 `messaging.outbox_messages` 和 `messaging.inbox_messages`。业务 DbContext 通过 `ITransactionalOutboxWriter` 在同一事务中追加 Outbox；`OutboxDispatcher` / `IntegrationMessageConsumer` 以成功后确认、lease、稳定失败码和有界退避支持至少一次执行，Inbox 以消息 ID、类型和载荷摘要保护重复消费与消息身份。已处理记录由 Worker 按 `Messaging:Retention` 配置以有界批次周期清理，失败/待重试/未处理记录保留。发布传输、宿主后台循环和具体 Handler 仍由宿主按需接入，本 Building Block 不绑定未选定的 MQ。当前 Crawler 任务创建已接入 `crawler.task.created` 最小事件，消息不包含变量或凭据引用；其他业务事件需按相同事务 seam 接入。
+跨模块消息事实保存在 PostgreSQL 的 `messaging.outbox_messages` 和 `messaging.inbox_messages`。业务 DbContext 通过 `ITransactionalOutboxWriter` 在同一事务中追加 Outbox；`OutboxDispatcher` / `IntegrationMessageConsumer` 以成功后确认、lease、稳定失败码和有界退避支持至少一次执行，Inbox 以消息 ID、类型和载荷摘要保护重复消费与消息身份。Inbox 失败按 `Messaging:Inbox:MaxAttempts`（默认 5）和指数退避调度 `AvailableAt`，达到上限写入 `DeadLetteredAt`，Worker 会记录死信计数；已处理记录由 Worker 按 `Messaging:Retention` 配置以有界批次周期清理，失败/待重试/未处理/死信记录保留。发布传输、宿主后台循环和具体 Handler 仍由宿主按需接入，本 Building Block 不绑定未选定的 MQ。当前 Crawler 任务创建已接入 `crawler.task.created` 最小事件，消息不包含变量或凭据引用；其他业务事件需按相同事务 seam 接入。
 
 安全审计事实保存在 PostgreSQL `audit.events`。Worker 按 `Audit:Retention`（环境变量 `Audit__Retention__*`）以默认 365 天、有界批次周期清理过期事件；只有受保护的 retention 事务可以删除过期行，普通更新/删除仍由数据库追加式触发器拒绝。该代码基线不替代生产法律保留、归档、恢复授权和删除治理。
 

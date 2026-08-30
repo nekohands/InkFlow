@@ -518,6 +518,91 @@ public sealed class MessagingPersistenceTests
     }
 
     [TestMethod]
+    public async Task Inbox_Handler_Failure_Uses_Bounded_Retry_And_Persists_DeadLetter()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var message = IntegrationMessage.Create(
+            "test.consumer.dead-letter.real",
+            "{\"value\":34}",
+            T0,
+            id: Guid.CreateVersion7());
+        var handler = new RecordingHandler(message.MessageType) { ThrowOnHandle = true };
+        var resolver = new IntegrationMessageHandlerRegistry([handler]);
+        var options = new InboxConsumerOptions
+        {
+            Owner = "consumer-dead-letter",
+            LeaseDuration = TimeSpan.FromMinutes(2),
+            MaxAttempts = 2,
+            RetryPolicy = new ExponentialMessageRetryPolicy(
+                TimeSpan.FromSeconds(3),
+                TimeSpan.FromMinutes(1)),
+        };
+
+        InboxConsumeResult first;
+        await using (var firstDb = CreateMessagingDb())
+        {
+            first = await new IntegrationMessageConsumer(
+                    new EfMessagingMessageStore(firstDb),
+                    resolver,
+                    new FixedTimeProvider(T0),
+                    options)
+                .ConsumeAsync(message)
+                .ConfigureAwait(false);
+        }
+
+        Assert.AreEqual(InboxConsumeStatus.Failed, first.Status);
+        await using (var retryVerify = CreateMessagingDb())
+        {
+            var scheduled = await retryVerify.InboxMessages
+                .AsNoTracking()
+                .SingleAsync(candidate => candidate.Id == message.Id)
+                .ConfigureAwait(false);
+            Assert.AreEqual(T0.AddSeconds(3), scheduled.AvailableAt);
+            Assert.IsNull(scheduled.DeadLetteredAt);
+            Assert.AreEqual(MessageFailureCodes.HandlerFailed, scheduled.LastError);
+            Assert.IsNull(scheduled.LockOwner);
+        }
+
+        InboxConsumeResult second;
+        await using (var secondDb = CreateMessagingDb())
+        {
+            second = await new IntegrationMessageConsumer(
+                    new EfMessagingMessageStore(secondDb),
+                    resolver,
+                    new FixedTimeProvider(T0.AddSeconds(3)),
+                    options)
+                .ConsumeAsync(message)
+                .ConfigureAwait(false);
+        }
+
+        Assert.AreEqual(InboxConsumeStatus.DeadLettered, second.Status);
+        Assert.AreEqual(2, handler.CallCount);
+        await using (var deadLetterVerify = CreateMessagingDb())
+        {
+            var deadLetter = await deadLetterVerify.InboxMessages
+                .AsNoTracking()
+                .SingleAsync(candidate => candidate.Id == message.Id)
+                .ConfigureAwait(false);
+            Assert.AreEqual(T0.AddSeconds(3), deadLetter.DeadLetteredAt);
+            Assert.IsNull(deadLetter.AvailableAt);
+            Assert.IsNull(deadLetter.ProcessedAt);
+            Assert.IsNull(deadLetter.LockOwner);
+            Assert.AreEqual(MessageFailureCodes.HandlerFailed, deadLetter.LastError);
+        }
+
+        await using var afterDeadLetterDb = CreateMessagingDb();
+        var afterDeadLetter = await new IntegrationMessageConsumer(
+                new EfMessagingMessageStore(afterDeadLetterDb),
+                resolver,
+                new FixedTimeProvider(T0.AddMinutes(1)),
+                options)
+            .ConsumeAsync(message)
+            .ConfigureAwait(false);
+        Assert.AreEqual(InboxConsumeStatus.DeadLettered, afterDeadLetter.Status);
+        Assert.AreEqual(2, handler.CallCount);
+    }
+
+    [TestMethod]
     public async Task Inbox_Claim_Batch_Preserves_Envelope_And_Filters_Registered_Types()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);
@@ -870,11 +955,18 @@ public sealed class MessagingPersistenceTests
 
         public int CallCount { get; private set; }
 
+        public bool ThrowOnHandle { get; init; }
+
         public Task HandleAsync(
             IntegrationMessage message,
             CancellationToken cancellationToken = default)
         {
             CallCount++;
+            if (ThrowOnHandle)
+            {
+                throw new InvalidOperationException("handler details must not be persisted");
+            }
+
             return Task.CompletedTask;
         }
     }

@@ -73,6 +73,12 @@ public sealed class InboxConsumerOptions
 
     public int BatchSize { get; init; } = 50;
 
+    /// <summary>单条 Inbox 消息允许执行 Handler 的最大次数，包含当前领取。</summary>
+    public int MaxAttempts { get; init; } = 5;
+
+    /// <summary>Handler 失败后的有界重试延迟策略。</summary>
+    public IMessageRetryPolicy RetryPolicy { get; init; } = new ExponentialMessageRetryPolicy();
+
     /// <summary>从配置读取；缺失配置使用安全默认值，非法值快速失败。</summary>
     public static InboxConsumerOptions FromConfiguration(
         IConfiguration configuration,
@@ -97,6 +103,7 @@ public sealed class InboxConsumerOptions
                 nameof(LeaseDuration),
                 TimeSpan.FromMinutes(2)),
             BatchSize = ReadInt(section, nameof(BatchSize), 50),
+            MaxAttempts = ReadInt(section, nameof(MaxAttempts), 5),
         };
         options.Validate();
         return options;
@@ -121,6 +128,14 @@ public sealed class InboxConsumerOptions
             throw new InvalidOperationException(
                 $"{ConfigurationSectionName}:{nameof(BatchSize)} must be between 1 and 100.");
         }
+
+        if (MaxAttempts is < 1 or > 100)
+        {
+            throw new InvalidOperationException(
+                $"{ConfigurationSectionName}:{nameof(MaxAttempts)} must be between 1 and 100.");
+        }
+
+        ArgumentNullException.ThrowIfNull(RetryPolicy);
     }
 
     private static bool ReadBool(
@@ -207,6 +222,8 @@ public enum InboxConsumeStatus
     Processed,
     AlreadyProcessed,
     AlreadyInProgress,
+    RetryScheduled,
+    DeadLettered,
     NoHandler,
     Failed,
 }
@@ -325,6 +342,7 @@ public static class MessageFailureCodes
     public const string PublishFailed = "publish_failed";
     public const string HandlerNotRegistered = "handler_not_registered";
     public const string HandlerFailed = "handler_failed";
+    public const string AttemptsExhausted = "attempts_exhausted";
 }
 
 internal static class MessageExecutionValidation

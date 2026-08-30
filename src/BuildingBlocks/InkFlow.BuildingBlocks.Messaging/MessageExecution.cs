@@ -129,9 +129,13 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
         {
             return new(
                 message.Id,
-                claimed.Status == InboxClaimStatus.AlreadyProcessed
-                    ? InboxConsumeStatus.AlreadyProcessed
-                    : InboxConsumeStatus.AlreadyInProgress,
+                claimed.Status switch
+                {
+                    InboxClaimStatus.AlreadyProcessed => InboxConsumeStatus.AlreadyProcessed,
+                    InboxClaimStatus.DeadLettered => InboxConsumeStatus.DeadLettered,
+                    InboxClaimStatus.RetryScheduled => InboxConsumeStatus.RetryScheduled,
+                    _ => InboxConsumeStatus.AlreadyInProgress,
+                },
                 claimed.AttemptCount);
         }
 
@@ -150,22 +154,33 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
         ArgumentNullException.ThrowIfNull(message);
         _options.Validate();
 
+        if (claimedMessage.AttemptCount < 1)
+        {
+            throw new InvalidOperationException(
+                "an inbox message must be claimed before consumption.");
+        }
+
+        // Batch claim 的调用方可能在不同配置版本间运行；若旧消息已经超过当前
+        // 尝试预算，直接落为终态死信，不再额外调用业务 Handler。
+        if (claimedMessage.AttemptCount > _options.MaxAttempts)
+        {
+            return await RecordFailureAsync(
+                    claimedMessage,
+                    MessageFailureCodes.AttemptsExhausted,
+                    InboxConsumeStatus.Failed,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         var handler = _handlerResolver.Resolve(message.MessageType);
         if (handler is null)
         {
-            await _store
-                .MarkFailedAsync(
-                    message.Id,
-                    _options.Owner,
-                    _clock.GetUtcNow(),
+            return await RecordFailureAsync(
+                    claimedMessage,
                     MessageFailureCodes.HandlerNotRegistered,
+                    InboxConsumeStatus.NoHandler,
                     cancellationToken)
                 .ConfigureAwait(false);
-            return new(
-                message.Id,
-                InboxConsumeStatus.NoHandler,
-                claimedMessage.AttemptCount,
-                MessageFailureCodes.HandlerNotRegistered);
         }
 
         try
@@ -180,19 +195,12 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
         }
         catch (Exception)
         {
-            await _store
-                .MarkFailedAsync(
-                    message.Id,
-                    _options.Owner,
-                    _clock.GetUtcNow(),
+            return await RecordFailureAsync(
+                    claimedMessage,
                     MessageFailureCodes.HandlerFailed,
+                    InboxConsumeStatus.Failed,
                     cancellationToken)
                 .ConfigureAwait(false);
-            return new(
-                message.Id,
-                InboxConsumeStatus.Failed,
-                claimedMessage.AttemptCount,
-                MessageFailureCodes.HandlerFailed);
         }
 
         await _store
@@ -203,5 +211,39 @@ public sealed class IntegrationMessageConsumer : IIntegrationMessageConsumer
                 cancellationToken)
             .ConfigureAwait(false);
         return new(message.Id, InboxConsumeStatus.Processed, claimedMessage.AttemptCount);
+    }
+
+    private async Task<InboxConsumeResult> RecordFailureAsync(
+        InboxMessageRecord claimedMessage,
+        string failureCode,
+        InboxConsumeStatus retryStatus,
+        CancellationToken cancellationToken)
+    {
+        var failedAt = _clock.GetUtcNow().ToUniversalTime();
+        var deadLettered = claimedMessage.AttemptCount >= _options.MaxAttempts;
+        DateTimeOffset? availableAt = null;
+        if (!deadLettered)
+        {
+            var retryDelay = _options.RetryPolicy.DelayFor(claimedMessage.AttemptCount);
+            MessageExecutionValidation.ValidateRetryDelay(retryDelay);
+            availableAt = failedAt + retryDelay;
+        }
+
+        await _store
+            .MarkFailedAsync(
+                claimedMessage.Message.Id,
+                _options.Owner,
+                failedAt,
+                failureCode,
+                availableAt,
+                deadLettered,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return new(
+            claimedMessage.Message.Id,
+            deadLettered ? InboxConsumeStatus.DeadLettered : retryStatus,
+            claimedMessage.AttemptCount,
+            failureCode);
     }
 }

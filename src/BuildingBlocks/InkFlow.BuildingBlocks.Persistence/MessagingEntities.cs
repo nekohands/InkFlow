@@ -34,10 +34,14 @@ public sealed class InboxMessageEntity
     public string? TraceId { get; set; }
     /// <summary>消息产生时间；旧 Inbox 行为空时由 ReceivedAt 作为兼容回退。</summary>
     public DateTimeOffset? OccurredAt { get; set; }
+    /// <summary>下一次允许领取的时间；旧行为空时视为立即可领取。</summary>
+    public DateTimeOffset? AvailableAt { get; set; }
     public DateTimeOffset ReceivedAt { get; set; }
     public int AttemptCount { get; set; }
     public string? LockOwner { get; set; }
     public DateTimeOffset? LockedUntil { get; set; }
     public DateTimeOffset? ProcessedAt { get; set; }
+    /// <summary>达到消费尝试上限后的终态标记；死信仍保留为消息事实。</summary>
+    public DateTimeOffset? DeadLetteredAt { get; set; }
     public string? LastError { get; set; }
 }
