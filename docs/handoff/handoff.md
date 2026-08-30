@@ -530,6 +530,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：提交 `622446264c9dbee09298e8001aef6c092d235211` 的 [CI 33285403134](https://github.com/nekohands/InkFlow/actions/runs/33285403134)、[Docker 33285403140](https://github.com/nekohands/InkFlow/actions/runs/33285403140)、[Security 33285403125](https://github.com/nekohands/InkFlow/actions/runs/33285403125) 均 GREEN 且 headSha 一致；CI Integration 85 项为 83 passed / 2 skipped，新 Inbox 死信集成用例实际通过，Docker 与 Security 全部通过。
 - 当前状态：本工作包为 `CI Green / Implemented`，不等同于 `Accepted/Completed`；业务 Handler/完整消费闭环、本机 Docker、真实来源、阅读 3.0、人工验收和生产治理继续待定。
 
+### 4.64 `crawler.task.created` Inbox 业务消费闭环（本轮，2026-08-30）
+
+- 缺口：4.61–4.63 已完成 Outbox→Inbox relay、按类型领取和失败死信，但 Worker 没有具体业务 Handler；Crawler 任务创建事件不能触发完整的任务执行链路。
+- 实现：Crawling Application 新增稳定载荷解析/校验和 `CrawlerTaskCreatedMessageHandler`；Handler 回读 `CrawlerTask` 权威事实，校验 Source/Capability/CreatedAt 后调用按任务 ID 的 PostgreSQL `FOR UPDATE SKIP LOCKED` 原子租约。新增 `CrawlerTaskProcessor` 统一周期轮询与 Inbox 触发的 Running、成功、任务级重试和死信状态机；Worker 注册 Handler，并补齐 Canonical Book 仓储依赖。决策见 [ADR 0019](../adr/0019-crawler-task-created-inbox-handler.md)。
+- 可靠性与边界：任务表仍是执行权威事实；任务行与 Outbox 继续同事务写入，Inbox 确认与任务状态提交分离，重复投递由 Inbox 主键、任务终态和租约吸收。事件不携带 Variables、CredentialReference、secret 或正文；身份不匹配/任务缺失进入通用 Inbox 稳定失败、退避和死信。其他 Integration Event 不因本轮实现而宣称已消费。
+- 回归与证据：Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10；Windows 直接迁移模型检查 11/11；Worker `/health` HTTP 200。完整 Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；定向本轮端到端用例同样 BLOCKED。WSL 迁移包装脚本因找不到 `dotnet` 未执行成功，但不影响 Windows 等价检查；NuGet 漏洞审计无漏洞，`git diff --check` PASS。
+- 当前状态：本工作包为 `Implemented / CI Pending`，不等同于 `Accepted/Completed`；候选提交推送后的远端 CI、Docker、Security 待确认，本机 Docker、真实来源、阅读 3.0 和人工验收继续待定。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -589,7 +597,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Transactional Outbox / Inbox 基础恢复：消息契约 + PostgreSQL Migration + Crawler 任务同事务写入 + lease/幂等集成测试（`dd80e2d`；CI `33252929657` / Docker `33252929642` / Security `33252929646` GREEN；其他模块接入与人工/真实业务验收仍待定）
 ✅ Transactional Outbox / Inbox 执行层：Dispatcher/Consumer + 稳定失败码 + 有界重试（`fa81db7`；CI `33253938424` / Docker `33253938404` / Security `33253938443` GREEN；传输适配与宿主后台接线仍待选型）
 ✅ Messaging Outbox/Inbox 保留清理：过期已处理消息有界删除 + Worker 每小时周期接线（`bf6eae1`；CI `33255354693` / Docker `33255354699` / Security `33255354684` GREEN；本机 Docker 集成与真实/人工验收仍待定）
-✅ Inbox 消费失败有界退避与终态死信：`MaxAttempts` + `AvailableAt` + `DeadLetteredAt` + Worker 计数告警（`6224462`；CI `33285403134` / Docker `33285403140` / Security `33285403125` GREEN；业务 Handler、完整消费闭环、本机 Docker 与人工验收仍待定）
+✅ Inbox 消费失败有界退避与终态死信：`MaxAttempts` + `AvailableAt` + `DeadLetteredAt` + Worker 计数告警（`6224462`；CI `33285403134` / Docker `33285403140` / Security `33285403125` GREEN；本机 Docker 与人工验收仍待定）
 ✅ Audit retention：过期审计事实有界删除 + 追加式触发器受控例外 + Worker 每小时周期接线（`b8046af`；CI `33257996992` / Docker `33257996951` / Security `33257996953` GREEN；生产法律/合同保留与归档治理仍待定）
 ✅ Capability Health 并发变更串行化：事务级 advisory lock + 服务原子变更契约 + 跨连接 PostgreSQL 并发回归（`3ba51a1`；CI `33263255422` / Docker `33263255437` / Security `33263255420` GREEN；本机 Docker、真实来源/切源和人工验收仍待定）
 ✅ CI Security Scan 基线 v1：NuGet/Trivy/CodeQL/SBOM + 四镜像发布前扫描（`f58599b`，CI `33134804300` / Security `33134804292` / Docker `33134804238`）
@@ -605,7 +613,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Source Credential Owner Scope 契约：Provider 强制携带 Platform/User/Organization 范围；默认绑定固定 Platform，显式用户/组织引用透传范围（`ee20afe`；CI `33280448686` / Docker `33280448680` / Security `33280448687` GREEN，真实 Provider 与人工验收待定）
 ✅ PostgreSQL Outbox Relay 与 Worker 宿主接线 v1：Outbox→Inbox 耐久 relay + `RawPayload` hash 稳定性修复（`ed4a7a7`；CI `33282208833` / Docker `33282208841` / Security `33282208838` GREEN；Inbox Handler/真实与人工验收待定）
 ✅ Inbox Consumer 轮询与 Worker 消费宿主：按已注册类型批量 claim、lease 恢复、Envelope 兼容恢复和空 registry 安全 idle（`fa50c07`；CI `33283884681` / Docker `33283884682` / Security `33283884688` GREEN；业务 Handler/真实与人工验收待定）
-→ 明确业务 Inbox Handler、事务边界与事件消费闭环
+✅ `crawler.task.created` 业务 Inbox Handler：稳定契约校验 + 按任务 ID 原子租约 + 共享任务处理器 + Outbox→Inbox→任务完成验证（本轮；其他 Integration Event 仍待各自接入）
+→ 扩展其他业务 Integration Event 接收者并取得对应端到端证据
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）

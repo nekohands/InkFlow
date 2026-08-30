@@ -158,6 +158,14 @@ public sealed class TocSyncTaskHandlerTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<CrawlerTask?>(null);
 
+        public Task<CrawlerTask?> TryLeaseAsync(
+            Guid taskId,
+            DateTimeOffset now,
+            string owner,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CrawlerTask?>(null);
+
         public Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default)
         {
             for (var i = 0; i < Store.Count; i++)

@@ -1,11 +1,13 @@
 using DotNet.Testcontainers.Images;
 using InkFlow.BuildingBlocks.Messaging;
+using InkFlow.BuildingBlocks.Observability;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Sources.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Testcontainers.PostgreSql;
 
@@ -518,6 +520,150 @@ public sealed class MessagingPersistenceTests
     }
 
     [TestMethod]
+    public async Task Crawler_Task_Created_Event_Completes_The_Task_Through_Inbox_Handler()
+    {
+        await MigrateAllRequiredSchemasAsync().ConfigureAwait(false);
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                "official-a",
+                SourceCapability.Toc,
+                new Dictionary<string, string> { ["bookId"] = "book-1" }),
+            maxAttempts: 2,
+            createdAt: T0);
+
+        await using (var createDb = CreateCrawlingDb())
+        {
+            await new EfCrawlerTaskRepository(createDb, new EfTransactionalOutboxWriter())
+                .AddAsync(task)
+                .ConfigureAwait(false);
+        }
+
+        IReadOnlyList<OutboxMessageRecord> outboxClaimed;
+        await using (var claimDb = CreateMessagingDb())
+        {
+            outboxClaimed = await new EfMessagingMessageStore(claimDb)
+                .ClaimBatchAsync(
+                    "dispatcher-crawler-e2e",
+                    T0.AddSeconds(1),
+                    TimeSpan.FromMinutes(2),
+                    10)
+                .ConfigureAwait(false);
+        }
+
+        var outboxRecord = outboxClaimed.Single(record => record.Id == task.Id);
+        await using (var publishDb = CreateMessagingDb())
+        {
+            var store = new EfMessagingMessageStore(publishDb);
+            await new PostgreSqlInboxMessagePublisher(
+                    store,
+                    new FixedTimeProvider(T0.AddSeconds(2)))
+                .PublishAsync(outboxRecord)
+                .ConfigureAwait(false);
+            await store
+                .MarkPublishedAsync(
+                    task.Id,
+                    "dispatcher-crawler-e2e",
+                    T0.AddSeconds(3))
+                .ConfigureAwait(false);
+        }
+
+        IReadOnlyList<InboxMessageRecord> inboxClaimed;
+        await using (var claimDb = CreateMessagingDb())
+        {
+            inboxClaimed = await new EfMessagingMessageStore(claimDb)
+                .ClaimBatchAsync(
+                    "consumer-crawler-e2e",
+                    T0.AddSeconds(4),
+                    TimeSpan.FromMinutes(2),
+                    10,
+                    [CrawlerIntegrationMessages.TaskCreatedType])
+                .ConfigureAwait(false);
+        }
+
+        var executor = new RecordingCrawlerExecutor(CrawlOutcome.Ok());
+        await using var crawlingDb = CreateCrawlingDb();
+        var taskRepository = new EfCrawlerTaskRepository(
+            crawlingDb,
+            new EfTransactionalOutboxWriter());
+        var processor = new CrawlerTaskProcessor(
+            executor,
+            taskRepository,
+            new FixedTimeProvider(T0.AddSeconds(5)),
+            new RetryPolicy
+            {
+                BaseDelay = TimeSpan.FromSeconds(5),
+                MaxDelay = TimeSpan.FromSeconds(5),
+            },
+            new CrawlerFailureReporter(
+                Array.Empty<ICrawlerFailureSink>(),
+                NullLogger<CrawlerFailureReporter>.Instance));
+        var handler = new CrawlerTaskCreatedMessageHandler(
+            taskRepository,
+            processor,
+            new FixedTimeProvider(T0.AddSeconds(5)));
+
+        InboxConsumeResult result;
+        await using (var consumeDb = CreateMessagingDb())
+        {
+            result = await new IntegrationMessageConsumer(
+                    new EfMessagingMessageStore(consumeDb),
+                    new IntegrationMessageHandlerRegistry([handler]),
+                    new FixedTimeProvider(T0.AddSeconds(5)),
+                    new InboxConsumerOptions
+                    {
+                        Owner = "consumer-crawler-e2e",
+                        LeaseDuration = TimeSpan.FromMinutes(2),
+                    })
+                .ConsumeClaimedAsync(inboxClaimed.Single())
+                .ConfigureAwait(false);
+        }
+
+        Assert.AreEqual(InboxConsumeStatus.Processed, result.Status);
+        Assert.AreEqual(1, executor.CallCount);
+
+        await using (var verifyCrawling = CreateCrawlingDb())
+        {
+            var persistedTask = await verifyCrawling.Tasks
+                .AsNoTracking()
+                .SingleAsync(candidate => candidate.Id == task.Id)
+                .ConfigureAwait(false);
+            Assert.AreEqual((int)CrawlerTaskStatus.Completed, persistedTask.Status);
+            Assert.AreEqual(1, persistedTask.AttemptCount);
+        }
+
+        await using (var verifyMessaging = CreateMessagingDb())
+        {
+            var inbox = await verifyMessaging.InboxMessages
+                .AsNoTracking()
+                .SingleAsync(candidate => candidate.Id == task.Id)
+                .ConfigureAwait(false);
+            Assert.IsNotNull(inbox.ProcessedAt);
+            Assert.AreEqual(1, inbox.AttemptCount);
+
+            var outbox = await verifyMessaging.OutboxMessages
+                .AsNoTracking()
+                .SingleAsync(candidate => candidate.Id == task.Id)
+                .ConfigureAwait(false);
+            Assert.IsNotNull(outbox.ProcessedAt);
+        }
+
+        await using var replayDb = CreateMessagingDb();
+        var replay = await new IntegrationMessageConsumer(
+                new EfMessagingMessageStore(replayDb),
+                new IntegrationMessageHandlerRegistry([handler]),
+                new FixedTimeProvider(T0.AddSeconds(6)),
+                new InboxConsumerOptions
+                {
+                    Owner = "consumer-crawler-replay",
+                    LeaseDuration = TimeSpan.FromMinutes(2),
+                })
+            .ConsumeAsync(CrawlerIntegrationMessages.TaskCreated(task))
+            .ConfigureAwait(false);
+        Assert.AreEqual(InboxConsumeStatus.AlreadyProcessed, replay.Status);
+        Assert.AreEqual(1, executor.CallCount);
+    }
+
+    [TestMethod]
     public async Task Inbox_Handler_Failure_Uses_Bounded_Retry_And_Persists_DeadLetter()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);
@@ -968,6 +1114,19 @@ public sealed class MessagingPersistenceTests
             }
 
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingCrawlerExecutor(CrawlOutcome outcome) : ICrawlerTaskExecutor
+    {
+        public int CallCount { get; private set; }
+
+        public Task<CrawlOutcome> ExecuteAsync(
+            CrawlerTask task,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult(outcome);
         }
     }
 }

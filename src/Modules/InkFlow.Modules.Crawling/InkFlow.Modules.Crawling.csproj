@@ -3,6 +3,7 @@
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Application/InkFlow.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Messaging/InkFlow.BuildingBlocks.Messaging.csproj" />
+    <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Observability/InkFlow.BuildingBlocks.Observability.csproj" />
     <ProjectReference Include="../../BuildingBlocks/InkFlow.BuildingBlocks.Persistence/InkFlow.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="../InkFlow.Modules.Sources/InkFlow.Modules.Sources.csproj" />
     <ProjectReference Include="../InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />

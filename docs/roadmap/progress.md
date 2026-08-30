@@ -895,6 +895,16 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `622446264c9dbee09298e8001aef6c092d235211` 的 [CI 33285403134](https://github.com/nekohands/InkFlow/actions/runs/33285403134)、[Docker 33285403140](https://github.com/nekohands/InkFlow/actions/runs/33285403140)、[Security 33285403125](https://github.com/nekohands/InkFlow/actions/runs/33285403125) 均 GREEN 且指向同一 headSha。CI Integration 85 项为 83 passed / 2 skipped，`Inbox_Handler_Failure_Uses_Bounded_Retry_And_Persists_DeadLetter` 实际通过；Docker Collector 与四业务镜像构建/扫描通过，Security NuGet、Filesystem、CodeQL、SBOM 全部通过。
 - 当前状态：本工作包为 `CI Green / Implemented`，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；业务 Handler/完整消费闭环、本机 Docker、真实来源、阅读 3.0、人工验收和生产治理继续待定。
 
+### 4.64 `crawler.task.created` Inbox 业务消费闭环（本轮，2026-08-30）
+
+- 缺口：4.61–4.63 已完成 Outbox→Inbox relay、按类型领取和失败死信，但 Worker 没有具体业务 Handler；Crawler 任务创建事件不能触发完整的任务执行链路。
+- 实现：Crawling Application 新增稳定载荷解析/校验和 `CrawlerTaskCreatedMessageHandler`；Handler 回读 `CrawlerTask` 权威事实，校验 Source/Capability/CreatedAt 后调用按任务 ID 的 PostgreSQL `FOR UPDATE SKIP LOCKED` 原子租约。新增 `CrawlerTaskProcessor` 统一周期轮询与 Inbox 触发的 Running、成功、任务级重试和死信状态机；Worker 注册 Handler，并补齐 Canonical Book 仓储依赖。
+- 事务与安全边界：任务表仍是执行权威事实；任务行与 Outbox 继续同事务写入，Inbox 确认与任务状态提交分离，重复投递由 Inbox 主键、任务终态和租约吸收。事件不携带 Variables、CredentialReference、secret 或正文；身份不匹配/任务缺失进入通用 Inbox 稳定失败、退避和死信。
+- 回归：新增 Handler 的原子领取/终态幂等/权威事实不匹配测试，新增 Processor 的成功/重试/死信测试，以及 Outbox→Inbox→Handler→任务完成端到端 PostgreSQL 用例。
+- 本地证据：Release Build PASS（0 warnings / 0 errors）；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；Windows 直接迁移模型检查 11/11 PASS；Worker `/health` HTTP 200。完整 Integration 当前 86 项为 6 通过、2 跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；定向本轮端到端用例同样 BLOCKED。Bash 迁移包装脚本因当前 WSL 找不到 `dotnet` 未执行成功，不影响等价 Windows 检查；NuGet 漏洞审计无漏洞，`git diff --check` PASS。
+- 远端证据：候选提交的 CI、Docker、Security 门禁待推送后运行；在远端证据取得前不标记 `CI Green`。
+- 当前状态：本工作包为 `Implemented / CI Pending`，不等同于 `Accepted/Completed`；其他 Integration Event、Docker 本机复验、真实来源、阅读 3.0 和人工验收继续按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -985,7 +995,7 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 85 项中 77 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过）；Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox 和 Sources Capability Health 并发变更的迁移、隔离、并发、执行层和保留清理用例也必须取得本机真实容器证据。
+- [ ] **本机 PostgreSQL 集成测试**：Docker 可用后重新执行完整 Testcontainers 集成测试（当前 86 项中 78 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过）；Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox 和 Sources Capability Health 并发变更的迁移、隔离、并发、执行层和保留清理用例也必须取得本机真实容器证据。
 - [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [ ] **本机 PostgreSQL 备份恢复演练**：Docker 可用后启动源码 Compose，先产生运行数据，再执行 `scripts/backup-restore-drill.sh` 并保留归档大小、恢复库行数签名和清理结果；当前因 Docker 命令不可用而 BLOCKED。
@@ -993,7 +1003,7 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
-- [ ] **Inbox 业务消费闭环**：由接收模块明确 `IntegrationMessage` 类型、注册幂等 Handler，补充业务 Handler 的事务边界、失败重试/死信策略和端到端事件验证；在此之前 Worker 只保持空 registry 安全 idle，不宣称所有 Integration Event 已消费。
+- [x] **Inbox 业务消费闭环（`crawler.task.created` v1）**：已明确稳定 `IntegrationMessage` 类型、注册幂等 Handler，补充按任务 ID 原子租约、共享任务处理器、任务级重试/死信策略和 Outbox→Inbox→Handler→任务完成验证；其他 Integration Event 仍需各自接入和取得端到端证据。
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
 - API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理、管理员历史查询和 Operations Center 历史展示；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由和生产告警治理仍待后续 Operations/Identity/商业化工作包；审计已具备有界 retention 代码基线，但生产法律/合同保留、归档和删除授权治理仍待部署环境确定。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
@@ -1013,7 +1023,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-当前 4.63 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 466/466、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；API、Worker、Scheduler `/health` 均 200；Integration 85 项中 6 项通过、2 项跳过、77 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计、敏感信息模式检查和 `git diff --check` PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。候选提交 `6224462` 的 CI `33285403134`、Docker `33285403140`、Security `33285403125` 均 GREEN，三项 Run 的 headSha 均为 `622446264c9dbee09298e8001aef6c092d235211`。
+当前 4.64 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；Worker `/health` HTTP 200，后台业务因本机 PostgreSQL `127.0.0.1:5432` 不可用而未完成真实任务处理；Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计无漏洞、敏感信息模式检查和 `git diff --check` PASS。WSL 迁移包装脚本因当前环境找不到 `dotnet` 未执行成功，但 Windows 直接等价迁移模型检查 11/11 PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行；本轮候选提交的远端 CI、Docker、Security 仍待推送后确认。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

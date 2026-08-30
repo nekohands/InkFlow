@@ -23,6 +23,17 @@ public interface ICrawlerTaskRepository
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 在存储层原子领取指定任务。任务事件只能通过此入口触发执行，
+    /// 不得先读取再在内存中写入租约，以免与周期轮询并发重复执行。
+    /// </summary>
+    Task<CrawlerTask?> TryLeaseAsync(
+        Guid taskId,
+        DateTimeOffset now,
+        string owner,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default);
+
     /// <summary>把聚合的当前状态写回存储。</summary>
     Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default);
 

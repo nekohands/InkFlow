@@ -37,29 +37,78 @@ public sealed class EfCrawlerTaskRepository(
         DateTimeOffset now,
         string owner,
         TimeSpan leaseDuration,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await TryLeaseAsync(
+                taskId: null,
+                now,
+                owner,
+                leaseDuration,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    public async Task<CrawlerTask?> TryLeaseAsync(
+        Guid taskId,
+        DateTimeOffset now,
+        string owner,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default) =>
+        await TryLeaseAsync(
+                taskId: taskId,
+                now,
+                owner,
+                leaseDuration,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    private async Task<CrawlerTask?> TryLeaseAsync(
+        Guid? taskId,
+        DateTimeOffset now,
+        string owner,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken)
     {
+        if (taskId == Guid.Empty)
+        {
+            throw new ArgumentException("crawler task ID must not be empty.", nameof(taskId));
+        }
+
         await using var transaction = await db.Database
             .BeginTransactionAsync(cancellationToken)
             .ConfigureAwait(false);
 
         // PostgreSQL 在事务内锁定候选行并跳过已被其他 Worker 锁住的行，
         // 使“筛选 + 状态流转”成为一个跨进程原子领取操作。
-        var candidates = await db.Tasks
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "crawler"."tasks"
-                WHERE ("Status" = {(int)CrawlerTaskStatus.Pending}
-                       AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
-                   OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
-                       AND "LeaseExpiresAt" IS NOT NULL
-                       AND "LeaseExpiresAt" <= {now})
-                ORDER BY "CreatedAt", "Id"
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-                """)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var candidates = taskId is { } targetedTaskId
+            ? await db.Tasks
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM "crawler"."tasks"
+                    WHERE "Id" = {targetedTaskId}
+                      AND (("Status" = {(int)CrawlerTaskStatus.Pending}
+                            AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
+                       OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
+                           AND "LeaseExpiresAt" IS NOT NULL
+                           AND "LeaseExpiresAt" <= {now}))
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                    """)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false)
+            : await db.Tasks
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM "crawler"."tasks"
+                    WHERE ("Status" = {(int)CrawlerTaskStatus.Pending}
+                           AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
+                       OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
+                           AND "LeaseExpiresAt" IS NOT NULL
+                           AND "LeaseExpiresAt" <= {now})
+                    ORDER BY "CreatedAt", "Id"
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                    """)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
         var entity = candidates.SingleOrDefault();
         if (entity is null)

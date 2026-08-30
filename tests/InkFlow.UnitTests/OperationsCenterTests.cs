@@ -225,6 +225,14 @@ public sealed class OperationsCenterTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task<CrawlerTask?> TryLeaseAsync(
+            Guid taskId,
+            DateTimeOffset now,
+            string owner,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
