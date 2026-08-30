@@ -935,6 +935,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM 候选 `d819935` 的一次性 .NET 10 SDK 容器输出 `kanunu-live-acceptance: PASS`，测试 5/5 通过；源码只读复制，不创建账号、不写业务数据库。候选已推送，等待该提交的远端 CI/Docker/Security 三组门禁。
 - 边界：当前真实快照与应用编排已自动化，但没有可控的真实新增章节事件，因此“上游新增章节后下一周期发现并增量发布”仍待定；真实第二来源与故障切换同样未关闭。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 4.88 采集工作台与书籍打包 1.0 交接（本轮，2026-08-31）
+
+- 采集工作台已落地：`CollectionRun` 父运行关联 `CrawlerTask` 子任务，支持 direct URL、持久化进度、暂停/恢复/停止/取消、阶段状态和审计；书籍包支持独立 ZIP、EPUB 3、单文件 UTF-8 TXT。
+- 本轮回归修复：API 阶段值改为稳定的 `bookInfo`/`toc`/`content` 契约；迁移集成断言纳入 `crawler.runs`；共享包卷新增成功完成后才允许 API/Worker 启动的 `packages-init` 权限初始化。
+- 本机证据：Release Build PASS；Unit 494/494 PASS；`git diff --check` PASS。Windows Docker Engine 缺失，不能把本机 IntegrationTests 当作通过。
+- Ubuntu VM 证据：`docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations 成功，服务健康、迁移和包卷初始化成功；完整 `collection-package-runtime-smoke` PASS，覆盖 direct URL、安全拒绝、四类持久控制幂等、前置不确定进度、ZIP/EPUB/TXT 生成下载、哈希/长度完整性和审计。
+- 远端门禁：提交 `7365163` 的 CI/Docker/Security 尚在运行，需以同一 head SHA 的最终结果为准。当前浏览器仅完成未认证运维页状态检查；受保护页面登录后的输入/交互验收需用户在填写临时本地账号密码前明确确认。MuMu/阅读 3.0 不执行，保留人工待定。
+- 下一步：等待三组 CI；若全部 GREEN，更新本节和需求状态为已完成自动化门禁但仍为 `1.0 Release Candidate`；若用户确认临时账号输入，再经本地 SSH 转发完成 `/admin/operations` 登录后页面验收，并禁用临时账户、关闭转发；最后同步 Progress/Handoff 与最终提交。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

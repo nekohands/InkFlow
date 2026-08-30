@@ -59,7 +59,7 @@ case "$url" in
     body='<svg viewBox="0 0 512 512"></svg>'
     ;;
   */admin/operations)
-    body='id="operations-content" /api/v1/admin/operations/overview /api/v1/admin/operations/alerts/history? operations-history-more operations-action-reason aria-live="polite"'
+    body='id="operations-content" id="operations-collection-form" id="operations-collection-url" /api/v1/admin/operations/overview /api/v1/admin/collection-runs /api/v1/admin/books/ id="operations-package-form" EPUB 3 单文件 TXT /api/v1/admin/operations/alerts/history? operations-history-more operations-action-reason aria-live="polite"'
     ;;
   *)
     exit 1

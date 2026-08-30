@@ -1094,6 +1094,14 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM：候选 `d819935` 在一次性 .NET 10 SDK 容器中执行 `kanunu-live-acceptance.sh`，5/5 通过（完整内存编排 2 项 + Kanunu8 BookInfo/TOC/Content 3 项）；只读复制源码，不创建账号、不写 InkFlow 业务数据库、不使用 MuMu/阅读 3.0。
 - 边界：本轮已自动化当前真实来源快照的 Scheduler/Worker 应用链和重复扫描幂等性；由于外部站点在测试窗口没有可控新章事件，真实“上游新增章节 → 下次周期扫描发现”的时序仍保留为待定，不能据此宣称真实追更或真实第二来源故障切换完成。
 
+### 4.88 采集工作台与书籍打包 1.0 运行复验（本轮，2026-08-31）
+
+- 本轮修复了两项验收发现：CollectionRun API 阶段值统一返回契约要求的 `bookInfo`；迁移回归断言同步新增的 `crawler.runs` 表。新增回归提交为 `7365163`。
+- 共享包目录的首次启动权限问题已修复：`docker-compose.yml` 与 `docker-compose.build.yml` 均由一次性 `packages-init` 以 root 初始化目录并交给 `app`，API/Worker 仅在初始化成功后启动；包文件仍通过临时文件校验后原子发布。
+- 本机：`dotnet build InkFlow.sln -c Release --no-restore` PASS；Unit 494/494 PASS；`git diff --check` PASS。Windows Docker Engine 不可用，因此本机 Testcontainers 不作为集成证据。
+- Ubuntu VM：使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations，健康检查和迁移通过；`collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)`。验证覆盖 URL 安全边界、暂停/恢复/停止/取消幂等、前置阶段不伪造百分比、三种包的生成/下载/哈希长度完整性及审计；临时数据按 fixture 清理/禁用，Compose 停止后持久卷保留。
+- 远端：提交 `7365163` 的 CI、Docker、Security 正在运行，完成前不标记整体 `Accepted/Completed`。浏览器受保护运维页登录后的本轮输入验收尚未执行；阅读 3.0/MuMu 真机仍按用户决定列入人工待定事项。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
