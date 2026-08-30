@@ -13,7 +13,8 @@ public sealed record DiscoveredBook(
     bool AlreadyInLibrary);
 
 /// <summary>
-/// 来源搜索发现的编排结果。Warnings 保留逐源失败原因,保证发现过程可解释。
+/// 来源搜索发现的编排结果。Warnings 保留逐源失败阶段的稳定提示,保证发现过程可解释，
+/// 同时不把底层异常细节返回给调用方。
 /// </summary>
 public sealed record DiscoveryOutcome(
     IReadOnlyList<DiscoveredBook> Books,
@@ -79,7 +80,7 @@ public sealed class BookDiscoveryService(
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    warnings.Add($"search: source '{source.Id}' failed: {ex.Message}");
+                    warnings.Add(CreateFailureWarning("search", source.Id));
                     continue;
                 }
 
@@ -136,7 +137,7 @@ public sealed class BookDiscoveryService(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // Import/match/factory/health failures remain isolated to this source.
-                warnings.Add($"discovery: source '{source.Id}' failed: {ex.Message}");
+                warnings.Add(CreateFailureWarning("discovery", source.Id));
             }
         }
 
@@ -146,4 +147,7 @@ public sealed class BookDiscoveryService(
 
         return new DiscoveryOutcome(books, warnings);
     }
+
+    private static string CreateFailureWarning(string phase, string sourceId) =>
+        $"{phase}: source '{sourceId}' failed; retry later.";
 }

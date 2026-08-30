@@ -57,20 +57,25 @@ public sealed class BookDiscoveryServiceTests
     }
 
     [TestMethod]
-    public async Task Source_Exception_Is_Isolated_As_Warning()
+    public async Task Source_Exception_Is_Isolated_As_Safe_Warning()
     {
         var sourceBooks = new InMemorySourceBooks();
         var harness = CreateHarness(
             sourceBooks, new InMemoryCanonicalRepo(), new InMemoryCandidates(),
-            new SourceSpec("broken-source", SearchThrows: new InvalidOperationException("network down")),
+            new SourceSpec(
+                "broken-source",
+                SearchThrows: new InvalidOperationException(
+                    "network down; internal-path=/srv/inkflow; connection-detail=redacted")),
             new SourceSpec("good-source", [new SourceSearchResult("g-1", "玉簟秋", "灵希")]));
 
         var outcome = await harness.Service.DiscoverAsync("玉簟秋");
 
         Assert.AreEqual(1, outcome.Books.Count, "单源失败不得影响其他来源的命中");
         Assert.AreEqual(1, outcome.Warnings.Count);
-        StringAssert.Contains(outcome.Warnings[0], "broken-source");
-        StringAssert.Contains(outcome.Warnings[0], "network down");
+        StringAssert.Contains(outcome.Warnings[0],
+            "search: source 'broken-source' failed; retry later.");
+        Assert.IsFalse(outcome.Warnings[0].Contains("network down"));
+        Assert.IsFalse(outcome.Warnings[0].Contains("internal-path"));
         Assert.AreEqual(1, sourceBooks.Store.Count, "失败来源不应留下半成品导入");
     }
 
@@ -104,8 +109,10 @@ public sealed class BookDiscoveryServiceTests
             "导入阶段的单来源异常不得影响其他来源的命中");
         Assert.AreEqual("玉簟秋", outcome.Books[0].Title);
         Assert.AreEqual(1, outcome.Warnings.Count);
-        StringAssert.Contains(outcome.Warnings[0], "broken-source");
-        StringAssert.Contains(outcome.Warnings[0], "source repository unavailable");
+        StringAssert.Contains(outcome.Warnings[0],
+            "discovery: source 'broken-source' failed; retry later.");
+        Assert.IsFalse(outcome.Warnings[0].Contains("source repository unavailable"));
+        Assert.IsFalse(outcome.Warnings[0].Contains("internal-path"));
     }
 
     [TestMethod]
@@ -350,7 +357,8 @@ public sealed class BookDiscoveryServiceTests
             string externalBookId,
             CancellationToken cancellationToken = default) =>
             sourceId == failingSourceId
-                ? throw new InvalidOperationException("source repository unavailable")
+                ? throw new InvalidOperationException(
+                    "source repository unavailable; internal-path=/var/lib/inkflow")
                 : _inner.GetAsync(sourceId, externalBookId, cancellationToken);
 
         public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default) =>
