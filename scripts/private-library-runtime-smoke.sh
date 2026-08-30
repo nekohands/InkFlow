@@ -16,6 +16,8 @@ token_a=""
 token_b=""
 book_id=""
 imported_book_id=""
+epub_book_id=""
+duplicate_book_id=""
 deleted_book_id=""
 
 fail() {
@@ -67,7 +69,7 @@ cleanup() {
   # There is intentionally no account-delete API. The two uniquely named
   # smoke users are harmless test principals; books are removed on every exit.
   if [[ -n "$token_a" ]]; then
-    for id in "$book_id" "$imported_book_id"; do
+    for id in "$book_id" "$imported_book_id" "$epub_book_id" "$duplicate_book_id"; do
       if [[ -n "$id" ]]; then
         "$curl_bin" --silent --show-error --max-time "$max_time" \
           --request DELETE \
@@ -164,6 +166,23 @@ get_json_with_headers() {
     --output "$output" \
     "$base_url$route"; then
     fail "GET $route failed"
+  fi
+}
+
+get_file_with_headers() {
+  local route="$1"
+  local token="$2"
+  local output="$3"
+  local response_headers="$4"
+
+  if ! "$curl_bin" \
+    --silent --show-error --fail \
+    --max-time "$max_time" \
+    -H "Authorization: Bearer $token" \
+    --dump-header "$response_headers" \
+    --output "$output" \
+    "$base_url$route"; then
+    fail "GET $route could not download the file"
   fi
 }
 
@@ -346,6 +365,107 @@ if ! grep -Fq -- 'private paragraph one' "$work_dir/export.txt" ||
   fail 'private TXT export did not include imported paragraphs'
 fi
 
+get_file_with_headers \
+  "/api/v1/me/private-library/books/$imported_book_id/export?format=epub" \
+  "$token_a" \
+  "$work_dir/export.epub" \
+  "$work_dir/export.epub.headers"
+if ! grep -Eiq '^Content-Type:[[:space:]]*application/epub\+zip' \
+  "$work_dir/export.epub.headers"; then
+  fail 'private EPUB export did not return the EPUB content type'
+fi
+if [[ ! -s "$work_dir/export.epub" ]]; then
+  fail 'private EPUB export was empty'
+fi
+
+if ! "$curl_bin" \
+  --silent --show-error --fail \
+  --max-time "$max_time" \
+  -H "Authorization: Bearer $token_a" \
+  --form "file=@$work_dir/export.epub;filename=ci-private-roundtrip.epub;type=application/epub+zip" \
+  --output "$work_dir/epub-import.json" \
+  "$base_url/api/v1/me/private-library/import"; then
+  fail 'private EPUB import failed'
+fi
+epub_book_id="$("$jq_bin" -er '.book.privateBookId' "$work_dir/epub-import.json")"
+if ! "$jq_bin" -e \
+  '.chapterCount == 2 and .book.title == "CI Imported Private Book"' \
+  "$work_dir/epub-import.json" >/dev/null; then
+  fail 'EPUB round trip did not preserve book metadata and chapter count'
+fi
+get_json \
+  "/api/v1/me/private-library/books/$epub_book_id/chapters" \
+  "$token_a" \
+  "$work_dir/epub-chapters.json"
+if ! "$jq_bin" -e \
+  'length == 2 and .[0].title == "First Chapter" and .[1].title == "Second Chapter"' \
+  "$work_dir/epub-chapters.json" >/dev/null; then
+  fail 'EPUB round trip did not preserve chapter order and headings'
+fi
+epub_chapter_id="$("$jq_bin" -er '.[0].privateChapterId' "$work_dir/epub-chapters.json")"
+get_json \
+  "/api/v1/me/private-library/books/$epub_book_id/chapters/$epub_chapter_id" \
+  "$token_a" \
+  "$work_dir/epub-chapter.json"
+if ! "$jq_bin" -e \
+  '.paragraphs | index("private paragraph one") != null' \
+  "$work_dir/epub-chapter.json" >/dev/null; then
+  fail 'EPUB round trip did not preserve chapter content'
+fi
+
+if ! "$curl_bin" \
+  --silent --show-error --fail \
+  --max-time "$max_time" \
+  -H "Authorization: Bearer $token_a" \
+  --form "file=@$import_file;filename=ci-private-duplicate.txt;type=text/plain" \
+  --output "$work_dir/duplicate-import.json" \
+  "$base_url/api/v1/me/private-library/import"; then
+  fail 'duplicate private book import failed'
+fi
+duplicate_book_id="$("$jq_bin" -er '.book.privateBookId' "$work_dir/duplicate-import.json")"
+if [[ "$duplicate_book_id" == "$imported_book_id" ]]; then
+  fail 'duplicate import reused the original book identity'
+fi
+get_json \
+  "/api/v1/me/private-library/books/$imported_book_id" \
+  "$token_a" \
+  "$work_dir/original-after-duplicate.json"
+if ! "$jq_bin" -e \
+  '.privateBookId != null and .title == "CI Imported Private Book" and .author == "CI Importer"' \
+  "$work_dir/original-after-duplicate.json" >/dev/null; then
+  fail 'duplicate import overwrote the original private book'
+fi
+get_json /api/v1/me/private-library/books "$token_a" "$work_dir/duplicate-list.json"
+if ! "$jq_bin" -e \
+  --arg first "$imported_book_id" \
+  --arg second "$duplicate_book_id" \
+  'any(.[]; .privateBookId == $first) and any(.[]; .privateBookId == $second)' \
+  "$work_dir/duplicate-list.json" >/dev/null; then
+  fail 'duplicate import did not retain both private book identities'
+fi
+
+get_json /api/v1/me/private-library/books "$token_a" "$work_dir/before-failed-import.json"
+before_failed_import_count="$("$jq_bin" -er 'length' "$work_dir/before-failed-import.json")"
+invalid_import_file="$work_dir/invalid-import.epub"
+printf '%s\n' 'not an EPUB archive' > "$invalid_import_file"
+invalid_import_status="$("$curl_bin" \
+  --silent --show-error \
+  --max-time "$max_time" \
+  -H "Authorization: Bearer $token_a" \
+  --form "file=@$invalid_import_file;filename=ci-private-invalid.epub;type=application/epub+zip" \
+  --output "$work_dir/failed-import.json" \
+  --write-out '%{http_code}' \
+  "$base_url/api/v1/me/private-library/import")"
+if [[ "$invalid_import_status" != "400" ]] ||
+   ! "$jq_bin" -e '.error == "invalid_file"' "$work_dir/failed-import.json" >/dev/null; then
+  fail "invalid EPUB import returned HTTP $invalid_import_status instead of the stable invalid_file response"
+fi
+get_json /api/v1/me/private-library/books "$token_a" "$work_dir/after-failed-import.json"
+after_failed_import_count="$("$jq_bin" -er 'length' "$work_dir/after-failed-import.json")"
+if [[ "$after_failed_import_count" != "$before_failed_import_count" ]]; then
+  fail 'failed import left a partial private book behind'
+fi
+
 expect_status \
   "/api/v1/books/$imported_book_id" \
   '' \
@@ -374,9 +494,13 @@ expect_status \
 
 delete_book "$token_a" "$book_id"
 delete_book "$token_a" "$imported_book_id"
+delete_book "$token_a" "$epub_book_id"
+delete_book "$token_a" "$duplicate_book_id"
 deleted_book_id="$book_id"
 book_id=''
 imported_book_id=''
+epub_book_id=''
+duplicate_book_id=''
 
 expect_status \
   "/api/v1/me/private-library/books/$deleted_book_id" \
@@ -384,4 +508,4 @@ expect_status \
   404 \
   "$work_dir/deleted-book.json"
 
-printf 'private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT import/read/export)\n'
+printf 'private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT/EPUB import/read/export, duplicate isolation, failed-import rollback)\n'

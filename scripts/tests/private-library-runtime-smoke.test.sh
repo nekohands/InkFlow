@@ -10,6 +10,9 @@ for required in \
   'Cache-Control' \
   'cross-user.json' \
   'private paragraph one' \
+  'application/epub+zip' \
+  'duplicate import reused the original book identity' \
+  'failed import left a partial private book behind' \
   'private-library-runtime-smoke: PASS'; do
   grep -Fq -- "$required" "$script"
 done
