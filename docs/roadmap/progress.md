@@ -874,6 +874,16 @@ Phase 1A 自动化工作包状态：
 - 远端证据：修复候选 `ed4a7a7abc70732df5310546c0af01909b54ac96` 的 [CI 33282208833](https://github.com/nekohands/InkFlow/actions/runs/33282208833)、[Docker 33282208841](https://github.com/nekohands/InkFlow/actions/runs/33282208841)、[Security 33282208838](https://github.com/nekohands/InkFlow/actions/runs/33282208838) 均为 GREEN，三项 headSha 一致；CI 包含迁移模型 11 个上下文、Unit 460/460、Architecture 1/1、Contract 10/10、Integration 82 项（80 passed / 2 skipped）及 Redis Integration 1/1。首次候选 `a3741cf` 曾因 PostgreSQL `jsonb` 读回规范化造成 hash 断言失败，已由 `RawPayload` 原文列修复并回归。
 - 当前状态：代码已 `Implemented`，整体继续保持 `1.0 Release Candidate`，尚未达到 `Accepted/Completed`；本机 Docker、Inbox Handler/消费模块、真实来源、阅读 3.0、人工验收、生产 SLO/告警和其他第 6 节事项仍待关闭。
 
+### 4.62 Inbox Consumer 轮询与 Worker 消费宿主（本轮，2026-08-30）
+
+- 缺口：4.61 已能把 Outbox 耐久转入 Inbox，但没有持久化批量领取和 Worker 消费循环；若直接领取所有 Inbox，未注册消息会进入无界失败重试。
+- 实现：新增 `IInboxStore.ClaimBatchAsync` 与 `InboxMessageRecord`，PostgreSQL 使用 `FOR UPDATE SKIP LOCKED`、MessageType allowlist、lease 和有界 batch；新增 nullable `OccurredAt` 与领取索引 Migration，旧行缺失 `OccurredAt` 时回退 `ReceivedAt`，无 `RawPayload` 时保留已存 PayloadHash 恢复。`InboxConsumerPump` 在 Handler 成功后确认，失败只写稳定失败码；Worker 新增 `InboxConsumerBackgroundService` 和 `Messaging:Inbox` 有界配置，每轮独立 scope。
+- 安全边界：当前 Worker 没有注册业务 Inbox Handler，空注册表安全 idle，不领取未知消息；本轮不新增 `crawler.task.created` 业务 Handler，不引入外部 MQ，不改变 Crawler 任务轮询和阅读路径。决策见 ADR 0017。
+- 回归：新增 Inbox pump 成功/空 Handler 单元测试、Inbox 配置边界测试、批量领取 Envelope/类型过滤和旧行兼容恢复 Integration 用例；现有 Consumer/Relay 回归继续通过。
+- 本地证据：`dotnet restore InkFlow.sln` PASS；`dotnet build InkFlow.sln -c Release --no-restore` PASS（0 warnings / 0 errors）；Unit 464/464、Architecture 1/1、Contract 10/10、Windows .NET 等价迁移模型检查 11/11 PASS；API/Worker/Scheduler `/health` 均 HTTP 200；漏洞审计与 `git diff --check` PASS。定向 PostgreSQL Inbox Integration 两项均因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；WSL 包装脚本因 WSL 未提供 dotnet 未执行成功，不影响上述 Windows 等价检查。
+- 远端证据：候选提交 `fa50c07b6eee042644ea72a331c75e9f61e0ba81` 的 [CI 33283884681](https://github.com/nekohands/InkFlow/actions/runs/33283884681)、[Docker 33283884682](https://github.com/nekohands/InkFlow/actions/runs/33283884682)、[Security 33283884688](https://github.com/nekohands/InkFlow/actions/runs/33283884688) 均 GREEN 且指向同一 headSha；CI 包含迁移模型 11 个上下文、Unit 464/464、Architecture 1/1、Contract 10/10、Integration 84 项（82 passed / 2 skipped）、Redis Integration 1/1、Compose/Runtime/SLO/备份恢复/diagnostics，Security 包含 NuGet/Trivy/SBOM/CodeQL。
+- 当前状态：代码与远端门禁为 `CI Green / Implemented`，仍不等于 `Accepted/Completed`；业务 Inbox Handler、完整业务消费闭环、本机 Docker、真实来源、阅读 3.0 和人工验收继续列入待定事项。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -972,6 +982,7 @@ Official Source
 
 ### 6.3 后续工程事项（非本轮人工验收）
 
+- [ ] **Inbox 业务消费闭环**：由接收模块明确 `IntegrationMessage` 类型、注册幂等 Handler，补充业务 Handler 的事务边界、失败重试/死信策略和端到端事件验证；在此之前 Worker 只保持空 registry 安全 idle，不宣称所有 Integration Event 已消费。
 - Source Health / Capability Health、v1 健康感知切源、半开自适应恢复与探针冷却参数配置化（ADR 0005）已落地；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 与 Center UI v1 自动化基线已落地，自动修复与更强运维治理仍属于后续工程工作。
 - API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理、管理员历史查询和 Operations Center 历史展示；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由和生产告警治理仍待后续 Operations/Identity/商业化工作包；审计已具备有界 retention 代码基线，但生产法律/合同保留、归档和删除授权治理仍待部署环境确定。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。

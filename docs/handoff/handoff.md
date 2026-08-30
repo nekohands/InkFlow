@@ -513,6 +513,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 回归与证据：首次候选的 PostgreSQL Relay Integration 暴露 `jsonb` 规范化导致的 hash 误判，已新增 RawPayload 修复和旧记录回归。修复后本机 Restore、Release Build（0 warnings / 0 errors）、Unit 460/460、Architecture 1/1、Contract 10/10、迁移模型 11/11、三宿主 `/health` 均 PASS；定向 PostgreSQL Relay Integration 因本机 Docker `npipe://./pipe/docker_engine` 不可用而 BLOCKED。修复候选 `ed4a7a7abc70732df5310546c0af01909b54ac96` 的 [CI 33282208833](https://github.com/nekohands/InkFlow/actions/runs/33282208833)、[Docker 33282208841](https://github.com/nekohands/InkFlow/actions/runs/33282208841)、[Security 33282208838](https://github.com/nekohands/InkFlow/actions/runs/33282208838) 均 GREEN 且 headSha 一致；CI Integration 82 项为 80 passed / 2 skipped。
 - 当前状态：代码为 `Implemented`，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；本机 Docker、Inbox Handler/消费闭环、真实来源、阅读 3.0 和人工验收继续按第 6 节处理。
 
+### 4.62 Inbox Consumer 轮询与 Worker 消费宿主（本轮，2026-08-30）
+
+- 缺口：4.61 的 Outbox→Inbox relay 已具备耐久投递，但 Inbox 缺少按已注册类型领取、消费和确认的 Worker 宿主。
+- 实现：新增 `IInboxStore.ClaimBatchAsync`、`InboxConsumerPump` 与 `InboxConsumerBackgroundService`。PostgreSQL 在事务内以 `FOR UPDATE SKIP LOCKED` + lease 批量领取，并以 Handler registry 的 MessageType allowlist 过滤；成功 Handler 才写 `ProcessedAt`，失败保留 `handler_failed` 等稳定失败码。`InboxMessageRecord` 恢复完整 Envelope；新增 nullable `OccurredAt` 和查询索引，旧行缺失 `OccurredAt` 时回退 `ReceivedAt`，无 `RawPayload` 时不重算已保存 hash。
+- 宿主边界：Worker 通过 `Messaging:Inbox` 配置启用、启动延迟、轮询间隔、lease 和 batch 上限，每轮使用独立 DI scope。当前没有注册业务 Inbox Handler，空 registry 会安全 idle，不领取未知消息；未伪造 `crawler.task.created` 业务消费完成。
+- 回归与证据：本机 Restore PASS、Release Build 0 warnings / 0 errors、Unit 464/464、Architecture 1/1、Contract 10/10、Windows .NET 等价迁移模型检查 11/11、三宿主 `/health` HTTP 200、漏洞审计和 `git diff --check` PASS。定向 Inbox PostgreSQL Integration 两项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；WSL 包装脚本因缺少 dotnet 未执行成功。远端候选 `fa50c07b6eee042644ea72a331c75e9f61e0ba81` 的 [CI 33283884681](https://github.com/nekohands/InkFlow/actions/runs/33283884681)、[Docker 33283884682](https://github.com/nekohands/InkFlow/actions/runs/33283884682)、[Security 33283884688](https://github.com/nekohands/InkFlow/actions/runs/33283884688) 均 GREEN 且 headSha 一致；CI 为 Unit 464/464、Architecture 1/1、Contract 10/10、Integration 84（82 passed / 2 skipped），并包含迁移、Compose、Runtime/SLO、Redis、备份恢复、diagnostics 和 Security 扫描。
+- 当前状态：本工作包为 `CI Green / Implemented`，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。业务 Handler/消费闭环、本机 Docker、真实来源、阅读 3.0、人工验收和生产治理继续待定；架构决策记录见 [ADR 0017](../adr/0017-inbox-consumer-polling.md)。
+
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
 3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
@@ -586,6 +594,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Source 默认 CredentialReference 管理 API：Administrator-only 设置/清除 + 有界理由 + 命令审计（`dee61d3`；CI `33279039667` / Docker `33279039645` / Security `33279039666` GREEN；真实 Provider 与人工验收待定）
 ✅ Source Credential Owner Scope 契约：Provider 强制携带 Platform/User/Organization 范围；默认绑定固定 Platform，显式用户/组织引用透传范围（`ee20afe`；CI `33280448686` / Docker `33280448680` / Security `33280448687` GREEN，真实 Provider 与人工验收待定）
 ✅ PostgreSQL Outbox Relay 与 Worker 宿主接线 v1：Outbox→Inbox 耐久 relay + `RawPayload` hash 稳定性修复（`ed4a7a7`；CI `33282208833` / Docker `33282208841` / Security `33282208838` GREEN；Inbox Handler/真实与人工验收待定）
+✅ Inbox Consumer 轮询与 Worker 消费宿主：按已注册类型批量 claim、lease 恢复、Envelope 兼容恢复和空 registry 安全 idle（`fa50c07`；CI `33283884681` / Docker `33283884682` / Security `33283884688` GREEN；业务 Handler/真实与人工验收待定）
+→ 明确业务 Inbox Handler、事务边界与事件消费闭环
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）
