@@ -966,6 +966,7 @@ Phase 1A 自动化工作包状态：
 - 补充 `scripts/load-local-env.sh`，前端 smoke、Core SLO smoke 和 PostgreSQL 备份恢复脚本会自动读取根目录 `.env`；已有导出环境变量优先，支持本地文件覆盖和显式跳过。
 - 加载器只解析受限的 `KEY=value` / `export KEY=value` 赋值，不执行 `.env` 内容，也不打印值；新增脚本回归覆盖注释、空值、引号、`#`、字面量命令文本和环境变量优先级。
 - `.env.example` 增补前端 curl 超时配置和加载说明；`.env` 继续由 `.gitignore` 忽略，敏感值不进入提交、文档或 CI 日志。
+- 本地脚本语法/回归均通过；候选提交 `b9c2f70` 的远端 [CI 33298192655](https://github.com/nekohands/InkFlow/actions/runs/33298192655)、[Docker 33298192688](https://github.com/nekohands/InkFlow/actions/runs/33298192688)、[Security 33298192776](https://github.com/nekohands/InkFlow/actions/runs/33298192776) 均 GREEN 且 head SHA 一致。CI 中 Unit 478/478、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）、Redis 1/1、源码 Compose Runtime、前端 smoke、SLO、备份恢复和新增 env-loader 回归均通过。
 - 当前状态：本地验证入口可直接复用 `.env`，不改变源码 Compose 为日常默认和 GHCR Compose 仅用于发布/镜像复验的边界；整体仍为 `1.0 Release Candidate`。
 
 ## 5. Phase 1A 核心验收链路
