@@ -800,6 +800,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 真实 `.env` 继续只保留在本机并由 `.gitignore` 忽略；模板不包含密码、Token、Cookie 或实际部署地址。README 已补充复制模板和敏感值边界说明。
 - 当前状态：配置读取入口已具备可复制模板，不改变 1.0 的人工/真实环境验收边界。
 
+### 4.71 SourceAdapterFactory 来源分派回归（本轮，2026-08-30）
+
+- 补充 `SourceAdapterFactoryTests`，覆盖可信 CodeAdapter 优先于仓储查询、带有效 Rule DSL 的来源构建 `RuleBasedSourceAdapter`，以及缺失/无规则来源返回空值。
+- 回归保持完全离线：使用内存仓储和 No-op HTTP seam，不触网、不读取真实凭据，避免把测试证据误当作真实来源验收。
+- 本地定向结果：3/3 通过；完整 Build/Test/Runtime/CI 将随候选提交重新执行。
+- 当前状态：来源分派关键 seam 的自动化覆盖已补齐，整体仍为 `1.0 Release Candidate`；真实来源/故障切换和人工验收边界不变。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
