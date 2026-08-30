@@ -766,7 +766,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **Reader/PWA 用户状态人工验收**：验证账户登录/注册、刷新会话、书架/历史/进度/偏好同步、登出、PWA 安装提示、Service Worker 注册和离线提示；本轮按用户决定跳过。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
-- [ ] **linovelib 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → Content，并把该来源纳入真实第二来源/故障切换演练；本轮仅完成离线规则回归，未触网。
+- [x] **linovelib 真实公开页面只读链路**：GPT 内置浏览器已完成 Search → BookInfo → TOC → Content 页面证据；不等同于服务端 RuleAdapter 直连通过。
+- [ ] **linovelib RuleAdapter 后端直连链路**：当前普通 HTTP POST 搜索返回 200 但空响应体，待网络/站点挑战可稳定处理后验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/故障切换演练。
 - [ ] **17K 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向；本轮仅完成 Fixture 回归，未触网。
 - [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 89 项中 81 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Inbox 失败策略、Sources Capability Health 并发变更、Outbox/Inbox、保留清理和 ContentVersion 当前选择边界测试；本机未取得真实容器证据。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
@@ -847,6 +848,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM 临时 .NET 10 SDK 容器启用现有 opt-in live 测试，源码当前候选的 Kanunu8 真实网络适配器 BookInfo、TOC、章节正文 3/3 通过；不创建账号、不写业务数据，测试后临时 NuGet 卷已删除。
 - Kanunu8 Search 当前按适配器契约返回空结果，不能据此宣称完整 Search → BookInfo → TOC → Content 或真实追更；linovelib 搜索响应体为空，17K 搜索 API TLS 证书校验失败，真实第二来源/故障切换仍待定。
 - 整体继续为 1.0 Release Candidate；阅读 3.0/MuMu、真实账户、PWA 安装/断网和生产环境验收边界不变。
+
+### 4.77 linovelib 真实公开站点只读链路自动验证（本轮，2026-08-30）
+
+- GPT 内置浏览器在 linovelib 公开站点提交 `恶魔高校`，返回 3 个搜索结果并定位 `novel/1`；详情页读取 `恶魔高校DxD` / `石踏一荣`，目录页读取 482 章，正文页读取 `Life.1 不当人类。` 的非空段落。
+- 该轮未登录、未创建账号、未写入站点数据，完成真实公开页面层面的 Search → BookInfo → TOC → Content 只读证据。
+- 边界：普通 HTTP POST 仍返回 200/空响应体，浏览器会话结果不等于 InkFlow RuleAdapter 后端直连通过；不读取 Cookie、不绕过反爬挑战。RuleAdapter 直连、真实第二来源故障切换和真实追更继续待定。
 
 ## 5. 关键架构不变量
 
