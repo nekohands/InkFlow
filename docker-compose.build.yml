@@ -72,14 +72,7 @@ services:
     working_dir: /workspace
     entrypoint:
       - /bin/bash
-      - -c
-      - |
-        set -Eeuo pipefail
-        mkdir -p /tmp/inkflow
-        tar --exclude='.env' --exclude='.env.*' --exclude='.git' -C /workspace -cf - . | tar --no-same-owner -C /tmp/inkflow -xf -
-        cd /tmp/inkflow
-        exec dotnet run --property:UseAppHost=false --project tools/InkFlow.AcceptanceFixtures/InkFlow.AcceptanceFixtures.csproj --configuration Release -- "$$@"
-      - --
+      - /workspace/scripts/run-acceptance-fixture.sh
     command: ["ensure-catalog"]
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
