@@ -1139,6 +1139,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `6b4b256` 的 [CI 33336335560](https://github.com/nekohands/InkFlow/actions/runs/33336335560)、[Docker 33336335553](https://github.com/nekohands/InkFlow/actions/runs/33336335553)、[Security 33336335552](https://github.com/nekohands/InkFlow/actions/runs/33336335552) 均 GREEN，三者 head SHA 一致。
 - 当前状态：自动化 Release Gate 已通过，但整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实新增章节追更事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面登录后的浏览器输入验收和 MuMu/阅读 3.0 真机验收继续按待定事项执行。
 
+### 4.93 采集运行 Reconcile 与控制状态原子化（本轮，2026-08-31）
+
+- 缺陷：`CollectionRunService.ReconcileAsync` 原先先读取运行和子任务进度再保存；暂停/停止/取消命令若在读取后提交，陈旧快照可能把已持久化的控制状态覆写回 `Running`，违反控制状态以数据库为准的约束。
+- TDD 修复：先加入 `Reconcile_Does_Not_Overwrite_Control_State_Changed_After_Read` 回归并确认旧实现会把 `Paused` 写回 `Running`，再增加 `ICollectionRunRepository.ReconcileAsync` 原子 seam；新增跨连接 PostgreSQL 回归 `Concurrent_Reconcile_Does_Not_Overwrite_Control_State`。
+- 实现：EF 仓储在同一 PostgreSQL 事务内对运行行执行 `FOR UPDATE`，随后读取子任务状态、调用领域 `Reconcile` 并保存；控制命令与进度折叠按同一行锁串行化。默认接口实现保留内存仓储和旧替身兼容，不改变状态机或公共 API。
+- 本机证据：红色回归已复现旧缺陷；修复后 Release Build 0 warnings / 0 errors、Unit 501/501 PASS、`git diff --check` PASS。Windows Docker Engine 不可用，新增 Testcontainers 集成回归在本机为 BLOCKED，不作为本机通过证据。
+- Ubuntu VM 证据：候选 `0133775` 已同步；Crawler PostgreSQL 集成测试 15/15 通过；完整测试为 Architecture 1/1、Integration 94 passed / 2 skipped / 0 failed、Contract 10/10、Unit 501/501；`docker-compose.build.yml` 源码构建、迁移和 API/Worker/Scheduler/PostgreSQL/Redis 健康检查通过；`collection-package-runtime-smoke`、`reader-content-runtime-smoke` 与 `reader-frontend-runtime-smoke` 均 PASS。临时验收账号已禁用，Compose 已停止，持久卷保留。
+- 远端门禁：代码候选 `0133775` 的 [CI 33337767070](https://github.com/nekohands/InkFlow/actions/runs/33337767070)、[Docker 33337767065](https://github.com/nekohands/InkFlow/actions/runs/33337767065)、[Security 33337767076](https://github.com/nekohands/InkFlow/actions/runs/33337767076) 均 GREEN，三者 head SHA 一致。
+- 当前状态：自动化 Release Gate 已通过，但整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实新增章节追更事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 真机验收继续按待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

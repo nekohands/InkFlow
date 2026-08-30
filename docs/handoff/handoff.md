@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`6b4b256`（包含正文联动 Content 任务去重原子化修复；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`0133775`（包含采集运行 Reconcile 与控制状态原子化修复；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -973,6 +973,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - TDD/本机：新增 `Uses_Atomic_Dedupe_Gate_For_Content_Tasks` 单元回归先红后绿；Release Build 0 warnings / 0 errors；Unit 500/500、diff check PASS。Windows Docker Engine 缺失，Testcontainers 集成在本机为 BLOCKED。
 - Ubuntu VM：候选 `6b4b256` 的 Crawler PostgreSQL 集成测试 14/14 通过；完整测试 Architecture 1/1、Integration 93 passed / 2 skipped、Contract 10/10、Unit 500/500；源码构建 Compose、迁移、健康检查通过；`reader-content-runtime-smoke` 和 `reader-frontend-runtime-smoke` 均 PASS。验证结束后临时运行环境已停止，持久卷保留。
 - 交接门槛：代码候选 `6b4b256` 的 [CI 33336335560](https://github.com/nekohands/InkFlow/actions/runs/33336335560)、[Docker 33336335553](https://github.com/nekohands/InkFlow/actions/runs/33336335553)、[Security 33336335552](https://github.com/nekohands/InkFlow/actions/runs/33336335552) 均 GREEN，三者 head SHA 一致。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是待定项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 4.93 采集运行 Reconcile 与控制状态原子化交接（本轮，2026-08-31）
+
+- `CollectionRunService.ReconcileAsync` 已改为调用原子仓储 seam；EF 仓储在同一 PostgreSQL 事务中锁定运行行、汇总子任务进度、执行领域折叠并保存，避免陈旧 Reconcile 覆写并发暂停/停止/取消命令。默认接口回退保持内存替身兼容。
+- TDD/本机：`Reconcile_Does_Not_Overwrite_Control_State_Changed_After_Read` 先红后绿；Release Build 0 warnings / 0 errors；Unit 501/501、diff check PASS。Windows Docker Engine 缺失，新增 Testcontainers 集成在本机为 BLOCKED。
+- Ubuntu VM：候选 `0133775` 的 Crawler PostgreSQL 集成测试 15/15 通过；完整测试 Architecture 1/1、Integration 94 passed / 2 skipped、Contract 10/10、Unit 501/501；源码构建 Compose、迁移、健康检查通过；采集/打包、正文和前端运行时冒烟均 PASS。临时验收账号已禁用，Compose 已停止，持久卷保留。
+- 交接门槛：代码候选 `0133775` 的 [CI 33337767070](https://github.com/nekohands/InkFlow/actions/runs/33337767070)、[Docker 33337767065](https://github.com/nekohands/InkFlow/actions/runs/33337767065)、[Security 33337767076](https://github.com/nekohands/InkFlow/actions/runs/33337767076) 均 GREEN，三者 head SHA 一致。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是待定项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
