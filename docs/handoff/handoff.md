@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`0133775`（包含采集运行 Reconcile 与控制状态原子化修复；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`f3be335`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -980,6 +980,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - TDD/本机：`Reconcile_Does_Not_Overwrite_Control_State_Changed_After_Read` 先红后绿；Release Build 0 warnings / 0 errors；Unit 501/501、diff check PASS。Windows Docker Engine 缺失，新增 Testcontainers 集成在本机为 BLOCKED。
 - Ubuntu VM：候选 `0133775` 的 Crawler PostgreSQL 集成测试 15/15 通过；完整测试 Architecture 1/1、Integration 94 passed / 2 skipped、Contract 10/10、Unit 501/501；源码构建 Compose、迁移、健康检查通过；采集/打包、正文和前端运行时冒烟均 PASS。临时验收账号已禁用，Compose 已停止，持久卷保留。
 - 交接门槛：代码候选 `0133775` 的 [CI 33337767070](https://github.com/nekohands/InkFlow/actions/runs/33337767070)、[Docker 33337767065](https://github.com/nekohands/InkFlow/actions/runs/33337767065)、[Security 33337767076](https://github.com/nekohands/InkFlow/actions/runs/33337767076) 均 GREEN，三者 head SHA 一致。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是待定项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 4.94 采集运行聚合写入口原子化交接（本轮，2026-08-31）
+
+- `CollectionRunService` 的 CanonicalBook、阶段推进和工作启动写入已统一改用 `ICollectionRunRepository.MutateAsync`；EF 实现事务内锁定 `crawler.runs` 行并重新装载聚合后执行领域变更，避免陈旧写入覆写并发暂停/停止/取消状态。默认接口回退保留内存仓储与既有测试替身兼容。
+- TDD/本机：`Run_Mutation_Does_Not_Overwrite_Control_State_Changed_After_Read`、`Stage_And_Work_Mutations_Preserve_Concurrent_Control_State` 先红后绿；Release Build 0 warnings / 0 errors；Unit 503/503、diff check PASS。Windows Docker Engine 缺失，新增 Testcontainers 回归在本机为 BLOCKED。
+- Ubuntu VM：候选 `f3be335` 的 Crawler PostgreSQL 集成测试 16/16 通过；完整测试 Architecture 1/1、Integration 95 passed / 2 skipped、Contract 10/10、Unit 503/503；源码 Compose 构建、Migration、健康检查通过；采集打包运行时冒烟覆盖直接 URL、持久控制、ZIP/EPUB/TXT、完整性与审计并通过。临时账号已禁用，Compose 已停止且无残留容器。
+- 交接门槛：代码候选 `f3be335` 的 [CI 33339150508](https://github.com/nekohands/InkFlow/actions/runs/33339150508)、[Docker 33339150530](https://github.com/nekohands/InkFlow/actions/runs/33339150530)、[Security 33339150520](https://github.com/nekohands/InkFlow/actions/runs/33339150520) 均 GREEN，三者 head SHA 一致。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是待定项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

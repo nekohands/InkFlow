@@ -1149,6 +1149,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `0133775` 的 [CI 33337767070](https://github.com/nekohands/InkFlow/actions/runs/33337767070)、[Docker 33337767065](https://github.com/nekohands/InkFlow/actions/runs/33337767065)、[Security 33337767076](https://github.com/nekohands/InkFlow/actions/runs/33337767076) 均 GREEN，三者 head SHA 一致。
 - 当前状态：自动化 Release Gate 已通过，但整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实新增章节追更事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 真机验收继续按待定事项执行。
 
+### 4.94 采集运行聚合写入口原子化（本轮，2026-08-31）
+
+- 缺陷：`SetCanonicalBookAsync`、`AdvanceStageAsync` 和 `MarkWorkStartedAsync` 原先采用“先读运行、调用领域方法、再保存”的陈旧快照写入路径；控制命令在读取后提交时，后续聚合写入可能把已持久化的暂停/停止/取消状态覆写回旧状态。
+- TDD 修复：新增 `Run_Mutation_Does_Not_Overwrite_Control_State_Changed_After_Read`、`Stage_And_Work_Mutations_Preserve_Concurrent_Control_State` 单元回归并先确认旧实现失败；新增跨连接 PostgreSQL 回归 `Concurrent_Run_Mutation_Does_Not_Overwrite_Control_State`。
+- 实现：`ICollectionRunRepository` 增加 `MutateAsync` 原子 seam；EF 仓储在同一 PostgreSQL 事务中对 `crawler.runs` 执行 `FOR UPDATE`，重新装载运行聚合、应用领域变更并保存。CanonicalBook、阶段推进、工作启动、控制命令和 Reconcile 现在共享同一行锁边界；默认接口回退保持内存仓储与旧测试替身兼容。
+- 本机证据：旧红色回归已复现；Release Build 0 warnings / 0 errors；Unit 503/503、`git diff --check` PASS。Windows Docker Engine 的 `npipe://./pipe/docker_engine` 不可用，因此本机 Testcontainers 回归为 BLOCKED，不作为集成通过证据。
+- Ubuntu VM 证据：候选 `f3be335` 已同步；Crawler PostgreSQL 集成测试 16/16 通过；完整测试为 Architecture 1/1、Integration 95 passed / 2 skipped / 0 failed、Contract 10/10、Unit 503/503；源码构建 Compose、Migration、API/Worker/Scheduler/PostgreSQL/Redis 健康检查通过；`collection-package-runtime-smoke` 通过直接 URL、持久控制、ZIP/EPUB/TXT、完整性和审计；临时账号已禁用，Compose 已停止且无残留服务容器。
+- 远端门禁：代码候选 `f3be335` 的 [CI 33339150508](https://github.com/nekohands/InkFlow/actions/runs/33339150508)、[Docker 33339150530](https://github.com/nekohands/InkFlow/actions/runs/33339150530)、[Security 33339150520](https://github.com/nekohands/InkFlow/actions/runs/33339150520) 均 GREEN，三者 head SHA 一致。
+- 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
