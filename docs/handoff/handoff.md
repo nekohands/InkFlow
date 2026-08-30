@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`f3be335`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`b01f32d`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复，以及 PWA 安装增强契约测试/前端 smoke；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -987,6 +987,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - TDD/本机：`Run_Mutation_Does_Not_Overwrite_Control_State_Changed_After_Read`、`Stage_And_Work_Mutations_Preserve_Concurrent_Control_State` 先红后绿；Release Build 0 warnings / 0 errors；Unit 503/503、diff check PASS。Windows Docker Engine 缺失，新增 Testcontainers 回归在本机为 BLOCKED。
 - Ubuntu VM：候选 `f3be335` 的 Crawler PostgreSQL 集成测试 16/16 通过；完整测试 Architecture 1/1、Integration 95 passed / 2 skipped、Contract 10/10、Unit 503/503；源码 Compose 构建、Migration、健康检查通过；采集打包运行时冒烟覆盖直接 URL、持久控制、ZIP/EPUB/TXT、完整性与审计并通过。临时账号已禁用，Compose 已停止且无残留容器。
 - 交接门槛：代码候选 `f3be335` 的 [CI 33339150508](https://github.com/nekohands/InkFlow/actions/runs/33339150508)、[Docker 33339150530](https://github.com/nekohands/InkFlow/actions/runs/33339150530)、[Security 33339150520](https://github.com/nekohands/InkFlow/actions/runs/33339150520) 均 GREEN，三者 head SHA 一致。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是待定项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 4.95 PWA 安装增强自动化契约覆盖交接（本轮，2026-08-31）
+
+- Reader/PWA 已补齐安装增强回归：`reader-install`、`beforeinstallprompt` 的默认行为阻止与安装提示、`appinstalled` 后入口隐藏均由 ReaderHtml 单测和前端 smoke fixture 覆盖；产品运行逻辑未改变。
+- 本机：Release Build 0 warnings / 0 errors、Unit 504/504、Reader 前端 smoke 和 `git diff --check` 均通过。Ubuntu VM 已同步候选 `b01f32d`，源码 Compose 构建、Migration、服务健康检查和 `reader-frontend-runtime-smoke` 通过；验证后 Compose 已停止且无残留服务容器。
+- 交接门槛：候选 `b01f32d` 的 [CI 33341287060](https://github.com/nekohands/InkFlow/actions/runs/33341287060)、[Docker 33341287043](https://github.com/nekohands/InkFlow/actions/runs/33341287043)、[Security 33341287049](https://github.com/nekohands/InkFlow/actions/runs/33341287049) 均 GREEN，三者 head SHA 一致。
+- 当前状态：整体保持 `1.0 Release Candidate`，自动化 Release Gate 已通过，不标记 `Accepted/Completed`。受保护 Operations 页面登录后输入、真实账户/PWA 安装与跨设备、真实来源/追更/故障切换、真实凭据和 MuMu/阅读 3.0 继续按待定事项执行。
 
 ## 5. 关键架构不变量
 

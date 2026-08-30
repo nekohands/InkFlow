@@ -1159,6 +1159,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `f3be335` 的 [CI 33339150508](https://github.com/nekohands/InkFlow/actions/runs/33339150508)、[Docker 33339150530](https://github.com/nekohands/InkFlow/actions/runs/33339150530)、[Security 33339150520](https://github.com/nekohands/InkFlow/actions/runs/33339150520) 均 GREEN，三者 head SHA 一致。
 - 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定事项执行。
 
+### 4.95 PWA 安装增强自动化契约覆盖（本轮，2026-08-31）
+
+- 缺口：既有 Manifest/Service Worker smoke 已覆盖 PWA 基础资源，但未明确断言浏览器安装增强入口和 `beforeinstallprompt`/`appinstalled` 处理存在。
+- 实现：新增 ReaderHtml 单测和 `reader-frontend-runtime-smoke`/fixture 回归，断言 `reader-install`、`beforeinstallprompt`、`preventDefault`、安装提示/完成后的隐藏逻辑；不改变产品行为。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 504/504；Reader 前端 smoke 回归 PASS；`git diff --check` PASS。
+- Ubuntu VM 证据：候选 `b01f32d` 已同步；`docker-compose.build.yml` 源码构建、Migration、API/Worker/Scheduler/PostgreSQL/Redis 健康启动通过；`reader-frontend-runtime-smoke: PASS (Reader/PWA/Operations frontend contracts)`；验证后 Compose 已停止且无残留服务容器。
+- 远端门禁：候选 `b01f32d` 的 [CI 33341287060](https://github.com/nekohands/InkFlow/actions/runs/33341287060)、[Docker 33341287043](https://github.com/nekohands/InkFlow/actions/runs/33341287043)、[Security 33341287049](https://github.com/nekohands/InkFlow/actions/runs/33341287049) 均 GREEN，三者 head SHA 一致。
+- 当前状态：本工作包自动化 Release Gate 已通过；整体保持 `1.0 Release Candidate`。受保护 Operations 页面登录后输入/交互、真实账户/PWA 安装/跨设备、真实来源/追更/故障切换和 MuMu/阅读 3.0 仍按第 6 节待定事项执行，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
