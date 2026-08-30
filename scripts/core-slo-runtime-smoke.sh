@@ -7,7 +7,13 @@ base_url="${1:-${INKFLOW_SLO_SMOKE_BASE_URL:-http://localhost:8080}}"
 probe_count="${INKFLOW_SLO_PROBE_COUNT:-5}"
 max_time="${INKFLOW_SLO_CURL_MAX_TIME:-10}"
 curl_bin="${INKFLOW_SLO_CURL_BIN:-curl}"
-evidence_file="${INKFLOW_SLO_EVIDENCE_FILE:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/inkflow-core-slo-evidence.json}"
+evidence_directory="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+if [[ -n "${INKFLOW_SLO_EVIDENCE_FILE:-}" ]]; then
+  evidence_file="$INKFLOW_SLO_EVIDENCE_FILE"
+else
+  mkdir -p -- "$evidence_directory"
+  evidence_file="$(mktemp "$evidence_directory/inkflow-core-slo-evidence.XXXXXX.json")"
+fi
 probe_dir=""
 output_tmp=""
 
