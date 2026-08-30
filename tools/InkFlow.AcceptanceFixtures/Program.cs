@@ -1,4 +1,6 @@
 using System.Text.Json;
+using InkFlow.Modules.Content.Application;
+using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Identity.Domain;
 using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Domain;
@@ -12,6 +14,11 @@ const string FixtureBookTitle = "InkFlow Runtime Acceptance Fixture";
 const string FixtureBookAuthor = "InkFlow Automation";
 const string FixtureChapterTitle = "Automated Acceptance Chapter";
 const string FixtureSourceBaseUrl = "https://inkflow-acceptance.invalid";
+const string FixtureReaderContent = """
+    <p>这一章用于 InkFlow 的非阅读 App 自动化验收。</p>
+    <p>正文来自已发布的 Canonical Content，阅读页应展示已落库内容。</p>
+    <p>滚动、阅读进度和历史记录由浏览器自动化链路验证。</p>
+    """;
 
 var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Database");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -21,7 +28,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 if (args.Length == 0)
 {
-    return Fail("usage: ensure-catalog | set-role <email> <operator|administrator> | disable-user <email>");
+    return Fail("usage: ensure-catalog | ensure-reader-catalog | set-role <email> <operator|administrator> | disable-user <email>");
 }
 
 try
@@ -29,7 +36,9 @@ try
     return args[0] switch
     {
         "ensure-catalog" when args.Length == 1 =>
-            await EnsureCatalogAsync(connectionString),
+            await EnsureCatalogAsync(connectionString, publishReaderContent: false),
+        "ensure-reader-catalog" when args.Length == 1 =>
+            await EnsureCatalogAsync(connectionString, publishReaderContent: true),
         "set-role" when args.Length == 3 =>
             await SetRoleAsync(connectionString, args[1], args[2]),
         "disable-user" when args.Length == 2 =>
@@ -107,7 +116,7 @@ static async Task<int> DisableUserAsync(string connectionString, string email)
     return 0;
 }
 
-static async Task<int> EnsureCatalogAsync(string connectionString)
+static async Task<int> EnsureCatalogAsync(string connectionString, bool publishReaderContent)
 {
     var now = DateTimeOffset.UtcNow;
     await using (var sourceDb = new SourcesDbContext(Options<SourcesDbContext>(connectionString)))
@@ -125,37 +134,57 @@ static async Task<int> EnsureCatalogAsync(string connectionString)
         }
     }
 
-    await using var libraryDb = new LibraryDbContext(Options<LibraryDbContext>(connectionString));
-    var books = new EfCanonicalBookRepository(libraryDb);
-    var book = await books.FindByTitleAuthorAsync(FixtureBookTitle, FixtureBookAuthor);
-    if (book is null)
+    Guid bookId;
+    Guid chapterId;
+    await using (var libraryDb = new LibraryDbContext(Options<LibraryDbContext>(connectionString)))
     {
-        book = CanonicalBook.Create(FixtureBookTitle, FixtureBookAuthor, now);
-        var chapter = book.AddChapter(0, FixtureChapterTitle, now);
-        await books.AddAsync(book);
-        Console.WriteLine(JsonSerializer.Serialize(new
+        var books = new EfCanonicalBookRepository(libraryDb);
+        var book = await books.FindByTitleAuthorAsync(FixtureBookTitle, FixtureBookAuthor);
+        if (book is null)
         {
-            sourceId = FixtureSourceId,
-            bookId = book.Id,
-            chapterId = chapter.Id,
-        }));
-        return 0;
+            book = CanonicalBook.Create(FixtureBookTitle, FixtureBookAuthor, now);
+            var chapter = book.AddChapter(0, FixtureChapterTitle, now);
+            await books.AddAsync(book);
+            bookId = book.Id;
+            chapterId = chapter.Id;
+        }
+        else
+        {
+            book = await books.GetAsync(book.Id)
+                ?? throw new InvalidOperationException("acceptance fixture book disappeared while loading.");
+            var existingChapter = book.Chapters.FirstOrDefault();
+            if (existingChapter is null)
+            {
+                existingChapter = book.AddChapter(0, FixtureChapterTitle, now);
+                await books.SaveAsync(book);
+            }
+
+            bookId = book.Id;
+            chapterId = existingChapter.Id;
+        }
     }
 
-    book = await books.GetAsync(book.Id)
-        ?? throw new InvalidOperationException("acceptance fixture book disappeared while loading.");
-    var existingChapter = book.Chapters.FirstOrDefault();
-    if (existingChapter is null)
+    if (publishReaderContent)
     {
-        existingChapter = book.AddChapter(0, FixtureChapterTitle, now);
-        await books.SaveAsync(book);
+        await using var contentDb = new ContentDbContext(Options<ContentDbContext>(connectionString));
+        var publisher = new ContentPublishingService(new EfContentVersionRepository(contentDb));
+        var outcome = await publisher.PublishAsync(
+            bookId,
+            chapterId,
+            FixtureSourceId,
+            FixtureReaderContent);
+        if (!outcome.IsSuccess || outcome.Version is null)
+        {
+            throw new InvalidOperationException(
+                $"acceptance reader content could not be published: {string.Join("; ", outcome.Errors)}");
+        }
     }
 
     Console.WriteLine(JsonSerializer.Serialize(new
     {
         sourceId = FixtureSourceId,
-        bookId = book.Id,
-        chapterId = existingChapter.Id,
+        bookId,
+        chapterId,
     }));
     return 0;
 }
