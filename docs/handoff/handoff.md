@@ -928,6 +928,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM：`593f093` 源码构建 Compose 健康启动；`ensure-reader-catalog` 两次返回同一稳定书目/章节 ID；内容烟测 PASS。内置浏览器经本地 SSH 转发实际读到 3 段已发布正文，页面含进度元素且无未发布提示。验证结束已停止 Compose/转发，持久卷保留。
 - 边界：进度/历史的认证写入由 4.84 API smoke 覆盖，本轮新增正文页面证据；未启动 MuMu/阅读 3.0、未使用真实凭据。真实账户、PWA 安装/生产 HTTPS、跨设备和长时间体验仍待定，整体不标记 `Accepted/Completed`。
 
+### 4.87 Kanunu8 真实来源 Scheduler/Worker 内容链自动验收（本轮，2026-08-30）
+
+- 新增 opt-in 真实来源编排测试和 `scripts/kanunu-live-acceptance.sh`：Kanunu8 当前目录经 `UpdateScanService` → `TocSyncTaskHandler` → `ContentFetchChainService` 入队，再由 `CrawlerTaskProcessor` / `ContentFetchTaskHandler` 完成真实正文抓取、`FetchArtifact` 记录、`ContentVersion` 发布和公共查询。
+- 测试覆盖周期重扫的 TOC 去重、在途正文任务冲突去重、稳定来源章节 ID 和发布后可读性；常规 CI 只执行脚本语法回归，避免把外部站点变成 PR-CI 依赖。
+- Ubuntu VM 候选 `d819935` 的一次性 .NET 10 SDK 容器输出 `kanunu-live-acceptance: PASS`，测试 5/5 通过；源码只读复制，不创建账号、不写业务数据库。候选已推送，等待该提交的远端 CI/Docker/Security 三组门禁。
+- 边界：当前真实快照与应用编排已自动化，但没有可控的真实新增章节事件，因此“上游新增章节后下一周期发现并增量发布”仍待定；真实第二来源与故障切换同样未关闭。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -1012,7 +1019,7 @@ GET /legado/book-source.json
 Phase 1A / 1B 外部验收：
 
 - 阅读 3.0 导入 `/legado/book-source.json`，Search → BookInfo → TOC → Content 真机验证（按用户决定后续人工执行）。
-- Scheduler/Worker 使用真实更新数据的追更验证。
+- Scheduler/Worker 使用真实更新数据的追更验证；4.87 已自动化当前 Kanunu8 快照的扫描、消费、去重和发布，但可控的上游新增章节事件仍待定。
 - 第二个真实 Official Source 与真实故障切源演练；当前只有确定性双来源夹具和 17K 离线 CodeAdapter 证据，不能替代真实来源验收。
 - linovelib 已完成 Search 规则的离线定义与回归，真实网络验证仍受 DNS 污染影响，待可用环境复验。
 - 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待本机可用容器环境复验；本轮一致性检查新增用例已在远端 CI PostgreSQL 容器中通过。

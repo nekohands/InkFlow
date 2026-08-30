@@ -1086,6 +1086,14 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM 证据：候选 `593f093` 使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations，PostgreSQL、Redis、服务健康检查通过；`ensure-reader-catalog` 连续执行两次返回相同稳定 ID，`reader-content-runtime-smoke: PASS (published content, reader progress contract)`；此前内置浏览器经本地 SSH 转发访问同一章节，实际读取 3 段已发布正文、阅读进度元素存在且未出现未发布提示。验证结束已禁用临时账户、停止 Compose 和 SSH 转发，持久卷保留。
 - 边界：进度/历史认证写入继续由 4.84 的 API runtime smoke 自动验证，本轮浏览器新增验证已发布正文页面；未启动 MuMu/阅读 3.0，不使用真实凭据。真实生产 HTTPS、PWA 安装/独立窗口、跨设备同步、长期阅读和阅读 3.0 真机验收仍列为待定，不标记整体 1.0 `Accepted/Completed`。
 
+### 4.87 Kanunu8 真实来源 Scheduler/Worker 内容链自动验收（本轮，2026-08-30）
+
+- 为关闭“真实来源只测适配器、未测任务编排”的缺口，新增 opt-in 的 `Live_Scheduler_And_Worker_Complete_Current_Source_Content_Chain`：真实 Kanunu8 目录经过 `UpdateScanService` 入队、`TocSyncTaskHandler` 同步/映射、`ContentFetchChainService` 联动入队，再由 `CrawlerTaskProcessor` 和 `ContentFetchTaskHandler` 消费；正文实际写入 `FetchArtifact` 内存仓储、经 `IChainedContentPublisher` 发布为 `ContentVersion`，最后从公共查询读取。
+- 该测试同时验证周期重扫的 TOC 任务去重、在途 Content 任务阻止重复入队、来源目录章节 ID 去重以及真实正文发布后的可读性；新增 `scripts/kanunu-live-acceptance.sh` 作为强制开启 `INKFLOW_LIVE_TESTS=1` 的可重复入口，常规 CI 仅做脚本语法回归，不依赖第三方站点波动。
+- 本机：`dotnet build InkFlow.sln -c Release --no-restore` 0 警告/0 错误；Unit 482/482、Architecture 1/1、Contract 10/10；受影响 IntegrationTests 默认安全跳过真实网络项；脚本 `bash -n` 通过。
+- Ubuntu VM：候选 `d819935` 在一次性 .NET 10 SDK 容器中执行 `kanunu-live-acceptance.sh`，5/5 通过（完整内存编排 2 项 + Kanunu8 BookInfo/TOC/Content 3 项）；只读复制源码，不创建账号、不写 InkFlow 业务数据库、不使用 MuMu/阅读 3.0。
+- 边界：本轮已自动化当前真实来源快照的 Scheduler/Worker 应用链和重复扫描幂等性；由于外部站点在测试窗口没有可控新章事件，真实“上游新增章节 → 下次周期扫描发现”的时序仍保留为待定，不能据此宣称真实追更或真实第二来源故障切换完成。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1172,7 +1180,7 @@ Official Source
 - [x] **Private Library 非阅读 App 自动化文件/一致性验收**：源码构建 Compose 已覆盖 TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、所有权及公共路径隔离。
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验、导出文件可读性及长期使用；不作为阅读 App 以外自动化门禁的替代。
 - [x] **Developer API / 商业基础非阅读 App 自动化运行验收**：源码构建 Compose 已自动验证 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、`X-InkFlow-Api-Key` 专用 Header、轮换和撤销；真实 Web 账户、管理员套餐、配额超额和用户停用仍需真实环境补充。
-- [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
+- [ ] **真实追更验收**：4.87 已用真实 Kanunu8 当前快照自动验证 Scheduler 扫描、Worker 消费、目录同步、任务去重与正文发布；仍需可控的上游新增章节/修订事件，验证下一周期扫描确实产生增量并发布新版本。
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [x] **Content Policy 非阅读 App 自动化验收**：4.83 已用临时管理员和 CanonicalBook fixture 验证下架/恢复、公共详情可见性、权限拒绝和审计过滤。
