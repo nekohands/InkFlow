@@ -1,6 +1,7 @@
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace InkFlow.Modules.Crawling.Infrastructure.Persistence;
 
@@ -11,6 +12,31 @@ public sealed class EfCollectionRunRepository(CrawlingDbContext db) : ICollectio
     {
         db.Runs.Add(CollectionRunMapper.ToEntity(run));
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<bool> TryAddAsync(
+        CollectionRun run,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = CollectionRunMapper.ToEntity(run);
+        db.Runs.Add(entity);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch (DbUpdateException exception)
+            when (exception.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+            })
+        {
+            // The unique partial index is the authoritative concurrency gate.
+            // Detach the failed insert so this scoped context remains usable for
+            // the subsequent active-run lookup in the service.
+            db.Entry(entity).State = EntityState.Detached;
+            return false;
+        }
     }
 
     public async Task<CollectionRun?> GetAsync(

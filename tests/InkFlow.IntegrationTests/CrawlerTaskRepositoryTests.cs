@@ -86,6 +86,45 @@ public sealed class CrawlerTaskRepositoryTests
         CollectionAssert.IsSubsetOf(
             new[] { "ReplayTaskId", "ReplayedAt", "ReplayRequestedBy", "ReplayReason" },
             deadLetterColumns.ToList());
+
+        var runIndexes = await db.Database.SqlQuery<string>(
+                $"""SELECT indexname AS "Value" FROM pg_indexes WHERE schemaname = 'crawler' AND tablename = 'runs'""")
+            .ToListAsync().ConfigureAwait(false);
+        CollectionAssert.Contains(runIndexes.ToList(), "UX_runs_active_source_book");
+    }
+
+    [TestMethod]
+    public async Task Concurrent_Active_Collection_Runs_Allow_Only_One_Insert()
+    {
+        var sourceId = $"concurrent-run-{Guid.NewGuid():N}";
+        var externalBookId = "book-42";
+        var first = CreateContext();
+        await using var firstDb = first.Db;
+        var second = CreateContext();
+        await using var secondDb = second.Db;
+        var firstRuns = new EfCollectionRunRepository(firstDb);
+        var secondRuns = new EfCollectionRunRepository(secondDb);
+        var firstRun = CollectionRun.Create(
+            sourceId,
+            externalBookId,
+            "https://example.com/book/book-42",
+            T0);
+        var secondRun = CollectionRun.Create(
+            sourceId,
+            externalBookId,
+            "https://example.com/book/book-42",
+            T0.AddSeconds(1));
+
+        var inserted = await Task.WhenAll(
+            firstRuns.TryAddAsync(firstRun),
+            secondRuns.TryAddAsync(secondRun)).ConfigureAwait(false);
+
+        Assert.AreEqual(1, inserted.Count(value => value));
+        await using var verifyDb = CreateContext().Db;
+        var activeCount = await verifyDb.Runs
+            .CountAsync(run => run.SourceId == sourceId && run.ExternalBookId == externalBookId)
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, activeCount);
     }
 
     [TestMethod]

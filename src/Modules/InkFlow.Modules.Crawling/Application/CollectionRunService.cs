@@ -99,7 +99,23 @@ public sealed class CollectionRunService(
             resolved.ExternalBookId!,
             resolved.NormalizedUrl!,
             now);
-        await runs.AddAsync(run, cancellationToken).ConfigureAwait(false);
+        if (!await runs.TryAddAsync(run, cancellationToken).ConfigureAwait(false))
+        {
+            var concurrent = await runs
+                .FindActiveAsync(
+                    resolved.SourceId!,
+                    resolved.ExternalBookId!,
+                    cancellationToken)
+                .ConfigureAwait(false)
+                ?? throw new InvalidOperationException(
+                    "an active collection run disappeared during concurrent creation.");
+            return new(
+                true,
+                await BuildViewAsync(concurrent, cancellationToken).ConfigureAwait(false),
+                true,
+                null,
+                null);
+        }
 
         try
         {

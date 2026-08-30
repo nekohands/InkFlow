@@ -60,6 +60,10 @@ public sealed class CollectionRunEntityConfiguration : IEntityTypeConfiguration<
         builder.Property(r => r.LastError).HasMaxLength(2048);
         builder.HasIndex(r => new { r.Status, r.UpdatedAt });
         builder.HasIndex(r => new { r.SourceId, r.ExternalBookId, r.CreatedAt });
+        builder.HasIndex(r => new { r.SourceId, r.ExternalBookId })
+            .HasDatabaseName("UX_runs_active_source_book")
+            .IsUnique()
+            .HasFilter("\"Status\" IN (0, 1, 2, 3)");
     }
 }
 

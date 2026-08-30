@@ -7,6 +7,14 @@ public interface ICollectionRunRepository
 {
     Task AddAsync(CollectionRun run, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 尝试插入活跃运行；持久化实现必须把同来源/外部书籍的并发竞争收敛为一次成功插入。
+    /// 返回 false 表示已有活跃运行，调用方随后读取该运行复用。
+    /// </summary>
+    Task<bool> TryAddAsync(
+        CollectionRun run,
+        CancellationToken cancellationToken = default);
+
     Task<CollectionRun?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
