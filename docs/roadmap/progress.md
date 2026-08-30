@@ -1117,7 +1117,7 @@ Phase 1A 自动化工作包状态：
 - TDD 修复：先新增 `Active_Toc_Task_For_One_Book_Does_Not_Block_Other_Books_From_Same_Source` 回归测试并确认旧实现失败，再改用 `HasConflictingTaskAsync(sourceId, Toc, bookId, externalBookId)`，将冲突范围收敛到具体来源书籍；测试转绿，未改变任务变量和公共 API 契约。
 - 本机证据：Release Build 0 warnings / 0 errors；Unit 498/498、Architecture 1/1、Contract 10/10 PASS；`git diff --check` PASS。Windows Docker Engine 不可用，Testcontainers 集成不作为本机通过证据。
 - Ubuntu VM 证据：候选 `98e3725` 已同步；Linux SDK 容器中的受影响 Unit 2/2 通过；`docker-compose.build.yml` 源码构建、健康启动和迁移通过；前端契约、管理员/运营审计权限、采集控制及 ZIP/EPUB/TXT 打包完整性烟测均 PASS。临时账号已禁用，Compose 已停止，持久卷保留。
-- 远端门禁：文档同步提交后需等待同一 HEAD 的 CI、Docker、Security 三组工作流并核对 head SHA；在门禁完成前不标记本轮 `Accepted/Completed`。阅读 3.0/MuMu、真实可控新增章节、真实第二来源故障切换、真实账户/生产凭据及其他第 6 节事项继续待定。
+- 远端门禁：文档同步候选 `b791c69` 的 [CI 33333159334](https://github.com/nekohands/InkFlow/actions/runs/33333159334)、[Docker 33333159291](https://github.com/nekohands/InkFlow/actions/runs/33333159291)、[Security 33333159324](https://github.com/nekohands/InkFlow/actions/runs/33333159324) 均 GREEN，三者 head SHA 均为 `b791c6940d4a3418c7e43dce8ece6f2714339d09`。Security 仅有既有 CodeQL 权限/Action 运行时提示，不影响门禁结论；阅读 3.0/MuMu、真实可控新增章节、真实第二来源故障切换、真实账户/生产凭据及其他第 6 节事项继续待定，本轮不标记整体 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
