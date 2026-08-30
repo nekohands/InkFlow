@@ -999,6 +999,13 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 01d09ab94788e65ecc937ec3b31e36fdab67f755 的 CI 33301352344、Docker 33301352352、Security 33301352365 均 GREEN 且 head SHA 一致。
 - 当前状态：非阅读 App 的源码、fixture、VM runtime 和浏览器自动化门禁已取得证据；真实来源/追更/第二来源切换、真实账户/生产凭据、PWA 安装断网、阅读 3.0 真机和长时间阅读仍是明确待定项。整体保持 1.0 Release Candidate，不标记 Accepted/Completed。
 
+### 4.76 Kanunu8 真实来源只读自动验证（本轮，2026-08-30）
+
+- 在 Ubuntu VM 的临时 .NET 10 SDK 容器中启用现有 opt-in live 测试，使用源码当前候选验证 Kanunu8 真实网络适配器；不创建账号、不写业务数据，测试结束后临时 NuGet 卷已删除。
+- 真实结果：BookInfo、TOC、章节正文 3/3 通过（固定书目 book/3441）；正文解析和 GB18030 解码均取得真实响应证据。
+- 边界：Kanunu8 当前 Search 能力按适配器契约返回空结果，因此这组证据不等于完整 Search → BookInfo → TOC → Content 或真实追更验收；linovelib POST 搜索返回 200 但空响应体，17K 搜索 API TLS 证书校验失败，真实第二来源/切换仍未闭合。
+- 当前状态：真实 Kanunu8 只读适配器证据已补齐；真实 Search、真实追更和稳定第二 Official Source 继续列入待定事项，整体保持 1.0 Release Candidate。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1092,7 +1099,8 @@ Official Source
 ### 6.2 需要可用环境复验
 
 - [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中完成完整 Testcontainers 集成测试；Unit 479/479、Architecture 1/1、Contract 10/10，Integration 89 项为 87 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox、Sources Capability Health 和 ContentVersion 当前选择边界等持久化链路。Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次 VM 本地容器证据。
-- [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），但当前网络 DNS 解析被污染漂移（CNAME 链至嵌套 punycode 域、部分解析指向 127.0.0.1），无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
+- [x] **Kanunu8 真实只读适配器验证**：BookInfo、TOC、章节正文 3/3 通过；Search 能力当前按适配器契约返回空结果，未计为完整 Phase 1A Search 链路。
+- [ ] **linovelib 真实验证**：站点可自本机间歇访问（UTF-8 静态 HTML、搜索表单为 `/S6/` + `searchkey`），本轮 POST 搜索返回 200 但空响应体，无法稳定闭环；种子规则已补齐 Search（`POST /S6/`、`searchkey`、列表绑定）并修正 `/novel/` ID 归一化，离线回归已覆盖。待网络环境可用时按 live 流程验证 Search → BookInfo → TOC → Content，并作为真实第二来源/真实切源验收候选。
 - [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
 - [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：本轮源码 Compose 执行 `scripts/backup-restore-drill.sh`，custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=84366 bytes, audit_events=119`；隔离库已清理，Compose 持久卷保留。此前 GHCR 发布镜像复验也已通过；生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境把 Collector 接入受治理的持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，验证错误预算告警、访问控制和保留策略；当前 CI 合成探针与 Compose debug exporter 仅是短窗口接收基线，不替代生产证据。

@@ -842,6 +842,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - PWA 页面 Manifest 链接存在，资源契约由 VM 前端冒烟通过；内置浏览器直接导航非 HTML 资源时被客户端拦截，因此实际安装、Service Worker 注册和断网切换仍需安全上下文浏览器证据。未创建真实账户。
 - 代码候选 01d09ab 的 CI 33301352344、Docker 33301352352、Security 33301352365 均 GREEN。整体仍为 1.0 Release Candidate，不标记 Accepted/Completed；真实来源/追更/切源、真实账户/生产凭据、PWA 安装断网、阅读 3.0 真机和长时间阅读继续待定。
 
+### 4.76 Kanunu8 真实来源只读自动验证（本轮，2026-08-30）
+
+- Ubuntu VM 临时 .NET 10 SDK 容器启用现有 opt-in live 测试，源码当前候选的 Kanunu8 真实网络适配器 BookInfo、TOC、章节正文 3/3 通过；不创建账号、不写业务数据，测试后临时 NuGet 卷已删除。
+- Kanunu8 Search 当前按适配器契约返回空结果，不能据此宣称完整 Search → BookInfo → TOC → Content 或真实追更；linovelib 搜索响应体为空，17K 搜索 API TLS 证书校验失败，真实第二来源/故障切换仍待定。
+- 整体继续为 1.0 Release Candidate；阅读 3.0/MuMu、真实账户、PWA 安装/断网和生产环境验收边界不变。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
