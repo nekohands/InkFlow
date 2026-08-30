@@ -66,6 +66,36 @@ services:
     cap_drop:
       - ALL
 
+  acceptance-fixtures:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    profiles: ["acceptance"]
+    working_dir: /workspace
+    entrypoint:
+      - dotnet
+      - run
+      - --project
+      - tools/InkFlow.AcceptanceFixtures/InkFlow.AcceptanceFixtures.csproj
+      - --configuration
+      - Release
+      - --
+    environment:
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+    volumes:
+      - .:/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /root/.nuget
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   api:
     build:
       context: .

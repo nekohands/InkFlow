@@ -7,3 +7,6 @@
 node_modules/
 TestResults/
 artifacts/
+.env
+.env.*
+!.env.example
