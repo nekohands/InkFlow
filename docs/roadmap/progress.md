@@ -1168,6 +1168,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选 `b01f32d` 的 [CI 33341287060](https://github.com/nekohands/InkFlow/actions/runs/33341287060)、[Docker 33341287043](https://github.com/nekohands/InkFlow/actions/runs/33341287043)、[Security 33341287049](https://github.com/nekohands/InkFlow/actions/runs/33341287049) 均 GREEN，三者 head SHA 一致。
 - 当前状态：本工作包自动化 Release Gate 已通过；整体保持 `1.0 Release Candidate`。受保护 Operations 页面登录后输入/交互、真实账户/PWA 安装/跨设备、真实来源/追更/故障切换和 MuMu/阅读 3.0 仍按第 6 节待定事项执行，不标记 `Accepted/Completed`。
 
+### 4.96 BookInfo 采集子任务编排回归覆盖（本轮，2026-08-31）
+
+- 缺口：直接地址采集的 BookInfo handler 已在运行时链路覆盖，但缺少独立单元回归锁定“来源书目导入 → Canonical 匹配 → 同一 RunId 创建 Toc 子任务”的边界。
+- 实现：新增 `BookInfoSyncTaskHandler` 单测，覆盖成功编排、缺少 `bookId`、来源导入失败、悬空 Confirmed 匹配和 Stopping 运行不创建后续任务；同时断言平台凭据引用只通过非敏感 execution context 传递，停止态仍保留已导入/已匹配事实。
+- 本机证据：Release Build 0 warnings / 0 errors；新增定向测试 5/5、Unit 509/509；`git diff --check` PASS。
+- Ubuntu VM 证据：候选 `3ffebf2` 已同步；本轮源码 Compose 重建因 VM 到 NuGet 的外部包下载超时（AngleSharp、StackExchange.Redis）未完成；此前同一生产代码候选的源码构建健康栈上，`reader-frontend-runtime-smoke`、Core SLO、Developer API 和 Private Library（含 TXT/EPUB 导入/阅读/导出）均 PASS；验证后 Compose 已停止且无残留服务容器。
+- 远端门禁：候选 `3ffebf2` 的 [CI 33342649568](https://github.com/nekohands/InkFlow/actions/runs/33342649568)、[Docker 33342649537](https://github.com/nekohands/InkFlow/actions/runs/33342649537)、[Security 33342649534](https://github.com/nekohands/InkFlow/actions/runs/33342649534) 均 GREEN，三者 head SHA 一致；Docker 首次 Migrations 推送遇到 `unknown blob`，失败 Job 重跑后通过。
+- 当前状态：本工作包自动化回归与远端 Release Gate 已通过；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。VM 新提交源码重建、采集包专用 smoke 变量配置、真实追更新增事件、真实第二来源故障切换、受保护 Operations 页面输入、真实账户/Provider/PWA 安装跨设备和 MuMu/阅读 3.0 真机验收继续按第 6 节待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

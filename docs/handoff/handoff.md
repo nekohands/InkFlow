@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`b01f32d`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复，以及 PWA 安装增强契约测试/前端 smoke；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`3ffebf2`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复、PWA 安装增强契约测试/前端 smoke，以及 BookInfo 子任务编排回归测试；CI/Docker/Security 门禁均 GREEN；本轮 VM 新提交源码重建受外部 NuGet 超时影响，真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -994,6 +994,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机：Release Build 0 warnings / 0 errors、Unit 504/504、Reader 前端 smoke 和 `git diff --check` 均通过。Ubuntu VM 已同步候选 `b01f32d`，源码 Compose 构建、Migration、服务健康检查和 `reader-frontend-runtime-smoke` 通过；验证后 Compose 已停止且无残留服务容器。
 - 交接门槛：候选 `b01f32d` 的 [CI 33341287060](https://github.com/nekohands/InkFlow/actions/runs/33341287060)、[Docker 33341287043](https://github.com/nekohands/InkFlow/actions/runs/33341287043)、[Security 33341287049](https://github.com/nekohands/InkFlow/actions/runs/33341287049) 均 GREEN，三者 head SHA 一致。
 - 当前状态：整体保持 `1.0 Release Candidate`，自动化 Release Gate 已通过，不标记 `Accepted/Completed`。受保护 Operations 页面登录后输入、真实账户/PWA 安装与跨设备、真实来源/追更/故障切换、真实凭据和 MuMu/阅读 3.0 继续按待定事项执行。
+
+### 4.96 BookInfo 采集子任务编排回归覆盖交接（本轮，2026-08-31）
+
+- `BookInfoSyncTaskHandlerTests` 新增 5 个回归用例，覆盖成功的来源导入/正典匹配/Toc 子任务编排、输入缺失、来源失败、悬空匹配和 Stopping 运行；成功用例验证子任务与父运行共享 `RunId`，凭据只以引用传递。
+- 本机：Release Build 0 warnings / 0 errors，定向 5/5，Unit 509/509，`git diff --check` PASS。
+- Ubuntu VM：候选 `3ffebf2` 已同步；本轮以 `docker-compose.build.yml` 重建时，API/Scheduler 发布阶段因外部 NuGet 包下载超时中止；保留的既有健康源码栈上 `reader-frontend-runtime-smoke`、Core SLO、Developer API、Private Library smoke 均 PASS，之后 Compose 已停止且无残留服务容器。
+- 远端门槛：候选 `3ffebf2` 的 [CI 33342649568](https://github.com/nekohands/InkFlow/actions/runs/33342649568)、[Docker 33342649537](https://github.com/nekohands/InkFlow/actions/runs/33342649537)、[Security 33342649534](https://github.com/nekohands/InkFlow/actions/runs/33342649534) 均 GREEN 且指向同一 head SHA；Docker Migrations 首次推送的 `unknown blob` 已通过失败 Job 重跑消除。
+- 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。采集包专用 smoke 变量配置、VM 新提交源码重建、真实来源/追更/切源、受保护 Operations 登录后操作、真实账户/Provider/PWA 安装跨设备和 MuMu/阅读 3.0 仍按第 6 节待定事项执行。
 
 ## 5. 关键架构不变量
 
