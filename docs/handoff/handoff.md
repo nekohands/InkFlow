@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`fd9f8b1`（私有库文件边界自动化及文档同步已推送；Ubuntu VM 源码运行、CI/Docker/Security 全部 GREEN）
+- 最新候选 Commit：`f235c8e`（Developer API 非阅读 App runtime smoke 已推送；等待本轮文档同步后的最终 CI/Docker/Security 门禁）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -766,11 +766,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **Reader/PWA 用户状态人工验收**：验证账户登录/注册、刷新会话、书架/历史/进度/偏好同步、登出、PWA 安装提示、Service Worker 注册和离线提示；本轮按用户决定跳过。
 - [x] **Private Library 非阅读 App 自动化 runtime smoke**：源码构建 Compose 已覆盖认证、所有权隔离、书目 CRUD、TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、公共 API/Legado 直接路径 404 和公共 Catalog/Reading Shelf 不泄漏。
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验与长期使用；不替代自动化门禁。
+- [x] **Developer API / 商业基础非阅读 App 自动化 runtime smoke**：源码构建 Compose 已覆盖 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、Header-only 鉴权、轮换和撤销；真实账户、套餐管理、配额超额和用户停用仍待真实环境补充。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [x] **linovelib 真实公开页面只读链路**：GPT 内置浏览器已完成 Search → BookInfo → TOC → Content 页面证据；不等同于服务端 RuleAdapter 直连通过。
 - [ ] **linovelib RuleAdapter 后端直连链路**：当前普通 HTTP POST 搜索返回 200 但空响应体，待网络/站点挑战可稳定处理后验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/故障切换演练。
-- [ ] **17K 真实 Search/阅读链路**：网络环境可用后验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向；本轮仅完成 Fixture 回归，未触网。
+- [ ] **17K 真实 Search/阅读链路**：已在 Ubuntu VM 只读探测，但当前 API 证书链校验失败或返回“请升级版本/图书信息不存在”，仍待可用网络环境验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向。
 - [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 89 项中 81 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Inbox 失败策略、Sources Capability Health 并发变更、Outbox/Inbox、保留清理和 ContentVersion 当前选择边界测试；本机未取得真实容器证据。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
 
@@ -870,6 +871,20 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 扩展 `scripts/private-library-runtime-smoke.sh` 与脚本回归：TXT 导出 EPUB 后再导入，检查 EPUB 响应类型/文件非空、元数据、章节顺序和正文；重复导入检查独立 PrivateBook 身份及原书不被覆盖；损坏 EPUB 检查 HTTP 400/`invalid_file` 和导入前后书目数量不变。
 - Ubuntu VM 使用 `docker-compose.build.yml` 源码构建四业务镜像并健康启动；临时 SDK 工具容器输出 `private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT/EPUB import/read/export, duplicate isolation, failed-import rollback)`，验证结束后已停止 Compose，持久卷保留。
 - 代码候选 `5b13d8e` 与最终文档同步提交 `fd9f8b1` 均已推送；最终 [CI 33306505203](https://github.com/nekohands/InkFlow/actions/runs/33306505203)、[Docker 33306505188](https://github.com/nekohands/InkFlow/actions/runs/33306505188)、[Security 33306505230](https://github.com/nekohands/InkFlow/actions/runs/33306505230) 均 GREEN 且 head SHA 一致。真实账户、阅读 3.0 和第三方登录均未使用；测试书目已清理，临时账户因没有账号删除 API 保留。
+
+### 4.80 17K 真实公开接口只读探测（本轮，2026-08-30）
+
+- 按“除阅读 App 外尽量自动化”的要求，在 Ubuntu VM 对 17K 公开接口执行只读探测；未创建账户、未写入站点数据、未关闭 TLS 校验，也未把外部接口响应伪装成适配器通过。
+- 结果：`api.ali.17k.com` Search 入口因当前 VM 无法用系统 CA 验证上游证书而失败；备用 `api.17k.com` Search 返回 HTTP 200 但状态为“请升级版本”，固定书目详情返回“图书信息不存在”；Web 章节地址可达但只得到压缩页面响应，不能形成稳定业务链路。
+- 结论：17K 真实 Search/BookInfo/TOC/Content、免费/VIP 边界和安全重定向保持 `BLOCKED / 待定`；仅保留离线 Fixture 与网络阻塞证据。
+
+### 4.81 Developer API / 商业基础非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 新增 `scripts/developer-api-runtime-smoke.sh` 和结构回归，并接入 CI 源码构建 Runtime；覆盖未认证拒绝、默认 Free Entitlement、应用/密钥生命周期、原始密钥只在签发响应出现、列表脱敏、目录读取、私有缓存头和 Header-only 鉴权。
+- 轮换与撤销断言覆盖旧密钥立即失效、新密钥可用、撤销状态可见以及撤销后拒绝；查询参数和 Bearer 均不能替代 `X-InkFlow-Api-Key`。脚本不输出原始密钥，临时应用在退出时撤销。
+- Ubuntu VM 已快进到 `f235c8e`，使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations；临时 SDK 工具容器输出 `developer-api-runtime-smoke: PASS (account, entitlement, app/key lifecycle, redaction, header-only auth, catalog quota path, rotation, revoke)`，随后自动停止 Compose，持久卷保留。
+- 本轮未使用真实 Web 账户或生产凭据；因没有账户删除 API，临时账户可能保留在 VM 数据库，但应用和密钥已清理/撤销。真实账户、Administrator 套餐、超额 `429/Retry-After`、跨账户配额和用户停用仍是人工/真实环境事项。
+- 代码候选 `f235c8e` 已推送；文档同步后必须确认最终 HEAD 的 CI、Docker、Security 全部 GREEN，才能关闭本工作包。
 
 ## 5. 关键架构不变量
 

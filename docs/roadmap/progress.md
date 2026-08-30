@@ -1031,6 +1031,20 @@ Phase 1A 自动化工作包状态：
 - 远端证据：最终文档同步提交 `fd9f8b13e723ab74a9f850ecd2557959eac082b1` 的 [CI 33306505203](https://github.com/nekohands/InkFlow/actions/runs/33306505203)、[Docker 33306505188](https://github.com/nekohands/InkFlow/actions/runs/33306505188)、[Security 33306505230](https://github.com/nekohands/InkFlow/actions/runs/33306505230) 均 GREEN 且 head SHA 一致；CI 新增脚本回归与运行时 EPUB/重复/失败导入断言均通过。
 - 验收边界：本轮使用唯一临时注册账户和程序生成文件，不使用真实账户、阅读 3.0 或第三方登录；VM 上测试书目已清理，临时测试账户因没有账号删除 API 继续保留。真实账户/人工体验仍可作为补充，但本项非阅读 App 自动化门禁已闭合；整体仍为 1.0 Release Candidate。
 
+### 4.80 17K 真实公开接口只读探测（本轮，2026-08-30）
+
+- 按“除阅读 App 外尽量自动化”的要求，在 Ubuntu VM 对 17K 公开接口执行了只读探测；不创建账户、不写入站点数据、不关闭 TLS 校验，也没有把外部接口响应伪装成适配器通过。
+- `api.ali.17k.com` 的 Search 入口在当前 VM 因上游证书链无法由系统 CA 验证而失败；保留严格 TLS 校验，未使用 `-k` 绕过。备用 `api.17k.com` Search 虽返回 HTTP 200，但响应状态为“请升级版本”，无法取得可用搜索结果；固定书目详情接口返回“图书信息不存在”。Web 章节地址可达但只取得压缩页面响应，尚不足以形成稳定 Search → BookInfo → TOC → Content 证据。
+- 结论：17K 真实链路仍为 `BLOCKED / 待定`，本轮只保留离线 Fixture 回归和上述可复核网络结论；真实免费正文、VIP 边界、安全重定向和第二来源故障切换不标记通过。
+
+### 4.81 Developer API / 商业基础非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 新增 `scripts/developer-api-runtime-smoke.sh` 及结构回归，并接入 `.github/workflows/ci.yml` 的源码构建 Runtime。脚本覆盖未认证拒绝、唯一临时账户、默认 Free 套餐和 `developer.catalog.read` 权限、应用创建/列表、API Key 首次签发、列表脱敏、目录读取及 `private, no-store`。
+- 安全与生命周期断言覆盖：查询参数和 Bearer 不可替代 `X-InkFlow-Api-Key`，密钥轮换后旧密钥立即失效、新密钥可读目录，轮换/撤销状态在列表中可追踪，撤销后的密钥不可用；全程不输出原始密钥，临时应用在退出清理时撤销。
+- Ubuntu VM 已快进到候选 `f235c8e`，使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations 并通过健康等待；临时 .NET 10 SDK 工具容器输出 `developer-api-runtime-smoke: PASS (account, entitlement, app/key lifecycle, redaction, header-only auth, catalog quota path, rotation, revoke)`，随后自动停止 Compose，持久卷保留。
+- 本轮只使用程序生成的临时账户和凭据，不触碰真实生产凭据；由于当前没有账户删除 API，临时账户仍可能保留在 VM 数据库，但应用和密钥已由脚本撤销。真实 Web 账户、Administrator 套餐授予、超额 `429/Retry-After`、跨账户配额和用户停用仍列入人工/真实环境验收。
+- 代码候选 `f235c8e` 已推送；最终文档同步提交后的 [CI](https://github.com/nekohands/InkFlow/actions)、[Docker](https://github.com/nekohands/InkFlow/actions) 和 [Security](https://github.com/nekohands/InkFlow/actions) Run 必须与最终 HEAD 对齐并全部 GREEN 后，才可关闭本工作包门禁。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1113,6 +1127,7 @@ Official Source
 - [x] **Private Library 非阅读 App 自动化运行验收**：源码构建 Compose 已由 4.78 的 runtime smoke 覆盖认证、所有权隔离、CRUD、TXT 导入/章节/正文/导出、私有缓存头、公共 API/Legado 直接路径 404，以及公共 Catalog/Reading Shelf 不泄漏。
 - [x] **Private Library 非阅读 App 自动化文件/一致性验收**：源码构建 Compose 已覆盖 TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、所有权及公共路径隔离。
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验、导出文件可读性及长期使用；不作为阅读 App 以外自动化门禁的替代。
+- [x] **Developer API / 商业基础非阅读 App 自动化运行验收**：源码构建 Compose 已自动验证 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、`X-InkFlow-Api-Key` 专用 Header、轮换和撤销；真实 Web 账户、管理员套餐、配额超额和用户停用仍需真实环境补充。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
@@ -1129,7 +1144,7 @@ Official Source
 - [x] **Kanunu8 真实只读适配器验证**：BookInfo、TOC、章节正文 3/3 通过；Search 能力当前按适配器契约返回空结果，未计为完整 Phase 1A Search 链路。
 - [x] **linovelib 真实公开站点只读链路**：已用 GPT 内置浏览器自动完成 Search（`恶魔高校`）→ BookInfo → 482 章 TOC → 首章正文读取；该证据不涉及登录、账号或站点写入，详见 4.77。
 - [ ] **linovelib RuleAdapter 后端直连链路**：站点搜索表单为 `/S6/` + `searchkey`，规则与离线回归已覆盖；当前普通 HTTP POST 返回 200 但空响应体，尚不能把浏览器页面证据等同于服务端适配器通过。待网络/站点挑战可稳定处理后，再验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/切源候选。
-- [ ] **17K 真实验证**：待可用网络环境中验证官方 API/Web 的 Search → BookInfo → TOC → 免费 Content 链路、非购买 VIP 返回边界、超时/非 2xx/重定向安全行为；本轮仅完成离线 JSON Fixture 回归，未触网。
+- [ ] **17K 真实验证**：已在 Ubuntu VM 只读探测官方 API/Web，但当前 API 证书链校验失败或返回“请升级版本/图书信息不存在”，未形成稳定 Search → BookInfo → TOC → 免费 Content；待可用网络环境继续验证非购买 VIP、超时/非 2xx/重定向安全边界。
 - [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：本轮源码 Compose 执行 `scripts/backup-restore-drill.sh`，custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=84366 bytes, audit_events=119`；隔离库已清理，Compose 持久卷保留。此前 GHCR 发布镜像复验也已通过；生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境把 Collector 接入受治理的持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，验证错误预算告警、访问控制和保留策略；当前 CI 合成探针与 Compose debug exporter 仅是短窗口接收基线，不替代生产证据。
 
