@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Claims;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Crawling.Application;
+using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Identity.Application;
 
 namespace InkFlow.Api;
@@ -104,7 +105,13 @@ public static class CollectionRunEndpoints
         inputUrl = value.InputUrl,
         canonicalBookId = value.CanonicalBookId,
         status = value.Status.ToString().ToLowerInvariant(),
-        stage = value.Stage.ToString().ToLowerInvariant(),
+        stage = value.Stage switch
+        {
+            CollectionRunStage.BookInfo => "bookInfo",
+            CollectionRunStage.Toc => "toc",
+            CollectionRunStage.Content => "content",
+            _ => value.Stage.ToString().ToLowerInvariant(),
+        },
         totalTaskCount = value.TotalTaskCount,
         completedTaskCount = value.CompletedTaskCount,
         failedTaskCount = value.FailedTaskCount,
