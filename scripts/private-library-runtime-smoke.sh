@@ -98,6 +98,29 @@ post_json() {
   fi
 }
 
+put_json() {
+  local route="$1"
+  local token="$2"
+  local payload="$3"
+  local output="$4"
+  local -a headers=(-H 'Content-Type: application/json')
+
+  if [[ -n "$token" ]]; then
+    headers+=(-H "Authorization: Bearer $token")
+  fi
+
+  if ! "$curl_bin" \
+    --silent --show-error --fail \
+    --max-time "$max_time" \
+    --request PUT \
+    "${headers[@]}" \
+    --data "$payload" \
+    --output "$output" \
+    "$base_url$route"; then
+    fail "PUT $route failed"
+  fi
+}
+
 get_json() {
   local route="$1"
   local token="$2"
@@ -223,7 +246,7 @@ updated_payload="$("$jq_bin" -nc \
   --arg title 'CI Private Book Updated' \
   --arg author 'CI Runtime Updated' \
   '{title: $title, author: $author}')"
-post_json "/api/v1/me/private-library/books/$book_id" "$token_a" "$updated_payload" "$work_dir/update.json"
+put_json "/api/v1/me/private-library/books/$book_id" "$token_a" "$updated_payload" "$work_dir/update.json"
 if ! "$jq_bin" -e \
   '.privateBookId != null and .title == "CI Private Book Updated" and .author == "CI Runtime Updated"' \
   "$work_dir/update.json" >/dev/null; then
