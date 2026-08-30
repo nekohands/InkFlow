@@ -902,8 +902,8 @@ Phase 1A 自动化工作包状态：
 - 事务与安全边界：任务表仍是执行权威事实；任务行与 Outbox 继续同事务写入，Inbox 确认与任务状态提交分离，重复投递由 Inbox 主键、任务终态和租约吸收。事件不携带 Variables、CredentialReference、secret 或正文；身份不匹配/任务缺失进入通用 Inbox 稳定失败、退避和死信。
 - 回归：新增 Handler 的原子领取/终态幂等/权威事实不匹配测试，新增 Processor 的成功/重试/死信测试，以及 Outbox→Inbox→Handler→任务完成端到端 PostgreSQL 用例。
 - 本地证据：Release Build PASS（0 warnings / 0 errors）；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；Windows 直接迁移模型检查 11/11 PASS；Worker `/health` HTTP 200。完整 Integration 当前 86 项为 6 通过、2 跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；定向本轮端到端用例同样 BLOCKED。Bash 迁移包装脚本因当前 WSL 找不到 `dotnet` 未执行成功，不影响等价 Windows 检查；NuGet 漏洞审计无漏洞，`git diff --check` PASS。
-- 远端证据：候选提交的 CI、Docker、Security 门禁待推送后运行；在远端证据取得前不标记 `CI Green`。
-- 当前状态：本工作包为 `Implemented / CI Pending`，不等同于 `Accepted/Completed`；其他 Integration Event、Docker 本机复验、真实来源、阅读 3.0 和人工验收继续按第 6 节待定。
+- 远端证据：代码候选提交 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN 且 headSha 一致；CI 为 Unit 472/472、Architecture 1/1、Contract 10/10、Integration 86（84 passed / 2 skipped），Docker 四业务镜像和 Collector 扫描通过，Security 的 CodeQL、Filesystem、SBOM、NuGet 审计通过。
+- 当前状态：本工作包为 `CI Green / Implemented`，不等同于 `Accepted/Completed`；其他 Integration Event、Docker 本机复验、真实来源、阅读 3.0 和人工验收继续按第 6 节待定。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -1023,7 +1023,7 @@ Official Source
 
 当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
-当前 4.64 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；Worker `/health` HTTP 200，后台业务因本机 PostgreSQL `127.0.0.1:5432` 不可用而未完成真实任务处理；Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计无漏洞、敏感信息模式检查和 `git diff --check` PASS。WSL 迁移包装脚本因当前环境找不到 `dotnet` 未执行成功，但 Windows 直接等价迁移模型检查 11/11 PASS。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行；本轮候选提交的远端 CI、Docker、Security 仍待推送后确认。
+当前 4.64 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；Worker `/health` HTTP 200，后台业务因本机 PostgreSQL `127.0.0.1:5432` 不可用而未完成真实任务处理；Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计无漏洞、敏感信息模式检查和 `git diff --check` PASS。WSL 迁移包装脚本因当前环境找不到 `dotnet` 未执行成功，但 Windows 直接等价迁移模型检查 11/11 PASS。代码候选提交 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的远端 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 

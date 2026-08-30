@@ -536,7 +536,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 实现：Crawling Application 新增稳定载荷解析/校验和 `CrawlerTaskCreatedMessageHandler`；Handler 回读 `CrawlerTask` 权威事实，校验 Source/Capability/CreatedAt 后调用按任务 ID 的 PostgreSQL `FOR UPDATE SKIP LOCKED` 原子租约。新增 `CrawlerTaskProcessor` 统一周期轮询与 Inbox 触发的 Running、成功、任务级重试和死信状态机；Worker 注册 Handler，并补齐 Canonical Book 仓储依赖。决策见 [ADR 0019](../adr/0019-crawler-task-created-inbox-handler.md)。
 - 可靠性与边界：任务表仍是执行权威事实；任务行与 Outbox 继续同事务写入，Inbox 确认与任务状态提交分离，重复投递由 Inbox 主键、任务终态和租约吸收。事件不携带 Variables、CredentialReference、secret 或正文；身份不匹配/任务缺失进入通用 Inbox 稳定失败、退避和死信。其他 Integration Event 不因本轮实现而宣称已消费。
 - 回归与证据：Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10；Windows 直接迁移模型检查 11/11；Worker `/health` HTTP 200。完整 Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；定向本轮端到端用例同样 BLOCKED。WSL 迁移包装脚本因找不到 `dotnet` 未执行成功，但不影响 Windows 等价检查；NuGet 漏洞审计无漏洞，`git diff --check` PASS。
-- 当前状态：本工作包为 `Implemented / CI Pending`，不等同于 `Accepted/Completed`；候选提交推送后的远端 CI、Docker、Security 待确认，本机 Docker、真实来源、阅读 3.0 和人工验收继续待定。
+- 远端证据：代码候选提交 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN 且 headSha 一致；CI 为 Unit 472/472、Architecture 1/1、Contract 10/10、Integration 86（84 passed / 2 skipped），Docker 四业务镜像和 Collector 扫描通过，Security 的 CodeQL、Filesystem、SBOM、NuGet 审计通过。
+- 当前状态：本工作包为 `CI Green / Implemented`，不等同于 `Accepted/Completed`；本机 Docker、真实来源、阅读 3.0 和人工验收继续待定，其他 Integration Event 仍需各自接入和取得端到端证据。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
