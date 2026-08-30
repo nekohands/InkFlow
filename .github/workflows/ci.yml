@@ -233,7 +233,7 @@ jobs:
           "${fixture_cmd[@]}" set-role "$admin_email" administrator >/dev/null
           "${fixture_cmd[@]}" set-role "$operator_email" operator >/dev/null
 
-          env "INKFLOW_ADMIN_RUNTIME_SMOKE_ADMIN_TOKEN=$admin_token" "INKFLOW_ADMIN_RUNTIME_SMOKE_OPERATOR_TOKEN=$operator_token" "INKFLOW_ADMIN_RUNTIME_SMOKE_OPERATOR_ID=$operator_id" "INKFLOW_ADMIN_RUNTIME_SMOKE_BOOK_ID=$book_id" "INKFLOW_ADMIN_RUNTIME_SMOKE_SOURCE_ID=$source_id" scripts/admin-runtime-smoke.sh http://localhost:8080
+          env "INKFLOW_ADMIN_RUNTIME_SMOKE_ADMIN_TOKEN=$admin_token" "INKFLOW_ADMIN_RUNTIME_SMOKE_OPERATOR_TOKEN=$operator_token" "INKFLOW_ADMIN_RUNTIME_SMOKE_OPERATOR_ID=$operator_id" "INKFLOW_ADMIN_RUNTIME_SMOKE_BOOK_ID=$book_id" "INKFLOW_ADMIN_RUNTIME_SMOKE_SOURCE_ID=$source_id" bash scripts/admin-runtime-smoke.sh http://localhost:8080
 
       - name: Core SLO synthetic probe
         env:
