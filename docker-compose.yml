@@ -47,7 +47,7 @@ services:
       - ALL
 
   migrations:
-    image: ghcr.io/nekohands/inkflow-migrations:dev
+    image: ghcr.io/nekohands/inkflow/inkflow-migrations:dev
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
     depends_on:
@@ -63,7 +63,7 @@ services:
       - ALL
 
   api:
-    image: ghcr.io/nekohands/inkflow-api:dev
+    image: ghcr.io/nekohands/inkflow/inkflow-api:dev
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       ConnectionStrings__Redis: redis:6379,abortConnect=false
@@ -94,7 +94,7 @@ services:
       start_period: 5s
 
   worker:
-    image: ghcr.io/nekohands/inkflow-worker:dev
+    image: ghcr.io/nekohands/inkflow/inkflow-worker:dev
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
@@ -124,7 +124,7 @@ services:
       start_period: 5s
 
   scheduler:
-    image: ghcr.io/nekohands/inkflow-scheduler:dev
+    image: ghcr.io/nekohands/inkflow/inkflow-scheduler:dev
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
