@@ -17,7 +17,7 @@
 | Phase 1A — Single Source Vertical Slice | 🚧 Ready for Real-Device Acceptance | 自动化链路与 kanunu8 真实源验证已完成；阅读 3.0 真机导入/阅读及真实追更仍待人工验收 |
 | Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优与健康感知切源；真实故障切源仍待后续验收 |
 | Phase 2 — Multi-Source Production | 🚧 In Progress | Capability Health v1 与 Worker 任务可靠性基础已落地；自适应追更、健康评分、规则 Canary 仍待推进 |
-| Phase 3 — User Product | 🚧 In Progress | Reading State v1、Web Reader v1、Reader/PWA 用户状态 v1 与 Private Library 私有正文/导入导出自动化基础已落地；Web/PWA/Operations 前端纳入 1.0 强制 Release Gate，真实 PWA、账户/文件和私有路径验收仍待推进 |
+| Phase 3 — User Product | 🚧 In Progress | Reading State v1、Web Reader v1、Reader/PWA 用户状态 v1 与 Private Library 私有正文/导入导出自动化基础已落地；Web/PWA/Operations 前端纳入 1.0 强制 Release Gate，PWA Service Worker/离线壳自动化已补齐，真实账户、安装和私有路径补充验收仍待推进 |
 | Phase 4 — Commercial Platform | 🚧 Release Candidate | Developers/Billing/Entitlement/Developer API v1 自动化基线与远端门禁已通过；真实凭据、真实 PostgreSQL/Redis 与人工验收仍待推进 |
 
 ## 2. Phase 0 验收记录
@@ -1045,6 +1045,14 @@ Phase 1A 自动化工作包状态：
 - 本轮只使用程序生成的临时账户和凭据，不触碰真实生产凭据；由于当前没有账户删除 API，临时账户仍可能保留在 VM 数据库，但应用和密钥已由脚本撤销。真实 Web 账户、Administrator 套餐授予、超额 `429/Retry-After`、跨账户配额和用户停用仍列入人工/真实环境验收。
 - 代码候选 `f235c8e` 已推送；最终文档同步提交后的 [CI](https://github.com/nekohands/InkFlow/actions)、[Docker](https://github.com/nekohands/InkFlow/actions) 和 [Security](https://github.com/nekohands/InkFlow/actions) Run 必须与最终 HEAD 对齐并全部 GREEN 后，才可关闭本工作包门禁。
 
+### 4.82 Reader/PWA Service Worker 与离线壳非阅读 App 自动化验收（本轮，2026-08-30）
+
+- 按“除阅读 App 外尽量自动化”的要求，本轮继续使用 Ubuntu VM 的 `docker-compose.build.yml` 源码构建栈，并用 GPT 内置浏览器完成安全上下文、Service Worker、缓存和断网回退验收；未使用 MuMu/阅读 3.0、真实账户或生产凭据。
+- 直接访问 VM 的 `http://172.19.31.153:8080/reader` 明确得到 `secureContext=false`、Service Worker 不可用；为验证应用本身，临时建立本地 SSH 转发访问同一 VM 的 `http://localhost:18080/reader/`。该转发只改变浏览器安全上下文，不改变应用代码或数据源，且验证结束已关闭。
+- 浏览器证据通过：`secureContext=true`；Manifest 的 `start_url=/reader`、`scope=/reader/`、`display=standalone` 与两枚图标均可读取；Service Worker `/reader/sw.js` 状态为 `activated`，刷新 `/reader/` 后 `navigator.serviceWorker.controller` 为真；`inkflow-reader-shell-v1` 缓存包含 `/reader/offline`、Manifest 和两枚图标。
+- 真实断网回退通过：停止 VM API 容器后，浏览器访问 `/reader/account` 仍由 Service Worker 控制并显示“当前处于离线状态”；恢复 API 后回到正常账户表单且无离线提示。浏览器错误/警告日志为空。验证结束已停止全部 Compose 容器并关闭转发，持久卷保留。
+- 边界：内置浏览器未执行安装提示/独立窗口启动、真实账户登录/状态同步和跨设备同步；VM IP 的明文 HTTP 也不能作为生产 PWA 安全上下文证据。生产 HTTPS、安装体验、真实账户及跨设备验收继续列入待定事项；本项不替代阅读 3.0 真机验收。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1123,7 +1131,8 @@ Official Source
 - [ ] **阅读 3.0 真机导入与阅读**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content；记录截图、请求结果和异常。
 - [ ] **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证个人 Search → BookInfo → TOC → Content、令牌 header 传递，以及撤销后请求失效；本轮按用户决定不执行。
 - [x] **Web Reader 浏览器自动验收（1.0 必选）**：已在移动端、平板、桌面端、宽屏检查页面路由、空/错状态、搜索点击、正文壳宽度、焦点和无横向溢出；长标题/长作者真实内容与长时间阅读仍未执行。
-- [ ] **Reader/PWA 真实账户与安装/离线补充验收（1.0 必选）**：匿名页面、表单约束、Manifest/Service Worker/图标资源契约和离线壳已由 4.75 自动化；真实账户会话、安装提示、Service Worker 实际注册、断网切换和跨设备同步仍需可用安全上下文及测试账户。
+- [x] **Reader/PWA Service Worker 与离线壳非阅读 App 自动化验收（1.0 必选）**：4.82 在 localhost 安全上下文中自动验证 Manifest、激活/接管、壳缓存、API 不可用时的离线回退、恢复后在线页面及浏览器日志；VM IP 明文 HTTP 的 Service Worker 不可用也已记录为部署边界。
+- [ ] **Reader/PWA 真实账户与安装/跨设备补充验收（1.0 必选）**：真实账户会话、安装提示/独立窗口启动、生产 HTTPS、跨设备同步和长期体验仍需可用测试账户与部署环境；按本轮范围不执行阅读 3.0。
 - [x] **Private Library 非阅读 App 自动化运行验收**：源码构建 Compose 已由 4.78 的 runtime smoke 覆盖认证、所有权隔离、CRUD、TXT 导入/章节/正文/导出、私有缓存头、公共 API/Legado 直接路径 404，以及公共 Catalog/Reading Shelf 不泄漏。
 - [x] **Private Library 非阅读 App 自动化文件/一致性验收**：源码构建 Compose 已覆盖 TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、所有权及公共路径隔离。
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验、导出文件可读性及长期使用；不作为阅读 App 以外自动化门禁的替代。
@@ -1164,14 +1173,14 @@ Official Source
   4.58 已接入来源级默认 CredentialReference 回退，4.59 已接入 Administrator-only 设置/清除和命令审计入口，4.60 已将 Provider 解析上下文收敛为带 Platform/User/Organization Owner Scope 的契约；
   secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
-- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA 实际安装/离线/跨设备验收、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
+- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA Service Worker/离线壳已在 4.82 通过 localhost 安全上下文自动验收；真实安装、账户/跨设备体验、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
 
 ## 7. 当前阻塞
 
 可用环境复验状态：Ubuntu VM 已完成真实 PostgreSQL/Redis/Testcontainers 集成测试和源码 Compose 运行验收，并完成 custom-format 备份恢复演练；Windows 开发机的 Docker Engine 仍不可用，因此 Windows 本机验证继续保持 BLOCKED。
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；Reader/PWA、Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
+当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；PWA Service Worker/离线壳已由 4.82 在 localhost 安全上下文自动验收，但真实账户、安装/独立窗口、生产 HTTPS、跨设备体验仍未执行；Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
 
 当前 4.64 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；Worker `/health` HTTP 200，后台业务因本机 PostgreSQL `127.0.0.1:5432` 不可用而未完成真实任务处理；Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计无漏洞、敏感信息模式检查和 `git diff --check` PASS。WSL 迁移包装脚本因当前环境找不到 `dotnet` 未执行成功，但 Windows 直接等价迁移模型检查 11/11 PASS。代码候选提交 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的远端 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。
 

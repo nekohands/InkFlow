@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`e7dc12c`（Developer API 非阅读 App runtime smoke 与文档同步已推送；Ubuntu VM 源码运行、CI/Docker/Security 门禁均 GREEN）
+- 最新代码候选 Commit：`d87fa14`（Developer API 非阅读 App runtime smoke、文档同步与 Ubuntu VM 源码运行已完成；CI/Docker/Security 门禁均 GREEN；本轮 PWA 自动化证据见 4.82）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -73,7 +73,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-30 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现，远端 CI、Docker、Security 门禁已通过；真实凭据、真实 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 浏览器视觉、安装和账户链路验收保留为人工验收。Source Credential Owner Scope 契约 v1 已接入 Provider、RuleAdapter 与 Worker：Platform/User/Organization 范围被显式区分，来源默认引用固定按 Platform 解析，真实 secret 管理与 Provider 仍待后续。
+**当前状态（2026-08-30 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现，远端 CI、Docker、Security 门禁已通过；真实凭据、真实 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 的真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长时间体验保留为人工验收；PWA Service Worker、壳缓存和 API 不可用时的离线回退已在 4.82 用 localhost 安全上下文自动验收。Source Credential Owner Scope 契约 v1 已接入 Provider、RuleAdapter 与 Worker：Platform/User/Organization 范围被显式区分，来源默认引用固定按 Platform 解析，真实 secret 管理与 Provider 仍待后续。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数、受保护的 Operations 告警快照与阈值基线，以及来源级资源授权 v1。授权管理、来源过滤和撤销审计已接入；告警内部历史/去重/恢复状态已由 Operations PostgreSQL 事实表承载，外部通知路由和更完整的组织/资源权限治理仍待后续工作包。
 
@@ -886,6 +886,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本轮未使用真实 Web 账户或生产凭据；因没有账户删除 API，临时账户可能保留在 VM 数据库，但应用和密钥已清理/撤销。真实账户、Administrator 套餐、超额 `429/Retry-After`、跨账户配额和用户停用仍是人工/真实环境事项。
 - 代码候选 `f235c8e` 已推送；文档同步后必须确认最终 HEAD 的 CI、Docker、Security 全部 GREEN，才能关闭本工作包。
 
+### 4.82 Reader/PWA Service Worker 与离线壳非阅读 App 自动化验收（本轮，2026-08-30）
+
+- 按“除阅读 App 外尽量自动化”的要求，本轮继续使用 Ubuntu VM 的 `docker-compose.build.yml` 源码构建栈，并用 GPT 内置浏览器完成安全上下文、Service Worker、缓存和断网回退验收；未使用 MuMu/阅读 3.0、真实账户或生产凭据。
+- 直接访问 VM 的 `http://172.19.31.153:8080/reader` 得到 `secureContext=false`、Service Worker 不可用；临时建立本地 SSH 转发访问同一 VM 的 `http://localhost:18080/reader/` 后，浏览器具备安全上下文。转发只用于验收，结束时已关闭。
+- 浏览器证据通过：`secureContext=true`；Manifest 的 `start_url=/reader`、`scope=/reader/`、`display=standalone` 与两枚图标可读取；Service Worker `/reader/sw.js` 状态为 `activated`，刷新 `/reader/` 后已接管页面；`inkflow-reader-shell-v1` 缓存包含 `/reader/offline`、Manifest 和两枚图标。
+- 真实断网回退通过：停止 VM API 容器后，浏览器访问 `/reader/account` 仍由 Service Worker 控制并显示“当前处于离线状态”；恢复 API 后回到正常账户表单且无离线提示。浏览器错误/警告日志为空。验证结束已停止全部 Compose 容器，持久卷保留。
+- 边界：内置浏览器未执行安装提示/独立窗口启动、真实账户登录/状态同步和跨设备同步；VM IP 的明文 HTTP 不能作为生产 PWA 安全上下文证据。生产 HTTPS、安装体验、真实账户及跨设备验收继续列入待定事项；本项不替代阅读 3.0 真机验收。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -979,7 +987,7 @@ Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练、告警快照/阈值/内部历史去重与恢复、来源级授权 v1 和已落地高风险命令审计基线已完成；审计有界 retention 代码基线已完成，但生产法律/合同保留、归档、删除授权和证据治理仍待部署环境确定。外部告警路由、生产异地备份/RPO-RTO、安全扫描治理、组织/更广泛资源权限仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级。
-- 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1、Private Library 私有正文/TXT/EPUB 导入导出自动化基础和 Developer API / Entitlement / Billing v1 候选基线已完成；PWA 实际安装/离线/跨设备验收、Private Library 与 Developer API 真实账户/凭据验收、Organization、Community Marketplace 仍未完成。
+- 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1、Private Library 私有正文/TXT/EPUB 导入导出自动化基础和 Developer API / Entitlement / Billing v1 候选基线已完成；PWA Service Worker/离线壳已由 4.82 自动验收，真实安装、账户/跨设备验收、Private Library 与 Developer API 真实账户/凭据验收、Organization、Community Marketplace 仍未完成。
 
 更后阶段：Developer API / Commercial Foundation 的真实运营与产品化深化、Organization、Community Marketplace、Enterprise Deployment。
 
@@ -1010,7 +1018,8 @@ Phase 2 及以后：
 - [ ] Legado 真机导入/阅读与真实追更仍待执行。
 - [x] Personal Legado Token v1 的自动化签发、Hash 持久化、header 认证、Personal API 与撤销审计已完成；阅读 3.0 导入、四步阅读和撤销后失效仍待人工执行。
 - [x] Web Reader v1 的服务端渲染、响应式结构、阅读设置与 HTML 安全回归已完成；浏览器四尺寸视觉、焦点、触控和长时间阅读仍待人工执行。
-- [x] Reader/PWA 用户状态 v1 的账户/书架/历史/进度/偏好渐进增强、公开 PWA 壳与 CI Runtime smoke 已完成；PWA 安装、离线、账户真实链路和跨尺寸浏览器验收仍待人工执行。
+- [x] Reader/PWA 用户状态 v1 的账户/书架/历史/进度/偏好渐进增强、公开 PWA 壳与 CI Runtime smoke 已完成；Service Worker/壳缓存/离线回退已由 4.82 在 localhost 安全上下文自动验收。
+- [ ] Reader/PWA 真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长期体验仍待人工执行；按用户决定不执行阅读 3.0。
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。
 - [ ] 第二个真实 Official Source / 真实故障切源尚未验收。
