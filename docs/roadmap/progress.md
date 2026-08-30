@@ -1129,6 +1129,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `8cb2211` 的 [CI 33334393155](https://github.com/nekohands/InkFlow/actions/runs/33334393155)、[Docker 33334393053](https://github.com/nekohands/InkFlow/actions/runs/33334393053)、[Security 33334393020](https://github.com/nekohands/InkFlow/actions/runs/33334393020) 均 GREEN，三者 head SHA 一致。
 - 当前状态：自动化 Release Gate 已通过，但整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实新增章节追更事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面登录后的浏览器输入验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定事项执行。
 
+### 4.92 正文联动 Content 任务去重原子化（本轮，2026-08-31）
+
+- 缺陷：`ContentFetchChainService` 原先先查询再插入 Content 任务；同一本书的 TOC 同步并发推进章节正文时，多个 Worker 可能同时观察到“无冲突”并重复入队，造成重复抓取。
+- TDD 修复：先加入 `Uses_Atomic_Dedupe_Gate_For_Content_Tasks` 单元回归并确认旧实现失败，再改用 `TryAddIfNoConflictingTaskAsync`；新增跨连接 PostgreSQL 回归 `Concurrent_Content_Dedupe_Gate_Allows_Only_One_Task_Insert`，验证并发调用只有一个任务插入成功。
+- 实现：复用既有 `(source, capability, variable, value)` advisory lock、活动任务/死信冲突判断、任务插入与 `TaskCreated` Outbox 同事务边界；`ignoreDeadLettered` 保持 CollectionRun 场景的既有语义，Content 链路只在原子插入成功时递增入队计数。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 500/500 PASS；`git diff --check` PASS。Windows Docker Engine 不可用，受影响的 Testcontainers 集成测试在本机为 BLOCKED，不作为本机通过证据。
+- Ubuntu VM 证据：候选 `6b4b256` 已同步；Linux SDK 容器中的 Crawler PostgreSQL 集成测试 14/14 通过；完整测试为 Architecture 1/1、Integration 93 passed / 2 skipped / 0 failed、Contract 10/10、Unit 500/500；`docker-compose.build.yml` 源码构建、迁移、API/Worker/Scheduler/Redis/PostgreSQL 健康启动通过；`reader-content-runtime-smoke` 与 `reader-frontend-runtime-smoke` 均 PASS。验证结束后 Compose 已停止，持久卷保留。
+- 远端门禁：代码候选 `6b4b256` 的 [CI 33336335560](https://github.com/nekohands/InkFlow/actions/runs/33336335560)、[Docker 33336335553](https://github.com/nekohands/InkFlow/actions/runs/33336335553)、[Security 33336335552](https://github.com/nekohands/InkFlow/actions/runs/33336335552) 均 GREEN，三者 head SHA 一致。
+- 当前状态：自动化 Release Gate 已通过，但整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实新增章节追更事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面登录后的浏览器输入验收和 MuMu/阅读 3.0 真机验收继续按待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

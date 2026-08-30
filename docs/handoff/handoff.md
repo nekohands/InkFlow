@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`8cb2211`（包含 Scheduler TOC 任务去重原子化修复；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`6b4b256`（包含正文联动 Content 任务去重原子化修复；Ubuntu VM 源码构建/运行验收通过，CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -966,6 +966,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - TDD/本机：新增单元回归先红后绿；Release Build 0 warnings / 0 errors；Unit 499/499、Architecture 1/1、Contract 10/10、diff check PASS。Windows Docker Engine 缺失，Testcontainers 本机定向集成为 BLOCKED。
 - Ubuntu VM：候选 `8cb2211` 的 Crawler PostgreSQL 集成测试 13/13 通过；完整测试 Unit 499/499、Architecture 1/1、Contract 10/10、Integration 92 passed / 2 skipped；源码构建 Compose、迁移、健康检查通过；前端/正文/账号/私有库/开发者 API/管理员运维/采集打包/SLO/备份恢复 Runtime smoke 均 PASS。临时账号已禁用，Compose 已停止，持久卷保留。
 - 交接门槛：代码候选 `8cb2211` 的 [CI 33334393155](https://github.com/nekohands/InkFlow/actions/runs/33334393155)、[Docker 33334393053](https://github.com/nekohands/InkFlow/actions/runs/33334393053)、[Security 33334393020](https://github.com/nekohands/InkFlow/actions/runs/33334393020) 均 GREEN，三者 head SHA 一致。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是待定项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 4.92 正文联动 Content 任务去重原子化交接（本轮，2026-08-31）
+
+- `ContentFetchChainService` 已从“先查后插”改为调用 `TryAddIfNoConflictingTaskAsync`；EF 实现复用同一事务内的 PostgreSQL advisory lock、冲突检查、任务插入和 `TaskCreated` Outbox，避免并发正文联动重复入队。`ignoreDeadLettered` 参数保持 CollectionRun 的原有死信语义。
+- TDD/本机：新增 `Uses_Atomic_Dedupe_Gate_For_Content_Tasks` 单元回归先红后绿；Release Build 0 warnings / 0 errors；Unit 500/500、diff check PASS。Windows Docker Engine 缺失，Testcontainers 集成在本机为 BLOCKED。
+- Ubuntu VM：候选 `6b4b256` 的 Crawler PostgreSQL 集成测试 14/14 通过；完整测试 Architecture 1/1、Integration 93 passed / 2 skipped、Contract 10/10、Unit 500/500；源码构建 Compose、迁移、健康检查通过；`reader-content-runtime-smoke` 和 `reader-frontend-runtime-smoke` 均 PASS。验证结束后临时运行环境已停止，持久卷保留。
+- 交接门槛：代码候选 `6b4b256` 的 [CI 33336335560](https://github.com/nekohands/InkFlow/actions/runs/33336335560)、[Docker 33336335553](https://github.com/nekohands/InkFlow/actions/runs/33336335553)、[Security 33336335552](https://github.com/nekohands/InkFlow/actions/runs/33336335552) 均 GREEN，三者 head SHA 一致。真实追更新增事件、真实第二来源故障切换、真实账户/Provider/生产通知、受保护 Operations 页面输入验收和 MuMu/阅读 3.0 仍是待定项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
