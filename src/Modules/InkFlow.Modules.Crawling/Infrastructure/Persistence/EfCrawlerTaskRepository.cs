@@ -38,7 +38,7 @@ public sealed class EfCrawlerTaskRepository(
         string owner,
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default) =>
-        await TryLeaseAsync(
+        await TryLeaseCoreAsync(
                 taskId: null,
                 now,
                 owner,
@@ -52,7 +52,7 @@ public sealed class EfCrawlerTaskRepository(
         string owner,
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default) =>
-        await TryLeaseAsync(
+        await TryLeaseCoreAsync(
                 taskId: taskId,
                 now,
                 owner,
@@ -60,7 +60,7 @@ public sealed class EfCrawlerTaskRepository(
                 cancellationToken)
             .ConfigureAwait(false);
 
-    private async Task<CrawlerTask?> TryLeaseAsync(
+    private async Task<CrawlerTask?> TryLeaseCoreAsync(
         Guid? taskId,
         DateTimeOffset now,
         string owner,
