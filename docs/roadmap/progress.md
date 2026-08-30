@@ -987,6 +987,18 @@ Phase 1A 自动化工作包状态：
 - 远端证据：代码候选提交 `689a79c` 的 [CI 33299762844](https://github.com/nekohands/InkFlow/actions/runs/33299762844)、[Docker 33299762806](https://github.com/nekohands/InkFlow/actions/runs/33299762806)、[Security 33299762799](https://github.com/nekohands/InkFlow/actions/runs/33299762799) 均 GREEN 且 head SHA 为 `689a79c72c6b3ae73df1e5c4b37e95a7f9658bfa`；CI 同步覆盖源码 Compose、前端 1.0 smoke、SLO、Redis、备份恢复和 Runtime diagnostics，Docker 四业务镜像与发布前扫描、Security 的 NuGet/Filesystem/CodeQL/SBOM 门禁均通过。
 - 验收边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源/真实追更/真实故障切换、浏览器视觉/安装/长时间阅读和真实凭据操作；`.env` 在 Windows 与 VM 均保持本地 ignored/untracked，敏感值不进入提交、文档或 CI 日志。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 4.75 GPT 内置浏览器自动化验收与非阅读 App 门禁复验（本轮，2026-08-30）
+
+- 范围：按本轮要求，除 MuMu/阅读 3.0 之外，优先使用可重复的源码、fixture、运行时脚本和 GPT 内置浏览器完成验收；不把阅读 App、真实第三方来源或真实生产账户操作伪装成自动化通过。
+- 浏览器路由矩阵：使用 GPT 内置浏览器访问 Reader 书库、账户、书架、历史、离线壳、Operations Center 和未发布章节状态；各页面的主内容锚点、跳转链接、viewport 标记和无横向溢出检查通过，Reader 与 Operations 页面浏览器错误日志为空。
+- 浏览器交互：Reader 搜索按钮提交、无结果与部分来源不可用提示、匿名账户页面、书架/历史登录提示、离线返回入口和 Operations 匿名角色保护均通过；登录/注册表单的 required、email/password 类型及 autocomplete 约束已自动读取确认，未创建真实账户。
+- 响应式与可访问性：在 375×812、768×1024、1280×720、1920×1080 四个视口完成自动检查；均无横向溢出，宽屏内容壳保持 1152px 最大宽度，移动端搜索控件仍保持可用尺寸；跳过主要内容链接、语义区域、状态区和键盘焦点可见性通过。提交按钮点击路径通过；内置浏览器对 Enter 的合成按键未触发表单提交，归类为浏览器驱动能力限制，不据此改动生产代码。
+- PWA 资源：浏览器页面确认 Manifest 链接存在；当前 VM 源码构建栈的 reader-frontend-runtime-smoke 已通过 Manifest、Service Worker、图标和敏感字段契约。内置浏览器直接导航非 HTML 资源时返回 ERR_BLOCKED_BY_CLIENT，故不把该工具限制当作应用失败；实际安装、Service Worker 注册和断网切换仍需支持安全上下文的真实浏览器证据。
+- VM 运行时与回归：源码构建 Compose 已完成四业务镜像构建、Migration 退出码 0、健康检查、前端冒烟和浏览器验收；随后已停止容器并删除本轮隔离测试卷，保留 Compose 持久卷。Linux SDK 容器完成 Restore → Release Build → Test：Build 0 warnings / 0 errors，Unit 482/482、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped / 0 failed）。
+- 代码回归：候选提交 01d09ab 为 ContentPublishingService 注入式选优路径的三条回归测试，覆盖新版本发布、重复发布和选优失败不误标当前版本；Windows 定向/全量 Unit、Architecture、Contract 与 Release Build 均通过。
+- 远端证据：候选提交 01d09ab94788e65ecc937ec3b31e36fdab67f755 的 CI 33301352344、Docker 33301352352、Security 33301352365 均 GREEN 且 head SHA 一致。
+- 当前状态：非阅读 App 的源码、fixture、VM runtime 和浏览器自动化门禁已取得证据；真实来源/追更/第二来源切换、真实账户/生产凭据、PWA 安装断网、阅读 3.0 真机和长时间阅读仍是明确待定项。整体保持 1.0 Release Candidate，不标记 Accepted/Completed。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1061,16 +1073,17 @@ Official Source
 
 ### 6.1 需要人工或真实业务环境验收
 
-- [ ] **1.0 前端强制人工验收**：Web Reader、Reader/PWA 和 Operations Center 均属于 1.0 Release Gate；自动化 HTML/Runtime 门禁已纳入，本轮不执行浏览器人工验收。
+- [x] **1.0 前端自动化验收（GPT 内置浏览器）**：Web Reader、Reader/PWA 和 Operations Center 的可自动化页面/交互/响应式/可访问性检查已在 4.75 完成；真实账户、PWA 安装/断网和长时间体验保留为补充验收。
 - [ ] **阅读 3.0 真机导入与阅读**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content；记录截图、请求结果和异常。
 - [ ] **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证个人 Search → BookInfo → TOC → Content、令牌 header 传递，以及撤销后请求失效；本轮按用户决定不执行。
-- [ ] **Web Reader 人工体验验收（1.0 必选）**：在移动端、平板、桌面端、宽屏实际打开 `/reader` 三页面，检查正文宽度、长标题/长作者、Loading/Empty/Error、键盘焦点、触控目标、主题/字号/行高和上下章导航；自动化基线已完成，本轮未做浏览器截图/长时间阅读。
-- [ ] **Reader/PWA 用户状态人工验收（1.0 必选）**：在支持的浏览器中验证账户登录/注册、刷新后会话、书架加入/移除、历史、章节进度/偏好同步、401 刷新和登出；验证安装提示、Service Worker 注册与网络不可用时离线提示。本轮按用户决定不执行。
+- [x] **Web Reader 浏览器自动验收（1.0 必选）**：已在移动端、平板、桌面端、宽屏检查页面路由、空/错状态、搜索点击、正文壳宽度、焦点和无横向溢出；长标题/长作者真实内容与长时间阅读仍未执行。
+- [ ] **Reader/PWA 真实账户与安装/离线补充验收（1.0 必选）**：匿名页面、表单约束、Manifest/Service Worker/图标资源契约和离线壳已由 4.75 自动化；真实账户会话、安装提示、Service Worker 实际注册、断网切换和跨设备同步仍需可用安全上下文及测试账户。
 - [ ] **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖和失败导入无半本书；确认私有内容不会出现在公共 Catalog、搜索、Legado 或公共 Reading Shelf。当前只有后端自动化基线，未执行人工操作。
 - [ ] **真实追更验收**：使用真实来源数据验证 Scheduler 扫描、新章检测、Worker 消费、目录增量与正文发布。
 - [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
-- [ ] **Operations Center 人工验收（1.0 必选）**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、管理员告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败状态和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线。
+- [x] **Operations Center 浏览器自动验收（1.0 必选）**：匿名角色拒绝、页面结构、状态提示、刷新按钮禁用态、桌面/移动布局、焦点/无横向溢出和浏览器错误日志已由 4.75 自动化；受保护命令的 API/集成基线已自动化。
+- [ ] **Operations Center 真实凭据补充验收**：Operator/Administrator 真实登录后的命令执行、告警/来源/死信操作和生产截图仍需可用测试账户与部署环境。
 - [ ] **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块按来源过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未使用真实凭据操作。
 - [ ] **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名不能执行、理由和 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退按 Platform Scope、显式用户/组织引用按对应 Owner Scope 且显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
 - [ ] **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询 200、Reader/匿名请求 401/403、时间范围/精确过滤/游标翻页、空结果和服务不可用时的稳定错误；确认响应不暴露秘密或正文，并保留截图/请求证据。本轮只完成自动化基线。

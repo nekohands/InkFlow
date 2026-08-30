@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`689a79c`（已推送，CI/Docker/Security 全部 GREEN）
+- 最新候选 Commit：`01d09ab`（已推送，CI/Docker/Security 全部 GREEN）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -832,6 +832,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM 全量测试：在 Ubuntu VM 的 .NET 10 SDK 容器中完成 `Restore → Release Build → Test`；Build 为 0 warnings / 0 errors，Unit 479/479、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped / 0 failed）。验证结束后已停止源码 Compose，删除本轮临时测试卷，保留 Compose 持久卷；Windows 开发机 Docker Engine 仍不可用，但不再阻塞本轮 VM 本地证据。
 - 远端证据：代码候选提交 `689a79c` 的 [CI 33299762844](https://github.com/nekohands/InkFlow/actions/runs/33299762844)、[Docker 33299762806](https://github.com/nekohands/InkFlow/actions/runs/33299762806)、[Security 33299762799](https://github.com/nekohands/InkFlow/actions/runs/33299762799) 均 GREEN 且 head SHA 为 `689a79c72c6b3ae73df1e5c4b37e95a7f9658bfa`；CI 同步覆盖源码 Compose、前端 1.0 smoke、SLO、Redis、备份恢复和 Runtime diagnostics，Docker 四业务镜像与发布前扫描、Security 的 NuGet/Filesystem/CodeQL/SBOM 门禁均通过。
 - 验收边界：按用户决定不执行 MuMu/阅读 3.0 真机、真实来源/真实追更/真实故障切换、浏览器视觉/安装/长时间阅读和真实凭据操作；`.env` 在 Windows 与 VM 均保持本地 ignored/untracked，敏感值不进入提交、文档或 CI 日志。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 4.75 GPT 内置浏览器自动化验收与非阅读 App 门禁复验（本轮，2026-08-30）
+
+- 按本轮要求，除 MuMu/阅读 3.0 外，非阅读 App 验收优先使用源码、fixture、运行时脚本和 GPT 内置浏览器完成；真实第三方来源、真实生产账户和阅读 App 不被自动化证据替代。
+- GPT 内置浏览器已自动访问 Reader 书库、账户、书架、历史、离线壳、Operations Center 和未发布章节状态；主内容锚点、跳转入口、viewport、无横向溢出和匿名角色保护通过，Reader/Operations 浏览器错误日志为空。
+- 四视口 375×812、768×1024、1280×720、1920×1080 检查通过；宽屏内容保持 1152px 最大宽度，移动搜索控件可用，跳过主要内容、语义区域、状态区和可见焦点通过。搜索点击提交、无结果提示和账户必填字段约束通过；Enter 合成按键未提交被记录为浏览器驱动限制。
+- VM 源码构建 Compose 已完成构建、Migration、健康检查和 reader-frontend-runtime-smoke，随后停止容器并清理本轮隔离测试卷。Linux SDK 容器 Restore/Build/Test 通过：Build 0 warnings / 0 errors，Unit 482/482、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped / 0 failed）。
+- PWA 页面 Manifest 链接存在，资源契约由 VM 前端冒烟通过；内置浏览器直接导航非 HTML 资源时被客户端拦截，因此实际安装、Service Worker 注册和断网切换仍需安全上下文浏览器证据。未创建真实账户。
+- 代码候选 01d09ab 的 CI 33301352344、Docker 33301352352、Security 33301352365 均 GREEN。整体仍为 1.0 Release Candidate，不标记 Accepted/Completed；真实来源/追更/切源、真实账户/生产凭据、PWA 安装断网、阅读 3.0 真机和长时间阅读继续待定。
 
 ## 5. 关键架构不变量
 
