@@ -75,6 +75,40 @@ public sealed class BookDiscoveryServiceTests
     }
 
     [TestMethod]
+    public async Task Discovery_Exception_After_Search_Is_Isolated_As_Warning()
+    {
+        var sourceBooks = new ThrowingSourceBooks("broken-source");
+        var sources = new InMemorySources();
+        var broken = Source.Create("broken-source", "来源 broken-source",
+            "https://broken-source.example.com", T0);
+        var good = Source.Create("good-source", "来源 good-source",
+            "https://good-source.example.com", T0);
+        sources.Store.Add(broken);
+        sources.Store.Add(good);
+
+        var service = BuildService(
+            sources,
+            sourceBooks,
+            new InMemoryCanonicalRepo(),
+            new InMemoryCandidates(),
+            ("broken-source", new RecordingAdapter(
+                "broken-source",
+                [new SourceSearchResult("b-1", "坏来源书", "作者")])),
+            ("good-source", new RecordingAdapter(
+                "good-source",
+                [new SourceSearchResult("g-1", "玉簟秋", "灵希")])));
+
+        var outcome = await service.DiscoverAsync("玉簟秋");
+
+        Assert.AreEqual(1, outcome.Books.Count,
+            "导入阶段的单来源异常不得影响其他来源的命中");
+        Assert.AreEqual("玉簟秋", outcome.Books[0].Title);
+        Assert.AreEqual(1, outcome.Warnings.Count);
+        StringAssert.Contains(outcome.Warnings[0], "broken-source");
+        StringAssert.Contains(outcome.Warnings[0], "source repository unavailable");
+    }
+
+    [TestMethod]
     public async Task Source_Without_Adapter_Is_Skipped()
     {
         var harness = CreateHarness(
@@ -302,6 +336,28 @@ public sealed class BookDiscoveryServiceTests
             Store[(book.SourceId, book.ExternalBookId)] = book;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class ThrowingSourceBooks(string failingSourceId) : ISourceBookRepository
+    {
+        private readonly InMemorySourceBooks _inner = new();
+
+        public Task AddAsync(SourceBook book, CancellationToken cancellationToken = default) =>
+            _inner.AddAsync(book, cancellationToken);
+
+        public Task<SourceBook?> GetAsync(
+            string sourceId,
+            string externalBookId,
+            CancellationToken cancellationToken = default) =>
+            sourceId == failingSourceId
+                ? throw new InvalidOperationException("source repository unavailable")
+                : _inner.GetAsync(sourceId, externalBookId, cancellationToken);
+
+        public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default) =>
+            _inner.ListAllAsync(cancellationToken);
+
+        public Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default) =>
+            _inner.SaveAsync(book, cancellationToken);
     }
 
     private sealed class InMemoryCanonicalRepo : ICanonicalBookRepository

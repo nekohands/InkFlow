@@ -53,82 +53,90 @@ public sealed class BookDiscoveryService(
 
         foreach (var source in allSources)
         {
-            if (healthReader is not null && !await healthReader
-                    .IsAvailableAsync(source.Id, SourceCapability.Search, cancellationToken)
-                    .ConfigureAwait(false))
-            {
-                warnings.Add($"search: source '{source.Id}' skipped (Search capability unavailable).");
-                continue;
-            }
-
-            var adapter = await adapterFactory
-                .GetAdapterAsync(source.Id, cancellationToken)
-                .ConfigureAwait(false);
-            if (adapter is null)
-            {
-                warnings.Add($"search: source '{source.Id}' skipped (no usable adapter).");
-                continue;
-            }
-
-            IReadOnlyList<SourceSearchResult> hits;
             try
             {
-                hits = await adapter.SearchAsync(keyword, cancellationToken).ConfigureAwait(false);
+                if (healthReader is not null && !await healthReader
+                        .IsAvailableAsync(source.Id, SourceCapability.Search, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    warnings.Add($"search: source '{source.Id}' skipped (Search capability unavailable).");
+                    continue;
+                }
+
+                var adapter = await adapterFactory
+                    .GetAdapterAsync(source.Id, cancellationToken)
+                    .ConfigureAwait(false);
+                if (adapter is null)
+                {
+                    warnings.Add($"search: source '{source.Id}' skipped (no usable adapter).");
+                    continue;
+                }
+
+                IReadOnlyList<SourceSearchResult> hits;
+                try
+                {
+                    hits = await adapter.SearchAsync(keyword, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    warnings.Add($"search: source '{source.Id}' failed: {ex.Message}");
+                    continue;
+                }
+
+                foreach (var hit in hits)
+                {
+                    var import = await catalog
+                        .ImportBookInfoAsync(source.Id, hit.ExternalBookId, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (!import.IsSuccess)
+                    {
+                        warnings.Add($"import: source '{source.Id}' book '{hit.ExternalBookId}': " +
+                                     string.Join("; ", import.Errors));
+                        continue;
+                    }
+
+                    var match = await matching
+                        .CreateOrMatchAsync(source.Id, hit.ExternalBookId, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (!match.IsSuccess || match.Book is null)
+                    {
+                        warnings.Add($"match: source '{source.Id}' book '{hit.ExternalBookId}': " +
+                                     string.Join("; ", match.Errors));
+                        continue;
+                    }
+
+                    if (match.NewlyCreated)
+                    {
+                        newlyCreated.Add(match.Book.Id);
+                    }
+
+                    if (byCanonical.TryGetValue(match.Book.Id, out var existing))
+                    {
+                        if (!existing.SourceIds.Contains(source.Id))
+                        {
+                            byCanonical[match.Book.Id] = existing with
+                            {
+                                SourceIds = [.. existing.SourceIds, source.Id],
+                            };
+                        }
+                    }
+                    else
+                    {
+                        byCanonical[match.Book.Id] = new DiscoveredBook(
+                            match.Book.Id,
+                            match.Book.Title,
+                            match.Book.Author,
+                            [source.Id],
+                            AlreadyInLibrary: !newlyCreated.Contains(match.Book.Id));
+                    }
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                warnings.Add($"search: source '{source.Id}' failed: {ex.Message}");
-                continue;
-            }
-
-            foreach (var hit in hits)
-            {
-                var import = await catalog
-                    .ImportBookInfoAsync(source.Id, hit.ExternalBookId, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (!import.IsSuccess)
-                {
-                    warnings.Add($"import: source '{source.Id}' book '{hit.ExternalBookId}': " +
-                                 string.Join("; ", import.Errors));
-                    continue;
-                }
-
-                var match = await matching
-                    .CreateOrMatchAsync(source.Id, hit.ExternalBookId, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (!match.IsSuccess || match.Book is null)
-                {
-                    warnings.Add($"match: source '{source.Id}' book '{hit.ExternalBookId}': " +
-                                 string.Join("; ", match.Errors));
-                    continue;
-                }
-
-                if (match.NewlyCreated)
-                {
-                    newlyCreated.Add(match.Book.Id);
-                }
-
-                if (byCanonical.TryGetValue(match.Book.Id, out var existing))
-                {
-                    if (!existing.SourceIds.Contains(source.Id))
-                    {
-                        byCanonical[match.Book.Id] = existing with
-                        {
-                            SourceIds = [.. existing.SourceIds, source.Id],
-                        };
-                    }
-                }
-                else
-                {
-                    byCanonical[match.Book.Id] = new DiscoveredBook(
-                        match.Book.Id,
-                        match.Book.Title,
-                        match.Book.Author,
-                        [source.Id],
-                        AlreadyInLibrary: !newlyCreated.Contains(match.Book.Id));
-                }
+                // Import/match/factory/health failures remain isolated to this source.
+                warnings.Add($"discovery: source '{source.Id}' failed: {ex.Message}");
             }
         }
 
