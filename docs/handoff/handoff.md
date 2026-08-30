@@ -544,6 +544,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 缺口：4.63 已将 Inbox Handler 失败收敛为 `DeadLetteredAt` 终态，但 Operations 告警快照只读取 Crawler 死信；消息消费持续失败无法进入统一运维告警与历史链路。
 - 实现：新增 `IInboxDeadLetterReader` 与 PostgreSQL `EfMessagingMessageStore` 有界摘要读取，只统计 `DeadLetteredAt IS NOT NULL AND ProcessedAt IS NULL`，返回数量和 `HasMore`，不带载荷、失败文本或 TraceId；新增 `(ProcessedAt, DeadLetteredAt, Id)` 索引 Migration。Operations 增加 `InboxDeadLetterCountThreshold`，平台级快照产生 `inbox_dead_letters_present`，读取失败产生稳定 `inbox_dead_letter_snapshot_unavailable` 并将快照标为 partial；来源过滤的 Operator 视图不查询平台级 Inbox 状态。决策见 [ADR 0020](../adr/0020-inbox-dead-letter-operations-observation.md)。
 - 回归与证据：新增告警阈值、稳定错误、partial 历史语义、来源过滤单元回归和 PostgreSQL 有界读取回归；Windows Release Build 0 warnings / 0 errors，Unit 475/475、Architecture 1/1、Contract 10/10 PASS；Windows 本机 Docker `npipe://./pipe/docker_engine` 不可用，完整 Integration 在本机保持 BLOCKED。随后在 Ubuntu VM 以源码构建 Compose 实际启动 PostgreSQL、Redis、OTel Collector 与四个应用镜像，Migration 退出码 0，API/Worker/Scheduler 健康检查和 Collector loopback 健康检查通过；Linux SDK 容器完整 `Restore → Build → Test` 为 Unit 475/475、Architecture 1/1、Contract 10/10、Integration 85 passed / 2 skipped / 0 failed，新增 Inbox 有界死信读取回归实际通过；Core SLO Runtime smoke 的 public、Legado、Developer 未授权和 Reader 四个服务面均通过。漏洞审计、敏感信息检查与 `git diff --check` PASS。
+- 备份恢复证据：同一 Ubuntu VM 源码 Compose 先通过 Core SLO smoke 产生审计数据，再执行 `scripts/backup-restore-drill.sh`；custom-format 归档恢复到隔离数据库，全部非系统表行数签名与 `audit.events` 数量一致，结果为 `archive=78516 bytes, audit_events=31`，隔离库已清理，验证卷保留。
 - 远端证据：代码候选提交 `72e49b30f36e78d0405b984580e1ce2a43381b32` 的 [CI 33291943661](https://github.com/nekohands/InkFlow/actions/runs/33291943661)、[Docker 33291943632](https://github.com/nekohands/InkFlow/actions/runs/33291943632)、[Security 33291943645](https://github.com/nekohands/InkFlow/actions/runs/33291943645) 均 GREEN 且 headSha 一致；CI Integration 87 项为 85 passed / 2 skipped，包含本轮 Inbox 回归，Docker 四业务镜像与 Collector 构建/扫描/发布通过，Security 的 NuGet、Filesystem、CodeQL、SBOM 全部通过。
 - 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；外部通知、真实来源、阅读 3.0、人工验收和本机 Docker 仍按待定事项处理。
 
@@ -623,7 +624,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ PostgreSQL Outbox Relay 与 Worker 宿主接线 v1：Outbox→Inbox 耐久 relay + `RawPayload` hash 稳定性修复（`ed4a7a7`；CI `33282208833` / Docker `33282208841` / Security `33282208838` GREEN；Inbox Handler/真实与人工验收待定）
 ✅ Inbox Consumer 轮询与 Worker 消费宿主：按已注册类型批量 claim、lease 恢复、Envelope 兼容恢复和空 registry 安全 idle（`fa50c07`；CI `33283884681` / Docker `33283884682` / Security `33283884688` GREEN；业务 Handler/真实与人工验收待定）
 ✅ `crawler.task.created` 业务 Inbox Handler：稳定契约校验 + 按任务 ID 原子租约 + 共享任务处理器 + Outbox→Inbox→任务完成验证（本轮；其他 Integration Event 仍待各自接入）
-✅ Inbox 死信 Operations 观测：有界摘要读取 + 平台级告警阈值 + partial fail-closed + 来源过滤隔离（本轮，ADR 0020；本机 PostgreSQL 仍待 Docker 可用后复验）
+✅ Inbox 死信 Operations 观测：有界摘要读取 + 平台级告警阈值 + partial fail-closed + 来源过滤隔离（本轮，ADR 0020；Ubuntu VM 真实 PostgreSQL/Redis 集成、Compose Runtime 与备份恢复已复验，Windows 本机 Docker 仍不可用）
 → 扩展其他业务 Integration Event 接收者并取得对应端到端证据
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
