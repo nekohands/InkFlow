@@ -66,6 +66,18 @@ Acceptance evidence:
 
 Phase 1A must not be marked Completed merely because chapter HTML can render.
 
+### 1.0 Frontend scope (mandatory release gate)
+
+All user-visible frontend surfaces already shipped in this repository are part of the 1.0 scope, not post-1.0 polish:
+
+- Web Reader: `/reader`, Book Detail/TOC and Chapter Reader.
+- Reader/PWA: account, shelf, history, offline fallback, manifest, service worker and install enhancement.
+- Operations Center: protected `/admin/operations` workbench for Operator/Administrator users.
+
+The automated frontend gate must run against the current source-built Compose stack and cover the public HTML shell, responsive/accessibility markers, account/shelf/history/offline pages, Manifest, Service Worker, icons, Operations UI contracts and sensitive-data exclusions. The repository entrypoint is `scripts/reader-frontend-runtime-smoke.sh`; its fixture regression is `scripts/tests/reader-frontend-runtime-smoke.test.sh`.
+
+The automated gate does not replace human acceptance. Before 1.0 is accepted, the frontend still needs Mobile, Tablet, Desktop and Wide Desktop checks, primary-flow UX checks, keyboard/focus/contrast/touch checks, long-reading and chapter-navigation checks, plus real PWA install/offline and authenticated account-flow checks where applicable. Deferred real-device or manual checks remain explicitly `NOT RUN` until executed.
+
 ### Prohibited shortcuts
 
 - no hand-inserting book/chapter/content rows for acceptance
@@ -114,6 +126,6 @@ Phase 1 is not complete until:
 
 - automated Contract/E2E tests cover the critical content chain
 - at least one real-device or realistic Legado import/read validation has been performed
-- the Minimal Web Reader has completed its applicable Mobile/Desktop/UX/Visual/Accessibility acceptance
+- the 1.0 frontend scope has completed its applicable Mobile/Tablet/Desktop/Wide Desktop, UX, Visual and Accessibility acceptance
 - the frontend implementation has a recorded benchmark against current comparable reading products
 - required Build/Test/Runtime/CI gates from `../engineering/development-workflow.md` are green

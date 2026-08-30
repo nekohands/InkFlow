@@ -3,7 +3,7 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（Phase 1B/商业基础自动化门禁已通过，外部验收待定）
+- 当前阶段：1.0 Release Candidate（Phase 1B/商业基础自动化已通过，前端 1.0 门禁正在纳入，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
 - 最新候选 Commit：`74b0d53`（已推送，CI/Docker/Security 全部 GREEN）
 - `dev` 骨架 root commit：`c5f2048`
@@ -567,12 +567,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
 2. **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证 token header、Search → BookInfo → TOC → Content 和撤销后请求失效；本轮按用户决定不执行。
-3. **Web Reader 人工视觉/功能验收**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
-4. **Reader/PWA 用户状态人工验收**：在支持的浏览器中验证账户登录/注册、刷新后会话、书架加入/移除、历史、章节进度/偏好同步、401 刷新、登出、安装提示、Service Worker 注册与网络不可用时离线提示；本轮按用户决定不执行。
+3. **Web Reader 人工视觉/功能验收（1.0 必选）**：在移动、平板、桌面和宽屏浏览器打开 `/reader` 三页面，检查正文宽度、设置面板、键盘焦点、触控目标、长文滚动和上下章导航；本轮只完成自动化 HTML/CI 基线。
+4. **Reader/PWA 用户状态人工验收（1.0 必选）**：在支持的浏览器中验证账户登录/注册、刷新后会话、书架加入/移除、历史、章节进度/偏好同步、401 刷新、登出、安装提示、Service Worker 注册与网络不可用时离线提示；本轮按用户决定不执行。
 5. **追更真实验证**：Scheduler 扫描 + Worker 消费已在容器环境运行，新章检测需真实源数据佐证。
 6. **Phase 1B 真实切源验收**：从已接入来源中选择可稳定访问的真实第二 Official Source，验证 Source A 不可用时 Web/Legado 仍读取，且 BookId/ChapterId 不变。
 7. **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复、Operator/匿名拒绝、全公开读取路径隐藏/恢复和命令审计记录；本轮只完成自动化基线，未执行人工操作。
-8. **Operations Center 人工验收**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、Administrator 告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
+8. **Operations Center 人工验收（1.0 必选）**：使用 Operator/Administrator 凭证打开 /admin/operations，验证登录/角色拒绝、overview/告警快照读取、Administrator 告警历史分页与恢复转折、来源能力停用/恢复、死信理由确认与重放、HasMore 截断标记、区块部分失败展示和命令结果；检查移动/桌面布局、键盘焦点、对比度与截图证据。本轮只完成自动化基线，未执行人工操作。
 9. **Admin Audit Read 人工验收**：使用 Operator/Administrator 凭证验证审计查询授权、时间范围/精确过滤/游标、空结果、稳定错误和响应脱敏；本轮只完成自动化基线，未执行人工操作。
 10. **Source Authorization 人工验收**：使用 Administrator 授予/列出/撤销某个 Operator 的 `source.read` / `source.manage`，验证重复授予幂等、撤销后拒绝、`source.manage` 隐含读取、来源健康/停用/恢复及 Operations 来源健康区块过滤；验证 Reader/匿名和未授权 Operator 的 401/403、理由校验与授权审计。本轮只完成自动化基线，未执行真实凭据操作。
 11. **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名拒绝、理由与 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退按 Platform Scope、显式用户/组织引用按对应 Owner Scope 且显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
@@ -776,6 +776,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 复杂站点(特殊编码/签名):实现 `ISourceAdapter`(参考 `KanunuSourceAdapter`)并在适配器工厂注册。
 
 普通 PR CI 不依赖真实第三方小说站点；Crawler 使用固定 Fixture/Mock Server。真实 Source 进入独立 Live/Nightly 检查。
+
+### 4.68 前端纳入 1.0 Release Gate 与源码构建验证策略（本轮，2026-08-30）
+
+- 范围：Web Reader 的书库/详情/目录/正文、Reader/PWA 的账户/书架/历史/离线壳/Manifest/Service Worker，以及受保护 Operations Center UI，全部纳入 1.0 必选范围；不再把前端视为 1.0 之外的后续 polish。
+- 自动化：新增 `scripts/reader-frontend-runtime-smoke.sh` 与 fixture 回归；CI 增加独立 `Frontend 1.0 runtime smoke`，在 `docker-compose.build.yml` 源码构建栈上验证页面壳、响应式/可访问性标记、PWA 资源和敏感数据排除。既有 `ReaderHtml` 单元回归继续保留。
+- Docker：日常 Docker 验证使用源码构建 Compose；GHCR 默认 Compose 仅在发布镜像、镜像一致性或明确需要时复验。CI Runtime smoke 的日志与清理已固定使用源码构建编排，避免把发布镜像误当作日常验证依据。
+- 验收边界：移动/平板/桌面/宽屏视觉与 UX、键盘焦点/对比度/触控、长时间阅读、PWA 安装/离线和真实账户操作仍按用户决定 `NOT RUN`，但现在明确是 1.0 Release Gate 的待定项。
+- 当前状态：候选提交待取得本轮 CI/Docker/Security 真实证据；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

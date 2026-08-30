@@ -172,6 +172,7 @@ Bug 修复原则上必须先有可复现测试，修复后该测试通过，并�
 仅 Build/Test 通过仍不足以证明运行时正确。按工作包范围验证：
 
 - Docker Compose 服务可启动。
+- 日常 Docker 验证默认使用 `docker-compose.build.yml` 从当前源码构建并启动；`docker-compose.yml` 是 GHCR 发布镜像编排，只在发布产物、镜像一致性或明确要求镜像验证时使用。CI 的常规 Runtime smoke 遵循源码构建路径，Docker 发布工作流按需构建、扫描并推送镜像。
 - PostgreSQL / Redis 健康检查通过。
 - Migration 能对空数据库执行。
 - Release Build 后运行 `scripts/verify-migrations.sh`，确认所有 DbContext 的当前模型与迁移快照无漂移。
