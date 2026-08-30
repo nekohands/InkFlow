@@ -119,6 +119,53 @@ public sealed class CollectionRunTests
     }
 
     [TestMethod]
+    public async Task Run_Mutation_Does_Not_Overwrite_Control_State_Changed_After_Read()
+    {
+        var run = CreateRun();
+        run.MarkWorkStarted(T0.AddSeconds(1));
+        var repository = new StaleReconcileRepository(run);
+        var service = new CollectionRunService(
+            urlResolver: null!,
+            runs: repository,
+            tasks: null!,
+            clock: new FixedClock(T0.AddSeconds(2)));
+
+        await service.SetCanonicalBookAsync(run.Id, Guid.NewGuid());
+
+        var persisted = await repository.GetAsync(run.Id);
+        Assert.IsNotNull(persisted);
+        Assert.AreEqual(
+            CollectionRunStatus.Paused,
+            persisted!.Status,
+            "a stale run mutation must not restore a state changed by a control command");
+    }
+
+    [TestMethod]
+    public async Task Stage_And_Work_Mutations_Preserve_Concurrent_Control_State()
+    {
+        var stageRun = CreateRun();
+        stageRun.MarkWorkStarted(T0.AddSeconds(1));
+        var stageRepository = new StaleReconcileRepository(stageRun);
+        var stageService = CreateService(stageRepository);
+
+        await stageService.AdvanceStageAsync(stageRun.Id, CollectionRunStage.Toc);
+
+        var stagePersisted = await stageRepository.GetAsync(stageRun.Id);
+        Assert.IsNotNull(stagePersisted);
+        Assert.AreEqual(CollectionRunStatus.Paused, stagePersisted!.Status);
+
+        var workRun = CreateRun();
+        var workRepository = new StaleReconcileRepository(workRun);
+        var workService = CreateService(workRepository);
+
+        await workService.MarkWorkStartedAsync(workRun.Id);
+
+        var workPersisted = await workRepository.GetAsync(workRun.Id);
+        Assert.IsNotNull(workPersisted);
+        Assert.AreEqual(CollectionRunStatus.Paused, workPersisted!.Status);
+    }
+
+    [TestMethod]
     public void Cancelled_Task_Is_Terminal_And_Clears_Lease()
     {
         var task = CrawlerTask.Create(
@@ -139,6 +186,13 @@ public sealed class CollectionRunTests
 
     private static CollectionRun CreateRun() =>
         CollectionRun.Create("source", "book/42", "https://example.com/book/42", T0);
+
+    private static CollectionRunService CreateService(StaleReconcileRepository repository) =>
+        new(
+            urlResolver: null!,
+            runs: repository,
+            tasks: null!,
+            clock: new FixedClock(T0.AddSeconds(2)));
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
@@ -197,6 +251,22 @@ public sealed class CollectionRunTests
             current?.Reconcile(
                 new CollectionRunTaskProgress(0, 0, 0, 0, 0, 0, 0),
                 now);
+            return current;
+        }
+
+        public async Task<CollectionRun?> MutateAsync(
+            Guid id,
+            Action<CollectionRun> mutation,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            persistedStatus = CollectionRunStatus.Paused;
+            var current = await GetAsync(id, cancellationToken);
+            if (current is not null)
+            {
+                mutation(current);
+            }
+
             return current;
         }
 

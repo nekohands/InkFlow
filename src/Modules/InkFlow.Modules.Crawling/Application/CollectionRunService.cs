@@ -240,9 +240,13 @@ public sealed class CollectionRunService(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
     {
-        var run = await RequireRunAsync(runId, cancellationToken).ConfigureAwait(false);
-        run.SetCanonicalBook(canonicalBookId, clock.GetUtcNow());
-        await runs.SaveAsync(run, cancellationToken).ConfigureAwait(false);
+        var now = clock.GetUtcNow();
+        await MutateRunAsync(
+                runId,
+                run => run.SetCanonicalBook(canonicalBookId, now),
+                now,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task AdvanceStageAsync(
@@ -250,18 +254,26 @@ public sealed class CollectionRunService(
         CollectionRunStage stage,
         CancellationToken cancellationToken = default)
     {
-        var run = await RequireRunAsync(runId, cancellationToken).ConfigureAwait(false);
-        run.AdvanceTo(stage, clock.GetUtcNow());
-        await runs.SaveAsync(run, cancellationToken).ConfigureAwait(false);
+        var now = clock.GetUtcNow();
+        await MutateRunAsync(
+                runId,
+                run => run.AdvanceTo(stage, now),
+                now,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task MarkWorkStartedAsync(
         Guid runId,
         CancellationToken cancellationToken = default)
     {
-        var run = await RequireRunAsync(runId, cancellationToken).ConfigureAwait(false);
-        run.MarkWorkStarted(clock.GetUtcNow());
-        await runs.SaveAsync(run, cancellationToken).ConfigureAwait(false);
+        var now = clock.GetUtcNow();
+        await MutateRunAsync(
+                runId,
+                run => run.MarkWorkStarted(now),
+                now,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task ReconcileAsync(
@@ -273,12 +285,18 @@ public sealed class CollectionRunService(
             .ConfigureAwait(false);
     }
 
-    private async Task<CollectionRun> RequireRunAsync(
+    private async Task MutateRunAsync(
         Guid runId,
+        Action<CollectionRun> mutation,
+        DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        return await runs.GetAsync(runId, cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidOperationException($"collection run {runId} was not found.");
+        if (await runs
+                .MutateAsync(runId, mutation, now, cancellationToken)
+                .ConfigureAwait(false) is null)
+        {
+            throw new InvalidOperationException($"collection run {runId} was not found.");
+        }
     }
 
     private async Task<CollectionRunView> BuildViewAsync(

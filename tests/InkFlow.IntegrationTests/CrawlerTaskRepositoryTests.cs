@@ -233,6 +233,41 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task Concurrent_Run_Mutation_Does_Not_Overwrite_Control_State()
+    {
+        var sourceId = $"concurrent-mutation-{Guid.NewGuid():N}";
+        var first = CreateContext();
+        await using var firstDb = first.Db;
+        var second = CreateContext();
+        await using var secondDb = second.Db;
+        var firstRuns = new EfCollectionRunRepository(firstDb);
+        var secondRuns = new EfCollectionRunRepository(secondDb);
+        var run = CollectionRun.Create(
+            sourceId,
+            "book-42",
+            "https://example.com/book/book-42",
+            T0);
+        run.MarkWorkStarted(T0.AddSeconds(1));
+        await firstRuns.AddAsync(run).ConfigureAwait(false);
+        var canonicalBookId = Guid.NewGuid();
+
+        await Task.WhenAll(
+            firstRuns.MutateAsync(
+                run.Id,
+                candidate => candidate.SetCanonicalBook(canonicalBookId, T0.AddSeconds(2)),
+                T0.AddSeconds(2)),
+            secondRuns.ApplyControlAsync(run.Id, "pause", T0.AddSeconds(3)))
+            .ConfigureAwait(false);
+
+        await using var verifyDb = CreateContext().Db;
+        var persisted = await verifyDb.Runs
+            .SingleAsync(candidate => candidate.Id == run.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual((int)CollectionRunStatus.Paused, persisted.Status);
+        Assert.AreEqual(canonicalBookId, persisted.CanonicalBookId);
+    }
+
+    [TestMethod]
     public async Task Task_Roundtrip_Preserves_Aggregate_State()
     {
         var (_, repo) = CreateContext();

@@ -42,6 +42,19 @@ public interface ICollectionRunRepository
         return ReconcileFallbackAsync(id, now, cancellationToken);
     }
 
+    /// <summary>
+    /// 在持久化层的同一原子操作中锁定并修改运行聚合。
+    /// 实现必须避免陈旧聚合快照覆写并发控制命令。
+    /// </summary>
+    Task<CollectionRun?> MutateAsync(
+        Guid id,
+        Action<CollectionRun> mutation,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        return MutateFallbackAsync(id, mutation, now, cancellationToken);
+    }
+
     Task<CollectionRun?> FindActiveAsync(
         string sourceId,
         string externalBookId,
@@ -104,6 +117,25 @@ public interface ICollectionRunRepository
 
         var progress = await GetTaskProgressAsync(id, cancellationToken).ConfigureAwait(false);
         run.Reconcile(progress, now);
+        await SaveAsync(run, cancellationToken).ConfigureAwait(false);
+        return run;
+    }
+
+    private async Task<CollectionRun?> MutateFallbackAsync(
+        Guid id,
+        Action<CollectionRun> mutation,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
+
+        var run = await GetAsync(id, cancellationToken).ConfigureAwait(false);
+        if (run is null)
+        {
+            return null;
+        }
+
+        mutation(run);
         await SaveAsync(run, cancellationToken).ConfigureAwait(false);
         return run;
     }

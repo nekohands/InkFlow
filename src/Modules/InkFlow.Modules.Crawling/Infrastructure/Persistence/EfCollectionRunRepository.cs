@@ -152,6 +152,43 @@ public sealed class EfCollectionRunRepository(CrawlingDbContext db) : ICollectio
         return run;
     }
 
+    public async Task<CollectionRun?> MutateAsync(
+        Guid id,
+        Action<CollectionRun> mutation,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
+
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // All run aggregate writes use the same row lock as controls and
+        // reconciliation, so stale snapshots cannot restore an old status.
+        var entity = await db.Runs
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."runs"
+                WHERE "Id" = {id}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (entity is null)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+
+        var run = CollectionRunMapper.ToDomain(entity);
+        mutation(run);
+        CollectionRunMapper.ApplyDomain(run, entity);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return run;
+    }
+
     public async Task<CollectionRun?> FindActiveAsync(
         string sourceId,
         string externalBookId,
