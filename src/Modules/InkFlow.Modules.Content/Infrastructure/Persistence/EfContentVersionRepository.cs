@@ -174,19 +174,35 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
             .Select(v => (Guid?)v.CanonicalBookId)
             .SingleOrDefaultAsync(cancellationToken);
 
-    /// <summary>原子切换当前版本:先全部置 false,再指定版本置 true。</summary>
+    /// <summary>在同一事务内原子切换当前版本，并拒绝跨章节版本。</summary>
     public async Task SetCurrentAsync(
         Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)
     {
-        await db.Versions
-            .Where(v => v.CanonicalChapterId == chapterId && v.IsCurrent)
-            .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsCurrent, false), cancellationToken)
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        await db.Versions
-            .Where(v => v.Id == versionId)
-            .ExecuteUpdateAsync(s => s.SetProperty(v => v.IsCurrent, true), cancellationToken)
+        var targetExists = await db.Versions
+            .AnyAsync(
+                v => v.Id == versionId && v.CanonicalChapterId == chapterId,
+                cancellationToken)
             .ConfigureAwait(false);
+        if (!targetExists)
+        {
+            throw new InvalidOperationException(
+                $"content version '{versionId}' does not belong to chapter '{chapterId}'.");
+        }
+
+        // 单条 UPDATE 同时把同章节其它版本置为 false，并将目标置为 true，
+        // 避免两条语句之间暴露“没有当前版本”的中间状态。
+        await db.Versions
+            .Where(v => v.CanonicalChapterId == chapterId)
+            .ExecuteUpdateAsync(
+                s => s.SetProperty(v => v.IsCurrent, v => v.Id == versionId),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 }
 
