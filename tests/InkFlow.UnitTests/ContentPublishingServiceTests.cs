@@ -96,6 +96,89 @@ public sealed class ContentPublishingServiceTests
     }
 
     [TestMethod]
+    public async Task New_Publish_Delegates_Current_Selection_To_Injected_Service()
+    {
+        var repo = new InMemoryVersionRepository();
+        var chapterId = Guid.NewGuid();
+        var selector = new RecordingSelectionService((requestedChapterId, _) =>
+        {
+            var selected = repo.Store.Single(version =>
+                version.CanonicalChapterId == requestedChapterId);
+            return Task.FromResult(ContentSelectionOutcome.Ok(
+                selected,
+                changed: true,
+                usedFallback: false,
+                evidence: "unit-test-selection"));
+        });
+        var service = new ContentPublishingService(repo, selector);
+
+        var outcome = await service.PublishAsync(
+            Guid.NewGuid(), chapterId, "source-a", "<p>新版本正文</p>");
+
+        Assert.IsTrue(outcome.IsSuccess);
+        Assert.IsFalse(outcome.Unchanged);
+        Assert.AreEqual(1, selector.ChapterIds.Count);
+        Assert.AreEqual(chapterId, selector.ChapterIds[0]);
+        Assert.AreEqual(0, repo.SetCurrentCalls,
+            "注入选优服务后，当前版本切换应由选优服务负责");
+        Assert.AreEqual(repo.Store.Single().Id, outcome.Version!.Id);
+    }
+
+    [TestMethod]
+    public async Task Duplicate_Publish_Delegates_Current_Selection_Without_Adding_Version()
+    {
+        var repo = new InMemoryVersionRepository();
+        var chapterId = Guid.NewGuid();
+        var source = new ContentPublishingService(repo);
+        await source.PublishAsync(
+            Guid.NewGuid(), chapterId, "source-a", "<p>已存在正文</p>");
+
+        var setCurrentCallsBeforeDuplicate = repo.SetCurrentCalls;
+        var selector = new RecordingSelectionService((requestedChapterId, _) =>
+        {
+            var selected = repo.Store.Single(version =>
+                version.CanonicalChapterId == requestedChapterId);
+            return Task.FromResult(ContentSelectionOutcome.Ok(
+                selected,
+                changed: false,
+                usedFallback: false,
+                evidence: "unit-test-duplicate-selection"));
+        });
+        var service = new ContentPublishingService(repo, selector);
+
+        var outcome = await service.PublishAsync(
+            Guid.NewGuid(), chapterId, "source-b", "<div>已存在正文</div>");
+
+        Assert.IsTrue(outcome.IsSuccess);
+        Assert.IsTrue(outcome.Unchanged);
+        Assert.AreEqual(1, repo.Store.Count);
+        Assert.AreEqual(1, selector.ChapterIds.Count);
+        Assert.AreEqual(setCurrentCallsBeforeDuplicate, repo.SetCurrentCalls);
+        Assert.AreEqual(repo.Store.Single().Id, outcome.Version!.Id);
+    }
+
+    [TestMethod]
+    public async Task New_Publish_Reports_Selection_Failure_And_Leaves_Version_Not_Current()
+    {
+        var repo = new InMemoryVersionRepository();
+        var selector = new RecordingSelectionService((_, _) =>
+            Task.FromResult(ContentSelectionOutcome.Fail(
+                ["selection: source health could not be read."])));
+        var service = new ContentPublishingService(repo, selector);
+
+        var outcome = await service.PublishAsync(
+            Guid.NewGuid(), Guid.NewGuid(), "source-a", "<p>待选正文</p>");
+
+        Assert.IsFalse(outcome.IsSuccess);
+        Assert.IsFalse(outcome.Unchanged);
+        Assert.AreEqual(1, repo.Store.Count);
+        Assert.IsFalse(repo.Store.Single().IsCurrent);
+        Assert.AreEqual(0, repo.SetCurrentCalls);
+        Assert.AreEqual("selection: source health could not be read.", outcome.Errors.Single());
+        Assert.AreEqual(repo.Store.Single().Id, outcome.Version!.Id);
+    }
+
+    [TestMethod]
     public async Task Empty_Normalized_Content_Fails_Clearly()
     {
         var repo = new InMemoryVersionRepository();
@@ -106,5 +189,20 @@ public sealed class ContentPublishingServiceTests
         Assert.IsFalse(outcome.IsSuccess);
         StringAssert.Contains(outcome.Errors[0], "empty document");
         Assert.AreEqual(0, repo.Store.Count);
+    }
+
+    private sealed class RecordingSelectionService(
+        Func<Guid, CancellationToken, Task<ContentSelectionOutcome>> handler)
+        : IContentSelectionService
+    {
+        public List<Guid> ChapterIds { get; } = [];
+
+        public Task<ContentSelectionOutcome> SelectCurrentAsync(
+            Guid canonicalChapterId,
+            CancellationToken cancellationToken = default)
+        {
+            ChapterIds.Add(canonicalChapterId);
+            return handler(canonicalChapterId, cancellationToken);
+        }
     }
 }
