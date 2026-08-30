@@ -131,6 +131,8 @@ docker compose up -d
 
 ### 环境变量
 
+本地复验可先复制 [`.env.example`](.env.example) 为 `.env`，再填写本机或验证环境的值。根目录 `.env` 已被忽略，允许保存本地密码等敏感配置，但不得提交；GHCR 登录 Token 不写入仓库，也不复制到 CI。日常 Docker 验证使用 `docker-compose.build.yml`，只有发布镜像或明确进行镜像一致性复验时才使用 `docker-compose.yml`。
+
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `INKFLOW_DB_PASSWORD` | `inkflow` | PostgreSQL 密码，生产环境务必修改 |

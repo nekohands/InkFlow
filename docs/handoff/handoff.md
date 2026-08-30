@@ -794,6 +794,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 配置边界：本机根目录 `.env` 仅用于读取 Compose、验证和远端连接配置，已由 `.gitignore` 忽略；敏感值不进入仓库、Progress、Handoff 或 CI 日志，GHCR Token 不复制。
 - 当前状态：源码构建 Runtime 证据已补齐，但浏览器/真实设备、阅读 3.0、真实来源/账户和其他人工/生产验收仍是 1.0 Release Gate 待定项。
 
+### 4.70 本地验证配置模板（本轮，2026-08-30）
+
+- 新增根目录 [`.env.example`](../../.env.example)，集中列出源码 Compose、发布 Compose、前端/SLO smoke、OTel、GHCR 备注和 Ubuntu VM 连接配置的键名与安全占位符。
+- 真实 `.env` 继续只保留在本机并由 `.gitignore` 忽略；模板不包含密码、Token、Cookie 或实际部署地址。README 已补充复制模板和敏感值边界说明。
+- 当前状态：配置读取入口已具备可复制模板，不改变 1.0 的人工/真实环境验收边界。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
