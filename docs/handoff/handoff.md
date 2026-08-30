@@ -510,7 +510,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 缺口：Outbox/Inbox 事实和可测试执行层已存在，但此前没有实际 Publisher 或 Worker 后台循环，不能证明消息会从 Outbox 进入 Inbox。
 - 实现：Worker 现在注册 `PostgreSqlInboxMessagePublisher`、`OutboxDispatcher` 与 `OutboxRelayBackgroundService`；relay 使用 `FOR UPDATE SKIP LOCKED`/lease 批量领取，先核对类型、PayloadHash、TraceId，再幂等写入 Inbox，写入成功后才确认 Outbox。考虑到 PostgreSQL `jsonb` 读回会规范化 JSON，Outbox/Inbox 追加受消息大小上限约束的 `RawPayload` 原文列；旧记录缺少原文时沿用已保存 hash，不误算规范化文本。Inbox 新增 TraceId 字段与独立 Migration；`Messaging:Relay` 的轮询、启动延迟、lease、批量和 owner 前缀均有界，日志不记录消息载荷/异常文本。
 - 边界：v1 仅选择同一 PostgreSQL 事实库作为内部耐久 relay，不接入外部 MQ；Inbox 消费轮询和具体业务 Handler 等待接收模块明确后接入，当前不宣称全部消息已消费完成。
-- 回归与证据：首次候选的 PostgreSQL Relay Integration 暴露 `jsonb` 规范化导致的 hash 误判，已新增 RawPayload 修复和旧记录回归；首次候选 Docker `33281790174` GREEN，CI `33281790176` RED，修复后的 Unit/Build/迁移/三宿主 `/health` 和完整 remote gates 待重新执行。当前本机 Docker `npipe://./pipe/docker_engine` 不可用，真实 PostgreSQL Relay 仍 BLOCKED。
+- 回归与证据：首次候选的 PostgreSQL Relay Integration 暴露 `jsonb` 规范化导致的 hash 误判，已新增 RawPayload 修复和旧记录回归。修复后本机 Restore、Release Build（0 warnings / 0 errors）、Unit 460/460、Architecture 1/1、Contract 10/10、迁移模型 11/11、三宿主 `/health` 均 PASS；定向 PostgreSQL Relay Integration 因本机 Docker `npipe://./pipe/docker_engine` 不可用而 BLOCKED。修复候选 `ed4a7a7abc70732df5310546c0af01909b54ac96` 的 [CI 33282208833](https://github.com/nekohands/InkFlow/actions/runs/33282208833)、[Docker 33282208841](https://github.com/nekohands/InkFlow/actions/runs/33282208841)、[Security 33282208838](https://github.com/nekohands/InkFlow/actions/runs/33282208838) 均 GREEN 且 headSha 一致；CI Integration 82 项为 80 passed / 2 skipped。
 - 当前状态：代码为 `Implemented`，整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`；本机 Docker、Inbox Handler/消费闭环、真实来源、阅读 3.0 和人工验收继续按第 6 节处理。
 
 1. **Legado 真机验证（后续人工）**：在阅读 3.0 中导入 `/legado/book-source.json`，验证搜索/详情/目录/正文四步；本轮按用户决定不执行。
@@ -585,6 +585,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ✅ Source Rule 有界请求模板变量：路径/Header/Query/Form 占位符 + 变量上下文预算 + 控制字符/语法失败关闭（`dd39396`；CI `33272774115` / Docker `33272774105` / Security `33272774138` GREEN；真实来源与人工验收待定）
 ✅ Source 默认 CredentialReference 管理 API：Administrator-only 设置/清除 + 有界理由 + 命令审计（`dee61d3`；CI `33279039667` / Docker `33279039645` / Security `33279039666` GREEN；真实 Provider 与人工验收待定）
 ✅ Source Credential Owner Scope 契约：Provider 强制携带 Platform/User/Organization 范围；默认绑定固定 Platform，显式用户/组织引用透传范围（`ee20afe`；CI `33280448686` / Docker `33280448680` / Security `33280448687` GREEN，真实 Provider 与人工验收待定）
+✅ PostgreSQL Outbox Relay 与 Worker 宿主接线 v1：Outbox→Inbox 耐久 relay + `RawPayload` hash 稳定性修复（`ed4a7a7`；CI `33282208833` / Docker `33282208841` / Security `33282208838` GREEN；Inbox Handler/真实与人工验收待定）
 → Reader/PWA 浏览器安装、离线和账户链路人工验收
 → Private Library 真实账户与公共路径隔离人工验收
 → Legado 真机导入/阅读（后续人工）
