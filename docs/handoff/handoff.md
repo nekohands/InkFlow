@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`b7019b7`（管理端/运维/权限非阅读 App runtime smoke、PWA 自动化与 Ubuntu VM 源码运行已完成；CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
+- 最新代码候选 Commit：`0597332`（管理端/运维/权限与 Reader/PWA 账户状态 API runtime smoke、PWA 自动化与 Ubuntu VM 源码运行已完成；CI/Docker/Security 门禁均 GREEN；真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -904,6 +904,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：候选 `b7019b7c6ef7f2999a800ec65b668372c9e7643d` 的 [CI 33311294258](https://github.com/nekohands/InkFlow/actions/runs/33311294258)、[Docker 33311294256](https://github.com/nekohands/InkFlow/actions/runs/33311294256)、[Security 33311294239](https://github.com/nekohands/InkFlow/actions/runs/33311294239) 均 GREEN；CI 实际执行新增 Admin runtime smoke，并通过前端 1.0、SLO、Redis、PostgreSQL 备份恢复和 runtime diagnostics。
 - 边界：按用户决定不启动 MuMu/阅读 3.0；未使用真实 Web 账户、生产凭据或真实第三方来源。真实管理员/Operator 体验、Provider/生产通知、跨设备和阅读 App 验收继续列在第 10 节，不将本轮标记为整体 `Accepted/Completed`。
 
+### 4.84 Reader/PWA 账户与阅读状态 API 非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 按“除阅读 App 外尽量自动化”的要求，新增 scripts/reader-account-runtime-smoke.sh 及结构回归，并接入 CI 源码构建 Runtime；账户页面不由脚本输入真实或人工凭据。
+- 自动化覆盖匿名拒绝、临时 Reader 注册与 auth/me、注册会话登出、登录、Refresh Token 轮换及旧 refresh 失效；阅读偏好默认值/持久化/边界拒绝；空书架/历史/进度 404；CanonicalBook fixture 书架加入/查询/移除、进度保存/读取、当前章节回显、历史联动、非法章节拒绝，以及最终登出后的认证失效。
+- 本机证据：Release Build 0 warnings / 0 errors；reader-account smoke 结构回归、bash -n 和 git diff --check PASS。Windows Docker Engine 仍不可用；ShellCheck 未安装，不作为证据。
+- Ubuntu VM 证据：候选 0597332 使用 docker-compose.build.yml 源码构建 API/Worker/Scheduler/Migrations，健康等待通过；reader-account-runtime-smoke: PASS (register, login, refresh rotation, logout, preferences, shelf, progress, history)；临时账户由 fixture 清理为 disabled，验证结束 Compose 已停止，持久卷保留。
+- 远端证据：候选 05973324870386e67bd3cf6e8c45479b3288f4cf 的 [CI 33312963081](https://github.com/nekohands/InkFlow/actions/runs/33312963081)、[Docker 33312963065](https://github.com/nekohands/InkFlow/actions/runs/33312963065)、[Security 33312963084](https://github.com/nekohands/InkFlow/actions/runs/33312963084) 均 GREEN；CI 的 Reader account smoke script regression 与 Reader account runtime smoke 均实际通过。
+- 边界：本轮不启动 MuMu/阅读 3.0，不输入真实 Web 账户，不把 API smoke 等同于 PWA 页面内的真实登录、安装/独立窗口、跨设备同步或长期体验；整体 1.0 仍保留真实来源、真实账户/安装、阅读 3.0 与生产环境待定项。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -1029,6 +1038,7 @@ Phase 2 及以后：
 - [x] Personal Legado Token v1 的自动化签发、Hash 持久化、header 认证、Personal API 与撤销审计已完成；阅读 3.0 导入、四步阅读和撤销后失效仍待人工执行。
 - [x] Web Reader v1 的服务端渲染、响应式结构、阅读设置与 HTML 安全回归已完成；浏览器四尺寸视觉、焦点、触控和长时间阅读仍待人工执行。
 - [x] Reader/PWA 用户状态 v1 的账户/书架/历史/进度/偏好渐进增强、公开 PWA 壳与 CI Runtime smoke 已完成；Service Worker/壳缓存/离线回退已由 4.82 在 localhost 安全上下文自动验收。
+- [x] Reader/PWA 账户与阅读状态 API 的非阅读 App runtime smoke 已由 4.84 在 Ubuntu VM 源码构建 Compose 中完成；PWA 页面内真实凭据输入仍待人工或真实环境。
 - [ ] Reader/PWA 真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长期体验仍待人工执行；按用户决定不执行阅读 3.0。
 - [x] 已阅读并按 `phase-1-acceptance.md` 建立 Phase 1B 双来源自动化基线。
 - [x] Capability Health v1 与确定性健康感知故障切源已建立自动化基线。

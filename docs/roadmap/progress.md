@@ -1062,6 +1062,15 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选 `b7019b7c6ef7f2999a800ec65b668372c9e7643d` 的 [CI 33311294258](https://github.com/nekohands/InkFlow/actions/runs/33311294258)、[Docker 33311294256](https://github.com/nekohands/InkFlow/actions/runs/33311294256)、[Security 33311294239](https://github.com/nekohands/InkFlow/actions/runs/33311294239) 均 GREEN；CI 的 Admin runtime smoke、前端 1.0、SLO、Redis、PostgreSQL 备份恢复和 diagnostics 均实际通过。
 - 边界：未启动 MuMu/阅读 3.0，未使用真实 Web 账户、生产凭据或真实第三方来源；真实管理员/Operator 体验、生产通知/Provider、跨设备与阅读 App 流程继续保留为人工或真实环境补充，不标记整体 `Accepted/Completed`。
 
+### 4.84 Reader/PWA 账户与阅读状态 API 非阅读 App 自动化运行验收（本轮，2026-08-30）
+
+- 按“除阅读 App 外尽量自动化”的要求，新增 scripts/reader-account-runtime-smoke.sh 及结构回归，并接入 .github/workflows/ci.yml 的源码构建 Runtime；账户页面仍不在脚本中输入真实或人工凭据。
+- 自动化覆盖：匿名 401、临时 Reader 注册与 auth/me、注册会话登出、登录、Refresh Token 轮换及旧 refresh 失效；阅读偏好默认值/持久化/边界拒绝；空书架/历史/进度 404；CanonicalBook fixture 书架加入/查询/移除、进度保存/读取、书架当前章节回显、历史联动、非法章节拒绝，以及最终登出后的认证失效。
+- 本机证据：Release Build 0 warnings / 0 errors；reader-account smoke 结构回归、bash -n 和 git diff --check PASS。Windows Docker Engine 仍不可用。
+- Ubuntu VM 证据：候选 0597332 使用 docker-compose.build.yml 源码构建 API/Worker/Scheduler/Migrations，健康等待通过；reader-account-runtime-smoke: PASS (register, login, refresh rotation, logout, preferences, shelf, progress, history)；临时账户由 fixture 清理为 disabled，验证结束 Compose 已停止，持久卷保留。
+- 远端证据：候选 05973324870386e67bd3cf6e8c45479b3288f4cf 的 CI 33312963081、Docker 33312963065、Security 33312963084 均 GREEN；CI 的 Reader account smoke script regression 与 Reader account runtime smoke 均实际通过。
+- 边界：本轮不启动 MuMu/阅读 3.0，不输入真实 Web 账户，不把 API smoke 等同于 PWA 页面内的真实登录、安装/独立窗口、跨设备同步或长期体验；这些项目继续保留为待定事项。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1142,6 +1151,7 @@ Official Source
 - [x] **Web Reader 浏览器自动验收（1.0 必选）**：已在移动端、平板、桌面端、宽屏检查页面路由、空/错状态、搜索点击、正文壳宽度、焦点和无横向溢出；长标题/长作者真实内容与长时间阅读仍未执行。
 - [x] **Reader/PWA Service Worker 与离线壳非阅读 App 自动化验收（1.0 必选）**：4.82 在 localhost 安全上下文中自动验证 Manifest、激活/接管、壳缓存、API 不可用时的离线回退、恢复后在线页面及浏览器日志；VM IP 明文 HTTP 的 Service Worker 不可用也已记录为部署边界。
 - [ ] **Reader/PWA 真实账户与安装/跨设备补充验收（1.0 必选）**：真实账户会话、安装提示/独立窗口启动、生产 HTTPS、跨设备同步和长期体验仍需可用测试账户与部署环境；按本轮范围不执行阅读 3.0。
+- [x] **Reader/PWA 账户与阅读状态 API 非阅读 App 自动化运行验收**：4.84 已在 Ubuntu VM 源码构建 Compose 中验证注册/登录/刷新/登出、偏好、书架、进度、历史及非法请求边界；PWA 页面内真实凭据输入仍待人工或真实环境。
 - [x] **Private Library 非阅读 App 自动化运行验收**：源码构建 Compose 已由 4.78 的 runtime smoke 覆盖认证、所有权隔离、CRUD、TXT 导入/章节/正文/导出、私有缓存头、公共 API/Legado 直接路径 404，以及公共 Catalog/Reading Shelf 不泄漏。
 - [x] **Private Library 非阅读 App 自动化文件/一致性验收**：源码构建 Compose 已覆盖 TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、所有权及公共路径隔离。
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验、导出文件可读性及长期使用；不作为阅读 App 以外自动化门禁的替代。

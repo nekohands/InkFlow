@@ -74,9 +74,10 @@ All user-visible frontend surfaces already shipped in this repository are part o
 - Reader/PWA: account, shelf, history, offline fallback, manifest, service worker and install enhancement.
 - Operations Center: protected `/admin/operations` workbench for Operator/Administrator users.
 
-The automated frontend gate must run against the current source-built Compose stack and cover the public HTML shell, responsive/accessibility markers, account/shelf/history/offline pages, Manifest, Service Worker, icons, Operations UI contracts and sensitive-data exclusions. The repository entrypoint is `scripts/reader-frontend-runtime-smoke.sh`; its fixture regression is `scripts/tests/reader-frontend-runtime-smoke.test.sh`.
+The automated frontend gate must run against the current source-built Compose stack and cover the public HTML shell, responsive/accessibility markers, account/shelf/history/offline pages, Manifest, Service Worker, icons, Operations UI contracts and sensitive-data exclusions. The repository entrypoints are scripts/reader-frontend-runtime-smoke.sh for frontend contracts and scripts/reader-account-runtime-smoke.sh for authenticated Reader state runtime; their fixture/structure regressions live under scripts/tests/.
 
 The automated gate does not replace human acceptance. Before 1.0 is accepted, the frontend still needs Mobile, Tablet, Desktop and Wide Desktop checks, primary-flow UX checks, keyboard/focus/contrast/touch checks, long-reading and chapter-navigation checks, plus real PWA install/offline and authenticated account-flow checks where applicable. Deferred real-device or manual checks remain explicitly `NOT RUN` until executed.
+The authenticated Reader state runtime entrypoint is scripts/reader-account-runtime-smoke.sh; its structure regression is scripts/tests/reader-account-runtime-smoke.test.sh. It runs against the same source-built Compose stack and does not replace the remaining PWA page, install, cross-device or real-device acceptance.
 
 ### Prohibited shortcuts
 
