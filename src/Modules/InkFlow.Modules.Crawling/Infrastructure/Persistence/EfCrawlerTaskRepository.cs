@@ -1,3 +1,6 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
@@ -6,6 +9,32 @@ using InkFlow.Modules.Sources.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace InkFlow.Modules.Crawling.Infrastructure.Persistence;
+
+/// <summary>
+/// Transaction-scoped locks serialize scheduler dedupe checks for one stable
+/// (source, capability, variable, value) key across API and Scheduler instances.
+/// </summary>
+internal static class CrawlerTaskAdvisoryLock
+{
+    private const int NamespaceKey = 1202;
+
+    public static Task AcquireAsync(
+        CrawlingDbContext db,
+        string sourceId,
+        SourceCapability capability,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken)
+    {
+        var identity = Encoding.UTF8.GetBytes(
+            $"{sourceId}\0{(int)capability}\0{variableName}\0{variableValue}");
+        var hash = BinaryPrimitives.ReadInt32LittleEndian(SHA256.HashData(identity));
+
+        return db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({NamespaceKey}, {hash})",
+            cancellationToken);
+    }
+}
 
 /// <summary>EF Core / Npgsql 仓储实现。租约互斥依赖数据库事务 + 状态条件更新。</summary>
 public sealed class EfCrawlerTaskRepository(
@@ -308,6 +337,62 @@ public sealed class EfCrawlerTaskRepository(
                 variableValue,
                 cancellationToken)
             .ConfigureAwait(false);
+
+    public async Task<bool> TryAddIfNoConflictingTaskAsync(
+        CrawlerTask task,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (string.IsNullOrWhiteSpace(variableName))
+        {
+            throw new ArgumentException("variable name must not be empty.", nameof(variableName));
+        }
+
+        if (!task.Payload.Variables.TryGetValue(variableName, out var taskVariableValue) ||
+            taskVariableValue != variableValue)
+        {
+            throw new ArgumentException(
+                "the task must contain the requested dedupe variable and value.",
+                nameof(variableValue));
+        }
+
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await CrawlerTaskAdvisoryLock
+            .AcquireAsync(
+                db,
+                task.Payload.SourceId,
+                task.Payload.Capability,
+                variableName,
+                variableValue,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (await HasBlockingTaskForCollectionRunAsync(
+                task.Payload.SourceId,
+                task.Payload.Capability,
+                variableName,
+                variableValue,
+                cancellationToken)
+                .ConfigureAwait(false))
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
+        db.Tasks.Add(CrawlerTaskMapper.ToEntity(task));
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await outbox.EnqueueAsync(
+                db,
+                CrawlerIntegrationMessages.TaskCreated(task),
+                cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
 
     public async Task<bool> HasBlockingTaskForCollectionRunAsync(
         string sourceId,

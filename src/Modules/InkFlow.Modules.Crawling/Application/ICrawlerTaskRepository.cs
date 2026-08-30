@@ -65,6 +65,23 @@ public interface ICrawlerTaskRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 在持久化层原子检查并插入一个带去重变量的任务。
+    /// PostgreSQL 实现必须在同一事务中使用稳定 advisory lock；默认实现仅为旧测试替身提供兼容回退。
+    /// </summary>
+    Task<bool> TryAddIfNoConflictingTaskAsync(
+        CrawlerTask task,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default)
+    {
+        return TryAddIfNoConflictingTaskFallbackAsync(
+            task,
+            variableName,
+            variableValue,
+            cancellationToken);
+    }
+
+    /// <summary>
     /// 采集运行重试专用冲突查询。新运行可以重新安排历史死信，
     /// 但仍避免与 Pending/Leased/Running 任务并行抓同一章节。
     /// 默认实现保持旧仓储兼容，具体 EF 实现可忽略死信。
@@ -82,4 +99,25 @@ public interface ICrawlerTaskRepository
             variableName,
             variableValue,
             cancellationToken);
+
+    private async Task<bool> TryAddIfNoConflictingTaskFallbackAsync(
+        CrawlerTask task,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken)
+    {
+        if (await HasConflictingTaskAsync(
+                task.Payload.SourceId,
+                task.Payload.Capability,
+                variableName,
+                variableValue,
+                cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        await AddAsync(task, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
 }

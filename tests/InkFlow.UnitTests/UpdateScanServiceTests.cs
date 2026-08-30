@@ -50,6 +50,27 @@ public sealed class UpdateScanServiceTests
         Assert.AreEqual("book-2", tasks.Store.Single().Payload.Variables["bookId"]);
     }
 
+    [TestMethod]
+    public async Task Update_Scan_Uses_Atomic_Task_Dedupe_Gate()
+    {
+        var sourceBooks = new InMemorySourceBookRepository(
+            SourceBook.Create("atomic-source", "book-1", "第一本", "作者", T0));
+        var tasks = new InMemoryTaskRepository
+        {
+            RequireAtomicDedupe = true,
+        };
+        var scanner = new UpdateScanService(
+            sourceBooks,
+            tasks,
+            new FixedClock(T0));
+
+        var count = await scanner.EnqueueTocScansAsync();
+
+        Assert.AreEqual(1, count);
+        Assert.AreEqual(1, tasks.AtomicDedupeCalls);
+        Assert.AreEqual("book-1", tasks.Store.Single().Payload.Variables["bookId"]);
+    }
+
     private sealed class InMemorySourceBookRepository(params SourceBook[] books) : ISourceBookRepository
     {
         private readonly IReadOnlyList<SourceBook> _books = books;
@@ -80,10 +101,35 @@ public sealed class UpdateScanServiceTests
 
         public HashSet<string> ConflictingBookIds { get; } = [];
 
+        public bool RequireAtomicDedupe { get; init; }
+
+        public int AtomicDedupeCalls { get; private set; }
+
         public Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
         {
+            if (RequireAtomicDedupe)
+            {
+                throw new InvalidOperationException("UpdateScanService must use the atomic dedupe gate.");
+            }
+
             Store.Add(task);
             return Task.CompletedTask;
+        }
+
+        public Task<bool> TryAddIfNoConflictingTaskAsync(
+            CrawlerTask task,
+            string variableName,
+            string variableValue,
+            CancellationToken cancellationToken = default)
+        {
+            AtomicDedupeCalls++;
+            if (variableName == "bookId" && ConflictingBookIds.Contains(variableValue))
+            {
+                return Task.FromResult(false);
+            }
+
+            Store.Add(task);
+            return Task.FromResult(true);
         }
 
         public Task<CrawlerTask?> GetAsync(

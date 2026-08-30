@@ -29,27 +29,22 @@ public sealed class UpdateScanService(
                 continue;
             }
 
-            if (await taskRepository.HasConflictingTaskAsync(
+            var task = CrawlerTask.Create(
+                new CrawlPayload(
                     book.SourceId,
                     SourceCapability.Toc,
-                    "bookId",
-                    book.ExternalBookId,
-                    cancellationToken)
+                    new Dictionary<string, string> { ["bookId"] = book.ExternalBookId }),
+                createdAt: now);
+            if (await taskRepository
+                    .TryAddIfNoConflictingTaskAsync(
+                        task,
+                        "bookId",
+                        book.ExternalBookId,
+                        cancellationToken)
                     .ConfigureAwait(false))
             {
-                continue;
+                enqueued++;
             }
-
-            await taskRepository.AddAsync(
-                CrawlerTask.Create(
-                    new CrawlPayload(
-                        book.SourceId,
-                        SourceCapability.Toc,
-                        new Dictionary<string, string> { ["bookId"] = book.ExternalBookId }),
-                    createdAt: now),
-                cancellationToken)
-                .ConfigureAwait(false);
-            enqueued++;
         }
 
         return enqueued;

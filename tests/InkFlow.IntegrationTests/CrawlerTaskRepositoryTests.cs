@@ -128,6 +128,30 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task Concurrent_Toc_Dedupe_Gate_Allows_Only_One_Task_Insert()
+    {
+        var sourceId = $"concurrent-toc-{Guid.NewGuid():N}";
+        var first = CreateContext();
+        await using var firstDb = first.Db;
+        var second = CreateContext();
+        await using var secondDb = second.Db;
+        var firstTask = CrawlerTask.Create(Payload(sourceId, "book-42"), createdAt: T0);
+        var secondTask = CrawlerTask.Create(Payload(sourceId, "book-42"), createdAt: T0.AddSeconds(1));
+
+        var inserted = await Task.WhenAll(
+            first.Repo.TryAddIfNoConflictingTaskAsync(firstTask, "bookId", "book-42"),
+            second.Repo.TryAddIfNoConflictingTaskAsync(secondTask, "bookId", "book-42"));
+
+        Assert.AreEqual(1, inserted.Count(value => value));
+        await using var verifyDb = CreateContext().Db;
+        var taskCount = await verifyDb.Tasks
+            .CountAsync(task => task.SourceId == sourceId &&
+                                task.Capability == (int)SourceCapability.Toc)
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, taskCount, "并发追更扫描不得为同一本书创建多个 TOC 任务");
+    }
+
+    [TestMethod]
     public async Task Task_Roundtrip_Preserves_Aggregate_State()
     {
         var (_, repo) = CreateContext();
