@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`8e69b46`（代码候选已推送，CI/Docker/Security 全部 GREEN；本轮文档已同步）
+- 最新候选 Commit：`5b13d8e`（私有库文件边界自动化代码候选已推送；Ubuntu VM 源码运行通过，远端 CI/Docker/Security 待本轮确认）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
@@ -764,8 +764,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **阅读 3.0 真机**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content，并记录结果。
 - [ ] **Web Reader 人工 UX/视觉验收**：移动端、桌面端、宽屏、长标题/缺封面/长作者、加载/空/错、键盘焦点、触控和上下章导航。
 - [ ] **Reader/PWA 用户状态人工验收**：验证账户登录/注册、刷新会话、书架/历史/进度/偏好同步、登出、PWA 安装提示、Service Worker 注册和离线提示；本轮按用户决定跳过。
-- [x] **Private Library 非阅读 App 自动化 runtime smoke**：源码构建 Compose 已覆盖认证、所有权隔离、书目 CRUD、TXT 导入/章节/正文/导出、私有缓存头、公共 API/Legado 直接路径 404 和公共 Catalog/Reading Shelf 不泄漏。
-- [ ] **Private Library 真实账户/文件补充验收**：使用真实账户上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖、失败导入无半本书和人工体验；本轮不使用真实账户。
+- [x] **Private Library 非阅读 App 自动化 runtime smoke**：源码构建 Compose 已覆盖认证、所有权隔离、书目 CRUD、TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、公共 API/Legado 直接路径 404 和公共 Catalog/Reading Shelf 不泄漏。
+- [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验与长期使用；不替代自动化门禁。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
 - [x] **linovelib 真实公开页面只读链路**：GPT 内置浏览器已完成 Search → BookInfo → TOC → Content 页面证据；不等同于服务端 RuleAdapter 直连通过。
@@ -863,7 +863,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 公共路径隔离也纳入同一 smoke：私有书/章通过公共 API 和公共 Legado 详情/正文路径返回 404，公共 Catalog 与用户 Reading Shelf 不包含私有书名；不触发第三方来源搜索。
 - VM 源码构建证据：候选 `8e69b46` 的 `docker-compose.build.yml` 四业务镜像构建和健康启动成功，临时 SDK 容器运行结果为 `private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT import/read/export)`；随后停止 Compose，持久数据卷保留。
 - 首轮脚本实跑发现更新请求误用 POST，已修复为 PUT；修复后的代码候选 `8e69b469ee0a56c28d3ba24ec99817cdf1a1f86a` 的 [CI 33305236784](https://github.com/nekohands/InkFlow/actions/runs/33305236784)、[Docker 33305236750](https://github.com/nekohands/InkFlow/actions/runs/33305236750)、[Security 33305236817](https://github.com/nekohands/InkFlow/actions/runs/33305236817) 均 GREEN 且 head SHA 一致。
-- 边界：本轮未使用真实账户、阅读 3.0 或第三方登录；两个临时测试账户因没有账号删除 API 保留在 VM 持久数据库，测试书目已清理。EPUB/重复导入/失败导入、真实账户和阅读 App 流程仍在待定事项中，整体不标记 Accepted/Completed。
+- 边界：本轮未使用真实账户、阅读 3.0 或第三方登录；两个临时测试账户因没有账号删除 API 保留在 VM 持久数据库，测试书目已清理。EPUB/重复导入/失败导入已由 4.79 自动化关闭，真实账户和阅读 App 流程仍在待定事项中，整体不标记 Accepted/Completed。
+
+### 4.79 Private Library 文件边界与失败一致性自动化验收（本轮，2026-08-30）
+
+- 扩展 `scripts/private-library-runtime-smoke.sh` 与脚本回归：TXT 导出 EPUB 后再导入，检查 EPUB 响应类型/文件非空、元数据、章节顺序和正文；重复导入检查独立 PrivateBook 身份及原书不被覆盖；损坏 EPUB 检查 HTTP 400/`invalid_file` 和导入前后书目数量不变。
+- Ubuntu VM 使用 `docker-compose.build.yml` 源码构建四业务镜像并健康启动；临时 SDK 工具容器输出 `private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT/EPUB import/read/export, duplicate isolation, failed-import rollback)`，验证结束后已停止 Compose，持久卷保留。
+- 候选提交 `5b13d8e` 已推送；本轮远端 CI/Docker/Security 尚待确认。真实账户、阅读 3.0 和第三方登录均未使用；测试书目已清理，临时账户因没有账号删除 API 保留。
 
 ## 5. 关键架构不变量
 
