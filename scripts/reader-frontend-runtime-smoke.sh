@@ -96,6 +96,10 @@ contains "$work_dir/reader.html" ':focus-visible'
 contains "$work_dir/reader.html" '@media (max-width: 640px)'
 contains "$work_dir/reader.html" '@media (prefers-reduced-motion: reduce)'
 contains "$work_dir/reader.html" '/reader/manifest.webmanifest'
+contains "$work_dir/reader.html" 'id="reader-install"'
+contains "$work_dir/reader.html" 'beforeinstallprompt'
+contains "$work_dir/reader.html" 'event.preventDefault()'
+contains "$work_dir/reader.html" 'appinstalled'
 not_contains "$work_dir/reader.html" 'X-InkFlow-Legado-Token'
 
 fetch_route /reader/account account.html

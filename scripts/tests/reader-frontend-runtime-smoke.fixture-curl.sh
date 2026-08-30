@@ -27,7 +27,7 @@ fi
 body=""
 case "$url" in
   */reader)
-    body='lang="zh-CN" id="main-content" role="search" class="search-bar" class="skip-link" :focus-visible @media (max-width: 640px) @media (prefers-reduced-motion: reduce) /reader/manifest.webmanifest'
+    body='lang="zh-CN" id="main-content" role="search" class="search-bar" class="skip-link" :focus-visible @media (max-width: 640px) @media (prefers-reduced-motion: reduce) /reader/manifest.webmanifest id="reader-install" beforeinstallprompt event.preventDefault() appinstalled'
     ;;
   */reader/account)
     body='id="reader-login-form" id="reader-register-form" autocomplete="current-password" autocomplete="new-password" sessionStorage rel="manifest" /reader/sw.js aria-live="polite"'

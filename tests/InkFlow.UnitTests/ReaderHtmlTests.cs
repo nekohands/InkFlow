@@ -200,6 +200,20 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Reader_Shell_Exposes_Progressive_Pwa_Install_Enhancement()
+    {
+        var html = ReaderHtml.BookListPage([], query: null);
+
+        StringAssert.Contains(html, "id=\"reader-install\"");
+        StringAssert.Contains(html, "beforeinstallprompt");
+        StringAssert.Contains(html, "event.preventDefault()");
+        StringAssert.Contains(html, "installButton.hidden = false");
+        StringAssert.Contains(html, "await deferredPrompt.prompt()");
+        StringAssert.Contains(html, "appinstalled");
+        StringAssert.Contains(html, "installButton.hidden = true");
+    }
+
+    [TestMethod]
     public void Pwa_Service_Worker_Caches_Only_Public_Shell_And_Provides_Offline_Fallback()
     {
         var script = ReaderHtml.ServiceWorker();
