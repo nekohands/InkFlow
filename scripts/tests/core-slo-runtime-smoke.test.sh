@@ -44,6 +44,7 @@ default_output="$default_evidence_dir/run-output.txt"
 
 printf 'stale evidence\n' > "$default_stale_file"
 chmod 444 "$default_stale_file"
+RUNNER_TEMP= \
 TMPDIR="$default_evidence_dir" \
 INKFLOW_SLO_CURL_BIN="$fixture_curl" \
 INKFLOW_SLO_PROBE_COUNT=1 \
