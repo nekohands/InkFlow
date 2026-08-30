@@ -27,7 +27,8 @@ public sealed class ContentFetchChainService(
     ICrawlerTaskRepository taskRepository,
     TimeProvider clock,
     ISourceHealthReader? healthReader = null,
-    TimeSpan? staleAfter = null)
+    TimeSpan? staleAfter = null,
+    CollectionRunService? collectionRuns = null)
 {
     /// <summary>已抓章节的保鲜期：超过此时长的产物视为过期，允许修订重扫。</summary>
     public static readonly TimeSpan DefaultStaleAfter = TimeSpan.FromDays(7);
@@ -38,7 +39,8 @@ public sealed class ContentFetchChainService(
         string sourceId,
         string externalBookId,
         CancellationToken cancellationToken = default,
-        string? credentialReferenceId = null)
+        string? credentialReferenceId = null,
+        Guid? runId = null)
     {
         var book = await sourceBooks
             .GetAsync(sourceId, externalBookId, cancellationToken)
@@ -68,21 +70,38 @@ public sealed class ContentFetchChainService(
             .ConfigureAwait(false);
 
         var enqueued = 0;
+        var forceRefresh = runId is not null;
         foreach (var chapter in book.Chapters)
         {
+            if (runId is { } activeRunId && collectionRuns is not null &&
+                !await collectionRuns
+                    .CanScheduleFollowUpAsync(activeRunId, cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                break;
+            }
+
             var id = chapter.ExternalChapterId;
             var neverFetched = !fetched.Contains(id);
             var stale = fetched.Contains(id) && !fresh.Contains(id);
-            if (!neverFetched && !stale)
+            if (!forceRefresh && !neverFetched && !stale)
             {
                 continue;
             }
 
-            if (await taskRepository
+            var hasConflict = runId is null
+                ? await taskRepository
                     .HasConflictingTaskAsync(
                         sourceId, SourceCapability.Content, "chapterId", id,
                         cancellationToken)
-                    .ConfigureAwait(false))
+                    .ConfigureAwait(false)
+                : await taskRepository
+                    .HasBlockingTaskForCollectionRunAsync(
+                        sourceId, SourceCapability.Content, "chapterId", id,
+                        cancellationToken,
+                        ignoreDeadLettered: true)
+                    .ConfigureAwait(false);
+            if (hasConflict)
             {
                 continue;
             }
@@ -97,9 +116,12 @@ public sealed class ContentFetchChainService(
                             {
                                 ["bookId"] = externalBookId,
                                 ["chapterId"] = id,
-                                ["reason"] = neverFetched ? "new" : "refetch",
+                                ["reason"] = forceRefresh
+                                    ? "collection-run"
+                                    : neverFetched ? "new" : "refetch",
                             },
-                            credentialReferenceId),
+                            credentialReferenceId,
+                            runId),
                         createdAt: now),
                     cancellationToken)
                 .ConfigureAwait(false);

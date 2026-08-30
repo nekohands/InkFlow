@@ -65,6 +65,58 @@ public static partial class ReaderHtml
           .operations-panel__header h2 { margin: 0; }
           .operations-panel__status { margin: 0 0 0.9rem; }
           .operations-panel__status:empty { display: none; }
+          .operations-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.65rem;
+            align-items: end;
+          }
+          .operations-form__field { display: grid; gap: 0.35rem; min-width: 0; }
+          .operations-form__field label { color: var(--reader-muted); font-size: 0.82rem; font-weight: 700; }
+          .operations-form input,
+          .operations-form select {
+            width: 100%;
+            min-height: 2.7rem;
+            padding: 0.55rem 0.7rem;
+            border: 1px solid var(--reader-border);
+            border-radius: 0.65rem;
+            background: var(--reader-bg);
+            color: var(--reader-text);
+          }
+          .operations-form__actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+          .operations-form__hint { grid-column: 1 / -1; margin: 0; color: var(--reader-muted); font-size: 0.82rem; }
+          .operations-run-list,
+          .operations-package-list { display: grid; gap: 0.75rem; padding: 0; margin: 1rem 0 0; list-style: none; }
+          .operations-run-card,
+          .operations-package-card {
+            display: grid;
+            gap: 0.65rem;
+            padding: 0.95rem 1rem;
+            border: 1px solid var(--reader-border);
+            border-radius: 0.8rem;
+            background: var(--reader-bg);
+          }
+          .operations-run-card__header,
+          .operations-package-card__header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+          }
+          .operations-run-card__title,
+          .operations-package-card__title { margin: 0; font-weight: 750; overflow-wrap: anywhere; }
+          .operations-run-card__meta,
+          .operations-package-card__meta { margin: 0; color: var(--reader-muted); font-size: 0.82rem; overflow-wrap: anywhere; }
+          .operations-run-card__url { margin: 0; color: var(--reader-muted); font-size: 0.78rem; overflow-wrap: anywhere; }
+          .operations-run-card__progress { display: grid; gap: 0.35rem; }
+          .operations-run-card__progress progress { width: 100%; height: 0.55rem; accent-color: var(--reader-accent); }
+          .operations-run-card__actions,
+          .operations-package-card__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+          .operations-run-card__actions .button,
+          .operations-package-card__actions .button { min-height: 2.35rem; padding-block: 0.42rem; font-size: 0.82rem; }
+          .operations-package-card__actions a.button { display: inline-flex; align-items: center; text-decoration: none; }
+          .operations-run-card__error,
+          .operations-package-card__error { margin: 0; color: #8e321f; font-size: 0.84rem; overflow-wrap: anywhere; }
           .operations-state {
             margin: 0;
             padding: 0.7rem 0.85rem;
@@ -195,6 +247,9 @@ public static partial class ReaderHtml
             .operations-toolbar .button { width: 100%; }
             .operations-panel__header { align-items: flex-start; flex-direction: column; }
             .operations-card__header { flex-direction: column; }
+            .operations-form { grid-template-columns: 1fr; }
+            .operations-form__actions { flex-direction: column; }
+            .operations-form__actions .button { width: 100%; }
             .operations-history-controls { align-items: stretch; flex-direction: column; }
             .operations-history-controls__actions { flex-direction: column; }
             .operations-history-controls .button { width: 100%; }
@@ -218,6 +273,17 @@ public static partial class ReaderHtml
           const actionStatus = document.getElementById("operations-action-status");
           const actionReason = document.getElementById("operations-action-reason");
           const actionSubmit = document.getElementById("operations-action-submit");
+          const collectionForm = document.getElementById("operations-collection-form");
+          const collectionUrl = document.getElementById("operations-collection-url");
+          const collectionSubmit = document.getElementById("operations-collection-submit");
+          const collectionStatus = document.getElementById("operations-collection-status");
+          const collectionList = document.getElementById("operations-collection-list");
+          const packageForm = document.getElementById("operations-package-form");
+          const packageBookId = document.getElementById("operations-package-book-id");
+          const packageFormat = document.getElementById("operations-package-format");
+          const packageSubmit = document.getElementById("operations-package-submit");
+          const packageStatus = document.getElementById("operations-package-status");
+          const packageList = document.getElementById("operations-package-list");
           const historyPanel = document.getElementById("operations-history");
           const historyStatus = document.getElementById("operations-history-status");
           const historyTable = document.getElementById("operations-history-table");
@@ -238,6 +304,10 @@ public static partial class ReaderHtml
           let loading = false;
           let historyLoading = false;
           let historyCursor = null;
+          let collectionLoading = false;
+          let packageLoading = false;
+          const packageIds = [];
+          const packageValues = new Map();
 
           const text = (value, fallback = "") => {
             if (value === null || value === undefined) return fallback;
@@ -257,11 +327,15 @@ public static partial class ReaderHtml
           const roleLabel = (role) => ({ Operator: "运营", Administrator: "管理员", Reader: "读者" }[role] || "未知角色");
           const sectionLabel = (status) => ({ ready: "正常", partial: "部分可用", unavailable: "不可用" }[String(status).toLowerCase()] || "未知");
           const healthLabel = (status) => ({ Unknown: "待探测", Healthy: "健康", Degraded: "降级", Unhealthy: "不健康", Disabled: "已停用" }[status] || text(status, "未知"));
+          const runStatusLabel = (status) => ({ pending: "等待中", running: "采集中", paused: "已暂停", stopping: "停止中", completed: "已完成", failed: "失败", stopped: "已停止", cancelled: "已取消" }[String(status).toLowerCase()] || text(status, "未知"));
+          const runStageLabel = (stage) => ({ bookinfo: "书籍信息", toc: "目录", content: "正文" }[String(stage).toLowerCase()] || text(stage, "未知阶段"));
+          const packageStatusLabel = (status) => ({ queued: "排队中", running: "打包中", completed: "已完成", failed: "失败", expired: "已过期" }[String(status).toLowerCase()] || text(status, "未知"));
+          const controlLabel = (action) => ({ pause: "暂停", resume: "恢复", stop: "停止", cancel: "取消" }[String(action).toLowerCase()] || "执行");
           const statusTone = (value) => {
             const normalized = String(value || "").toLowerCase();
-            if (["ready", "healthy", "replayed", "resolved"].includes(normalized)) return "ready";
-            if (["partial", "degraded", "unknown", "opened"].includes(normalized)) return "partial";
-            if (["unavailable", "unhealthy", "disabled", "issues_found", "error"].includes(normalized)) return "danger";
+            if (["ready", "healthy", "replayed", "resolved", "completed"].includes(normalized)) return "ready";
+            if (["partial", "degraded", "unknown", "opened", "pending", "running", "paused", "stopping", "queued"].includes(normalized)) return "partial";
+            if (["unavailable", "unhealthy", "disabled", "issues_found", "error", "failed", "cancelled"].includes(normalized)) return "danger";
             return "neutral";
           };
           const badge = (value, label = value) => {
@@ -451,6 +525,247 @@ public static partial class ReaderHtml
               row.append(source, reason, attempts, time, state, action);
               body?.append(row);
             }
+          };
+          const setPanelStatus = (element, message, tone = "neutral") => {
+            if (!element) return;
+            element.replaceChildren();
+            if (message) element.append(node("p", "operations-state operations-state--" + tone, message));
+          };
+          const openPackageForBook = (bookId) => {
+            if (!packageBookId || !asGuid(bookId)) return;
+            packageBookId.value = bookId;
+            packageBookId.focus();
+            packageBookId.scrollIntoView({ behavior: "smooth", block: "center" });
+          };
+          const rerunCollection = (run) => {
+            const value = text(run?.inputUrl, "");
+            if (!value || !collectionUrl) return;
+            collectionUrl.value = value;
+            collectionUrl.focus();
+            collectionUrl.scrollIntoView({ behavior: "smooth", block: "center" });
+          };
+          const createRunControlButton = (run, action, label) => {
+            const button = node("button", "button", label);
+            button.type = "button";
+            button.addEventListener("click", () => openActionDialog({
+              action: "run-control",
+              runId: asGuid(run?.id),
+              controlAction: action,
+              title: label + " · " + text(run?.sourceId, "未知来源"),
+              detail: "该命令会记录操作理由。暂停可恢复；停止和取消完成后不可继续。",
+            }));
+            return button;
+          };
+          const renderCollectionRuns = (values) => {
+            collectionList?.replaceChildren();
+            if (!Array.isArray(values) || values.length === 0) {
+              setPanelStatus(collectionStatus, "暂无采集运行。请输入一本已登记公共来源的书籍地址开始。", "ready");
+              return;
+            }
+            setPanelStatus(collectionStatus, "已加载 " + values.length + " 个最近采集运行。", "ready");
+            for (const run of values) {
+              const runId = asGuid(run?.id);
+              if (!runId) continue;
+              const card = node("li", "operations-run-card");
+              const header = node("div", "operations-run-card__header");
+              const titleWrap = node("div");
+              titleWrap.append(node("p", "operations-run-card__title", text(run?.sourceId, "未知来源") + " · " + text(run?.externalBookId, "未知书籍")));
+              titleWrap.append(node("p", "operations-run-card__meta", "运行 " + runId + " · 阶段：" + runStageLabel(run?.stage)));
+              header.append(titleWrap, badge(run?.status, runStatusLabel(run?.status)));
+              card.append(header);
+              card.append(node("p", "operations-run-card__url", "地址：" + text(run?.inputUrl, "未记录")));
+              const progressWrap = node("div", "operations-run-card__progress");
+              const progress = document.createElement("progress");
+              progress.max = 100;
+              progress.setAttribute("aria-valuemin", "0");
+              progress.setAttribute("aria-valuemax", "100");
+              const knownProgress = run?.progressPercent !== null && run?.progressPercent !== undefined;
+              if (knownProgress) {
+                const percent = Math.max(0, Math.min(100, Math.trunc(asNumber(run?.progressPercent))));
+                progress.value = percent;
+                progress.setAttribute("aria-valuenow", String(percent));
+              } else {
+                progress.removeAttribute("value");
+                progress.removeAttribute("aria-valuenow");
+              }
+              progress.setAttribute("aria-label", "采集进度");
+              progressWrap.append(progress);
+              const progressLabel = knownProgress
+                ? Math.max(0, Math.min(100, Math.trunc(asNumber(run?.progressPercent)))) + "%"
+                : "正在发现总量";
+              progressWrap.append(node("p", "operations-run-card__meta", runStatusLabel(run?.status) + " · " + progressLabel + " · 已完成 " + Math.max(0, Math.trunc(asNumber(run?.completedTaskCount))) + " / " + Math.max(0, Math.trunc(asNumber(run?.totalTaskCount))) + " 个任务"));
+              card.append(progressWrap);
+              if (run?.lastError) card.append(node("p", "operations-run-card__error", "最近错误：" + text(run.lastError)));
+              const canonicalId = asGuid(run?.canonicalBookId);
+              if (canonicalId) card.append(node("p", "operations-run-card__meta", "正典书 ID：" + canonicalId));
+              const actions = node("div", "operations-run-card__actions");
+              const status = String(run?.status || "").toLowerCase();
+              if (["pending", "running"].includes(status)) {
+                actions.append(createRunControlButton(run, "pause", "暂停"));
+                actions.append(createRunControlButton(run, "stop", "停止"));
+                actions.append(createRunControlButton(run, "cancel", "取消"));
+              } else if (status === "paused") {
+                actions.append(createRunControlButton(run, "resume", "恢复"));
+                actions.append(createRunControlButton(run, "stop", "停止"));
+                actions.append(createRunControlButton(run, "cancel", "取消"));
+              } else if (status === "stopping") {
+                actions.append(createRunControlButton(run, "cancel", "立即取消"));
+              }
+              if (["failed", "stopped", "cancelled"].includes(status)) {
+                const rerunButton = node("button", "button", "重新开始");
+                rerunButton.type = "button";
+                rerunButton.addEventListener("click", () => rerunCollection(run));
+                actions.append(rerunButton);
+              }
+              if (canonicalId) {
+                const packageButton = node("button", "button", "为此书打包");
+                packageButton.type = "button";
+                packageButton.addEventListener("click", () => openPackageForBook(canonicalId));
+                actions.append(packageButton);
+              }
+              card.append(actions);
+              collectionList?.append(card);
+            }
+          };
+          const loadCollectionRuns = async () => {
+            if (collectionLoading || !client?.isSignedIn() || !operationRoles.has(currentRole)) return;
+            collectionLoading = true;
+            const response = await client.apiFetch("/api/v1/admin/collection-runs?limit=50");
+            if (response === null) {
+              setPanelStatus(collectionStatus, "采集运行暂时不可用，请稍后刷新。", "danger");
+              collectionLoading = false;
+              return;
+            }
+            if (response.status === 401) {
+              client.clearSession();
+              showLogin("会话已失效，请重新登录后访问运维中心。");
+              collectionLoading = false;
+              return;
+            }
+            if (response.status === 403) {
+              setPanelStatus(collectionStatus, "当前账户没有读取采集运行的权限。", "danger");
+              collectionLoading = false;
+              return;
+            }
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+              setPanelStatus(collectionStatus, errorMessage(response.status, payload), "danger");
+              collectionLoading = false;
+              return;
+            }
+            renderCollectionRuns(payload?.data);
+            collectionLoading = false;
+          };
+          const renderPackages = () => {
+            packageList?.replaceChildren();
+            if (!packageValues.size) {
+              setPanelStatus(packageStatus, "暂无打包任务。可填写采集运行卡片中的正典书 ID。", "ready");
+              return;
+            }
+            setPanelStatus(packageStatus, "已加载 " + packageValues.size + " 个打包任务。", "ready");
+            for (const packageValue of packageValues.values()) {
+              const packageId = asGuid(packageValue?.id);
+              if (!packageId) continue;
+              const card = node("li", "operations-package-card");
+              const header = node("div", "operations-package-card__header");
+              const titleWrap = node("div");
+              titleWrap.append(node("p", "operations-package-card__title", text(packageValue?.format, "未知格式").toUpperCase() + " · " + packageStatusLabel(packageValue?.status)));
+              titleWrap.append(node("p", "operations-package-card__meta", "任务 " + packageId + " · 书籍 " + (asGuid(packageValue?.canonicalBookId) || "无效 ID")));
+              header.append(titleWrap, badge(packageValue?.status, packageStatusLabel(packageValue?.status)));
+              card.append(header);
+              card.append(node("p", "operations-package-card__meta", Math.max(0, Math.trunc(asNumber(packageValue?.progressPercent))) + "% · 已完成 " + Math.max(0, Math.trunc(asNumber(packageValue?.completedChapterCount))) + " / " + Math.max(0, Math.trunc(asNumber(packageValue?.totalChapterCount))) + " 章"));
+              if (packageValue?.failureReason) card.append(node("p", "operations-package-card__error", "最近错误：" + text(packageValue.failureReason)));
+              const actions = node("div", "operations-package-card__actions");
+              if (String(packageValue?.status || "").toLowerCase() === "completed") {
+                const link = node("a", "button", "下载 " + text(packageValue?.format, "书籍包").toUpperCase());
+                link.href = "/api/v1/admin/packages/" + packageId + "/download";
+                link.setAttribute("download", "");
+                actions.append(link);
+              }
+              card.append(actions);
+              packageList?.append(card);
+            }
+          };
+          const loadPackages = async () => {
+            if (packageLoading || !client?.isSignedIn() || !operationRoles.has(currentRole) || !packageIds.length) return;
+            packageLoading = true;
+            for (const packageId of packageIds.slice()) {
+              const response = await client.apiFetch("/api/v1/admin/packages/" + encodeURIComponent(packageId));
+              if (response?.status === 401) {
+                client.clearSession();
+                showLogin("会话已失效，请重新登录后访问运维中心。");
+                packageLoading = false;
+                return;
+              }
+              if (response?.status === 404) {
+                packageValues.delete(packageId);
+                const index = packageIds.indexOf(packageId);
+                if (index >= 0) packageIds.splice(index, 1);
+                continue;
+              }
+              if (!response?.ok) continue;
+              const value = await response.json().catch(() => null);
+              if (value?.id) packageValues.set(packageId, value);
+            }
+            renderPackages();
+            packageLoading = false;
+          };
+          const startCollection = async () => {
+            const value = String(collectionUrl?.value || "").trim();
+            if (!value || value.length > 2048) {
+              setPanelStatus(collectionStatus, "请输入 1–2048 个字符的书籍地址。", "danger");
+              collectionUrl?.focus();
+              return;
+            }
+            if (collectionSubmit) collectionSubmit.disabled = true;
+            setPanelStatus(collectionStatus, "正在创建采集运行…");
+            const response = await client.apiFetch("/api/v1/admin/collection-runs", {
+              method: "POST",
+              body: JSON.stringify({ url: value })
+            });
+            const payload = response ? await response.json().catch(() => null) : null;
+            if (response?.ok) {
+              if (collectionUrl) collectionUrl.value = "";
+              setPanelStatus(collectionStatus, payload?.status === "reused" ? "已复用同一来源书籍的进行中采集运行。" : "采集运行已创建，Worker 将异步执行。", "ready");
+              void loadCollectionRuns();
+            } else if (response?.status === 401) {
+              client.clearSession();
+              showLogin("会话已失效，请重新登录后访问运维中心。");
+            } else {
+              setPanelStatus(collectionStatus, "地址不受支持或采集运行创建失败，请确认来源已登记。", "danger");
+            }
+            if (collectionSubmit) collectionSubmit.disabled = false;
+          };
+          const startPackage = async () => {
+            const bookId = asGuid(String(packageBookId?.value || "").trim());
+            const format = text(packageFormat?.value, "").toLowerCase();
+            if (!bookId || !["zip", "epub", "txt"].includes(format)) {
+              setPanelStatus(packageStatus, "请输入有效的正典书 ID，并选择 ZIP、EPUB 或 TXT。", "danger");
+              packageBookId?.focus();
+              return;
+            }
+            if (packageSubmit) packageSubmit.disabled = true;
+            setPanelStatus(packageStatus, "正在创建 " + format.toUpperCase() + " 打包任务…");
+            const response = await client.apiFetch("/api/v1/admin/books/" + encodeURIComponent(bookId) + "/packages", {
+              method: "POST",
+              body: JSON.stringify({ format })
+            });
+            const payload = response ? await response.json().catch(() => null) : null;
+            const packageId = asGuid(payload?.package?.id);
+            if (response?.ok && packageId) {
+              if (!packageIds.includes(packageId)) packageIds.unshift(packageId);
+              packageValues.set(packageId, payload.package);
+              if (packageBookId) packageBookId.value = "";
+              renderPackages();
+              setPanelStatus(packageStatus, "打包任务已创建，完成后可下载。", "ready");
+              void loadPackages();
+            } else if (response?.status === 401) {
+              client.clearSession();
+              showLogin("会话已失效，请重新登录后访问运维中心。");
+            } else {
+              setPanelStatus(packageStatus, "打包任务创建失败，请确认书籍存在且没有被下架。", "danger");
+            }
+            if (packageSubmit) packageSubmit.disabled = false;
           };
           const renderConsistency = (section) => {
             const status = document.getElementById("operations-consistency-status");
@@ -696,6 +1011,8 @@ public static partial class ReaderHtml
             }
             renderSnapshot(payload);
             setNotice(authStatus, "已更新 · " + dateLabel(payload?.generatedAt) + " · " + roleLabel(currentRole), "ready");
+            void loadCollectionRuns();
+            void loadPackages();
             void loadHistory(true);
             loading = false;
             if (refreshButton) refreshButton.disabled = false;
@@ -708,7 +1025,11 @@ public static partial class ReaderHtml
             actionReason.value = "";
             actionStatus.textContent = "";
             actionStatus.className = "operations-dialog__status";
-            actionSubmit.textContent = action.action === "replay" ? "确认重放" : (action.action === "disable" ? "确认停用" : "确认恢复");
+            actionSubmit.textContent = action.action === "replay"
+              ? "确认重放"
+              : action.action === "run-control"
+                ? "确认" + controlLabel(action.controlAction)
+                : (action.action === "disable" ? "确认停用" : "确认恢复");
             actionSubmit.disabled = false;
             actionDialog.showModal();
             actionReason.focus();
@@ -732,6 +1053,8 @@ public static partial class ReaderHtml
             let path = "";
             if (pendingAction.action === "replay") {
               path = "/api/v1/admin/crawler/dead-letters/" + encodeURIComponent(pendingAction.deadLetterId) + "/replay";
+            } else if (pendingAction.action === "run-control") {
+              path = "/api/v1/admin/collection-runs/" + encodeURIComponent(pendingAction.runId) + "/control";
             } else {
               path = "/api/v1/admin/sources/" + encodeURIComponent(pendingAction.sourceId) + "/health/" + encodeURIComponent(pendingAction.capability) + "/" + pendingAction.action;
             }
@@ -744,12 +1067,15 @@ public static partial class ReaderHtml
               const taskId = asGuid(payload?.replayTaskId);
               actionStatus.textContent = pendingAction.action === "replay"
                 ? (payload?.status === "AlreadyReplayed" ? "该死信已经重放过。" : "重放任务已创建。") + (taskId ? " 新任务：" + taskId : "")
-                : (pendingAction.action === "disable" ? "能力已停用。" : "能力已恢复，等待真实探针确认。");
+                : pendingAction.action === "run-control"
+                  ? "采集运行控制命令已提交。"
+                  : (pendingAction.action === "disable" ? "能力已停用。" : "能力已恢复，等待真实探针确认。");
               actionStatus.className = "operations-dialog__status operations-dialog__status--ready";
               actionSubmit.disabled = true;
               window.setTimeout(() => {
                 closeActionDialog();
                 void loadSnapshot();
+                void loadCollectionRuns();
               }, 700);
               return;
             }
@@ -765,6 +1091,14 @@ public static partial class ReaderHtml
           };
 
           refreshButton?.addEventListener("click", () => { void loadSnapshot(); });
+          collectionForm?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            void startCollection();
+          });
+          packageForm?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            void startPackage();
+          });
           historyRefresh?.addEventListener("click", () => { void loadHistory(true); });
           historyMore?.addEventListener("click", () => { void loadHistory(false); });
           document.getElementById("operations-action-close")?.addEventListener("click", closeActionDialog);
@@ -775,6 +1109,12 @@ public static partial class ReaderHtml
           });
           actionDialog?.addEventListener("close", () => { pendingAction = null; });
           void loadSnapshot();
+          window.setInterval(() => {
+            if (operationRoles.has(currentRole) && client?.isSignedIn()) {
+              void loadCollectionRuns();
+              void loadPackages();
+            }
+          }, 4000);
         })();
         </script>
         """;
@@ -804,6 +1144,46 @@ public static partial class ReaderHtml
                   <dl class="operations-summary__item"><dt>采集死信</dt><dd id="operations-summary-crawler"></dd></dl>
                   <dl class="operations-summary__item"><dt>一致性</dt><dd id="operations-summary-consistency"></dd></dl>
                   <dl class="operations-summary__item"><dt>快照时间</dt><dd id="operations-generated-at">—</dd></dl>
+                </section>
+                <section class="operations-panel" aria-labelledby="operations-collection-title">
+                  <header class="operations-panel__header">
+                    <h2 id="operations-collection-title">书籍采集</h2>
+                    <span class="muted">地址入口 · 异步执行</span>
+                  </header>
+                  <form id="operations-collection-form" class="operations-form">
+                    <div class="operations-form__field">
+                      <label for="operations-collection-url">已登记公共来源的书籍地址</label>
+                      <input id="operations-collection-url" type="url" maxlength="2048" required placeholder="https://example.com/book/…" autocomplete="off">
+                    </div>
+                    <div class="operations-form__actions"><button id="operations-collection-submit" class="button button--primary" type="submit">开始采集</button></div>
+                    <p class="operations-form__hint">只接受已登记来源的精确书籍页面；不做代理、不绕过登录、付费、VIP、验证码或访问控制。</p>
+                  </form>
+                  <div id="operations-collection-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                  <ul id="operations-collection-list" class="operations-run-list" aria-label="采集运行列表"></ul>
+                </section>
+                <section class="operations-panel" aria-labelledby="operations-package-title">
+                  <header class="operations-panel__header">
+                    <h2 id="operations-package-title">书籍打包</h2>
+                    <span class="muted">完整快照 · 不覆盖旧包</span>
+                  </header>
+                  <form id="operations-package-form" class="operations-form">
+                    <div class="operations-form__field">
+                      <label for="operations-package-book-id">正典书 ID</label>
+                      <input id="operations-package-book-id" type="text" maxlength="36" required placeholder="从采集运行卡片复制正典书 ID" autocomplete="off">
+                    </div>
+                    <div class="operations-form__field">
+                      <label for="operations-package-format">格式</label>
+                      <select id="operations-package-format">
+                        <option value="epub">EPUB 3</option>
+                        <option value="txt">单文件 TXT</option>
+                        <option value="zip">ZIP</option>
+                      </select>
+                    </div>
+                    <div class="operations-form__actions"><button id="operations-package-submit" class="button button--primary" type="submit">创建打包任务</button></div>
+                    <p class="operations-form__hint">只有全部必需章节存在当前已发布正文时，任务才会生成可下载文件。</p>
+                  </form>
+                  <div id="operations-package-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                  <ul id="operations-package-list" class="operations-package-list" aria-label="书籍打包任务列表"></ul>
                 </section>
                 <section class="operations-panel" aria-labelledby="operations-sources-title">
                   <header class="operations-panel__header">

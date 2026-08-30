@@ -21,6 +21,18 @@ public sealed class RuleBasedSourceAdapter(
 {
     public string SourceId => source.Id;
 
+    public bool TryResolveBookUrl(Uri url, out string externalBookId)
+    {
+        externalBookId = string.Empty;
+        var rule = source.FindRule(SourceCapability.BookInfo);
+        if (rule is null)
+        {
+            return false;
+        }
+
+        return TryExtractBookId(rule.Request.PathTemplate, url.AbsolutePath, out externalBookId);
+    }
+
     private readonly SourceRuleExecutionLimits _limits = ResolveLimits(ruleAdapter, limits);
 
     private static readonly char[] Tab = ['\t'];
@@ -291,5 +303,56 @@ public sealed class RuleBasedSourceAdapter(
         }
 
         return id.Length == 0 ? null : id;
+    }
+
+    private static bool TryExtractBookId(
+        string pathTemplate,
+        string actualPath,
+        out string externalBookId)
+    {
+        externalBookId = string.Empty;
+        const string placeholder = "{bookId}";
+        var placeholderIndex = pathTemplate.IndexOf(placeholder, StringComparison.Ordinal);
+        if (placeholderIndex < 0 ||
+            pathTemplate.IndexOf('{', placeholderIndex + placeholder.Length) >= 0 ||
+            pathTemplate.IndexOf('}', placeholderIndex + placeholder.Length) >= 0)
+        {
+            return false;
+        }
+
+        var prefix = pathTemplate[..placeholderIndex];
+        var suffix = pathTemplate[(placeholderIndex + placeholder.Length)..];
+        if (!actualPath.StartsWith(prefix, StringComparison.Ordinal) ||
+            !actualPath.EndsWith(suffix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var start = prefix.Length;
+        var length = actualPath.Length - prefix.Length - suffix.Length;
+        if (length <= 0)
+        {
+            return false;
+        }
+
+        var encodedId = actualPath.Substring(start, length);
+        string decodedId;
+        try
+        {
+            decodedId = Uri.UnescapeDataString(encodedId);
+        }
+        catch (UriFormatException)
+        {
+            return false;
+        }
+
+        if (decodedId.Length == 0 ||
+            decodedId.Any(character => character is '/' or '\\' || char.IsControl(character)))
+        {
+            return false;
+        }
+
+        externalBookId = decodedId;
+        return true;
     }
 }

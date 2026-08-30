@@ -23,6 +23,16 @@ public interface ISourceAdapter
     /// <summary>该适配器服务的来源标识。</summary>
     string SourceId { get; }
 
+    /// <summary>
+    /// 将来源自己的书籍页面 URL 解析为外部书籍 ID。
+    /// 默认不支持 URL 入口，避免把任意 URL 当成代理目标。
+    /// </summary>
+    bool TryResolveBookUrl(Uri url, out string externalBookId)
+    {
+        externalBookId = string.Empty;
+        return false;
+    }
+
     /// <summary>按关键词搜索书目。</summary>
     Task<IReadOnlyList<SourceSearchResult>> SearchAsync(string keyword, CancellationToken cancellationToken = default);
 

@@ -8,12 +8,14 @@ public sealed class CrawlingDbContext(DbContextOptions<CrawlingDbContext> option
     : ModuleDbContext(options, CrawlingSchema.Name)
 {
     public DbSet<CrawlerTaskEntity> Tasks => Set<CrawlerTaskEntity>();
+    public DbSet<CollectionRunEntity> Runs => Set<CollectionRunEntity>();
     public DbSet<DeadLetterEntity> DeadLetters => Set<DeadLetterEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfiguration(new CrawlerTaskEntityConfiguration());
+        modelBuilder.ApplyConfiguration(new CollectionRunEntityConfiguration());
         modelBuilder.ApplyConfiguration(new DeadLetterEntityConfiguration());
     }
 }

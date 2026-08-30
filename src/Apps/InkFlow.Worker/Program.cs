@@ -83,6 +83,7 @@ builder.Services.AddScoped<ICrawlerTaskRepository>(sp =>
     sp.GetRequiredService<EfCrawlerTaskRepository>());
 builder.Services.AddScoped<ICrawlerTaskRepairRepository>(sp =>
     sp.GetRequiredService<EfCrawlerTaskRepository>());
+builder.Services.AddScoped<ICollectionRunRepository, EfCollectionRunRepository>();
 builder.Services.AddScoped<ISourceRepository, EfSourceRepository>();
 builder.Services.AddScoped<ISourceBookRepository, EfSourceBookRepository>();
 builder.Services.AddScoped<IFetchArtifactRepository, EfFetchArtifactRepository>();
@@ -100,9 +101,18 @@ builder.Services.AddSingleton<CrawlerFailureReporter>();
 builder.Services.AddScoped<IMatchCandidateRepository, EfMatchCandidateRepository>();
 builder.Services.AddScoped<IChapterMappingRepository, EfChapterMappingRepository>();
 builder.Services.AddScoped<IContentVersionRepository, EfContentVersionRepository>();
+builder.Services.AddScoped<IContentPolicyRepository, EfContentPolicyRepository>();
+builder.Services.AddScoped<ContentPolicyService>();
+builder.Services.AddScoped<IContentPolicyReader>(sp =>
+    sp.GetRequiredService<ContentPolicyService>());
 builder.Services.AddScoped<IContentSelectionDecisionRepository, EfContentSelectionDecisionRepository>();
 builder.Services.AddScoped<IContentSelectionService, ContentSelectionService>();
 builder.Services.AddScoped<ContentPublishingService>();
+builder.Services.AddSingleton(BookPackageOptions.FromEnvironment());
+builder.Services.AddSingleton<IBookPackageBuilder, BookPackageBuilder>();
+builder.Services.AddSingleton<IBookPackageArtifactStore, FileBookPackageArtifactStore>();
+builder.Services.AddScoped<IBookPackageJobRepository, EfBookPackageJobRepository>();
+builder.Services.AddScoped<BookPackageService>();
 
 builder.Services.AddHttpClient<ISourceHttpClient, ProductionSafeSourceHttpClient>()
     .ConfigurePrimaryHttpMessageHandler(sp =>
@@ -117,6 +127,7 @@ builder.Services.AddHttpClient<SeventeenKSourceAdapter>()
 builder.Services.AddScoped<ISelectorEvaluator, RuleSelectorEvaluator>();
 builder.Services.AddScoped<RuleAdapter>();
 builder.Services.AddScoped<SourceCatalogService>();
+builder.Services.AddScoped<CanonicalBookMatchingService>();
 builder.Services.AddScoped<CanonicalChapterMappingService>();
 builder.Services.AddScoped<SourceContentService>();
 builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory(
@@ -127,6 +138,9 @@ builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory
         sp.GetRequiredService<KanunuSourceAdapter>(),
         sp.GetRequiredService<SeventeenKSourceAdapter>(),
     ]));
+builder.Services.AddScoped<SourceBookUrlResolver>();
+builder.Services.AddScoped<CollectionRunService>();
+builder.Services.AddScoped<BookInfoSyncTaskHandler>();
 builder.Services.AddScoped<TocSyncTaskHandler>();
 builder.Services.AddScoped<ContentFetchTaskHandler>();
 builder.Services.AddScoped<ContentFetchChainService>();
@@ -137,6 +151,7 @@ builder.Services.AddScoped<ICrawlerTaskExecutor>(sp =>
 builder.Services.AddScoped<ICrawlerTaskProcessor, CrawlerTaskProcessor>();
 builder.Services.AddScoped<IIntegrationMessageHandler, CrawlerTaskCreatedMessageHandler>();
 builder.Services.AddHostedService<TaskPollingService>();
+builder.Services.AddHostedService<BookPackagePollingService>();
 builder.Services.AddHostedService<SourceSeedService>();
 builder.Services.AddHostedService<OutboxRelayBackgroundService>();
 builder.Services.AddHostedService<InboxConsumerBackgroundService>();
@@ -153,16 +168,72 @@ await app.RunAsync();
 
 /// <summary>按能力分派的执行器组合根。</summary>
 internal sealed class CompositeTaskExecutor(
+    BookInfoSyncTaskHandler bookInfoHandler,
     TocSyncTaskHandler tocHandler,
     ContentFetchTaskHandler contentHandler) : ICrawlerTaskExecutor
 {
     public Task<CrawlOutcome> ExecuteAsync(CrawlerTask task, CancellationToken cancellationToken = default) =>
         task.Payload.Capability switch
         {
+            SourceCapability.BookInfo => bookInfoHandler.ExecuteAsync(task, cancellationToken),
             SourceCapability.Toc => tocHandler.ExecuteAsync(task, cancellationToken),
             SourceCapability.Content => contentHandler.ExecuteAsync(task, cancellationToken),
             _ => Task.FromResult(CrawlOutcome.Fail($"capability {task.Payload.Capability} has no handler.")),
         };
+}
+
+/// <summary>
+/// 书籍包后台消费：按数据库租约串行生成，文件保留由同一循环定期清理。
+/// </summary>
+internal sealed class BookPackagePollingService(
+    IServiceScopeFactory scopeFactory,
+    TimeProvider clock,
+    BookPackageOptions options) : BackgroundService
+{
+    private readonly string _owner = $"package-worker-{Environment.MachineName}"[..Math.Min(
+        128,
+        $"package-worker-{Environment.MachineName}".Length)];
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var packages = scope.ServiceProvider.GetRequiredService<IBookPackageJobRepository>();
+                var service = scope.ServiceProvider.GetRequiredService<BookPackageService>();
+                var now = clock.GetUtcNow();
+                var job = await packages
+                    .TryLeaseAsync(now, _owner, options.LeaseDuration, stoppingToken)
+                    .ConfigureAwait(false);
+                if (job is not null)
+                {
+                    await service.ProcessAsync(job, stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                await service.ExpireOldAsync(stoppingToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine($"book package worker iteration failed: {exception.Message}");
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+        }
+    }
 }
 
 /// <summary>

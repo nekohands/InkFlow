@@ -41,7 +41,9 @@ public sealed class CrawlerTaskCreatedMessageHandler(
         }
 
         // 事件可能在任务已被周期轮询、成功完成或人工重放后才到达；这些情况都不应再次执行。
-        if (task.Status is CrawlerTaskStatus.Completed or CrawlerTaskStatus.DeadLettered)
+        if (task.Status is CrawlerTaskStatus.Completed or
+            CrawlerTaskStatus.DeadLettered or
+            CrawlerTaskStatus.Cancelled)
         {
             return;
         }

@@ -84,6 +84,10 @@ public sealed class EfCrawlerTaskRepository(
                     SELECT *
                     FROM "crawler"."tasks"
                     WHERE "Id" = {targetedTaskId}
+                      AND ("RunId" IS NULL OR EXISTS (
+                          SELECT 1 FROM "crawler"."runs" r
+                          WHERE r."Id" = "RunId"
+                            AND r."Status" IN ({(int)CollectionRunStatus.Pending}, {(int)CollectionRunStatus.Running})))
                       AND (("Status" = {(int)CrawlerTaskStatus.Pending}
                             AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
                        OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
@@ -98,11 +102,16 @@ public sealed class EfCrawlerTaskRepository(
                 .FromSqlInterpolated($"""
                     SELECT *
                     FROM "crawler"."tasks"
-                    WHERE ("Status" = {(int)CrawlerTaskStatus.Pending}
+                    WHERE ("RunId" IS NULL OR EXISTS (
+                              SELECT 1 FROM "crawler"."runs" r
+                              WHERE r."Id" = "RunId"
+                                AND r."Status" IN ({(int)CollectionRunStatus.Pending}, {(int)CollectionRunStatus.Running})))
+                      AND (("Status" = {(int)CrawlerTaskStatus.Pending}
                            AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
                        OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
                            AND "LeaseExpiresAt" IS NOT NULL
                            AND "LeaseExpiresAt" <= {now})
+                      )
                     ORDER BY "CreatedAt", "Id"
                     LIMIT 1
                     FOR UPDATE SKIP LOCKED
@@ -144,11 +153,15 @@ public sealed class EfCrawlerTaskRepository(
     {
         var entities = await db.Tasks
             .Where(t =>
-                (t.Status == (int)CrawlerTaskStatus.Pending &&
+                (t.RunId == null || db.Runs.Any(r =>
+                    r.Id == t.RunId &&
+                    (r.Status == (int)CollectionRunStatus.Pending ||
+                     r.Status == (int)CollectionRunStatus.Running))) &&
+                ((t.Status == (int)CrawlerTaskStatus.Pending &&
                  (t.ScheduledAt == null || t.ScheduledAt <= now)) ||
                 ((t.Status == (int)CrawlerTaskStatus.Leased ||
                   t.Status == (int)CrawlerTaskStatus.Running) &&
-                 t.LeaseExpiresAt != null && t.LeaseExpiresAt <= now))
+                 t.LeaseExpiresAt != null && t.LeaseExpiresAt <= now)))
             .OrderBy(t => t.CreatedAt)
             .Take(limit)
             .ToListAsync(cancellationToken)
@@ -287,7 +300,22 @@ public sealed class EfCrawlerTaskRepository(
         SourceCapability capability,
         string variableName,
         string variableValue,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await HasBlockingTaskForCollectionRunAsync(
+                sourceId,
+                capability,
+                variableName,
+                variableValue,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    public async Task<bool> HasBlockingTaskForCollectionRunAsync(
+        string sourceId,
+        SourceCapability capability,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default,
+        bool ignoreDeadLettered = false)
     {
         var blockingStatuses = new[]
         {
@@ -303,7 +331,8 @@ public sealed class EfCrawlerTaskRepository(
             .Where(t => t.SourceId == sourceId &&
                         t.Capability == (int)capability &&
                         blockingStatuses.Contains(t.Status) &&
-                        (t.Status != (int)CrawlerTaskStatus.DeadLettered ||
+                        (ignoreDeadLettered ||
+                         t.Status != (int)CrawlerTaskStatus.DeadLettered ||
                          !db.DeadLetters.Any(d => d.TaskId == t.Id && d.ReplayTaskId != null)))
             .Select(t => t.Variables)
             .ToListAsync(cancellationToken)

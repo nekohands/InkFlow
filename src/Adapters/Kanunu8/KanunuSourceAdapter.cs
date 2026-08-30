@@ -32,6 +32,25 @@ public sealed class KanunuSourceAdapter(
 
     public string SourceId => SourceIdValue;
 
+    public bool TryResolveBookUrl(Uri url, out string externalBookId)
+    {
+        externalBookId = string.Empty;
+        var path = url.AbsolutePath.Trim('/');
+        if (!path.StartsWith("book/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var id = path["book/".Length..];
+        if (id.Length == 0 || id.Any(character => character is < '0' or > '9'))
+        {
+            return false;
+        }
+
+        externalBookId = $"book/{id}";
+        return true;
+    }
+
     public async Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
         string keyword, CancellationToken cancellationToken = default)
     {

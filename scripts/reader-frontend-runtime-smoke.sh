@@ -153,6 +153,13 @@ done
 fetch_route /admin/operations operations.html
 contains "$work_dir/operations.html" 'id="operations-content"'
 contains "$work_dir/operations.html" '/api/v1/admin/operations/overview'
+contains "$work_dir/operations.html" 'id="operations-collection-form"'
+contains "$work_dir/operations.html" 'id="operations-collection-url"'
+contains "$work_dir/operations.html" '/api/v1/admin/collection-runs'
+contains "$work_dir/operations.html" 'id="operations-package-form"'
+contains "$work_dir/operations.html" '/api/v1/admin/books/'
+contains "$work_dir/operations.html" 'EPUB 3'
+contains "$work_dir/operations.html" '单文件 TXT'
 contains "$work_dir/operations.html" '/api/v1/admin/operations/alerts/history?'
 contains "$work_dir/operations.html" 'operations-history-more'
 contains "$work_dir/operations.html" 'operations-action-reason'

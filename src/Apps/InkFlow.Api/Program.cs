@@ -174,6 +174,7 @@ builder.Services.AddScoped<ICrawlerTaskRepository>(sp =>
     sp.GetRequiredService<EfCrawlerTaskRepository>());
 builder.Services.AddScoped<ICrawlerTaskRepairRepository>(sp =>
     sp.GetRequiredService<EfCrawlerTaskRepository>());
+builder.Services.AddScoped<ICollectionRunRepository, EfCollectionRunRepository>();
 
 builder.Services.AddDbContext<LibraryDbContext>(options =>
     options.UseNpgsql(databaseConnectionString));
@@ -229,6 +230,8 @@ builder.Services.AddScoped<ISourceAdapterFactory>(sp => new SourceAdapterFactory
 builder.Services.AddScoped<SourceCatalogService>();
 builder.Services.AddScoped<CanonicalBookMatchingService>();
 builder.Services.AddScoped<BookDiscoveryService>();
+builder.Services.AddScoped<SourceBookUrlResolver>();
+builder.Services.AddScoped<CollectionRunService>();
 
 var connectionStringForContent =
     builder.Configuration.GetConnectionString("Database")
@@ -247,6 +250,11 @@ builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicySer
     sp.GetRequiredService<InkFlow.Modules.Content.Application.ContentPolicyService>());
 builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicyReader>(sp =>
     sp.GetRequiredService<InkFlow.Modules.Content.Application.ContentPolicyService>());
+builder.Services.AddSingleton(BookPackageOptions.FromEnvironment());
+builder.Services.AddSingleton<IBookPackageBuilder, BookPackageBuilder>();
+builder.Services.AddSingleton<IBookPackageArtifactStore, FileBookPackageArtifactStore>();
+builder.Services.AddScoped<IBookPackageJobRepository, EfBookPackageJobRepository>();
+builder.Services.AddScoped<BookPackageService>();
 builder.Services.AddScoped<IConsistencySnapshotReader, EfConsistencySnapshotReader>();
 builder.Services.AddScoped<IConsistencyCheckService, ConsistencyCheckService>();
 builder.Services.AddScoped<IOperationsCenterReader, OperationsCenterReader>();
@@ -758,6 +766,9 @@ operationsRead.MapGet("/operations/alerts/history", async (
 
 var repair = api.MapGroup("/admin")
     .RequireAuthorization(IdentityPolicies.CrawlerRepair);
+
+CollectionRunEndpoints.Map(api);
+BookPackageEndpoints.Map(api);
 
 repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (
     Guid deadLetterId,

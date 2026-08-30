@@ -38,6 +38,31 @@ public sealed class SeventeenKSourceAdapter(
 
     public string SourceId => SourceIdValue;
 
+    public bool TryResolveBookUrl(Uri url, out string externalBookId)
+    {
+        externalBookId = string.Empty;
+        var path = url.AbsolutePath.Trim('/');
+        if (!path.StartsWith("book/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var id = path["book/".Length..];
+        if (id.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+        {
+            id = id[..^".html".Length];
+        }
+
+        if (id.Length == 0 || !id.All(character => character is >= '0' and <= '9'))
+        {
+            return false;
+        }
+
+        id = id.TrimStart('0');
+        externalBookId = id.Length == 0 ? "0" : id;
+        return true;
+    }
+
     public async Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
         string keyword,
         CancellationToken cancellationToken = default)

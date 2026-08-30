@@ -113,6 +113,21 @@ public sealed class CrawlerTask
         Touch(now);
     }
 
+    /// <summary>取消尚未完成的任务；取消不会删除已产生的来源或正文数据。</summary>
+    public void Cancel(DateTimeOffset now)
+    {
+        if (Status == CrawlerTaskStatus.Cancelled)
+        {
+            return;
+        }
+
+        EnsureTransition(CrawlerTaskStatus.Cancelled);
+        Status = CrawlerTaskStatus.Cancelled;
+        ScheduledAt = null;
+        ClearLease();
+        Touch(now);
+    }
+
     /// <summary>
     /// 标记失败。未达重试上限时回到 Pending 等待再次领取；达到上限进入死信终态。
     /// </summary>

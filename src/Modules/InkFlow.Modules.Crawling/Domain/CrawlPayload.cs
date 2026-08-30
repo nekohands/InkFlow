@@ -11,4 +11,5 @@ public sealed record CrawlPayload(
     string SourceId,
     SourceCapability Capability,
     IReadOnlyDictionary<string, string> Variables,
-    string? CredentialReferenceId = null);
+    string? CredentialReferenceId = null,
+    Guid? RunId = null);

@@ -4,6 +4,7 @@ namespace InkFlow.Modules.Crawling.Infrastructure.Persistence;
 public sealed class CrawlerTaskEntity
 {
     public Guid Id { get; set; }
+    public Guid? RunId { get; set; }
     public string SourceId { get; set; } = null!;
     public int Capability { get; set; }
     public Dictionary<string, string> Variables { get; set; } = new();
@@ -14,6 +15,24 @@ public sealed class CrawlerTaskEntity
     public DateTimeOffset? ScheduledAt { get; set; }
     public string? LeaseOwner { get; set; }
     public DateTimeOffset? LeaseExpiresAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+/// <summary>crawler.runs 表实体：一次书籍采集运行及其进度快照。</summary>
+public sealed class CollectionRunEntity
+{
+    public Guid Id { get; set; }
+    public string SourceId { get; set; } = null!;
+    public string ExternalBookId { get; set; } = null!;
+    public string InputUrl { get; set; } = null!;
+    public Guid? CanonicalBookId { get; set; }
+    public int Status { get; set; }
+    public int Stage { get; set; }
+    public int TotalTaskCount { get; set; }
+    public int CompletedTaskCount { get; set; }
+    public int FailedTaskCount { get; set; }
+    public string? LastError { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

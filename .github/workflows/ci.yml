@@ -88,6 +88,12 @@ jobs:
           bash -n scripts/tests/admin-runtime-smoke.test.sh
           bash scripts/tests/admin-runtime-smoke.test.sh
 
+      - name: Collection and package smoke script regression
+        run: |
+          bash -n scripts/collection-package-runtime-smoke.sh
+          bash -n scripts/tests/collection-package-runtime-smoke.test.sh
+          bash scripts/tests/collection-package-runtime-smoke.test.sh
+
       - name: Local env loader regression
         run: |
           bash -n scripts/load-local-env.sh
@@ -272,13 +278,20 @@ jobs:
           }
           trap cleanup EXIT
 
-          fixture_json="$("${fixture_cmd[@]}" ensure-catalog | tail -n 1)"
+          fixture_json="$("${fixture_cmd[@]}" ensure-reader-catalog | tail -n 1)"
           source_id="$(printf '%s' "$fixture_json" | jq -er '.sourceId')"
           book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
           "${fixture_cmd[@]}" set-role "$admin_email" administrator >/dev/null
           "${fixture_cmd[@]}" set-role "$operator_email" operator >/dev/null
 
           env "INKFLOW_ADMIN_RUNTIME_SMOKE_ADMIN_TOKEN=$admin_token" "INKFLOW_ADMIN_RUNTIME_SMOKE_OPERATOR_TOKEN=$operator_token" "INKFLOW_ADMIN_RUNTIME_SMOKE_OPERATOR_ID=$operator_id" "INKFLOW_ADMIN_RUNTIME_SMOKE_BOOK_ID=$book_id" "INKFLOW_ADMIN_RUNTIME_SMOKE_SOURCE_ID=$source_id" bash scripts/admin-runtime-smoke.sh http://localhost:8080
+
+          control_runs="$("${fixture_cmd[@]}" ensure-collection-control-runs | tail -n 1)"
+          pause_run_id="$(printf '%s' "$control_runs" | jq -er '.pause')"
+          stop_run_id="$(printf '%s' "$control_runs" | jq -er '.stop')"
+          cancel_run_id="$(printf '%s' "$control_runs" | jq -er '.cancel')"
+          resume_run_id="$(printf '%s' "$control_runs" | jq -er '.resume')"
+          env "INKFLOW_COLLECTION_PACKAGE_SMOKE_OPERATOR_TOKEN=$operator_token" "INKFLOW_COLLECTION_PACKAGE_SMOKE_ADMIN_TOKEN=$admin_token" "INKFLOW_COLLECTION_PACKAGE_SMOKE_BOOK_ID=$book_id" "INKFLOW_COLLECTION_PACKAGE_SMOKE_PAUSE_RUN_ID=$pause_run_id" "INKFLOW_COLLECTION_PACKAGE_SMOKE_STOP_RUN_ID=$stop_run_id" "INKFLOW_COLLECTION_PACKAGE_SMOKE_CANCEL_RUN_ID=$cancel_run_id" "INKFLOW_COLLECTION_PACKAGE_SMOKE_RESUME_RUN_ID=$resume_run_id" bash scripts/collection-package-runtime-smoke.sh http://localhost:8080
 
       - name: Core SLO synthetic probe
         env:

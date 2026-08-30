@@ -101,6 +101,8 @@ services:
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
       ConnectionStrings__Redis: redis:6379,abortConnect=false
+      INKFLOW_PACKAGES_ROOT: /var/lib/inkflow/packages
+      INKFLOW_PACKAGES_RETENTION_DAYS: ${INKFLOW_PACKAGES_RETENTION_DAYS:-7}
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
     ports:
@@ -114,6 +116,8 @@ services:
         condition: service_started
     restart: unless-stopped
     read_only: true
+    volumes:
+      - inkflow-packages:/var/lib/inkflow/packages
     tmpfs:
       - /tmp
     security_opt:
@@ -133,6 +137,8 @@ services:
       dockerfile: deploy/docker/Dockerfile.worker
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+      INKFLOW_PACKAGES_ROOT: /var/lib/inkflow/packages
+      INKFLOW_PACKAGES_RETENTION_DAYS: ${INKFLOW_PACKAGES_RETENTION_DAYS:-7}
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       OTEL_METRIC_EXPORT_INTERVAL: "${OTEL_METRIC_EXPORT_INTERVAL:-60000}"
     ports:
@@ -146,6 +152,8 @@ services:
         condition: service_started
     restart: unless-stopped
     read_only: true
+    volumes:
+      - inkflow-packages:/var/lib/inkflow/packages
     tmpfs:
       - /tmp
     security_opt:
@@ -194,3 +202,4 @@ services:
 volumes:
   inkflow-postgres:
   inkflow-redis:
+  inkflow-packages:

@@ -1,6 +1,8 @@
 using System.Text.Json;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
+using InkFlow.Modules.Crawling.Domain;
+using InkFlow.Modules.Crawling.Infrastructure.Persistence;
 using InkFlow.Modules.Identity.Domain;
 using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Domain;
@@ -28,7 +30,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 if (args.Length == 0)
 {
-    return Fail("usage: ensure-catalog | ensure-reader-catalog | set-role <email> <operator|administrator> | disable-user <email>");
+    return Fail("usage: ensure-catalog | ensure-reader-catalog | ensure-collection-control-runs | set-role <email> <operator|administrator> | disable-user <email>");
 }
 
 try
@@ -39,6 +41,8 @@ try
             await EnsureCatalogAsync(connectionString, publishReaderContent: false),
         "ensure-reader-catalog" when args.Length == 1 =>
             await EnsureCatalogAsync(connectionString, publishReaderContent: true),
+        "ensure-collection-control-runs" when args.Length == 1 =>
+            await EnsureCollectionControlRunsAsync(connectionString),
         "set-role" when args.Length == 3 =>
             await SetRoleAsync(connectionString, args[1], args[2]),
         "disable-user" when args.Length == 2 =>
@@ -130,7 +134,13 @@ static async Task<int> EnsureCatalogAsync(string connectionString, bool publishR
                 "InkFlow Acceptance Source",
                 FixtureSourceBaseUrl,
                 now);
+            source.UpdateRuleDsl(BuildFixtureRuleDsl(), now);
             await sources.AddAsync(source);
+        }
+        else if (source.RuleDsl is null)
+        {
+            source.UpdateRuleDsl(BuildFixtureRuleDsl(), now);
+            await sources.SaveAsync(source);
         }
     }
 
@@ -188,3 +198,45 @@ static async Task<int> EnsureCatalogAsync(string connectionString, bool publishR
     }));
     return 0;
 }
+
+static async Task<int> EnsureCollectionControlRunsAsync(string connectionString)
+{
+    var now = DateTimeOffset.UtcNow;
+    await using var crawlingDb = new CrawlingDbContext(Options<CrawlingDbContext>(connectionString));
+    var runs = new EfCollectionRunRepository(crawlingDb);
+    var result = new Dictionary<string, Guid>(StringComparer.Ordinal);
+    foreach (var action in new[] { "pause", "stop", "cancel", "resume" })
+    {
+        var externalBookId = $"control-{action}-{Guid.NewGuid():N}";
+        var run = CollectionRun.Create(
+            FixtureSourceId,
+            externalBookId,
+            $"{FixtureSourceBaseUrl}/book/{externalBookId}",
+            now);
+        await runs.AddAsync(run);
+        result[action] = run.Id;
+    }
+
+    Console.WriteLine(JsonSerializer.Serialize(result));
+    return 0;
+}
+
+static SourceRuleDsl BuildFixtureRuleDsl() => new("1", FixtureSourceId,
+[
+    new CapabilityRule(
+        SourceCapability.BookInfo,
+        RuleRequest.Get("/book/{bookId}"),
+        [
+            new RuleField("title", new RuleSelector(SelectorKind.Css, "h1"), null, []),
+            new RuleField("author", new RuleSelector(SelectorKind.Css, ".author"), null, []),
+        ]),
+    new CapabilityRule(
+        SourceCapability.Toc,
+        RuleRequest.Get("/book/{bookId}/toc"),
+        [],
+        List: new RuleListBinding("a.chapter", "href", "/book/", "")),
+    new CapabilityRule(
+        SourceCapability.Content,
+        RuleRequest.Get("/chapter/{chapterId}"),
+        [new RuleField("content", new RuleSelector(SelectorKind.Css, "p"), null, [])]),
+]);

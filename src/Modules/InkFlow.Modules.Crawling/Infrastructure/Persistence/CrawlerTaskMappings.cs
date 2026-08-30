@@ -39,6 +39,27 @@ public sealed class CrawlerTaskEntityConfiguration : IEntityTypeConfiguration<Cr
         builder.HasIndex(t => t.Status);
         builder.HasIndex(t => new { t.Status, t.LeaseExpiresAt });
         builder.HasIndex(t => new { t.Status, t.ScheduledAt });
+        builder.HasIndex(t => t.RunId);
+    }
+}
+
+public sealed class CollectionRunEntityConfiguration : IEntityTypeConfiguration<CollectionRunEntity>
+{
+    public void Configure(EntityTypeBuilder<CollectionRunEntity> builder)
+    {
+        builder.ToTable("runs");
+        builder.HasKey(r => r.Id);
+        builder.Property(r => r.SourceId).HasMaxLength(128).IsRequired();
+        builder.Property(r => r.ExternalBookId).HasMaxLength(512).IsRequired();
+        builder.Property(r => r.InputUrl).HasMaxLength(2048).IsRequired();
+        builder.Property(r => r.Status).IsRequired();
+        builder.Property(r => r.Stage).IsRequired();
+        builder.Property(r => r.TotalTaskCount).IsRequired();
+        builder.Property(r => r.CompletedTaskCount).IsRequired();
+        builder.Property(r => r.FailedTaskCount).IsRequired();
+        builder.Property(r => r.LastError).HasMaxLength(2048);
+        builder.HasIndex(r => new { r.Status, r.UpdatedAt });
+        builder.HasIndex(r => new { r.SourceId, r.ExternalBookId, r.CreatedAt });
     }
 }
 
@@ -65,6 +86,7 @@ public static class CrawlerTaskMapper
         new()
         {
             Id = task.Id,
+            RunId = task.Payload.RunId,
             SourceId = task.Payload.SourceId,
             Capability = (int)task.Payload.Capability,
             Variables = new Dictionary<string, string>(task.Payload.Variables),
@@ -86,7 +108,8 @@ public static class CrawlerTaskMapper
                 entity.SourceId,
                 (SourceCapability)entity.Capability,
                 new Dictionary<string, string>(entity.Variables),
-                entity.CredentialReferenceId),
+                entity.CredentialReferenceId,
+                entity.RunId),
             (CrawlerTaskStatus)entity.Status,
             entity.AttemptCount,
             entity.MaxAttempts,
@@ -109,5 +132,56 @@ public static class CrawlerTaskMapper
         entity.UpdatedAt = fresh.UpdatedAt;
         entity.Variables = fresh.Variables;
         entity.CredentialReferenceId = fresh.CredentialReferenceId;
+        entity.RunId = fresh.RunId;
+    }
+}
+
+public static class CollectionRunMapper
+{
+    public static CollectionRunEntity ToEntity(CollectionRun run) =>
+        new()
+        {
+            Id = run.Id,
+            SourceId = run.SourceId,
+            ExternalBookId = run.ExternalBookId,
+            InputUrl = run.InputUrl,
+            CanonicalBookId = run.CanonicalBookId,
+            Status = (int)run.Status,
+            Stage = (int)run.Stage,
+            TotalTaskCount = run.TotalTaskCount,
+            CompletedTaskCount = run.CompletedTaskCount,
+            FailedTaskCount = run.FailedTaskCount,
+            LastError = run.LastError,
+            CreatedAt = run.CreatedAt,
+            UpdatedAt = run.UpdatedAt,
+        };
+
+    public static CollectionRun ToDomain(CollectionRunEntity entity) =>
+        CollectionRun.Rehydrate(
+            entity.Id,
+            entity.SourceId,
+            entity.ExternalBookId,
+            entity.InputUrl,
+            entity.CanonicalBookId,
+            (CollectionRunStatus)entity.Status,
+            (CollectionRunStage)entity.Stage,
+            entity.TotalTaskCount,
+            entity.CompletedTaskCount,
+            entity.FailedTaskCount,
+            entity.LastError,
+            entity.CreatedAt,
+            entity.UpdatedAt);
+
+    public static void ApplyDomain(CollectionRun run, CollectionRunEntity entity)
+    {
+        var fresh = ToEntity(run);
+        entity.CanonicalBookId = fresh.CanonicalBookId;
+        entity.Status = fresh.Status;
+        entity.Stage = fresh.Stage;
+        entity.TotalTaskCount = fresh.TotalTaskCount;
+        entity.CompletedTaskCount = fresh.CompletedTaskCount;
+        entity.FailedTaskCount = fresh.FailedTaskCount;
+        entity.LastError = fresh.LastError;
+        entity.UpdatedAt = fresh.UpdatedAt;
     }
 }

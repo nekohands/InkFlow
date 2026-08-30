@@ -63,4 +63,23 @@ public interface ICrawlerTaskRepository
         string variableName,
         string variableValue,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 采集运行重试专用冲突查询。新运行可以重新安排历史死信，
+    /// 但仍避免与 Pending/Leased/Running 任务并行抓同一章节。
+    /// 默认实现保持旧仓储兼容，具体 EF 实现可忽略死信。
+    /// </summary>
+    Task<bool> HasBlockingTaskForCollectionRunAsync(
+        string sourceId,
+        SourceCapability capability,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default,
+        bool ignoreDeadLettered = false) =>
+        HasConflictingTaskAsync(
+            sourceId,
+            capability,
+            variableName,
+            variableValue,
+            cancellationToken);
 }

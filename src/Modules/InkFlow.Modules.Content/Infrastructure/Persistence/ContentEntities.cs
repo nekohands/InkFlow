@@ -34,3 +34,26 @@ public sealed class ContentPolicyDecisionEntity
     public string Reason { get; set; } = null!;
     public DateTimeOffset CreatedAt { get; set; }
 }
+
+/// <summary>content.package_jobs 表实体。</summary>
+public sealed class BookPackageJobEntity
+{
+    public Guid Id { get; set; }
+    public Guid CanonicalBookId { get; set; }
+    public int Format { get; set; }
+    public int Status { get; set; }
+    public int AttemptCount { get; set; }
+    public int MaxAttempts { get; set; }
+    public DateTimeOffset? ScheduledAt { get; set; }
+    public string? LeaseOwner { get; set; }
+    public DateTimeOffset? LeaseExpiresAt { get; set; }
+    public int TotalChapterCount { get; set; }
+    public int CompletedChapterCount { get; set; }
+    public string? ArtifactFileName { get; set; }
+    public string? ArtifactSha256 { get; set; }
+    public long? ArtifactLength { get; set; }
+    public string? FailureReason { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+}

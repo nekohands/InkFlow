@@ -12,6 +12,7 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
     public DbSet<ContentVersionEntity> Versions => Set<ContentVersionEntity>();
     public DbSet<ContentSelectionDecisionEntity> SelectionDecisions => Set<ContentSelectionDecisionEntity>();
     public DbSet<ContentPolicyDecisionEntity> PolicyDecisions => Set<ContentPolicyDecisionEntity>();
+    public DbSet<BookPackageJobEntity> PackageJobs => Set<BookPackageJobEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +55,21 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
                 .HasMaxLength(ContentPolicyDecision.MaxReasonLength)
                 .IsRequired();
             b.HasIndex(x => new { x.CanonicalBookId, x.CreatedAt, x.Id });
+        });
+
+        modelBuilder.Entity<BookPackageJobEntity>(b =>
+        {
+            b.ToTable("package_jobs");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Format).IsRequired();
+            b.Property(x => x.Status).IsRequired();
+            b.Property(x => x.LeaseOwner).HasMaxLength(128);
+            b.Property(x => x.ArtifactFileName).HasMaxLength(256);
+            b.Property(x => x.ArtifactSha256).HasMaxLength(64);
+            b.Property(x => x.FailureReason).HasMaxLength(2048);
+            b.HasIndex(x => new { x.Status, x.ScheduledAt, x.CreatedAt });
+            b.HasIndex(x => new { x.Status, x.ExpiresAt });
+            b.HasIndex(x => new { x.CanonicalBookId, x.CreatedAt });
         });
     }
 
