@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选 Commit：`f235c8e`（Developer API 非阅读 App runtime smoke 已推送；等待本轮文档同步后的最终 CI/Docker/Security 门禁）
+- 最新候选 Commit：`e7dc12c`（Developer API 非阅读 App runtime smoke 与文档同步已推送；Ubuntu VM 源码运行、CI/Docker/Security 门禁均 GREEN）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-30；dev 骨架重建更新：2026-08-25
 
