@@ -142,6 +142,13 @@ public sealed class ContentSelectionServiceTests
             Task.FromResult<ContentVersion?>(Store.SingleOrDefault(version =>
                 version.CanonicalChapterId == canonicalChapterId && version.IsCurrent));
 
+        public Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ContentVersion>>(Store
+                .Where(version => version.CanonicalBookId == canonicalBookId && version.IsCurrent)
+                .ToList());
+
         public Task<Guid?> GetCurrentCanonicalBookIdAsync(
             Guid canonicalChapterId,
             CancellationToken cancellationToken = default) =>

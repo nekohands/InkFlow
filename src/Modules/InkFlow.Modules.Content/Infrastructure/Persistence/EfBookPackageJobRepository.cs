@@ -34,35 +34,47 @@ public sealed class EfBookPackageJobRepository(ContentDbContext db) : IBookPacka
             .BeginTransactionAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var candidates = await db.PackageJobs
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "content"."package_jobs"
-                WHERE (("Status" = {(int)BookPackageJobStatus.Queued}
-                        AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
-                   OR ("Status" = {(int)BookPackageJobStatus.Running}
-                       AND "LeaseExpiresAt" IS NOT NULL
-                       AND "LeaseExpiresAt" <= {now}))
-                ORDER BY "CreatedAt", "Id"
-                LIMIT 1
-                FOR UPDATE SKIP LOCKED
-                """)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var entity = candidates.SingleOrDefault();
-        if (entity is null)
+        while (true)
         {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return null;
-        }
+            var candidates = await db.PackageJobs
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM "content"."package_jobs"
+                    WHERE (("Status" = {(int)BookPackageJobStatus.Queued}
+                            AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
+                       OR ("Status" = {(int)BookPackageJobStatus.Running}
+                           AND "LeaseExpiresAt" IS NOT NULL
+                           AND "LeaseExpiresAt" <= {now}))
+                    ORDER BY "CreatedAt", "Id"
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                    """)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
-        var job = BookPackageJobMapper.ToDomain(entity);
-        job.Lease(owner, now, leaseDuration);
-        BookPackageJobMapper.ApplyDomain(job, entity);
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return job;
+            var entity = candidates.SingleOrDefault();
+            if (entity is null)
+            {
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                return null;
+            }
+
+            var job = BookPackageJobMapper.ToDomain(entity);
+            if (job.Status == BookPackageJobStatus.Running &&
+                job.AttemptCount >= job.MaxAttempts)
+            {
+                job.FailExpiredLease(now);
+                BookPackageJobMapper.ApplyDomain(job, entity);
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            job.Lease(owner, now, leaseDuration);
+            BookPackageJobMapper.ApplyDomain(job, entity);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return job;
+        }
     }
 
     public async Task SaveAsync(BookPackageJob job, CancellationToken cancellationToken = default)

@@ -364,6 +364,12 @@ public sealed class EndToEndDataFlowTests
             => Task.FromResult<ContentVersion?>(
                 Store.LastOrDefault(v => v.CanonicalChapterId == canonicalChapterId &&
                     _current.TryGetValue((canonicalChapterId, v.CanonicalHash), out var cur) && cur));
+        public Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
+            Guid canonicalBookId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ContentVersion>>(Store
+                .Where(v => v.CanonicalBookId == canonicalBookId &&
+                    _current.TryGetValue((v.CanonicalChapterId, v.CanonicalHash), out var cur) && cur)
+                .ToList());
         public Task<Guid?> GetCurrentCanonicalBookIdAsync(Guid canonicalChapterId, CancellationToken cancellationToken = default)
             => Task.FromResult<Guid?>(Store.LastOrDefault(v =>
                 v.CanonicalChapterId == canonicalChapterId &&

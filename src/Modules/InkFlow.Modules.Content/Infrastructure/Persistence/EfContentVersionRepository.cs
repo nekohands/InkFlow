@@ -182,6 +182,19 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
         return entity is null ? null : ContentDbContext.ToDomain(entity);
     }
 
+    public async Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
+        Guid canonicalBookId,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.Versions
+            .AsNoTracking()
+            .Where(v => v.CanonicalBookId == canonicalBookId && v.IsCurrent)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities.Select(ContentDbContext.ToDomain).ToList();
+    }
+
     public Task<Guid?> GetCurrentCanonicalBookIdAsync(
         Guid canonicalChapterId,
         CancellationToken cancellationToken = default) =>

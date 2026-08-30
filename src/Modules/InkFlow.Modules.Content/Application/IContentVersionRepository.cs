@@ -19,6 +19,13 @@ public interface IContentVersionRepository
     Task<ContentVersion?> GetCurrentForChapterAsync(
         Guid canonicalChapterId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 一次读取指定正典书的全部当前版本，供导出等不可变快照使用。
+    /// 持久化实现应在单个一致性查询中返回结果，避免章节间混用不同时间点的版本。
+    /// </summary>
+    Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
+        Guid canonicalBookId, CancellationToken cancellationToken = default);
+
     /// <summary>只读取当前版本关联的正典书 ID，用于正文加载前的可见性门控。</summary>
     Task<Guid?> GetCurrentCanonicalBookIdAsync(
         Guid canonicalChapterId, CancellationToken cancellationToken = default);

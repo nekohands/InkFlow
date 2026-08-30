@@ -124,10 +124,11 @@ public sealed class BookPackageJob
         };
 
     public bool IsLeasable(DateTimeOffset now) =>
-        (Status == BookPackageJobStatus.Queued &&
-         (ScheduledAt is null || ScheduledAt <= now)) ||
-        (Status == BookPackageJobStatus.Running &&
-         LeaseExpiresAt is { } expiry && expiry <= now);
+        AttemptCount < MaxAttempts &&
+        ((Status == BookPackageJobStatus.Queued &&
+          (ScheduledAt is null || ScheduledAt <= now)) ||
+         (Status == BookPackageJobStatus.Running &&
+          LeaseExpiresAt is { } expiry && expiry <= now));
 
     public void Lease(string owner, DateTimeOffset now, TimeSpan leaseDuration)
     {
@@ -136,15 +137,19 @@ public sealed class BookPackageJob
             throw new ArgumentException("lease owner must not be empty.", nameof(owner));
         }
 
+        if (AttemptCount >= MaxAttempts)
+        {
+            throw new InvalidOperationException(
+                $"package job {Id} has exhausted its attempt budget.");
+        }
+
         if (!IsLeasable(now))
         {
             throw new InvalidOperationException($"package job {Id} is not leasable.");
         }
 
-        if (Status == BookPackageJobStatus.Queued)
-        {
-            AttemptCount++;
-        }
+        // Queued retries and expired Running leases are both new attempts.
+        AttemptCount++;
 
         Status = BookPackageJobStatus.Running;
         ScheduledAt = null;
@@ -239,6 +244,27 @@ public sealed class BookPackageJob
             ScheduledAt = nextAttemptAt ?? now;
         }
 
+        Touch(now);
+    }
+
+    /// <summary>
+    /// Worker 崩溃导致租约过期且已耗尽尝试预算时，收敛为终态失败。
+    /// </summary>
+    public void FailExpiredLease(DateTimeOffset now)
+    {
+        if (Status != BookPackageJobStatus.Running ||
+            LeaseExpiresAt is not { } expiry ||
+            expiry > now ||
+            AttemptCount < MaxAttempts)
+        {
+            throw new InvalidOperationException(
+                $"package job {Id} does not have an exhausted expired lease.");
+        }
+
+        Status = BookPackageJobStatus.Failed;
+        ScheduledAt = null;
+        FailureReason = "package lease expired after maximum attempts.";
+        ClearLease();
         Touch(now);
     }
 

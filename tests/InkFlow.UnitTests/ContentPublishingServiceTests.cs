@@ -27,6 +27,12 @@ public sealed class ContentPublishingServiceTests
             => Task.FromResult<ContentVersion?>(
                 Store.FirstOrDefault(v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent));
 
+        public Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
+            Guid canonicalBookId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ContentVersion>>(Store
+                .Where(v => v.CanonicalBookId == canonicalBookId && v.IsCurrent)
+                .ToList());
+
         public Task<Guid?> GetCurrentCanonicalBookIdAsync(Guid canonicalChapterId, CancellationToken cancellationToken = default)
             => Task.FromResult<Guid?>(Store.FirstOrDefault(v =>
                 v.CanonicalChapterId == canonicalChapterId && v.IsCurrent)?.CanonicalBookId);

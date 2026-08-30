@@ -242,13 +242,14 @@ public sealed class BookPackageService(
 
         var book = await books.GetAsync(canonicalBookId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("canonical book was not found.");
+        var currentVersions = await versions
+            .ListCurrentForBookAsync(canonicalBookId, cancellationToken)
+            .ConfigureAwait(false);
+        var currentByChapter = currentVersions.ToDictionary(version => version.CanonicalChapterId);
         var snapshot = new List<BookPackageChapter>(book.Chapters.Count);
         foreach (var chapter in book.Chapters.OrderBy(chapter => chapter.Index))
         {
-            var version = await versions
-                .GetCurrentForChapterAsync(chapter.Id, cancellationToken)
-                .ConfigureAwait(false);
-            if (version is null ||
+            if (!currentByChapter.TryGetValue(chapter.Id, out var version) ||
                 version.CanonicalBookId != book.Id ||
                 version.CanonicalChapterId != chapter.Id ||
                 string.IsNullOrWhiteSpace(version.CanonicalText))

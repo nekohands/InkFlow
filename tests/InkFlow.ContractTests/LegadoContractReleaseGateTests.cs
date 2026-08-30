@@ -272,6 +272,13 @@ public sealed class LegadoContractReleaseGateTests
             Task.FromResult<ContentVersion?>(_store.FirstOrDefault(version =>
                 version.CanonicalChapterId == canonicalChapterId && version.IsCurrent));
 
+        public Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ContentVersion>>(_store
+                .Where(version => version.CanonicalBookId == canonicalBookId && version.IsCurrent)
+                .ToList());
+
         public Task<Guid?> GetCurrentCanonicalBookIdAsync(
             Guid canonicalChapterId,
             CancellationToken cancellationToken = default) =>
