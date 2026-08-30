@@ -940,6 +940,14 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选提交 `1b1149d4f1bdbb3369c3c3e84baea913ef275437` 的 [CI 33295992063](https://github.com/nekohands/InkFlow/actions/runs/33295992063)、[Docker 33295992049](https://github.com/nekohands/InkFlow/actions/runs/33295992049)、[Security 33295992045](https://github.com/nekohands/InkFlow/actions/runs/33295992045) 均 GREEN 且 headSha 一致。CI 的 Restore/Build/迁移校验、Unit 475/475、Architecture 1/1、Contract 10/10、Integration 89（87 passed / 2 skipped）、Redis 1/1、源码构建 Compose Runtime、`Frontend 1.0 runtime smoke`、SLO、备份恢复和 diagnostics 全部通过；Docker 的四业务镜像构建/扫描/发布与发布 Compose 拉取复验通过；Security 的 NuGet、Filesystem、SBOM、CodeQL 全部通过。
 - 当前状态：本工作包自动化门禁已通过，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；浏览器/真实设备、真实来源、真实账户和其他人工/生产验收仍待定。
 
+### 4.69 Ubuntu VM 源码构建 Runtime 复验（本轮，2026-08-30）
+
+- 目标：在独立 Ubuntu 验证环境用当前 `dev` 源码执行 `docker-compose.build.yml`，补足本机 Docker CLI 不可用时缺失的真实 Compose 证据；本轮不使用 GHCR 镜像替代源码验证。
+- 证据：远端工作区快进到 `81019f9bf638f11d2ef1d719ad14d8bfea5b034c`；四个业务镜像由源码构建，Migration 退出码 0，PostgreSQL/Redis/API/Worker/Scheduler 健康，OTel Collector 正常运行。
+- Runtime：`reader-frontend-runtime-smoke.sh` PASS；Core SLO 四面 PASS（public_api p95 908.170ms、legado_api p95 15.611ms、developer_api p95 10.931ms、reader p95 3.602ms）；备份恢复 PASS（`archive=80959 bytes, audit_events=78`）。验证完成后已停止容器，`inkflow-postgres` / `inkflow-redis` 数据卷保留。
+- 配置边界：本机根目录 `.env` 仅用于读取 Compose、验证和远端连接配置，已由 `.gitignore` 忽略；敏感值不进入仓库、Progress、Handoff 或 CI 日志，GHCR Token 不复制。
+- 当前状态：源码构建 Runtime 证据已补齐，但浏览器/真实设备、阅读 3.0、真实来源/账户和其他人工/生产验收仍是 1.0 Release Gate 待定项。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
