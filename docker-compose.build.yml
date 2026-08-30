@@ -71,17 +71,23 @@ services:
     profiles: ["acceptance"]
     working_dir: /workspace
     entrypoint:
-      - dotnet
-      - run
-      - --project
-      - tools/InkFlow.AcceptanceFixtures/InkFlow.AcceptanceFixtures.csproj
-      - --configuration
-      - Release
+      - /bin/bash
+      - -c
+      - |
+        set -Eeuo pipefail
+        mkdir -p /tmp/inkflow
+        tar --exclude='.env' --exclude='.env.*' --exclude='.git' -C /workspace -cf - . | tar -C /tmp/inkflow -xf -
+        cd /tmp/inkflow
+        exec dotnet run --project tools/InkFlow.AcceptanceFixtures/InkFlow.AcceptanceFixtures.csproj --configuration Release -- "$$@"
       - --
+    command: ["ensure-catalog"]
     environment:
       ConnectionStrings__Database: Host=postgres;Port=5432;Database=inkflow;Username=inkflow;Password=${INKFLOW_DB_PASSWORD:-inkflow}
+      DOTNET_CLI_HOME: /tmp/dotnet
+      NUGET_HTTP_CACHE_PATH: /tmp/nuget-http-cache
+      NUGET_PACKAGES: /tmp/nuget-packages
     volumes:
-      - .:/workspace
+      - .:/workspace:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,7 +96,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-      - /root/.nuget
     security_opt:
       - no-new-privileges:true
     cap_drop:
