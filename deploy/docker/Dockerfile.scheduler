@@ -1,7 +1,11 @@
+# syntax=docker/dockerfile:1
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
-RUN dotnet publish src/Apps/InkFlow.Scheduler/InkFlow.Scheduler.csproj -c Release -o /app/publish --no-self-contained
+RUN --mount=type=cache,id=inkflow-nuget,target=/root/.nuget/packages,sharing=locked \
+    --mount=type=cache,id=inkflow-nuget-http,target=/root/.local/share/NuGet/v3-cache,sharing=locked \
+    dotnet publish src/Apps/InkFlow.Scheduler/InkFlow.Scheduler.csproj -c Release -o /app/publish --no-self-contained
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
