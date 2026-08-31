@@ -1,0 +1,7 @@
+# Temporary VEX exception for the core Collector image only.
+# CVE-2026-56854 targets SSH authentication callback source-address enforcement.
+# InkFlow's configured core Collector pipelines expose only OTLP, debug and
+# health_check; no SSH receiver/exporter or SSH authentication callback is used.
+# Re-evaluate and remove this exception when the official Collector publishes a
+# patched image containing golang.org/x/crypto v0.55.0 or newer.
+CVE-2026-56854 exp:2026-09-30

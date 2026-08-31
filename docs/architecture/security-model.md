@@ -158,7 +158,7 @@ CI 现已建立可回归的供应链扫描基线：`.github/workflows/security.y
 
 当前仓库未启用 GitHub Code Scanning API，CodeQL/Trivy 结果保留为工作流产物而不上传到代码扫描面板；`ignore-unfixed` 仍表示无法修复的漏洞不会阻塞本基线。生产镜像准入、扫描报告长期保留、动作版本固定、Secret 轮换和部署环境策略仍需后续治理。
 
-Production containers run non-root where practical, drop unnecessary capabilities, use resource limits and avoid host mounts. Image/runtime versions are pinned rather than relying indefinitely on `latest`; the Compose Collector is likewise pinned by tag and manifest digest to `otel/opentelemetry-collector:0.160.0-nightly.779aeb2@sha256:c1490bb380998b9246b8ea054867ee05b2e9fc6be34cd1f3c4f0e1ec88b9fe91` and does not expose its OTLP intake ports publicly.
+Production containers run non-root where practical, drop unnecessary capabilities, use resource limits and avoid host mounts. Image/runtime versions are pinned rather than relying indefinitely on `latest`; the Compose Collector is likewise pinned to `otel/opentelemetry-collector:0.159.0` and does not expose its OTLP intake ports publicly. The Docker workflow's time-bounded `.trivyignore-collector` exception for CVE-2026-56854 is scoped only to this Collector scan and its unused SSH callback surface; it must be removed when an official patched image is available.
 
 ## 13. Incident Response
 
