@@ -543,6 +543,104 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task Task_Start_Rechecks_Parent_Run_After_Control_Transaction_Commits()
+    {
+        var sourceId = $"start-control-race-{Guid.NewGuid():N}";
+        var seed = CreateContext();
+        await using var seedDb = seed.Db;
+        var runRepository = new EfCollectionRunRepository(seedDb, new EfTransactionalOutboxWriter());
+        var run = CollectionRun.Create(
+            sourceId,
+            "book-42",
+            "https://example.com/book/book-42",
+            T0);
+        await runRepository.AddAsync(run).ConfigureAwait(false);
+
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                sourceId,
+                SourceCapability.Content,
+                new Dictionary<string, string>
+                {
+                    ["bookId"] = "book-42",
+                    ["chapterId"] = "chapter-7",
+                },
+                RunId: run.Id),
+            createdAt: T0);
+        await seed.Repo.AddAsync(task).ConfigureAwait(false);
+
+        var lease = CreateContext();
+        await using var leaseDb = lease.Db;
+        var leased = await lease.Repo
+            .TryLeaseAsync(
+                task.Id,
+                T0.AddMinutes(1),
+                "worker-before-control",
+                TimeSpan.FromMinutes(1))
+            .ConfigureAwait(false);
+        Assert.IsNotNull(leased);
+
+        var control = CreateContext();
+        await using var controlDb = control.Db;
+        await using var controlTransaction = await controlDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        var committed = false;
+        try
+        {
+            await controlDb.Database
+                .ExecuteSqlInterpolatedAsync($"""
+                    UPDATE "crawler"."runs"
+                    SET "Status" = {(int)CollectionRunStatus.Cancelled}
+                    WHERE "Id" = {run.Id}
+                    """)
+                .ConfigureAwait(false);
+
+            var candidate = CreateContext();
+            await using var candidateDb = candidate.Db;
+            var startTask = ((ICrawlerTaskRepository)candidate.Repo)
+                .TryMarkRunningAsync(leased!, T0.AddMinutes(1));
+
+            var completedBeforeControlCommit = await Task.WhenAny(
+                    startTask,
+                    Task.Delay(TimeSpan.FromMilliseconds(500)))
+                .ConfigureAwait(false);
+            if (completedBeforeControlCommit == startTask)
+            {
+                var prematureStart = await startTask.ConfigureAwait(false);
+                Assert.IsFalse(
+                    prematureStart,
+                    "a task start must wait for the parent run control transaction");
+                Assert.Fail("a task start completed before the parent control committed");
+            }
+
+            await controlTransaction.CommitAsync().ConfigureAwait(false);
+            committed = true;
+
+            var started = await startTask
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            Assert.IsFalse(started, "a cancelled run must reject task execution start");
+        }
+        finally
+        {
+            if (!committed)
+            {
+                await controlTransaction.RollbackAsync().ConfigureAwait(false);
+            }
+        }
+
+        await using var verifyDb = CreateContext().Db;
+        var persistedTask = await verifyDb.Tasks
+            .SingleAsync(candidate => candidate.Id == task.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual(
+            (int)CrawlerTaskStatus.Cancelled,
+            persistedTask.Status,
+            "a task rejected by a cancelled parent run must be terminally cancelled");
+    }
+
+    [TestMethod]
     public async Task Task_Roundtrip_Preserves_Aggregate_State()
     {
         var (_, repo) = CreateContext();

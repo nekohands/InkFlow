@@ -60,6 +60,21 @@ public sealed class CrawlerTaskProcessorTests
         Assert.AreEqual(1, executor.CallCount);
     }
 
+    [TestMethod]
+    public async Task Rejected_Atomic_Start_Does_Not_Invoke_Executor()
+    {
+        var task = LeaseTask(maxAttempts: 2);
+        var repository = new InMemoryTaskRepository { RejectStart = true };
+        var executor = new RecordingExecutor(CrawlOutcome.Ok());
+        var processor = CreateProcessor(repository, executor);
+
+        await processor.ProcessAsync(task);
+
+        Assert.AreEqual(CrawlerTaskStatus.Leased, task.Status);
+        Assert.AreEqual(0, executor.CallCount);
+        Assert.AreEqual(0, repository.SaveCount);
+    }
+
     private static CrawlerTaskProcessor CreateProcessor(
         InMemoryTaskRepository repository,
         RecordingExecutor executor) =>
@@ -107,10 +122,27 @@ public sealed class CrawlerTaskProcessorTests
     {
         public int SaveCount { get; private set; }
 
+        public bool RejectStart { get; init; }
+
         public List<DeadLetterTask> DeadLetters { get; } = [];
 
         public Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<bool> TryMarkRunningAsync(
+            CrawlerTask task,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            if (RejectStart)
+            {
+                return Task.FromResult(false);
+            }
+
+            task.MarkRunning(now);
+            SaveCount++;
+            return Task.FromResult(true);
+        }
 
         public Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult<CrawlerTask?>(null);

@@ -34,6 +34,23 @@ public interface ICrawlerTaskRepository
         TimeSpan leaseDuration,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 在持久化层原子把已领取任务推进到 Running。
+    /// PostgreSQL 实现必须在同一事务内复核父采集运行的控制状态，
+    /// 使控制命令先提交时任务不会再进入外部执行器。
+    /// 默认实现仅为旧测试替身提供兼容回退。
+    /// </summary>
+    async Task<bool> TryMarkRunningAsync(
+        CrawlerTask task,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        task.MarkRunning(now);
+        await SaveAsync(task, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
     /// <summary>把聚合的当前状态写回存储。</summary>
     Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default);
 

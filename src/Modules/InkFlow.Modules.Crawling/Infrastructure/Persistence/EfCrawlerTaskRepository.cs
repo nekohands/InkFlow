@@ -191,6 +191,98 @@ public sealed class EfCrawlerTaskRepository(
         return task;
     }
 
+    public async Task<bool> TryMarkRunningAsync(
+        CrawlerTask task,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // Lock the task before the parent run. Lease recovery uses the same
+        // order; control commands only lock the parent, so a control that wins
+        // the race is observed after its transaction commits.
+        var taskEntity = await db.Tasks
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."tasks"
+                WHERE "Id" = {task.Id}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (taskEntity is null ||
+            taskEntity.Status != (int)CrawlerTaskStatus.Leased ||
+            task.Payload.RunId != taskEntity.RunId)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
+        if (taskEntity.RunId is { } runId)
+        {
+            // No-tracking is intentional: a scoped DbContext may still hold an
+            // older run entity from a previous application operation. The lock
+            // query must classify the durable row returned by PostgreSQL.
+            var runEntity = await db.Runs
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM "crawler"."runs"
+                    WHERE "Id" = {runId}
+                    FOR UPDATE
+                    """)
+                .AsNoTracking()
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            if (runEntity is null || runEntity.Status is not (
+                    (int)CollectionRunStatus.Pending or
+                    (int)CollectionRunStatus.Running or
+                    (int)CollectionRunStatus.Paused or
+                    (int)CollectionRunStatus.Stopping))
+            {
+                var rejectedTask = CrawlerTaskMapper.ToDomain(taskEntity);
+                rejectedTask.Cancel(now);
+                CrawlerTaskMapper.ApplyDomain(rejectedTask, taskEntity);
+                if (task.Status is not (CrawlerTaskStatus.Completed or
+                    CrawlerTaskStatus.DeadLettered or
+                    CrawlerTaskStatus.Cancelled))
+                {
+                    task.Cancel(now);
+                }
+
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+
+            if (runEntity.Status == (int)CollectionRunStatus.Pending)
+            {
+                // Usually CollectionRunService already performs this mutation;
+                // keeping it here makes the task start safe when that optional
+                // service is not present and keeps the parent/task transition
+                // within the same transaction as the Running write.
+                await db.Database
+                    .ExecuteSqlInterpolatedAsync($"""
+                        UPDATE "crawler"."runs"
+                        SET "Status" = {(int)CollectionRunStatus.Running},
+                            "UpdatedAt" = {now}
+                        WHERE "Id" = {runId}
+                        """, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        task.MarkRunning(now);
+        CrawlerTaskMapper.ApplyDomain(task, taskEntity);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
     public async Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
         var entity = await db.Tasks.FindAsync([task.Id], cancellationToken).ConfigureAwait(false)

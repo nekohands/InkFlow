@@ -34,8 +34,13 @@ public sealed class CrawlerTaskProcessor(
                 await collectionRuns.MarkWorkStartedAsync(runId, cancellationToken).ConfigureAwait(false);
             }
 
-            task.MarkRunning(clock.GetUtcNow());
-            await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
+            if (!await tasks
+                    .TryMarkRunningAsync(task, clock.GetUtcNow(), cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                await ReconcileRunAsync(task, cancellationToken).ConfigureAwait(false);
+                return;
+            }
 
             var outcome = await executor
                 .ExecuteAsync(task, cancellationToken)
