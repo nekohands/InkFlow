@@ -1166,6 +1166,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：提交 `8673bff` 的 [CI 33418330334](https://github.com/nekohands/InkFlow/actions/runs/33418330334)、[Docker 33418330294](https://github.com/nekohands/InkFlow/actions/runs/33418330294)、[Security 33418330318](https://github.com/nekohands/InkFlow/actions/runs/33418330318) 均 GREEN 且指向同一 head SHA；CI 包含新脚本回归、全量测试、Compose、前端、运行态、SLO、Redis/PostgreSQL 和备份恢复门禁。
 - 清理与边界：未设置 `INKFLOW_LIVE_TESTS=1`，没有运行真实 linovelib 网络验收；隔离服务、网络、容器和临时 worktree 已清理，VM 原工作树与持久卷保留。脚本不能绕过 Cloudflare，也不能将浏览器证据等同于服务端通过；该真实链路继续为 BLOCKED，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.16 GPT 内置浏览器 VM Web 入口复核与客户端网络边界交接（本轮，2026-09-01）
+
+- 复核目标：继续自动化非阅读 App 的 Web Reader 验收，确认最新源码构建 Compose 栈可运行，并尝试从 GPT 内置浏览器访问 VM Web 入口；本轮不启动 MuMu/阅读 3.0。
+- VM 证据：基于 `origin/dev` 的 `8652c99` 建立隔离 worktree，源码构建四个业务镜像并健康启动 Compose；Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康。经 SSH 本地转发访问 API `/health` 得到 HTTP 200：`{"status":"healthy","service":"InkFlow.Api"}`。验证后已停止并清理隔离 Compose、网络、容器、转发和临时 worktree，VM 原工作树与持久卷保留。
+- 浏览器结果：内置浏览器访问公共 HTTPS 正常；访问 VM IP 和 SSH 转发后的本地/私网 HTTP 地址均返回 `net::ERR_BLOCKED_BY_CLIENT`。因此本轮无法取得新的页面级浏览器证据；这属于浏览器客户端网络策略，不是应用健康检查失败。未创建公共隧道，未绕过 HTTPS/SSRF 安全边界。
+- 交接边界：未修改代码或公共 Contract。4.75/4.85 已有的 Web Reader 页面自动化证据不被本轮结果推翻，但视觉、真实账户/PWA 安装与跨设备、阅读 3.0 及其他人工/真实环境验收仍按第 6 节待定；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
