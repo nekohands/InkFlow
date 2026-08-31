@@ -5,9 +5,9 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`a111c9a`；在 5.11 全量 VM Release Gate 基础上完成配额快照缓存 fail-closed 与跨用户隔离加固，远端 [CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN 且 SHA 一致；本轮 Ubuntu VM、源码 Compose 和受影响 Developer API runtime smoke 证据见 5.12。
+- 最新代码候选 Commit：`f7b8e27`；在 5.12 全量 VM Release Gate 基础上完成 Developer API Free 配额超额、跨账户隔离和停用用户拒绝的源码 Compose 自动化验收，远端 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 SHA 一致；本轮 Ubuntu VM、源码 Compose、迁移检查和扩展 Developer API runtime smoke 证据见 5.13。
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -73,7 +73,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ## 4. 下一工作包
 
-**当前状态（2026-08-30 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现，远端 CI、Docker、Security 门禁已通过；真实凭据、真实 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 的真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长时间体验保留为人工验收；PWA Service Worker、壳缓存和 API 不可用时的离线回退已在 4.82 用 localhost 安全上下文自动验收。Source Credential Owner Scope 契约 v1 已接入 Provider、RuleAdapter 与 Worker：Platform/User/Organization 范围被显式区分，来源默认引用固定按 Platform 解析，真实 secret 管理与 Provider 仍待后续。
+**当前状态（2026-09-01 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现；5.13 又在源码构建 Compose 中通过 Free 配额超额 `429/Retry-After`、跨账户独立配额和停用用户拒绝自动化 smoke，远端 CI、Docker、Security 门禁均为 GREEN；真实凭据、真实套餐/Provider、生产 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 的真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长时间体验保留为人工验收；PWA Service Worker、壳缓存和 API 不可用时的离线回退已在 4.82 用 localhost 安全上下文自动验收。Source Credential Owner Scope 契约 v1 已接入 Provider、RuleAdapter 与 Worker：Platform/User/Organization 范围被显式区分，来源默认引用固定按 Platform 解析，真实 secret 管理与 Provider 仍待后续。
 
 本轮另完成 API 安全基线与三宿主可观测性接线：公共 API/Legado API 已有可配置限流，拒绝返回 `429/Retry-After`；API 请求审计已覆盖业务 API 且不记录 query string，`CompositeAuditEventSink` 同时写入 PostgreSQL `audit.events` 与结构化日志；API、Worker、Scheduler 均接入统一 OpenTelemetry 注册入口。Identity 基础认证/授权、会话轮换和死信重放命令审计已补齐；随后补齐 Redis 分布式计数、受保护的 Operations 告警快照与阈值基线，以及来源级资源授权 v1。授权管理、来源过滤和撤销审计已接入；告警内部历史/去重/恢复状态已由 Operations PostgreSQL 事实表承载，外部通知路由和更完整的组织/资源权限治理仍待后续工作包。
 
@@ -578,7 +578,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 11. **Source 默认 CredentialReference 管理人工验收**：使用 Administrator 设置/清除来源默认引用，确认 Operator/Reader/匿名拒绝、理由与 set/clear 审计正确、响应不包含 secret，并在可用真实 Provider 后验证默认回退按 Platform Scope、显式用户/组织引用按对应 Owner Scope 且显式引用优先；本轮只完成自动化基线，未使用真实凭据操作。
 12. **生产备份恢复治理验收**：在目标部署环境配置加密/异地备份、保留与删除策略、恢复授权和 RPO/RTO；执行恢复演练并保留归档、校验和、行数签名、耗时及告警证据。本轮只完成 CI 级恢复演练。
 13. **Private Library 人工验收**：使用两个真实账户验证私有书目创建、列表、详情、更新、删除和跨用户 404；上传真实 TXT/EPUB，验证章节/正文读取、导出文件可读性、重复导入不覆盖和失败导入无半本书；确认不进入公共 Catalog、搜索、Legado 或公共 Reading Shelf。本轮只完成自动化基线。
-14. **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予套餐，验证 Developer API 的目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮只完成自动化基线，未使用真实凭据。
+14. **Developer API / 商业基础人工验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；由 Administrator 授予真实套餐/Provider，验证 Developer API 的目录读取、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；5.13 已完成同范围临时账户自动化，但本轮仍未使用真实凭据。
 15. **生产 OTLP/SLO 窗口验收**：将 Collector 接入受治理持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，并验收错误预算告警、访问控制和保留策略；当前 CI 探针仅为短窗口基线。
 16. **继续推进 1.0**：在上述证据基础上完成第三来源真实验收、Private Library 真实账户/文件验收，并继续推进 Security/Operations、外部告警和组织/支付商业化能力。
 
@@ -1143,6 +1143,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM/Runtime：Ubuntu VM Linux SDK 容器完整 Restore → Release Build（0 warnings / 0 errors）→ Test：Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 2 skipped / 0 failed`；源码构建 Compose 四镜像健康启动，`developer-api-runtime-smoke` PASS。隔离 Compose、网络、容器和 worktree 已清理，VM 原工作树保留。
 - 代码与 CI：`a111c9a` 已推送；[CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN。
 - 交接边界：自动化缓存安全缺口已关闭；真实账户/套餐/超额/停用、生产 Redis 故障、真实来源、PWA 跨设备、人工视觉和 MuMu/阅读 3.0 仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.13 Developer API 配额超额、账户隔离与停用自动化运行验收交接（本轮，2026-09-01）
+
+- 工作包：在 5.12 的配额快照 fail-closed 基础上，补齐 Developer API Free 配额耗尽、跨账户隔离和停用用户拒绝的源码构建 Compose 运行证据；不改变生产 API、数据库 schema 或计费事实模型。
+- 实现：`scripts/developer-api-runtime-smoke.sh` 使用四个活跃 API Key 分摊动态配额请求，验证内容路径的 `429`、`quota_exceeded`、`periodEnd`、`remainingUnits` 和 `Retry-After`；第二临时账户验证独立新配额，`AcceptanceFixtures disable-user` 后验证 Bearer/Developer Key 均为 `401`。新增 `scripts/disable-acceptance-user.sh`，兼容 CI Compose 与 SDK 容器 fixture runner。
+- VM 证据：Ubuntu VM 隔离 worktree `f7b8e27` 的 Linux SDK 容器 Restore、Release Build（0 warnings / 0 errors）、Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `105`（`103 passed / 2 skipped / 0 failed`）通过；源码构建四业务镜像和 PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康启动通过；扩展 Developer API smoke PASS；`dotnet tool restore` 后 11 个 migration context 校验 PASS。验证后容器/网络/worktree 清理，持久卷保留，VM 原工作树改动保留。
+- 远端证据：代码候选 `f7b8e27` 的 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 head SHA 一致。
+- 当前状态：本轮自动化 Developer API 补充证据已闭合，但整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。真实账户/套餐/Provider、生产 Redis、人工 Operations/审计、真实来源、PWA 跨设备以及 MuMu/阅读 3.0 继续按第 6 节待定；首次 SDK smoke 缺少 `jq`、首次迁移校验未恢复 EF 设计程序集，均已修正后复验通过。
 
 ## 5. 关键架构不变量
 

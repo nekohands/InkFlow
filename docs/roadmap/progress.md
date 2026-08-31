@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最后更新日期：2026-08-31
+- 最后更新日期：2026-09-01
 
 ## 1. 总体状态
 
@@ -1325,6 +1325,15 @@ Phase 1A 自动化工作包状态：
 - 运行态与远端：Ubuntu VM 以 `docker-compose.build.yml` 源码构建四个业务镜像并健康启动，受影响的 `developer-api-runtime-smoke` PASS（账户/权益、应用与密钥生命周期、脱敏、Header-only 鉴权、目录配额路径、轮换/撤销）；验证后隔离 Compose 服务/网络、容器和 worktree 已清理，持久卷未删除。代码候选 `a111c9a` 的 [CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN 且指向同一 head SHA。
 - 边界：本轮关闭配额缓存 fail-closed 与跨用户隔离的自动化缺口，不替代真实账户、套餐/超额/停用场景、生产 Redis 故障演练和阅读 3.0/MuMu 等第 6 节待定项；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.13 Developer API 配额超额、账户隔离与停用自动化运行验收（本轮，2026-09-01）
+
+- 缺口：5.12 的运行 smoke 已覆盖 Developer API 生命周期和缓存安全，但尚未在源码构建 Compose 中真正消耗 Free 配额并验证超额响应、跨账户隔离和停用用户拒绝。
+- 实现：扩展 `scripts/developer-api-runtime-smoke.sh`，使用四个活跃 API Key 分摊请求，在内容读取成本为 5 的路径上动态消耗当月剩余配额，断言 `429`、`quota_exceeded`、`periodEnd`、`remainingUnits` 和正值 `Retry-After`；新增第二临时账户验证独立新配额仍可读目录，随后通过 `AcceptanceFixtures disable-user` 验证 Bearer 与 Developer API Key 均返回 `401`。新增 `scripts/disable-acceptance-user.sh`，同时支持 CI Compose 和 SDK 容器 fixture runner；未改变生产 API、数据库 schema 或计费事实模型。
+- 回归：`bash scripts/tests/developer-api-runtime-smoke.test.sh` PASS，`git diff --check` PASS；首次 SDK smoke 缺少 `jq`、首次迁移检查未准备 EF 设计程序集，均在验证编排中修正后重跑，不构成产品失败。
+- Ubuntu VM：从 `origin/dev` 的代码候选 `f7b8e27` 建立隔离 worktree；Linux .NET 10 SDK 容器 `Restore`、Release Build（0 warnings / 0 errors）和全量测试通过：Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `105` 项（`103 passed / 2 skipped / 0 failed`）。`docker-compose.build.yml` 源码构建四个业务镜像，Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康；扩展 `developer-api-runtime-smoke` PASS；`dotnet tool restore` 后 `verify-migrations.sh` 验证 11 个上下文 PASS。验证后隔离容器/网络/worktree 已清理，持久卷保留，VM 原工作树的用户改动未被覆盖。
+- 远端门禁：代码候选 `f7b8e27` 的 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且指向同一 head SHA。
+- 边界：本轮关闭 Developer API 补充场景的自动化证据缺口；真实 Web 账户/真实套餐与生产 Provider、生产 Redis 故障、审计人工核对，以及阅读 3.0/MuMu、真实来源、PWA 跨设备和生产 OTLP/SLO 仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1410,7 +1419,7 @@ Official Source
 - [x] **Private Library 非阅读 App 自动化运行验收**：源码构建 Compose 已由 4.78 的 runtime smoke 覆盖认证、所有权隔离、CRUD、TXT 导入/章节/正文/导出、私有缓存头、公共 API/Legado 直接路径 404，以及公共 Catalog/Reading Shelf 不泄漏。
 - [x] **Private Library 非阅读 App 自动化文件/一致性验收**：源码构建 Compose 已覆盖 TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、所有权及公共路径隔离。
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验、导出文件可读性及长期使用；不作为阅读 App 以外自动化门禁的替代。
-- [x] **Developer API / 商业基础非阅读 App 自动化运行验收**：源码构建 Compose 已自动验证 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、`X-InkFlow-Api-Key` 专用 Header、轮换和撤销；真实 Web 账户、管理员套餐、配额超额和用户停用仍需真实环境补充。
+- [x] **Developer API / 商业基础非阅读 App 自动化运行验收**：源码构建 Compose 已自动验证 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、`X-InkFlow-Api-Key` 专用 Header、Free 配额消耗后的 `429/Retry-After`、跨账户独立配额、停用用户拒绝、轮换和撤销；真实 Web 账户、真实套餐/Provider、生产 Redis 和人工审计核对仍需真实环境补充。
 - [ ] **真实追更验收**：4.87 已用真实 Kanunu8 当前快照自动验证 Scheduler 扫描、Worker 消费、目录同步、任务去重与正文发布；5.10 又用确定性来源响应验证新增章节后的增量映射、正文发布和重复扫描幂等；仍需真实 Official Source 上游新增章节/修订事件，验证下一周期扫描确实产生增量并发布新版本。
 - [ ] **真实第二来源与故障切换**：4.99 已用确定性双来源夹具完成源码 Compose 下 Web/Legado 的 A→B→A、稳定 BookId/ChapterId 和恢复验证；仍需从已接入 Official Source 中选择可稳定访问的真实第二来源，确认真实来源故障、真实响应和恢复不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
@@ -1425,7 +1434,7 @@ Official Source
 - [x] **Admin Audit Read 非阅读 App 自动化验收**：4.83 已验证管理员审计查询、命令过滤和不暴露 secret/body 的 API 响应。
 - [ ] **Admin Audit Read 人工/真实环境补充验收**：使用真实 Operator/Administrator 复核时间范围、游标翻页、空结果、服务不可用和截图证据；自动化基线已完成。
 - [x] **Developer API / 商业基础管理员套餐自动化验收**：4.83 已验证 Administrator 为临时 Operator 授予 Pro 后的 Entitlement、quota 和审计路径。
-- [ ] **Developer API / 商业基础人工/真实账户补充验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；补充真实跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；本轮未使用真实凭据。
+- [ ] **Developer API / 商业基础人工/真实账户补充验收**：使用真实 Web 账户创建/撤销应用与 API Key，确认原文只出现一次；补充真实套餐/Provider、跨应用用户级配额、超额 `429/Retry-After`、密钥/应用/用户停用后的拒绝和审计；5.13 已完成同范围临时账户自动化，但本轮未使用真实凭据。
 
 ### 6.2 需要可用环境复验
 
@@ -1459,7 +1468,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `a111c9a` 在 5.11 全量 VM Release Gate 基础上完成配额快照缓存 fail-closed 与跨用户隔离加固；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 533/533、Architecture 1/1、Contract 10/10、Integration 103 passed / 2 skipped / 0 failed，源码构建 Compose 健康启动且受影响的 Developer API runtime smoke PASS。远端 [CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN 且 SHA 一致；5.11 的 Reader/Legado/failover/quality/private/admin/collection-package/Core SLO/OTel receipt/backup-restore 全量证据仍有效。
+最新状态（2026-09-01）：代码候选 `f7b8e27` 在 5.12 配额快照缓存 fail-closed 加固基础上补齐 Developer API Free 配额超额、跨账户隔离和停用用户拒绝的源码 Compose 自动化验收；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 533/533、Architecture 1/1、Contract 10/10、Integration 105 项（103 passed / 2 skipped / 0 failed），源码构建 Compose 健康启动，扩展的 Developer API runtime smoke PASS，`verify-migrations.sh` 的 11 个上下文 PASS。远端 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 SHA 一致；5.11 的 Reader/Legado/failover/quality/private/admin/collection-package/Core SLO/OTel receipt/backup-restore 全量证据仍有效。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
