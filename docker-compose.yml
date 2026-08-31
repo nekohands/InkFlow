@@ -29,7 +29,7 @@ services:
       retries: 10
 
   otel-collector:
-    image: otel/opentelemetry-collector:0.159.0
+    image: otel/opentelemetry-collector:0.160.0
     command: ["--config=/etc/otelcol/config.yaml"]
     environment:
       INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY: "${INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY:-basic}"
