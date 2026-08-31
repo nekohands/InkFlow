@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`835ccd5`（在直接地址采集启动原子化与租约门禁基础上，补齐带 `RunId` 子任务入队和任务执行启动时对父 CollectionRun 控制状态的 PostgreSQL 事务门禁，并确保启动被拒绝时不提前推进父运行；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 并发回归、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`c0ad1dc`（在采集事务门禁基础上，补齐 RuleAdapter 主请求最终 `ResponseUri` 的同源校验，拒绝无 Session 主请求消费跨源重定向后的成功正文；候选已在 Ubuntu VM 以源码构建 Compose 完成迁移、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1085,6 +1085,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Unit 526/526、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed。`835ccd5` 通过 `docker-compose.build.yml` 源码构建四个业务镜像；Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis 健康，三个服务 `/health` 返回 200；验证后 Compose 已停止，`ps --all` 无服务容器残留，网络已清理，持久卷保留。
 - 远端门槛：代码候选 `835ccd5` 的 [CI 33380404527](https://github.com/nekohands/InkFlow/actions/runs/33380404527)、[Docker 33380404455](https://github.com/nekohands/InkFlow/actions/runs/33380404455)、[Security 33380404474](https://github.com/nekohands/InkFlow/actions/runs/33380404474) 均 GREEN 且 head SHA 一致。
 - 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
+
+### 5.6 Rule 主请求最终响应同源门禁交接（本轮，2026-08-31）
+
+- 工作包：修复无 `Session` 的 Rule 主请求未检查最终 `ResponseUri` 的边界缺陷；保持 Safe HTTP 的连接级 SSRF 防护和现有重定向跳数策略，不改变公开 API、Schema、Migration 或 Source/Canonical 边界。
+- 实现：新增跨源最终响应红→绿回归；`RuleAdapter` 在主请求成功响应进入正文/字段提取前，与前置请求一样校验绝对 URI、userinfo、fragment 和 source origin，并在失败时不返回部分结果。连接级 `SsrfSafeHttpMessageHandler` 继续负责每跳 DNS/地址/端口校验，当前自动重定向最多 5 跳边界不变。
+- 回归：本机 RuleAdapter 52/52、Unit 527/527、Architecture 1/1、Contract 10/10 通过；`git diff --check` 通过。
+- Ubuntu VM：候选 `c0ad1dc` 在 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Unit 527/527、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed；`verify-migrations.sh` 通过 11 个 contexts。随后用 `docker-compose.build.yml` 源码构建 Compose，Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康，三个服务 `/health` 返回 200；验证后 Compose 已停止，服务容器和网络已清理，持久卷保留。
+- 远端门槛：候选 `c0ad1dc` 的 [CI 33382784197](https://github.com/nekohands/InkFlow/actions/runs/33382784197)、[Docker 33382783508](https://github.com/nekohands/InkFlow/actions/runs/33382783508)、[Security 33382783564](https://github.com/nekohands/InkFlow/actions/runs/33382783564) 均 GREEN 且 head SHA 一致。
+- 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
 ## 5. 关键架构不变量
 

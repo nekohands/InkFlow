@@ -84,6 +84,9 @@ scheme/host/port 同源；所有模式都受 `maxPages`、`MaxRequests`、响应
 串行执行；每步只能使用来源根地址构建请求，可从成功响应按受控 Selector/Regex 提取最多 32 个临时变量，供后续步骤和
 主请求模板使用。前置请求、主请求和分页请求共享 `MaxRequests`、累计响应字节、执行时间和变量上下文预算；前置响应正文
 不进入结果，跨源最终响应、派生值缺失或任一预算超限均在主请求前失败关闭。
+`RuleAdapter` 在前置请求、主请求和分页请求的成功响应进入正文/字段提取前统一校验最终 `ResponseUri`；即使无
+`Session` 的主请求由 Handler 安全跟随重定向，最终 origin 离开来源或 URI 带有 userinfo/fragment 时仍整体失败，
+不消费跨源响应。
 循环链接、重复游标、跨源/带凭据/带 fragment 的链接、非法游标和超出边界的链路整体失败，
 不暴露已抓页面。
 `SourceRuleExecutionLimits` 已接入有限的 MaxRequests、MaxBytes、MaxExecutionTime、MaxRegexTime 和

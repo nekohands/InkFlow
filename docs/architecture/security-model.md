@@ -63,7 +63,9 @@ Required controls:
 当前来源请求由 `SsrfGuard` 做字面量与 DNS 全结果校验，并由
 `SsrfSafeHttpMessageHandler` 在真实 TCP 连接回调中直接连接同一批已验证地址；环境代理关闭，
 端口限制为 80/443，自动重定向最多 5 跳。API、Worker、Scheduler 的来源 HTTP typed client
-均已接入该 Handler。真实网络重定向演练和生产策略扫描仍是独立验收项。
+均已接入该 Handler。除此之外，`RuleAdapter` 对前置请求、主请求和分页请求的成功响应在结果提取前统一核对
+最终 `ResponseUri` 的同源、userinfo 与 fragment 约束；因此无 `Session` 的主请求即使经过 Handler 的安全重定向，
+也不会消费跨源最终正文。真实网络重定向演练和生产策略扫描仍是独立验收项。
 
 ## 5. Network Isolation
 

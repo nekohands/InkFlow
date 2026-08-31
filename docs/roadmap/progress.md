@@ -1264,6 +1264,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `835ccd5` 的 [CI 33380404527](https://github.com/nekohands/InkFlow/actions/runs/33380404527)、[Docker 33380404455](https://github.com/nekohands/InkFlow/actions/runs/33380404455)、[Security 33380404474](https://github.com/nekohands/InkFlow/actions/runs/33380404474) 均 GREEN 且指向同一 head SHA。
 - 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
+### 5.6 Rule 主请求最终响应同源门禁（本轮，2026-08-31）
+
+- 缺陷：无 `Session` 的 Rule 主请求此前没有核对 Safe HTTP 返回的最终 `ResponseUri`；当 Handler 安全跟随重定向到其他 origin 后，成功正文可能进入 Rule 提取结果，未满足既有同源响应契约。
+- TDD 与实现：先新增 `Main_Request_Rejects_Cross_Origin_Final_Response` 红测，再让 `RuleAdapter` 在主请求成功响应进入 `ResponseBodies`/字段提取前统一校验最终 URI；前置请求也复用同一带上下文的校验。绝对 URI、userinfo、fragment 和 source origin 不满足约束时 fail-closed，不返回部分结果。
+- 安全边界：本修复阻止跨源最终响应被 Rule 结果消费，不把它表述为阻止网络层发起安全重定向；连接级 `SsrfSafeHttpMessageHandler` 仍负责每跳解析、地址和端口约束，现有最多 5 跳自动重定向边界不变。
+- 本机证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；RuleAdapter 52/52、Unit 527/527、Architecture 1/1、Contract 10/10 PASS；`git diff --check` PASS。
+- Ubuntu VM 证据：候选 `c0ad1dc` 在 Linux SDK 容器完成 `Restore → Build → Test`，Release Build 0 warnings / 0 errors、Unit 527/527、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed；`verify-migrations.sh` 通过（11 contexts）。随后以 `docker-compose.build.yml` 源码构建并启动 Compose，Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康，三个服务 `/health` 均返回 200；验证后已执行 `docker compose down --remove-orphans`，服务容器和网络清理，持久卷保留。
+- 远端门禁：候选 `c0ad1dc` 的 [CI 33382784197](https://github.com/nekohands/InkFlow/actions/runs/33382784197)、[Docker 33382783508](https://github.com/nekohands/InkFlow/actions/runs/33382783508)、[Security 33382783564](https://github.com/nekohands/InkFlow/actions/runs/33382783564) 均 GREEN 且指向同一 head SHA。
+- 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1384,13 +1394,13 @@ Official Source
 - API 限流已接入 Redis 原子 fixed-window 分布式计数，并保留同配额的本地有界故障降级；Developer API v1 已接入生产 API Key、固定版本套餐/Entitlement、PostgreSQL 用户级 UTC 月度加权配额和不可变 Usage Ledger，Redis 仅作快照加速。Operations 已提供 Redis/来源健康/死信/一致性告警快照、配置化阈值、PostgreSQL 告警 incident 去重/恢复历史、保留清理、管理员历史查询和 Operations Center 历史展示；来源级授权 v1 已落地并接入来源查询/控制及授权审计。组织/租户、支付、外部告警路由和生产告警治理仍待后续 Operations/Identity/商业化工作包；审计已具备有界 retention 代码基线，但生产法律/合同保留、归档和删除授权治理仍待部署环境确定。
 - CI Security Scan v1 已接入依赖漏洞、Secret/Misconfiguration、CodeQL SAST、源码 SBOM 和 Docker 发布前扫描；Code Scanning API 未启用，当前以工作流产物提供证据。生产扫描策略、报告保留、Secret 轮换和动作版本治理仍待后续安全治理工作。
 - PostgreSQL 备份恢复已有 CI 级 custom-format dump/restore 演练和全表行数签名证据；生产异地备份、加密、保留/删除治理、恢复授权、RPO/RTO 和告警仍待后续 Operations 工作包。
-- Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
+- Source 出网已具备 `SsrfGuard` 字面量/DNS 检查与连接级 `SsrfSafeHttpMessageHandler`；RuleAdapter 在前置请求、主请求和分页请求的成功响应进入结果提取前统一校验最终 `ResponseUri` 的同源、userinfo 和 fragment 约束；仍待真实生产网络、重定向链路和策略扫描演练的独立证据。
 - Source Rule DSL v1 已具备严格 JSON Schema/codec、Fixture 和 `RuleTransform` 持久化往返基线；受控 XPath/JSONPath
   选择器运行时已在 4.51 接入，受控 next-link Pagination 已在 4.52 接入，page-number/cursor 与跨页
   Rule execution budgets 已在 4.53 接入，受控 response-cookie Session 已在 4.54 接入，有界请求模板变量已在
   4.55 接入，任务级 CredentialReference typed 初始认证已在 4.56 接入，有界响应派生变量已在 4.57 接入，
   4.58 已接入来源级默认 CredentialReference 回退，4.59 已接入 Administrator-only 设置/清除和命令审计入口，4.60 已将 Provider 解析上下文收敛为带 Platform/User/Organization Owner Scope 的契约；
-  5.1 已接入最多 8 步的同源串行 PreRequests 与临时响应变量，复用请求/字节/结果/时间/Session 预算；
+  5.1 已接入最多 8 步的同源串行 PreRequests 与临时响应变量，复用请求/字节/结果/时间/Session 预算，5.6 已补齐无 Session 主请求最终响应的同源门禁；
   secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话、动态多请求/分支/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA Service Worker/离线壳已在 4.82 通过 localhost 安全上下文自动验收；真实安装、账户/跨设备体验、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
@@ -1398,7 +1408,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `835ccd5` 已补齐采集任务租约、CollectionRun 控制状态、子任务入队与任务执行启动的 PostgreSQL 并发事务门禁，并修复任务启动拒绝时父运行被提前推进的问题；Progress、Handoff、ADR 与需求对齐文档已同步本轮证据。VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit 526/526、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed，新增定向控制竞态 3/3、任务启动 2/2 和处理器回归 5/5；当前 head 的源码 Compose 重建、Migration、服务健康检查均通过，随后 Compose 已停止，服务容器和网络已清理，持久卷保留。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过。
+最新状态（2026-08-31）：代码候选 `c0ad1dc` 在既有采集事务门禁基础上补齐 RuleAdapter 主请求最终响应的同源校验，避免无 Session 主请求消费跨源重定向后的成功正文；Progress、Handoff 与架构安全文档已同步本轮证据。VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit 527/527、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed，`verify-migrations.sh` 通过 11 个 DbContext；源码 Compose 重建、Migration/packages-init、服务健康检查均通过，随后 Compose 已停止，服务容器和网络已清理，持久卷保留。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
