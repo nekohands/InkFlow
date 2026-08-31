@@ -1341,6 +1341,14 @@ Phase 1A 自动化工作包状态：
 - 结论：搜索 POST 的空响应发生在上游/站点挑战层，不能作为 RuleAdapter 成功，也不能通过注入 Cookie、关闭 TLS/SSRF 校验或其他绕过方式制造通过证据。4.77 的浏览器 Search → BookInfo → TOC → Content 页面链路仍有效，但不等同于服务端 RuleAdapter 直连验收。
 - 验证边界：本轮没有修改规则、公共 Contract、数据模型或安全策略；`linovelib RuleAdapter 后端直连链路` 继续保持第 6.2 节未完成，解除条件是取得允许服务端只读访问的稳定网络/站点响应后，再运行 Search → BookInfo → TOC → Content 的真实适配器测试。
 
+### 5.15 linovelib RuleAdapter 可选真实验收 harness 与 VM Release Gate（本轮，2026-09-01）
+
+- 缺口：4.77 只有 GPT 内置浏览器的公开页面证据，5.14 已确认普通 HTTP 搜索请求被上游 Cloudflare 返回空响应；此前缺少一条可复用、默认不触发网络的服务端 RuleAdapter 真实验收入口。
+- 实现：新增 `tests/InkFlow.IntegrationTests/LinovelibSourceAdapterLiveTests.cs`，通过生产安全 HTTP 客户端、SSRF 安全处理器和当前 Rule DSL 验证 Search → BookInfo → TOC → Content；新增 `scripts/linovelib-live-acceptance.sh`，只有显式设置 `INKFLOW_LIVE_TESTS=1` 才运行该测试，未设置时返回明确的 `NOT RUN` 门槛。CI 增加 `bash -n` 回归检查，脚本已标记为可执行。
+- VM 证据：Ubuntu VM 隔离 worktree 中完成源码构建四业务镜像；Linux .NET 10 SDK 容器完成 Restore、Release Build（0 warnings / 0 errors）和全量测试：Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `106` 项（`103 passed / 3 skipped / 0 failed`）。`dotnet tool restore` 后 `verify-migrations.sh` 验证 11 个上下文 PASS；源码 Compose 中 Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，三个 `/health` 均返回 `healthy`。
+- 验收边界：按用户决定未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib Search → BookInfo → TOC → Content 未运行；脚本门槛、语法和离线回归已验证。代码提交 `2ec2a43` 后仅补充脚本可执行权限为 `b50001c`，未改变测试或产品行为；验证后隔离 Compose、网络、容器和临时 worktree 已清理，VM 原工作树及持久卷保留。
+- 结论：新增了可审查的真实适配器验收入口，但不能把它的跳过状态或浏览器页面证据升级为 RuleAdapter 通过；`linovelib RuleAdapter 后端直连链路` 继续按第 6.2 节 BLOCKED，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1475,7 +1483,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：代码候选 `f7b8e27` 在 5.12 配额快照缓存 fail-closed 加固基础上补齐 Developer API Free 配额超额、跨账户隔离和停用用户拒绝的源码 Compose 自动化验收；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 533/533、Architecture 1/1、Contract 10/10、Integration 105 项（103 passed / 2 skipped / 0 failed），源码构建 Compose 健康启动，扩展的 Developer API runtime smoke PASS，`verify-migrations.sh` 的 11 个上下文 PASS。远端 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 SHA 一致；5.11 的 Reader/Legado/failover/quality/private/admin/collection-package/Core SLO/OTel receipt/backup-restore 全量证据仍有效。5.14 又在 Ubuntu VM 以浏览器常见请求头复核 linovelib 搜索 POST，确认上游 Cloudflare 仍返回 HTTP 200 空响应；该项保持 BLOCKED，不把浏览器页面证据升级为 RuleAdapter 通过。
+最新状态（2026-09-01）：代码候选 `b50001c` 在 `2ec2a43` 的 linovelib RuleAdapter 可选真实验收 harness 基础上仅补充脚本可执行权限；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 533/533、Architecture 1/1、Contract 10/10、Integration 106 项（103 passed / 3 skipped / 0 failed），`verify-migrations.sh` 的 11 个上下文 PASS，源码构建 Compose 健康启动，API/Worker/Scheduler `/health` 均返回 healthy。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效。此前 5.13 的远端 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 SHA 一致；本提交的最终三类门禁待远端完成后补录。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

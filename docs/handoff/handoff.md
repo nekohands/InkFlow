@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`f7b8e27`；在 5.12 全量 VM Release Gate 基础上完成 Developer API Free 配额超额、跨账户隔离和停用用户拒绝的源码 Compose 自动化验收，远端 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 SHA 一致；本轮 Ubuntu VM、源码 Compose、迁移检查和扩展 Developer API runtime smoke 证据见 5.13。
+- 最新代码候选 Commit：`b50001c`；在 `2ec2a43` 的 linovelib RuleAdapter 可选真实验收 harness 基础上仅补充脚本可执行权限；本轮 Ubuntu VM、源码 Compose、迁移检查和全量测试证据见 5.15，最终三类远端门禁待运行完成后补录。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -770,7 +770,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
 - [ ] **真实第二来源故障切换**：4.99 已在源码 Compose 确定性 fixture 中验证 Web/Legado A→B→A、稳定 BookId/ChapterId 和恢复；仍需用可稳定访问的真实第二 Official Source 验证真实故障、响应和恢复，不得产生重复 Canonical 身份。
 - [x] **linovelib 真实公开页面只读链路**：GPT 内置浏览器已完成 Search → BookInfo → TOC → Content 页面证据；不等同于服务端 RuleAdapter 直连通过。
-- [ ] **linovelib RuleAdapter 后端直连链路**：当前普通 HTTP POST 搜索返回 200 但空响应体，待网络/站点挑战可稳定处理后验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/故障切换演练。
+- [ ] **linovelib RuleAdapter 后端直连链路**：当前普通 HTTP POST 搜索返回 200 但空响应体；已提供 `scripts/linovelib-live-acceptance.sh` 与 `INKFLOW_LIVE_TESTS=1` opt-in 测试入口，待网络/站点挑战可稳定处理后验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/故障切换演练。
 - [ ] **17K 真实 Search/阅读链路**：已在 Ubuntu VM 只读探测，但当前 API 证书链校验失败或返回“请升级版本/图书信息不存在”，仍待可用网络环境验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向。
 - [ ] **本机 Docker 集成复验**：Windows 本机 Docker Engine 仍不可用；Ubuntu VM 已在 5.11 使用源码构建 Compose 完成 Unit 530/530、Architecture 1/1、Contract 10/10、Integration 102 passed / 2 skipped / 0 failed 的完整容器证据。若需关闭本机复验项，仍待 Windows Docker 恢复后在本机重跑 Testcontainers。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
@@ -1157,6 +1157,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 复核目标：验证现行 linovelib Rule DSL 的服务端搜索请求 `POST /S6/` + `searchkey={key}`，避免把 GPT 内置浏览器在 4.77 中取得的页面链路误当成 RuleAdapter 直连证据。
 - Ubuntu VM 只读结果：`GET /novel/1.html` 为 HTTP 200/38811 bytes，`GET /novel/1/catalog` 为 HTTP 200/74342 bytes；带浏览器常见请求头的 `POST https://www.linovelib.com/S6/` 为 HTTP/2 200/0 bytes，正文无 `/novel/` 结果链接，响应来自 Cloudflare。
 - 结论与边界：这是一条上游/站点挑战阻塞，不是适配器通过。未修改 Rule DSL、公共 Contract、Migration 或 SSRF 安全边界，也未尝试 Cookie 注入、TLS/SSRF 绕过等方式；`linovelib RuleAdapter 后端直连链路` 继续保持 BLOCKED，解除后需重新执行 Search → BookInfo → TOC → Content。
+
+### 5.15 linovelib RuleAdapter 可选真实验收 harness 与 VM Release Gate 交接（本轮，2026-09-01）
+
+- 工作包：新增服务端 linovelib RuleAdapter 的 opt-in 真实验收测试和脚本入口，默认不触发第三方网络；显式设置 `INKFLOW_LIVE_TESTS=1` 后才执行 Search → BookInfo → TOC → Content。
+- 实现：`LinovelibSourceAdapterLiveTests` 复用生产安全 HTTP/SSRF 边界和当前 Rule DSL；`scripts/linovelib-live-acceptance.sh` 校验环境门槛并运行过滤测试，CI 对脚本执行 `bash -n`，最终提交 `b50001c` 补齐可执行权限。
+- VM 证据：候选 `2ec2a43` 内容在 Ubuntu VM 隔离 worktree 完成源码构建四镜像；SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；`verify-migrations.sh` 的 11 个 context PASS；Compose Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，API/Worker/Scheduler `/health` 返回 healthy。随后切到只改文件模式的 `b50001c`，脚本语法和未设置 live 开关的 NOT RUN 门槛验证通过。
+- 清理与边界：未设置 `INKFLOW_LIVE_TESTS=1`，没有运行真实 linovelib 网络验收；隔离服务、网络、容器和临时 worktree 已清理，VM 原工作树与持久卷保留。脚本不能绕过 Cloudflare，也不能将浏览器证据等同于服务端通过；该真实链路继续为 BLOCKED，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
