@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`d5e8322`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复、PWA 安装增强契约测试/前端 smoke、BookInfo 子任务编排回归测试，以及 Operations run-control 请求契约修复；CI/Docker/Security 门禁均 GREEN；当前候选已在 Ubuntu VM 完成源码 Compose 重建、自动化 Runtime smoke 和临时 Operator 登录后的浏览器验收，真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`df35d5e`（在 `d5e8322` 基础上新增 Legado Manifest + Search → BookInfo → TOC → Content 独立运行时 smoke、确定性 fixture/脚本回归及 CI 接入；候选已在 Ubuntu VM 以源码构建 Compose 完成健康启动和公开四步链路运行时验收，真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
