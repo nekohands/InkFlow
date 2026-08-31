@@ -117,9 +117,16 @@ public sealed class BookPackageJobRepositoryTests
         Assert.IsNotNull(reclaimed);
 
         firstLease!.SetTotalChapterCount(42, T0.AddMinutes(2));
-        await Assert.ThrowsExceptionAsync<InvalidOperationException>(
-                () => firstRepository.SaveAsync(firstLease))
-            .ConfigureAwait(false);
+        var rejectedUnfencedSave = false;
+        try
+        {
+            await firstRepository.SaveAsync(firstLease).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+            rejectedUnfencedSave = true;
+        }
+
         var saved = await firstRepository
             .SaveLeasedAsync(
                 firstLease,
@@ -129,6 +136,7 @@ public sealed class BookPackageJobRepositoryTests
             .ConfigureAwait(false);
 
         var persisted = await secondRepository.GetAsync(job.Id).ConfigureAwait(false);
+        Assert.IsTrue(rejectedUnfencedSave);
         Assert.IsFalse(saved);
         Assert.IsNotNull(persisted);
         Assert.AreEqual(BookPackageJobStatus.Running, persisted!.Status);
