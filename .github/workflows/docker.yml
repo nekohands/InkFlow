@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v7
+
       - name: Pull pinned OTLP Collector image
         run: docker pull otel/opentelemetry-collector:0.159.0
 
