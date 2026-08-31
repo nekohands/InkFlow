@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`5875479`（后续 `361fe18` 为文档性修订）；质量失败与确定性追更的既有远端门禁记录见 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619)，均 GREEN 且 SHA 一致；本轮最新 Ubuntu VM 全量复验与源码 Compose 证据见 5.11。
+- 最新代码候选 Commit：`a111c9a`；在 5.11 全量 VM Release Gate 基础上完成配额快照缓存 fail-closed 与跨用户隔离加固，远端 [CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN 且 SHA 一致；本轮 Ubuntu VM、源码 Compose 和受影响 Developer API runtime smoke 证据见 5.12。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1135,6 +1135,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 观测与恢复：Core SLO p95 为 public `28.058ms`、Legado `15.181ms`、developer `7.840ms`、reader `7.639ms`，四面 PASS；1 秒指标导出 + detailed debug 下两个 `inkflow.slo.*` 指标和四个 surface 的 Collector receipt PASS；backup/restore PASS，archive `108510 bytes`、`audit_events=271`。
 - 过程与清理：初次运行中一次重复注册测试账户的编排错误产生 409，修正后全套业务 smoke 通过；首次 OTel 检查过早，调整导出周期后通过。临时账户、隔离 Compose 服务/网络/卷、fixture SDK 和 worktree 均已清理，原 VM 工作树保留。
 - 交接边界：本轮仅确认最新代码栈的自动化 VM Release Gate，不关闭真实追更/第二来源/真实凭据与 Provider/生产 OTLP-SLO/生产运维/PWA 跨设备/人工视觉和 MuMu/阅读 3.0；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.12 配额快照缓存身份与损坏值 fail-closed 加固交接（本轮，2026-08-31）
+
+- 工作包：修复 Redis 配额快照损坏值导致的反序列化异常，并阻止错误用户或错误计费周期的缓存快照被当作当前用户结果；PostgreSQL 继续作为权威来源。
+- 实现：`RedisQuotaSnapshotCache` 捕获 `JsonException` 并按 cache miss 处理；`QuotaService` 命中时增加 `UserId`、`PeriodStart` 校验，同时保留周期结束和套餐字段校验；新增 Developer API Key 生成器、损坏 Redis 快照和跨用户快照回源回归。
+- VM/Runtime：Ubuntu VM Linux SDK 容器完整 Restore → Release Build（0 warnings / 0 errors）→ Test：Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 2 skipped / 0 failed`；源码构建 Compose 四镜像健康启动，`developer-api-runtime-smoke` PASS。隔离 Compose、网络、容器和 worktree 已清理，VM 原工作树保留。
+- 代码与 CI：`a111c9a` 已推送；[CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN。
+- 交接边界：自动化缓存安全缺口已关闭；真实账户/套餐/超额/停用、生产 Redis 故障、真实来源、PWA 跨设备、人工视觉和 MuMu/阅读 3.0 仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

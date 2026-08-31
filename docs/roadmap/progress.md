@@ -1317,6 +1317,14 @@ Phase 1A 自动化工作包状态：
 - 过程说明：一次初始运行脚本误先注册了由脚本自身负责注册的测试账户，得到 409；修正编排后相关 smoke 全部通过。首次 OTel 检查早于默认 60 秒导出周期，随后调整为 1 秒导出并复验通过；两次均不构成产品失败。
 - 清理与边界：临时账户已禁用，隔离 Compose 服务/网络/卷、fixture SDK 容器和 worktree 已清理；VM 原工作树未覆盖。该轮关闭的是最新代码栈的自动化 VM Release Gate，不替代真实追更、真实第二来源、真实凭据/Provider、生产 OTLP/SLO、PWA 跨设备、人工视觉验收和 MuMu/阅读 3.0，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.12 配额快照缓存身份与损坏值 fail-closed 加固（本轮，2026-08-31）
+
+- 缺口：Redis 配额快照只是 PostgreSQL 事实数据的读取加速层；此前损坏/不兼容 JSON 可能让查询抛出反序列化异常，缓存污染时也缺少对 `UserId` 与计费周期起点的命中校验。
+- 实现：`RedisQuotaSnapshotCache` 将 `JsonException` 视为 cache miss 并回源；`QuotaService` 只有在用户 ID、周期起点、周期结束时间和套餐字段均匹配时才采用快照，否则回源 PostgreSQL 并刷新缓存。未改变数据库 schema、公开 API 或 PostgreSQL 权威性。
+- 回归：新增 Developer API Key 生成器安全属性测试 2/2、损坏 Redis 快照单测 1/1；新增 PostgreSQL 持久化回归验证跨用户快照不会被返回 1/1。Ubuntu VM Linux SDK 容器完整 Restore → Release Build（0 warnings / 0 errors）→ Test 为 Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `105` 项（`103 passed / 2 skipped / 0 failed`）。
+- 运行态与远端：Ubuntu VM 以 `docker-compose.build.yml` 源码构建四个业务镜像并健康启动，受影响的 `developer-api-runtime-smoke` PASS（账户/权益、应用与密钥生命周期、脱敏、Header-only 鉴权、目录配额路径、轮换/撤销）；验证后隔离 Compose 服务/网络、容器和 worktree 已清理，持久卷未删除。代码候选 `a111c9a` 的 [CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN 且指向同一 head SHA。
+- 边界：本轮关闭配额缓存 fail-closed 与跨用户隔离的自动化缺口，不替代真实账户、套餐/超额/停用场景、生产 Redis 故障演练和阅读 3.0/MuMu 等第 6 节待定项；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1451,7 +1459,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `5875479` 在质量失败运行时演练和确定性 Scheduler 追更证据基础上，已在 Ubuntu VM 以源码构建 Compose 完成最新全量 Release Gate 复验（见 5.11）；Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、Integration 102 passed / 2 skipped / 0 failed，Reader/Legado/failover/quality/private/developer/admin/collection-package/Core SLO/OTel receipt/backup-restore 均有 PASS 证据。当前头 `361fe18` 仅为文档性修订，代码候选未改变。此前质量夹具输出 good `100` / low `30` 且 selected 为 good，远端代码门禁记录仍见 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619)，均 GREEN 且 SHA 一致。
+最新状态（2026-08-31）：代码候选 `a111c9a` 在 5.11 全量 VM Release Gate 基础上完成配额快照缓存 fail-closed 与跨用户隔离加固；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 533/533、Architecture 1/1、Contract 10/10、Integration 103 passed / 2 skipped / 0 failed，源码构建 Compose 健康启动且受影响的 Developer API runtime smoke PASS。远端 [CI 33405514000](https://github.com/nekohands/InkFlow/actions/runs/33405514000)、[Docker 33405514007](https://github.com/nekohands/InkFlow/actions/runs/33405514007)、[Security 33405514040](https://github.com/nekohands/InkFlow/actions/runs/33405514040) 均 GREEN 且 SHA 一致；5.11 的 Reader/Legado/failover/quality/private/admin/collection-package/Core SLO/OTel receipt/backup-restore 全量证据仍有效。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
