@@ -1334,6 +1334,13 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `f7b8e27` 的 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且指向同一 head SHA。
 - 边界：本轮关闭 Developer API 补充场景的自动化证据缺口；真实 Web 账户/真实套餐与生产 Provider、生产 Redis 故障、审计人工核对，以及阅读 3.0/MuMu、真实来源、PWA 跨设备和生产 OTLP/SLO 仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.14 linovelib RuleAdapter 后端直连复核与上游阻塞记录（本轮，2026-09-01）
+
+- 目标：把 4.77 的 GPT 内置浏览器页面证据与服务端 RuleAdapter 真实链路分开复核，直接验证现行规则 `POST /S6/` + `searchkey={key}` 是否能在 Ubuntu VM 的生产出网链路中得到可解析搜索结果。
+- 实际探测：Ubuntu VM 先后读取 `GET /novel/1.html`（HTTP 200，38811 bytes）和 `GET /novel/1/catalog`（HTTP 200，74342 bytes）；随后使用浏览器常见 User-Agent、Accept、Accept-Language、Origin、Referer、Sec-Fetch 和表单 Content-Type 发送 `POST https://www.linovelib.com/S6/`，返回 `HTTP/2 200`、`0` bytes，正文中没有 `/novel/` 结果链接，响应标记为 Cloudflare。
+- 结论：搜索 POST 的空响应发生在上游/站点挑战层，不能作为 RuleAdapter 成功，也不能通过注入 Cookie、关闭 TLS/SSRF 校验或其他绕过方式制造通过证据。4.77 的浏览器 Search → BookInfo → TOC → Content 页面链路仍有效，但不等同于服务端 RuleAdapter 直连验收。
+- 验证边界：本轮没有修改规则、公共 Contract、数据模型或安全策略；`linovelib RuleAdapter 后端直连链路` 继续保持第 6.2 节未完成，解除条件是取得允许服务端只读访问的稳定网络/站点响应后，再运行 Search → BookInfo → TOC → Content 的真实适配器测试。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1468,7 +1475,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：代码候选 `f7b8e27` 在 5.12 配额快照缓存 fail-closed 加固基础上补齐 Developer API Free 配额超额、跨账户隔离和停用用户拒绝的源码 Compose 自动化验收；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 533/533、Architecture 1/1、Contract 10/10、Integration 105 项（103 passed / 2 skipped / 0 failed），源码构建 Compose 健康启动，扩展的 Developer API runtime smoke PASS，`verify-migrations.sh` 的 11 个上下文 PASS。远端 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 SHA 一致；5.11 的 Reader/Legado/failover/quality/private/admin/collection-package/Core SLO/OTel receipt/backup-restore 全量证据仍有效。
+最新状态（2026-09-01）：代码候选 `f7b8e27` 在 5.12 配额快照缓存 fail-closed 加固基础上补齐 Developer API Free 配额超额、跨账户隔离和停用用户拒绝的源码 Compose 自动化验收；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 533/533、Architecture 1/1、Contract 10/10、Integration 105 项（103 passed / 2 skipped / 0 failed），源码构建 Compose 健康启动，扩展的 Developer API runtime smoke PASS，`verify-migrations.sh` 的 11 个上下文 PASS。远端 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 SHA 一致；5.11 的 Reader/Legado/failover/quality/private/admin/collection-package/Core SLO/OTel receipt/backup-restore 全量证据仍有效。5.14 又在 Ubuntu VM 以浏览器常见请求头复核 linovelib 搜索 POST，确认上游 Cloudflare 仍返回 HTTP 200 空响应；该项保持 BLOCKED，不把浏览器页面证据升级为 RuleAdapter 通过。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

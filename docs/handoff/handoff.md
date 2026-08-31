@@ -1152,6 +1152,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端证据：代码候选 `f7b8e27` 的 [CI 33409960296](https://github.com/nekohands/InkFlow/actions/runs/33409960296)、[Docker 33409960193](https://github.com/nekohands/InkFlow/actions/runs/33409960193)、[Security 33409960204](https://github.com/nekohands/InkFlow/actions/runs/33409960204) 均 GREEN 且 head SHA 一致。
 - 当前状态：本轮自动化 Developer API 补充证据已闭合，但整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。真实账户/套餐/Provider、生产 Redis、人工 Operations/审计、真实来源、PWA 跨设备以及 MuMu/阅读 3.0 继续按第 6 节待定；首次 SDK smoke 缺少 `jq`、首次迁移校验未恢复 EF 设计程序集，均已修正后复验通过。
 
+### 5.14 linovelib RuleAdapter 后端直连复核与上游阻塞记录交接（本轮，2026-09-01）
+
+- 复核目标：验证现行 linovelib Rule DSL 的服务端搜索请求 `POST /S6/` + `searchkey={key}`，避免把 GPT 内置浏览器在 4.77 中取得的页面链路误当成 RuleAdapter 直连证据。
+- Ubuntu VM 只读结果：`GET /novel/1.html` 为 HTTP 200/38811 bytes，`GET /novel/1/catalog` 为 HTTP 200/74342 bytes；带浏览器常见请求头的 `POST https://www.linovelib.com/S6/` 为 HTTP/2 200/0 bytes，正文无 `/novel/` 结果链接，响应来自 Cloudflare。
+- 结论与边界：这是一条上游/站点挑战阻塞，不是适配器通过。未修改 Rule DSL、公共 Contract、Migration 或 SSRF 安全边界，也未尝试 Cookie 注入、TLS/SSRF 绕过等方式；`linovelib RuleAdapter 后端直连链路` 继续保持 BLOCKED，解除后需重新执行 Search → BookInfo → TOC → Content。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
