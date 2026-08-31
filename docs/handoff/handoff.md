@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`61f739e`（在 `80962fb` 基础上为 Core SLO 合成探针补齐按服务面 p95 目标的 fail-closed 门禁，并隔离每面首个冷启动预热请求；候选已在 Ubuntu VM 以源码构建 Compose 完成真实四面门禁验收，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`052d34e`（在 `bcf8889` 基础上为书籍包 Worker 增加租约所有者/尝试序号/过期条件的原子写入栅栏，并按尝试隔离临时与最终包文件；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 租约回归和 ZIP/EPUB/TXT 运行烟测，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1045,6 +1045,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：候选 `bcf8889` 以 `docker-compose.build.yml` 源码构建并健康启动；Migration 退出 0。Linux SDK 容器完整测试为 Unit 522/522、Architecture 1/1、Contract 10/10、Integration 95 passed / 2 skipped / 0 failed；Reader/Legado、A→B→A failover、Private Library、Developer API、Admin、collection/package（含四类控制和 ZIP/EPUB/TXT）、Core SLO/OTel receipt、Redis 1/1 和备份恢复均 PASS。Core SLO p95 为 public 60.375ms、Legado 13.887ms、developer 11.865ms、reader 6.705ms；完成后 Compose 已停止，服务容器无残留，持久卷保留。
 - 远端门槛：候选 `bcf8889` 的 [CI 33357094411](https://github.com/nekohands/InkFlow/actions/runs/33357094411)、[Docker 33357094410](https://github.com/nekohands/InkFlow/actions/runs/33357094410)、[Security 33357094388](https://github.com/nekohands/InkFlow/actions/runs/33357094388) 均 GREEN 且 head SHA 一致。
 - 当前状态：本工作包为 `Implemented`，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/动态递归多请求、真实 SecretProvider/生产凭据、生产 Operations、PWA 安装跨设备和阅读 3.0/MuMu 真机验收继续按第 6 节待定。
+
+### 5.2 书籍包租约栅栏与尝试隔离交接（本轮，2026-08-31）
+
+- 工作包：修复书籍包租约回收后的旧 Worker 写入竞态，并隔离不同租约尝试的包文件；不新增 Migration，不改变旧已完成包的下载兼容路径。
+- 实现：`SaveLeasedAsync` 以任务 ID、Running 状态、租约所有者、`AttemptCount` 和未过期条件执行原子更新；Running 任务拒绝通用 `SaveAsync`。服务层在每次处理期间固定租约身份，进度/完成/失败均走栅栏写入；租约丢失时只清理本次尝试的文件。临时文件使用 `jobId + attempt`，最终文件使用 `jobId-attempt.ext`。
+- 回归：新增跨 DbContext 的 PostgreSQL 回归，确认旧租约不能覆盖新尝试；新增服务层回归，确认丢失租约不会把任务标记失败，也不会留下旧尝试文件。
+- 本机：Restore PASS；Release Build 0 warnings / 0 errors；Unit 523/523 PASS；Integration 项目 Release 编译 0 warnings / 0 errors；`git diff --check` PASS。Windows Docker Engine 不可用，本机 Testcontainers 运行未记为通过。
+- Ubuntu VM：候选 `052d34e` 通过源码 Compose 构建、Migration 和服务健康检查；真实 PostgreSQL `BookPackageJobRepositoryTests` 3/3 PASS；采集/打包运行烟测覆盖 direct URL、暂停/恢复/停止/取消、ZIP/EPUB/TXT、完整性和审计并 PASS。临时验收账号已禁用，Compose 已停止，服务容器无残留，持久卷保留。
+- 远端门槛：`052d34e` 的 [CI 33362042359](https://github.com/nekohands/InkFlow/actions/runs/33362042359)、[Docker 33362042406](https://github.com/nekohands/InkFlow/actions/runs/33362042406)、[Security 33362042372](https://github.com/nekohands/InkFlow/actions/runs/33362042372) 均 GREEN 且 head SHA 一致。
+- 当前状态：本工作包为 `Implemented`，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实来源/追更/第二来源故障切换、真实凭据/生产运维、PWA 安装跨设备、Operations 受保护登录后操作和阅读 3.0/MuMu 真机验收继续按第 6 节待定。
+- 下一步：后续若要提升到全量 `Accepted/Completed`，先处理第 6 节真实环境与人工验收；本轮不启动 MuMu/阅读 3.0 测试。
 
 ## 5. 关键架构不变量
 

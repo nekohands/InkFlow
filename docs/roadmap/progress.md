@@ -1225,6 +1225,16 @@ Phase 1A 自动化工作包状态：
 - 远端证据：候选 `bcf8889` 的 [CI 33357094411](https://github.com/nekohands/InkFlow/actions/runs/33357094411)、[Docker 33357094410](https://github.com/nekohands/InkFlow/actions/runs/33357094410)、[Security 33357094388](https://github.com/nekohands/InkFlow/actions/runs/33357094388) 均 GREEN 且指向同一 head SHA；Restore/Build/Test、Compose/Runtime/SLO、Docker 四镜像、NuGet/Filesystem/SBOM/CodeQL 门禁全部通过。
 - 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实来源/追更/动态多请求与递归、真实 SecretProvider/生产凭据、Operations 生产账号、PWA 安装/跨设备和阅读 3.0/MuMu 真机验收仍按第 6 节待定事项处理。
 
+### 5.2 书籍包租约栅栏与尝试隔离（本轮，2026-08-31）
+
+- 缺陷：书籍包 Worker 在租约过期并被新 Worker 回收后，旧快照仍可通过通用 `SaveAsync` 覆写进度/完成状态；旧/新 Worker 还共享临时文件和最终文件名，可能互相删除或竞争发布。
+- TDD 修复：新增跨连接 PostgreSQL 回归 `Stale_Lease_Cannot_Overwrite_Reclaimed_Job` 与服务层租约丢失回归；`IBookPackageJobRepository.SaveLeasedAsync` 使用租约所有者、`AttemptCount` 和未过期条件做单条原子更新，Running 任务禁止走无栅栏 `SaveAsync`。
+- 文件隔离：临时文件按 `jobId + leaseAttempt` 隔离，最终文件按 `jobId-attempt.ext` 发布；租约丢失时旧 Worker 只清理自己的文件，不把新任务标记失败。保留旧路径/文件名读取兼容，不新增 Migration。
+- 本机证据：`dotnet restore InkFlow.sln`、Release Build 0 warnings / 0 errors、Unit 523/523 PASS；Integration 项目 Release 编译 0 warnings / 0 errors；`git diff --check` PASS。Windows Docker Engine 不可用，本机 Testcontainers 运行未记为通过。
+- Ubuntu VM 证据：候选 `052d34e` 以 `docker-compose.build.yml` 从源码构建；Migration 退出 0，API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康。Linux SDK 容器真实 PostgreSQL `BookPackageJobRepositoryTests` 3/3 通过；`collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)`。临时验收账号已禁用，Compose 已停止，`ps --all` 无残留容器，持久卷保留。
+- 远端门禁：候选 `052d34e` 的 [CI 33362042359](https://github.com/nekohands/InkFlow/actions/runs/33362042359)、[Docker 33362042406](https://github.com/nekohands/InkFlow/actions/runs/33362042406)、[Security 33362042372](https://github.com/nekohands/InkFlow/actions/runs/33362042372) 均 GREEN 且指向同一 head SHA。
+- 当前状态：本工作包只收口书籍包并发租约可靠性，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实来源/追更/切源、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

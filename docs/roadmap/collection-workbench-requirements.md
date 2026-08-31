@@ -1,6 +1,6 @@
 # 采集工作台 v1 需求对齐草案
 
-状态：需求已对齐，代码已落地；当前代码候选为 `bcf8889`，在双来源 A→B→A 与 Core SLO p95 门禁基础上补齐 Source Rule 最多 8 步同源串行前置请求、临时响应变量及共享预算/失败关闭边界。候选已在 Ubuntu VM 以源码构建 Compose 完成 Linux 全量测试和非阅读 App 自动化运行验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
+状态：需求已对齐，代码已落地；当前代码候选为 `052d34e`，在 Source Rule 有界串行前置请求链、双来源 A→B→A 与 Core SLO p95 门禁基础上补齐书籍包租约写入栅栏和按尝试隔离包文件。候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 租约回归和采集/打包非阅读 App 自动化运行验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
 日期：2026-08-31
 范围：采集运行控制、进度可视化、书籍地址采集、已入库书籍打包
 
