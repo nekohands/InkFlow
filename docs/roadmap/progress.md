@@ -1274,6 +1274,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选 `c0ad1dc` 的 [CI 33382784197](https://github.com/nekohands/InkFlow/actions/runs/33382784197)、[Docker 33382783508](https://github.com/nekohands/InkFlow/actions/runs/33382783508)、[Security 33382783564](https://github.com/nekohands/InkFlow/actions/runs/33382783564) 均 GREEN 且指向同一 head SHA。
 - 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
+### 5.7 执行失败信息稳定化与敏感细节边界（本轮，2026-08-31）
+
+- 缺陷：安全复审发现部分 Rule、Crawler、Content、Health、Book Package、Collection Run 和宿主执行失败路径仍可能把 `Exception.Message` 作为 API 结果、持久化失败原因或控制台文本传播；这会造成低基数契约不稳定，并可能暴露上游、正则或基础设施细节。
+- TDD 与实现：先补充 Rule transport/invalid-regex、Crawler executor、Content publisher、Health probe 和 Book Package builder 的细节不泄漏回归，再统一使用稳定的低基数失败文本；`CollectionRun` 控制结果以及 Worker/Scheduler/SourceSeed 的宿主文本同步收敛。该工作包不改变重试、死信、状态机、审计时序、公开 API 形状或 Migration。
+- 安全边界：上述执行结果、持久化失败原因和宿主控制台路径不再直接拼接原始 `Exception.Message`；异常对象仍可由既有结构化日志设施按其访问控制记录，诊断不通过业务错误文本回显给调用方。
+- 回归与本机证据：定向安全回归 6/6 PASS；`dotnet restore InkFlow.sln`、Release Build（0 warnings / 0 errors）、Unit 530/530、Architecture 1/1、Contract 10/10 和 `git diff --check` 均 PASS。Windows Docker Engine 不可用，未将本机 Testcontainers 结果计为通过。
+- Ubuntu VM 证据：候选 `e167a1f` 在 Linux SDK 容器完成完整 `Restore → Build → Test`，Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed；`verify-migrations.sh` 通过 11 个 contexts。随后以 `docker-compose.build.yml` 低并发源码构建四个业务镜像并健康启动，Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康，三个服务 `/health` 均返回 healthy；验证后已执行 `docker compose down --remove-orphans`，服务容器和网络清理，持久卷保留。
+- 远端门禁：代码候选 `e167a1f` 已推送；最终文档候选的 CI、Docker、Security 必须重新查询并以同一最终 head SHA 为准，不以旧提交门禁替代。
+- 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1408,7 +1418,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `c0ad1dc` 在既有采集事务门禁基础上补齐 RuleAdapter 主请求最终响应的同源校验，避免无 Session 主请求消费跨源重定向后的成功正文；Progress、Handoff 与架构安全文档已同步本轮证据。VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit 527/527、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed，`verify-migrations.sh` 通过 11 个 DbContext；源码 Compose 重建、Migration/packages-init、服务健康检查均通过，随后 Compose 已停止，服务容器和网络已清理，持久卷保留。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过。
+最新状态（2026-08-31）：代码候选 `e167a1f` 在 Rule 主请求同源门禁基础上收敛 Rule/Crawler/Content/Health/Book Package/Collection Run 及宿主执行失败文本，避免业务结果、持久化失败原因和控制台路径直接传播原始 `Exception.Message`；Progress、Handoff 与架构安全/运行时文档已同步本轮证据。VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed，`verify-migrations.sh` 通过 11 个 DbContext；源码 Compose 低并发重建、Migration/packages-init、服务健康检查均通过，随后 Compose 已停止，服务容器和网络已清理，持久卷保留。最终文档候选的 CI、Docker、Security 仍需以同一最终 head SHA 查询确认。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

@@ -100,6 +100,12 @@ Administrator-only policy 保护，只处理该引用的设置/清除、理由�
 来源默认引用始终按 Platform 解析，只有显式引用才能携带用户/组织范围；CodeAdapter 不继承规则型来源默认绑定。
 真实 SecretProvider、secret 材料管理和跨执行持久会话仍未实现。
 
+执行失败信息也有稳定化边界：RuleAdapter 的 transport/invalid-regex、Crawler/Content/Health/Book
+Package/Collection Run 结果以及相关 Worker/Scheduler/SourceSeed 宿主文本不直接返回、持久化或拼接
+原始 `Exception.Message`，而使用低基数稳定文本，避免将上游、正则或基础设施细节带入业务错误契约。
+异常对象仍可由已有结构化日志设施按其访问控制记录；该约束不禁止受控诊断记录，也不改变重试、死信或
+状态机语义。
+
 RuleAdapter 的 `ResponseVariables` 视响应内容为不可信输入，只允许用于同一次执行的 page-number/cursor
 续页请求模板。提取结果经过变量数量、标识符、单值长度、累计 UTF-8 字节和控制字符边界；缺失、非法或
 超限值在续页出网前 fail-closed，且不得进入 Rule 结果、Task Payload、日志或错误文本。该上下文不会跨

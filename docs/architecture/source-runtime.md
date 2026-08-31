@@ -29,6 +29,9 @@
 恢复或成功探测会清除失败连续计数。状态转移保存 `source-health-v1`、时间戳和受限失败原因，
 不把 Redis 或缓存当作事实来源。
 
+探针失败对外和持久化时只使用受限、低基数的稳定原因，不传播底层 `Exception.Message`；详细诊断仍由
+受控结构化日志边界负责，不能进入业务错误文本或 Source/Task 事实数据。
+
 所有成功、失败、停用和恢复变更均通过 `ISourceHealthRepository.MutateAsync` 在权威存储内完成；
 PostgreSQL 实现以 `(SourceId, Capability)` 的稳定摘要获取事务级 advisory lock，
 在锁内重新读取、执行领域状态转移、保存并提交，避免 API/Worker 并发上报覆盖连续失败计数。

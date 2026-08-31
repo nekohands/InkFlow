@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`c0ad1dc`（在采集事务门禁基础上，补齐 RuleAdapter 主请求最终 `ResponseUri` 的同源校验，拒绝无 Session 主请求消费跨源重定向后的成功正文；候选已在 Ubuntu VM 以源码构建 Compose 完成迁移、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`e167a1f`（在 Rule 主请求最终 `ResponseUri` 同源门禁基础上，收敛 Rule/Crawler/Content/Health/Book Package/Collection Run 及宿主执行失败文本，避免业务结果、持久化失败原因和控制台路径直接传播原始 `Exception.Message`；候选已在 Ubuntu VM 以源码构建 Compose 完成迁移、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1094,6 +1094,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：候选 `c0ad1dc` 在 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Unit 527/527、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed；`verify-migrations.sh` 通过 11 个 contexts。随后用 `docker-compose.build.yml` 源码构建 Compose，Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康，三个服务 `/health` 返回 200；验证后 Compose 已停止，服务容器和网络已清理，持久卷保留。
 - 远端门槛：候选 `c0ad1dc` 的 [CI 33382784197](https://github.com/nekohands/InkFlow/actions/runs/33382784197)、[Docker 33382783508](https://github.com/nekohands/InkFlow/actions/runs/33382783508)、[Security 33382783564](https://github.com/nekohands/InkFlow/actions/runs/33382783564) 均 GREEN 且 head SHA 一致。
 - 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
+
+### 5.7 执行失败信息稳定化与敏感细节边界交接（本轮，2026-08-31）
+
+- 工作包：安全复审发现部分执行失败路径会把 `Exception.Message` 传播到业务结果、持久化失败原因或宿主控制台；本轮收敛错误文本的稳定性和敏感细节边界，不改变重试、死信、状态机、审计时序、公开 API 形状或 Migration。
+- 实现：RuleAdapter 的 transport/invalid-regex、Crawler executor、Content publisher、Health probe、Book Package builder、CollectionRun 控制结果以及 Worker/Scheduler/SourceSeed 宿主文本均使用稳定低基数失败文本；新增红→绿回归覆盖关键结果路径。异常对象仍可由既有结构化日志设施按访问控制记录，业务错误文本不回显原始异常细节。
+- 本机：定向安全回归 6/6；Restore、Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、`git diff --check` 均 PASS。Windows Docker Engine 不可用，Testcontainers 不计为本机通过。
+- Ubuntu VM：`e167a1f` 在 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed；`verify-migrations.sh` 通过 11 个 contexts。`docker-compose.build.yml` 低并发源码构建四业务镜像并健康启动，Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康，三个服务 `/health` 返回 healthy；验证后 Compose 已停止，服务容器和网络清理，持久卷保留。
+- 远端门槛：代码候选已推送；文档候选提交后必须重新查询 CI、Docker、Security，并确认三者指向同一最终 head SHA。
+- 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
 ## 5. 关键架构不变量
 
