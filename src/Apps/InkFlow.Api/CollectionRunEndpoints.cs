@@ -129,8 +129,13 @@ public static class CollectionRunEndpoints
     {
         ArgumentNullException.ThrowIfNull(result);
 
-        return result.IsSuccess
-            ? result.Reused ? StatusCodes.Status200OK : StatusCodes.Status202Accepted
+        if (result.IsSuccess)
+        {
+            return result.Reused ? StatusCodes.Status200OK : StatusCodes.Status202Accepted;
+        }
+
+        return result.ErrorCode is "source-url.empty" or "source-url.invalid"
+            ? StatusCodes.Status400BadRequest
             : StatusCodes.Status422UnprocessableEntity;
     }
 

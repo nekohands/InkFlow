@@ -188,6 +188,13 @@ assert_json '.error == "source-url.scheme"' \
   "$work_dir/collection-invalid-url.json" \
   'invalid collection URL did not return the stable scheme error'
 
+expect_status POST /api/v1/admin/collection-runs "$operator_token" \
+  '{"url":""}' 400 \
+  "$work_dir/collection-empty-url.json"
+assert_json '.error == "source-url.empty"' \
+  "$work_dir/collection-empty-url.json" \
+  'empty collection URL did not return the stable input error'
+
 if [[ -z "$collection_url" ]]; then
   collection_url="https://inkflow-acceptance.invalid/book/runtime-$(date -u +%s%N)-$$-${RANDOM}"
 fi

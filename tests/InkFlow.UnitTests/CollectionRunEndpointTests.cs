@@ -46,4 +46,15 @@ public sealed class CollectionRunEndpointTests
 
         Assert.AreEqual(StatusCodes.Status422UnprocessableEntity, statusCode);
     }
+
+    [TestMethod]
+    public void Start_Status_Uses_Bad_Request_For_Invalid_Input()
+    {
+        var statusCode = CollectionRunEndpoints.GetStartStatusCode(
+            CollectionRunStartOutcome.Failure(
+                "source-url.invalid",
+                "book URL must be a valid absolute URL."));
+
+        Assert.AreEqual(StatusCodes.Status400BadRequest, statusCode);
+    }
 }
