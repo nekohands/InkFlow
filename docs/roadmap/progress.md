@@ -1403,6 +1403,14 @@ Phase 1A 自动化工作包状态：
 - 回归与门禁：本机 `git diff --check` PASS；本机未安装 Docker CLI，未把本机 Compose 配置检查误记为通过。候选 `26e5d82` 的 [CI 33447522462](https://github.com/nekohands/InkFlow/actions/runs/33447522462)、[Docker 33447522530](https://github.com/nekohands/InkFlow/actions/runs/33447522530)、[Security 33447522397](https://github.com/nekohands/InkFlow/actions/runs/33447522397) 均 GREEN 且 head SHA 一致；CI 的全量 Test、Compose、前端、业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。
 - 结论与边界：源码构建的 NuGet cache reliability gap 已关闭，最新 VM Runtime 健康证据已恢复；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/PWA 跨设备、人工验收及生产治理继续按第 6 节待定。
 
+### 5.22 Acceptance fixture NuGet 缓存与重复运行复验（本轮，2026-09-01）
+
+- 缺口：源码 Compose 的 `acceptance-fixtures` 每次以 SDK 容器执行 `dotnet run`，原先把 NuGet 包和 HTTP cache 放在 `/tmp` 临时文件系统；同一轮多个 fixture 会重复下载，放大 VM/CI 外网抖动。
+- 实现：仅在 `docker-compose.build.yml` 的 acceptance profile 增加 `inkflow-acceptance-nuget` 与 `inkflow-acceptance-nuget-http` 两个命名卷，继续使用既有 `NUGET_PACKAGES` / `NUGET_HTTP_CACHE_PATH` 路径；不改变生产服务、最终镜像或数据库事实卷。
+- VM 证据：候选 `e7f4414` 的源码 Compose 健康启动后，使用独立非交互 `run -T` 连续执行两次 `ensure-reader-catalog`，两次均退出 `0` 并返回同一 fixture；第二次未重新创建 acceptance NuGet 卷，两个卷的 Compose project/volume label 与预期一致。
+- 清理与门禁：已显式删除 acceptance profile 未被 `down --volumes` 自动回收的两个隔离缓存卷，并移除临时 worktree；原 VM 工作树 5 项用户改动保留。`e7f4414` 的 [CI 33449460834](https://github.com/nekohands/InkFlow/actions/runs/33449460834)、[Docker 33449460843](https://github.com/nekohands/InkFlow/actions/runs/33449460843)、[Security 33449460854](https://github.com/nekohands/InkFlow/actions/runs/33449460854) 均 GREEN。
+- 结论与边界：Acceptance fixture 的重复 NuGet 下载稳定性缺口已关闭；本轮仍不启动 ADB、阅读 3.0 或第三方 live source，整体保持 `1.0 Release Candidate`，未标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

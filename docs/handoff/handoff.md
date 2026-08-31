@@ -1216,6 +1216,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 回归与远端：本机 `git diff --check` PASS；本机没有 Docker CLI，故未伪造本机 Compose 结果。`26e5d82` 的 [CI 33447522462](https://github.com/nekohands/InkFlow/actions/runs/33447522462)、[Docker 33447522530](https://github.com/nekohands/InkFlow/actions/runs/33447522530)、[Security 33447522397](https://github.com/nekohands/InkFlow/actions/runs/33447522397) 均 GREEN，CI 全量测试、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断均通过。
 - 结论：源码构建 NuGet cache reliability gap 已关闭，最新 VM Runtime 健康证据恢复；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/PWA 跨设备、人工验收和生产治理继续按第 6 节待定。
 
+### 5.22 Acceptance fixture NuGet 缓存与重复运行复验交接（本轮，2026-09-01）
+
+- 工作包：为源码 Compose acceptance profile 的 SDK fixture 增加两个有界命名 NuGet 缓存卷，避免每次 `dotnet run` 都从临时 `/tmp` 重新下载；不改变生产服务、最终镜像或数据库事实卷。
+- VM/Runtime：候选 `e7f4414` 的隔离源码 Compose 健康启动后，独立非交互 `run -T ensure-reader-catalog` 连续两次均返回 `0` 和同一 fixture；第二次未重新创建 acceptance NuGet 卷，卷 label 与项目/卷名一致。
+- 清理：发现 Compose `down --volumes` 对未参与 `up` 的 acceptance profile 卷不会自动回收后，已按完整名称显式删除两个缓存卷，并移除临时 worktree；VM 原工作树的 5 项用户改动保留。
+- 远端：`e7f4414` 的 [CI 33449460834](https://github.com/nekohands/InkFlow/actions/runs/33449460834)、[Docker 33449460843](https://github.com/nekohands/InkFlow/actions/runs/33449460843)、[Security 33449460854](https://github.com/nekohands/InkFlow/actions/runs/33449460854) 均 GREEN。
+- 结论：Acceptance fixture 重复 NuGet 下载稳定性缺口已关闭；本轮按决定不启动 ADB、阅读 3.0 或第三方 live source，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
