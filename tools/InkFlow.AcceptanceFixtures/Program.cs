@@ -1,6 +1,7 @@
 using System.Text.Json;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Content.Application;
+using InkFlow.Modules.Content.Domain;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
@@ -39,6 +40,19 @@ const string FailoverSourceBContent = """
     <p>InkFlow failover source B marker. This secondary fixture remains readable when source A is disabled and provides a distinct canonical content version.</p>
     <p>The fallback response keeps the same canonical identifiers and is intentionally scored below source A so recovery can be observed deterministically.</p>
     """;
+const string QualityFailureSourceId = "inkflow-quality-a";
+const string QualityFailureBookTitle = "InkFlow Quality Failure Fixture";
+const string QualityFailureBookAuthor = "InkFlow Automation";
+const string QualityFailureChapterTitle = "Quality Failure Acceptance Chapter";
+const string QualityFailureSourceBaseUrl = "https://inkflow-quality-a.invalid";
+const string QualityFailureGoodContent = """
+    <p>InkFlow quality fixture good marker. This complete chapter replay contains enough independent prose to receive the highest explainable quality score.</p>
+    <p>The selected canonical version must remain readable when the same source later returns a deliberately truncated response, because a low-quality replay is not a reason to replace a better stored version.</p>
+    <p>The runtime drill observes the selected version through the public Web, Legado, and Reader contracts while preserving the canonical book and chapter identities.</p>
+    """;
+const string QualityFailureLowContent = """
+    <p>InkFlow quality fixture truncated marker.</p>
+    """;
 
 var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Database");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -48,7 +62,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 if (args.Length == 0)
 {
-    return Fail("usage: ensure-catalog | ensure-reader-catalog | ensure-failover-catalog | ensure-collection-control-runs | set-role <email> <operator|administrator> | disable-user <email>");
+    return Fail("usage: ensure-catalog | ensure-reader-catalog | ensure-failover-catalog | ensure-quality-failure-catalog | ensure-collection-control-runs | set-role <email> <operator|administrator> | disable-user <email>");
 }
 
 try
@@ -61,6 +75,8 @@ try
             await EnsureCatalogAsync(connectionString, publishReaderContent: true),
         "ensure-failover-catalog" when args.Length == 1 =>
             await EnsureFailoverCatalogAsync(connectionString),
+        "ensure-quality-failure-catalog" when args.Length == 1 =>
+            await EnsureQualityFailureCatalogAsync(connectionString),
         "ensure-collection-control-runs" when args.Length == 1 =>
             await EnsureCollectionControlRunsAsync(connectionString),
         "set-role" when args.Length == 3 =>
@@ -248,6 +264,96 @@ static async Task<int> EnsureFailoverCatalogAsync(string connectionString)
         sourceBId = FailoverSourceBId,
         bookId,
         chapterId,
+    }));
+    return 0;
+}
+
+static async Task<int> EnsureQualityFailureCatalogAsync(string connectionString)
+{
+    var now = DateTimeOffset.UtcNow;
+    await EnsureSourceAsync(
+        connectionString,
+        QualityFailureSourceId,
+        "InkFlow Quality Failure Source",
+        QualityFailureSourceBaseUrl,
+        now);
+
+    var (bookId, chapterId) = await EnsureCanonicalBookAsync(
+        connectionString,
+        QualityFailureBookTitle,
+        QualityFailureBookAuthor,
+        QualityFailureChapterTitle,
+        now);
+
+    await using var sourceDb = new SourcesDbContext(Options<SourcesDbContext>(connectionString));
+    var health = new SourceHealthService(
+        new EfSourceHealthRepository(sourceDb),
+        TimeProvider.System);
+    await health.EnableAsync(QualityFailureSourceId, SourceCapability.Content);
+
+    await using var contentDb = new ContentDbContext(Options<ContentDbContext>(connectionString));
+    var versions = new EfContentVersionRepository(contentDb);
+    var selector = new ContentSelectionService(
+        versions,
+        health,
+        new EfContentSelectionDecisionRepository(contentDb),
+        TimeProvider.System);
+    var publisher = new ContentPublishingService(versions, selector);
+
+    var goodOutcome = await publisher.PublishAsync(
+        bookId,
+        chapterId,
+        QualityFailureSourceId,
+        QualityFailureGoodContent);
+    if (!goodOutcome.IsSuccess || goodOutcome.Version is null)
+    {
+        throw new InvalidOperationException(
+            $"quality failure good fixture could not be published: {string.Join("; ", goodOutcome.Errors)}");
+    }
+
+    var lowOutcome = await publisher.PublishAsync(
+        bookId,
+        chapterId,
+        QualityFailureSourceId,
+        QualityFailureLowContent);
+    if (!lowOutcome.IsSuccess || lowOutcome.Version is null)
+    {
+        throw new InvalidOperationException(
+            $"quality failure low-quality replay could not be published: {string.Join("; ", lowOutcome.Errors)}");
+    }
+
+    var goodVersion = await versions.FindByHashAsync(
+        chapterId,
+        QualityEngine.ComputeCanonicalHash(ContentNormalizer.Normalize(QualityFailureGoodContent)))
+        ?? throw new InvalidOperationException("quality failure good fixture version was not persisted.");
+    var lowVersion = await versions.FindByHashAsync(
+        chapterId,
+        QualityEngine.ComputeCanonicalHash(ContentNormalizer.Normalize(QualityFailureLowContent)))
+        ?? throw new InvalidOperationException("quality failure low-quality replay version was not persisted.");
+    var selected = await selector.SelectCurrentAsync(chapterId);
+
+    if (!selected.IsSuccess || selected.SelectedVersion?.Id != goodVersion.Id ||
+        goodVersion.QualityScore <= lowVersion.QualityScore)
+    {
+        throw new InvalidOperationException(
+            $"quality failure drill selected the wrong version: good={goodVersion.Id}/{goodVersion.QualityScore}, " +
+            $"low={lowVersion.Id}/{lowVersion.QualityScore}, selected={selected.SelectedVersion?.Id}, " +
+            $"evidence={selected.Evidence}");
+    }
+
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        sourceId = QualityFailureSourceId,
+        bookId,
+        chapterId,
+        goodVersionId = goodVersion.Id,
+        lowQualityVersionId = lowVersion.Id,
+        selectedVersionId = selected.SelectedVersion!.Id,
+        goodQualityScore = goodVersion.QualityScore,
+        lowQualityScore = lowVersion.QualityScore,
+        goodMarker = "InkFlow quality fixture good marker",
+        lowQualityMarker = "InkFlow quality fixture truncated marker",
+        selectionEvidence = selected.Evidence,
     }));
     return 0;
 }

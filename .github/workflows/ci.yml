@@ -81,6 +81,13 @@ jobs:
           bash -n scripts/tests/source-failover-runtime-smoke.test.sh
           bash scripts/tests/source-failover-runtime-smoke.test.sh
 
+      - name: Quality failure runtime smoke script regression
+        run: |
+          bash -n scripts/quality-failure-runtime-smoke.sh
+          bash -n scripts/tests/quality-failure-runtime-smoke.fixture-curl.sh
+          bash -n scripts/tests/quality-failure-runtime-smoke.test.sh
+          bash scripts/tests/quality-failure-runtime-smoke.test.sh
+
       - name: Opt-in live source acceptance script regression
         run: bash -n scripts/kanunu-live-acceptance.sh
 
@@ -301,6 +308,25 @@ jobs:
             "INKFLOW_FAILOVER_RUNTIME_SMOKE_BOOK_ID=$book_id" \
             "INKFLOW_FAILOVER_RUNTIME_SMOKE_CHAPTER_ID=$chapter_id" \
             bash scripts/source-failover-runtime-smoke.sh http://localhost:8080
+
+      - name: Quality failure runtime smoke
+        run: |
+          set -euo pipefail
+          fixture_cmd=(docker compose -f docker-compose.build.yml --profile acceptance run --rm --no-deps acceptance-fixtures)
+          fixture_json="$("${fixture_cmd[@]}" ensure-quality-failure-catalog | tail -n 1)"
+          printf '%s' "$fixture_json" | jq -e '.goodQualityScore > .lowQualityScore and .selectedVersionId == .goodVersionId'
+          book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
+          chapter_id="$(printf '%s' "$fixture_json" | jq -er '.chapterId')"
+          source_id="$(printf '%s' "$fixture_json" | jq -er '.sourceId')"
+          good_marker="$(printf '%s' "$fixture_json" | jq -er '.goodMarker')"
+          low_marker="$(printf '%s' "$fixture_json" | jq -er '.lowQualityMarker')"
+          env \
+            "INKFLOW_QUALITY_FAILURE_RUNTIME_SMOKE_BOOK_ID=$book_id" \
+            "INKFLOW_QUALITY_FAILURE_RUNTIME_SMOKE_CHAPTER_ID=$chapter_id" \
+            "INKFLOW_QUALITY_FAILURE_RUNTIME_SMOKE_SOURCE_ID=$source_id" \
+            "INKFLOW_QUALITY_FAILURE_RUNTIME_SMOKE_GOOD_MARKER=$good_marker" \
+            "INKFLOW_QUALITY_FAILURE_RUNTIME_SMOKE_LOW_MARKER=$low_marker" \
+            bash scripts/quality-failure-runtime-smoke.sh http://localhost:8080
 
       - name: Private library runtime smoke
         run: |
