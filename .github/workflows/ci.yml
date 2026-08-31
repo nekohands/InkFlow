@@ -67,6 +67,13 @@ jobs:
           bash -n scripts/tests/reader-content-runtime-smoke.test.sh
           bash scripts/tests/reader-content-runtime-smoke.test.sh
 
+      - name: Legado runtime smoke script regression
+        run: |
+          bash -n scripts/legado-runtime-smoke.sh
+          bash -n scripts/tests/legado-runtime-smoke.fixture-curl.sh
+          bash -n scripts/tests/legado-runtime-smoke.test.sh
+          bash scripts/tests/legado-runtime-smoke.test.sh
+
       - name: Opt-in live source acceptance script regression
         run: bash -n scripts/kanunu-live-acceptance.sh
 
@@ -242,6 +249,18 @@ jobs:
           env \
             "INKFLOW_READER_CONTENT_SMOKE_CHAPTER_ID=$chapter_id" \
             bash scripts/reader-content-runtime-smoke.sh http://localhost:8080
+
+      - name: Legado contract runtime smoke
+        run: |
+          set -euo pipefail
+          fixture_cmd=(docker compose -f docker-compose.build.yml --profile acceptance run --rm --no-deps acceptance-fixtures)
+          fixture_json="$("${fixture_cmd[@]}" ensure-reader-catalog | tail -n 1)"
+          book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
+          chapter_id="$(printf '%s' "$fixture_json" | jq -er '.chapterId')"
+          env \
+            "INKFLOW_LEGADO_RUNTIME_SMOKE_BOOK_ID=$book_id" \
+            "INKFLOW_LEGADO_RUNTIME_SMOKE_CHAPTER_ID=$chapter_id" \
+            bash scripts/legado-runtime-smoke.sh http://localhost:8080
 
       - name: Private library runtime smoke
         run: |
