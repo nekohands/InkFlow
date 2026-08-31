@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`c85975f`；修复直接地址采集启动端点的 `400/422` 状态语义缺口，最终代码/安全策略候选为 `bf4b09f`，详情及本轮 Ubuntu VM、源码 Compose、迁移检查、采集/打包运行烟测和全量测试证据见 5.18。`bf4b09f` 的 [CI 33436420368](https://github.com/nekohands/InkFlow/actions/runs/33436420368)、[Docker 33436420254](https://github.com/nekohands/InkFlow/actions/runs/33436420254)、[Security 33436420383](https://github.com/nekohands/InkFlow/actions/runs/33436420383) 均 GREEN 且 SHA 一致。
+- 最新代码候选 Commit：`3ac8110`；在 `c85975f` 的 CollectionRun 状态语义修复基础上补齐 `ReadingProgress.Update` 领域回归覆盖，最终测试候选为 `3ac8110`，详情及本轮测试证据见 5.19，采集/打包 VM 与 Compose 证据见 5.18。`3ac8110` 的 [CI 33439541455](https://github.com/nekohands/InkFlow/actions/runs/33439541455)、[Docker 33439541466](https://github.com/nekohands/InkFlow/actions/runs/33439541466)、[Security 33439541469](https://github.com/nekohands/InkFlow/actions/runs/33439541469) 均 GREEN 且 SHA 一致。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1191,6 +1191,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机/VM 证据：本机 Restore/Release Build（0 warnings / 0 errors）、Unit `535/535`、Architecture `1/1`、Contract `10/10` PASS；本机 Integration 受 Windows Docker Engine `npipe://./pipe/docker_engine` 限制为 8 passed / 3 skipped / 95 BLOCKED。Ubuntu VM 候选 `c85975f` 源码构建 Compose 完成 Unit `535/535`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`，11 个 migration contexts PASS，四业务镜像、Migration/packages-init、PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，采集/打包 smoke 覆盖空 URL `400`、解析失败 `422`、四类控制、ZIP/EPUB/TXT、完整性和审计。
 - 远端门禁：`bf4b09f` 的 [CI 33436420368](https://github.com/nekohands/InkFlow/actions/runs/33436420368)、[Docker 33436420254](https://github.com/nekohands/InkFlow/actions/runs/33436420254)、[Security 33436420383](https://github.com/nekohands/InkFlow/actions/runs/33436420383) 均 GREEN。由于官方 Collector `0.159.0` 扫描命中 `CVE-2026-56854`，仅核心 Collector scan 使用到期 2026-09-30 的 `.trivyignore-collector` VEX 例外；应用镜像/文件系统扫描仍严格执行，修复镜像发布后须移除例外并复验。
 - 当前状态：采集/打包自动化契约已闭合，但整体保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实 Official Source/追更/第二来源、真实凭据/Provider、账户/PWA 跨设备、受保护页面人工操作和生产 OTLP/SLO/告警/备份治理继续按第 6 节待定；本轮不启动 ADB、阅读 App 或 live source。
+
+### 5.19 ReadingProgress 领域状态变更回归覆盖交接（本轮，2026-09-01）
+
+- 工作包：为 `ReadingProgress.Update` 增加直接领域回归，覆盖合法换章/段落/百分比/时间戳更新，以及非法输入失败后不部分修改既有状态。
+- 验证：本机定向 `ReadingStateTests` `7/7 PASS`、完整 Unit `537/537 PASS`、Release Build 0 warnings / 0 errors、Architecture `1/1`、Contract `10/10`、`git diff --check` PASS；未改变 API、Migration、运行时和用户延期边界。
+- 远端门禁：测试候选 `3ac8110` 的 [CI 33439541455](https://github.com/nekohands/InkFlow/actions/runs/33439541455)、[Docker 33439541466](https://github.com/nekohands/InkFlow/actions/runs/33439541466)、[Security 33439541469](https://github.com/nekohands/InkFlow/actions/runs/33439541469) 均 GREEN 且 head SHA 一致。
+- 当前状态：本轮关闭阅读状态领域测试盲区；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/凭据、PWA 安装跨设备、人工视觉/长时间阅读和生产治理继续按第 6 节待定。
 
 ## 5. 关键架构不变量
 
