@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`9bda886`；修复直接地址采集启动端点将来源解析失败误报为 `400` 的语义缺口，详情及本轮 Ubuntu VM、源码 Compose、迁移检查、采集/打包运行烟测和全量测试证据见 5.17。提交 `9bda886` 的 [CI 33425459672](https://github.com/nekohands/InkFlow/actions/runs/33425459672)、[Docker 33425459913](https://github.com/nekohands/InkFlow/actions/runs/33425459913)、[Security 33425459745](https://github.com/nekohands/InkFlow/actions/runs/33425459745) 均 GREEN 且 SHA 一致。
+- 最新代码候选 Commit：`c85975f`；修复直接地址采集启动端点的 `400/422` 状态语义缺口，最终代码/安全策略候选为 `bf4b09f`，详情及本轮 Ubuntu VM、源码 Compose、迁移检查、采集/打包运行烟测和全量测试证据见 5.18。`bf4b09f` 的 [CI 33436420368](https://github.com/nekohands/InkFlow/actions/runs/33436420368)、[Docker 33436420254](https://github.com/nekohands/InkFlow/actions/runs/33436420254)、[Security 33436420383](https://github.com/nekohands/InkFlow/actions/runs/33436420383) 均 GREEN 且 SHA 一致。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1183,6 +1183,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 运行与清理：`collection-package-runtime-smoke` PASS，实际覆盖直接地址、`422`、暂停/恢复/停止/取消及幂等、ZIP/EPUB/TXT、完整性和审计。临时账户、隔离服务/网络/容器、临时 NuGet 卷和 worktree 已清理；VM 原工作树原有改动保留，敏感 `.env` 未提交。
 - 远端门禁：代码候选 `9bda886` 的 [CI 33425459672](https://github.com/nekohands/InkFlow/actions/runs/33425459672)、[Docker 33425459913](https://github.com/nekohands/InkFlow/actions/runs/33425459913)、[Security 33425459745](https://github.com/nekohands/InkFlow/actions/runs/33425459745) 均 GREEN 且 head SHA 一致。
 - 交接边界：本工作包自动化契约已闭合，但整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu、真实 linovelib/17K/追更/第二来源、真实账户/Provider、PWA 安装跨设备、受保护页面人工操作和生产 OTLP/SLO/告警/备份治理仍在第 6 节待定；本轮不启动真机或第三方 live 测试。
+
+### 5.18 CollectionRun 非法输入状态映射修复与最终 VM/Compose 回归交接（本轮，2026-09-01）
+
+- 工作包：将 CollectionRun 启动输入按契约区分为 `400`（空/格式非法 URL）和 `422`（来源地址无法解析或语义不受支持），保留新建 `202`、复用活跃运行 `200` 及既有控制、进度、ZIP/EPUB/TXT 行为。
+- TDD 与实现：先以 `source-url.invalid` 回归建立红态，再接入 `GetStartStatusCode`；定向 `CollectionRunEndpointTests` `3/3 PASS`，采集/打包 smoke、脚本语法、`git diff --check` PASS。
+- 本机/VM 证据：本机 Restore/Release Build（0 warnings / 0 errors）、Unit `535/535`、Architecture `1/1`、Contract `10/10` PASS；本机 Integration 受 Windows Docker Engine `npipe://./pipe/docker_engine` 限制为 8 passed / 3 skipped / 95 BLOCKED。Ubuntu VM 候选 `c85975f` 源码构建 Compose 完成 Unit `535/535`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`，11 个 migration contexts PASS，四业务镜像、Migration/packages-init、PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，采集/打包 smoke 覆盖空 URL `400`、解析失败 `422`、四类控制、ZIP/EPUB/TXT、完整性和审计。
+- 远端门禁：`bf4b09f` 的 [CI 33436420368](https://github.com/nekohands/InkFlow/actions/runs/33436420368)、[Docker 33436420254](https://github.com/nekohands/InkFlow/actions/runs/33436420254)、[Security 33436420383](https://github.com/nekohands/InkFlow/actions/runs/33436420383) 均 GREEN。由于官方 Collector `0.159.0` 扫描命中 `CVE-2026-56854`，仅核心 Collector scan 使用到期 2026-09-30 的 `.trivyignore-collector` VEX 例外；应用镜像/文件系统扫描仍严格执行，修复镜像发布后须移除例外并复验。
+- 当前状态：采集/打包自动化契约已闭合，但整体保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实 Official Source/追更/第二来源、真实凭据/Provider、账户/PWA 跨设备、受保护页面人工操作和生产 OTLP/SLO/告警/备份治理继续按第 6 节待定；本轮不启动 ADB、阅读 App 或 live source。
 
 ## 5. 关键架构不变量
 

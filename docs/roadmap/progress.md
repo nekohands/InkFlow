@@ -1368,6 +1368,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `9bda886` 的 [CI 33425459672](https://github.com/nekohands/InkFlow/actions/runs/33425459672)、[Docker 33425459913](https://github.com/nekohands/InkFlow/actions/runs/33425459913) 和 [Security 33425459745](https://github.com/nekohands/InkFlow/actions/runs/33425459745) 均 GREEN 且指向同一 head SHA。
 - 结论与边界：本轮关闭了直接地址采集启动状态的自动化语义缺口，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu、真实 linovelib/17K/追更/第二来源、真实账户/Provider、PWA 安装跨设备、受保护页面人工操作和生产 OTLP/SLO/告警/备份治理仍按第 6 节待定；本轮不启动真实设备或第三方 live 测试。
 
+### 5.18 CollectionRun 非法输入状态映射修复与最终 VM/Compose 回归（本轮，2026-09-01）
+
+- 缺口：5.17 将启动失败统一映射为 `422`，覆盖了来源解析失败，但也误把空/格式非法 URL 当成 `422`；11.2 要求非法输入 `400`、无法解析的来源地址 `422`。
+- TDD 与实现：先加入 `source-url.invalid` failure 应返回 `400` 的红态回归（期望 400、实际 422），再实现 `GetStartStatusCode` 分流；`source-url.empty`/`source-url.invalid` → `400`，resolver semantic failures（如 `javascript:`/未登记来源）→ `422`。定向 `CollectionRunEndpointTests` `3/3 PASS`，采集/打包脚本回归、shell 语法和 `git diff --check` PASS。
+- 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit `535/535`、Architecture `1/1`、Contract `10/10` PASS；完整 Integration 106 项为 8 通过、3 跳过、95 项因 Windows `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- Ubuntu VM 证据：候选 `c85975f` 隔离 worktree 使用 Linux .NET 10 SDK 完成 Restore、`dotnet tool restore`、Release Build 0 warnings / 0 errors；Unit `535/535`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；11 个 migration contexts PASS；源码构建 Compose 四业务镜像成功，Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康；collection-package-runtime smoke PASS，覆盖 direct URL、空 URL `400`、无法解析地址 `422`、四类控制、ZIP/EPUB/TXT、完整性和审计。
+- 远端门禁：最终代码/安全策略候选 `bf4b09f` 的 [CI 33436420368](https://github.com/nekohands/InkFlow/actions/runs/33436420368)、[Docker 33436420254](https://github.com/nekohands/InkFlow/actions/runs/33436420254)、[Security 33436420383](https://github.com/nekohands/InkFlow/actions/runs/33436420383) 均 GREEN 且 head SHA 一致。
+- 安全边界：官方 Collector `0.159.0` 的上游镜像扫描命中 `CVE-2026-56854`；当前仅对核心 Collector 镜像使用到期日为 2026-09-30 的 `.trivyignore-collector` VEX 例外，理由是配置管线未启用 SSH receiver/exporter 或 SSH 认证回调；应用镜像和文件系统扫描仍不继承该例外。官方修复镜像可用后必须更新版本、删除例外并重新跑门禁。
+- 结论：自动化 collection/package contract gap closed；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/Provider、PWA/账户跨设备、受保护页面人工操作和生产 OTLP/SLO/告警/备份治理仍按第 6 节待定；本轮未启动 ADB、阅读 App 或 live source。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1502,7 +1512,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：代码候选 `9bda886` 已修复直接地址采集启动状态语义：新建运行 `202`、复用活跃运行 `200`、来源地址无法解析 `422`、非法输入 `400`；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 534/534、Architecture 1/1、Contract 10/10、Integration 106 项（103 passed / 3 skipped / 0 failed），`verify-migrations.sh` 的 11 个上下文 PASS，源码构建 Compose 健康启动，API/Worker/Scheduler `/health` 均返回 healthy，采集/打包业务 smoke PASS。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效。提交 `9bda886` 的 [CI 33425459672](https://github.com/nekohands/InkFlow/actions/runs/33425459672)、[Docker 33425459913](https://github.com/nekohands/InkFlow/actions/runs/33425459913)、[Security 33425459745](https://github.com/nekohands/InkFlow/actions/runs/33425459745) 均 GREEN 且 SHA 一致；本轮未发现新的、非延期范围的 1.0 功能缺口。
+最新状态（2026-09-01）：代码候选 `c85975f` 已修复直接地址采集启动状态语义：新建运行 `202`、复用活跃运行 `200`、来源地址无法解析 `422`、空/非法输入 `400`；Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 535/535、Architecture 1/1、Contract 10/10、Integration 106 项（103 passed / 3 skipped / 0 failed），`verify-migrations.sh` 的 11 个上下文 PASS，源码构建 Compose 健康启动，API/Worker/Scheduler `/health` 均返回 healthy，采集/打包业务 smoke PASS。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效。最终代码/安全策略候选 `bf4b09f` 的 [CI 33436420368](https://github.com/nekohands/InkFlow/actions/runs/33436420368)、[Docker 33436420254](https://github.com/nekohands/InkFlow/actions/runs/33436420254)、[Security 33436420383](https://github.com/nekohands/InkFlow/actions/runs/33436420383) 均 GREEN 且 SHA 一致；本轮未发现新的、非延期范围的 1.0 功能缺口。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
