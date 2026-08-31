@@ -415,6 +415,7 @@ public sealed class CrawlerTaskRepositoryTests
             var lease = CreateContext();
             await using var leaseDb = lease.Db;
             var leaseTask = lease.Repo.TryLeaseAsync(
+                task.Id,
                 T0.AddMinutes(1),
                 "worker-after-control",
                 TimeSpan.FromMinutes(1));
