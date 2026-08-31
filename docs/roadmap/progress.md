@@ -1235,6 +1235,17 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选 `052d34e` 的 [CI 33362042359](https://github.com/nekohands/InkFlow/actions/runs/33362042359)、[Docker 33362042406](https://github.com/nekohands/InkFlow/actions/runs/33362042406)、[Security 33362042372](https://github.com/nekohands/InkFlow/actions/runs/33362042372) 均 GREEN 且指向同一 head SHA。
 - 当前状态：本工作包只收口书籍包并发租约可靠性，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实来源/追更/切源、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定。
 
+### 5.3 直接地址采集启动原子一致性（本轮，2026-08-31）
+
+- 缺陷：直接地址入口原先先提交 `CollectionRun`，再单独插入首个 `BookInfo` 任务；首任务写入失败时可能留下没有子任务的活动运行，后续相同地址会一直复用该空运行。
+- TDD 修复：新增“首任务插入失败不留下空运行”和并发启动回归；将启动入口收敛到 `ICollectionRunRepository.TryAddWithInitialTaskAsync`，只把 PostgreSQL 活动运行唯一键冲突解释为并发复用，其他持久化失败继续失败并回滚。
+- 实现：EF 仓储在同一 PostgreSQL 事务内写入运行、首个 `BookInfo` 任务和 `crawler.task.created` Outbox；成功提交后才返回新运行，冲突时回读现有活动运行，首任务或 Outbox 写入失败时不产生半成品事实。服务层移除直接地址路径对独立 Task Repository 的两步依赖。
+- 本机证据：红色回归已复现旧缺陷；`dotnet restore InkFlow.sln`、Release Build（0 warnings / 0 errors）、Unit 523/523、Architecture 1/1、Contract 10/10 和 Integration 项目 Release 编译通过。完整本机 Integration 99 项中 7 项通过、2 项跳过、90 项因 Windows `npipe://./pipe/docker_engine` 不可用而 BLOCKED，未将其记为本机通过。
+- Ubuntu VM 证据：候选 `ef2b8dd` 以 `docker-compose.build.yml` 源码构建并健康启动；真实 PostgreSQL `CrawlerTaskRepositoryTests` 17/17 通过；同一 Linux SDK 容器内完整 Restore → Test 为 Unit 523/523、Architecture 1/1、Contract 10/10、Integration 97 passed / 2 skipped / 0 failed；第二轮 `collection-package-runtime-smoke` 通过直接地址、暂停/恢复/停止/取消、ZIP/EPUB/TXT、哈希/长度完整性和审计。临时账号已禁用，Compose 已停止，`ps --all` 无服务容器残留，持久卷保留。
+- 验证说明：VM 曾有一次临时 SDK 容器先 Restore、后以 `--no-restore` 测试的无效尝试，因资产指向已销毁的临时 NuGet 缓存而未进入测试；随后改为同一容器内连续 Restore → Test，取得上述完整通过证据，不构成应用失败。
+- 远端门禁：候选 `ef2b8dd` 的 [CI 33367713458](https://github.com/nekohands/InkFlow/actions/runs/33367713458)、[Docker 33367713401](https://github.com/nekohands/InkFlow/actions/runs/33367713401)、[Security 33367713423](https://github.com/nekohands/InkFlow/actions/runs/33367713423) 均 GREEN 且指向同一 head SHA。
+- 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1369,7 +1380,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `052d34e` 的书籍包租约栅栏与尝试隔离已完成本机和 Ubuntu VM 验证；文档同步提交为 `8fb8aeb`。本机 Restore、Release Build（0 warnings / 0 errors）和 Unit 523/523 通过，Integration 项目 Release 编译通过；VM 源码 Compose 构建、Migration、服务健康检查、真实 PostgreSQL 租约回归 3/3 和采集/打包 ZIP/EPUB/TXT 烟测均通过。代码候选与文档候选的 CI、Docker、Security 均已针对各自 head SHA 通过；VM Compose 已停止，持久卷保留，工作区干净。
+最新状态（2026-08-31）：代码候选 `ef2b8dd` 的直接地址采集启动原子一致性已完成本机、Ubuntu VM 和远端门禁验证；Progress、Handoff 与需求对齐文档已同步本轮证据。本机 Restore、Release Build（0 warnings / 0 errors）、Unit 523/523、Architecture 1/1、Contract 10/10 和 Integration 项目 Release 编译通过；VM 源码 Compose 构建、Migration、服务健康检查、真实 PostgreSQL Crawler 回归 17/17、完整测试和采集/打包 ZIP/EPUB/TXT 烟测均通过。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过；VM Compose 已停止，持久卷保留，工作区干净。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

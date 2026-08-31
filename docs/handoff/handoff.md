@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`052d34e`（在 `bcf8889` 基础上为书籍包 Worker 增加租约所有者/尝试序号/过期条件的原子写入栅栏，并按尝试隔离临时与最终包文件；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 租约回归和 ZIP/EPUB/TXT 运行烟测，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`ef2b8dd`（在 `052d34e` 基础上将直接地址采集的 CollectionRun、首个 BookInfo 任务和 TaskCreated Outbox 收敛为同一 PostgreSQL 事务，避免首任务失败留下空活动运行；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL Crawler 回归、完整测试和 ZIP/EPUB/TXT 运行烟测，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1056,6 +1056,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端门槛：`052d34e` 的 [CI 33362042359](https://github.com/nekohands/InkFlow/actions/runs/33362042359)、[Docker 33362042406](https://github.com/nekohands/InkFlow/actions/runs/33362042406)、[Security 33362042372](https://github.com/nekohands/InkFlow/actions/runs/33362042372) 均 GREEN 且 head SHA 一致。
 - 当前状态：本工作包为 `Implemented`，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实来源/追更/第二来源故障切换、真实凭据/生产运维、PWA 安装跨设备、Operations 受保护登录后操作和阅读 3.0/MuMu 真机验收继续按第 6 节待定。
 - 下一步：后续若要提升到全量 `Accepted/Completed`，先处理第 6 节真实环境与人工验收；本轮不启动 MuMu/阅读 3.0 测试。
+
+### 5.3 直接地址采集启动原子一致性交接（本轮，2026-08-31）
+
+- 工作包：修复直接地址采集“先建运行、后建首任务”的半成品窗口；保持 Source/Canonical 边界、稳定 BookId/ChapterId 和既有 Outbox 语义，不新增 Migration。
+- 实现：新增 `TryAddWithInitialTaskAsync` 原子仓储 seam；EF 在同一事务内提交 `CollectionRun`、首个 `BookInfo` `CrawlerTask` 与 `crawler.task.created` Outbox。仅活动运行唯一键冲突返回 false 供服务层复用并发运行，首任务/Outbox 的其他失败整体回滚并传播；服务层不再依赖独立 Task Repository 完成两步启动。
+- 回归：新增首任务写入失败不留空运行、并发启动只保留一个运行/任务/Outbox 的 PostgreSQL 回归；Unit fake 与 AcceptanceFixtures 已同步新接口。
+- 本机：红测已复现旧缺陷；Restore、Release Build 0 warnings / 0 errors、Unit 523/523、Architecture 1/1、Contract 10/10、Integration 项目 Release 编译和 `git diff --check` 通过；完整本机 Integration 受 Windows Docker named pipe 不可用影响，99 项中 7 passed / 2 skipped / 90 BLOCKED。
+- Ubuntu VM：`ef2b8dd` 源码 Compose 构建、Migration、服务健康检查、真实 PostgreSQL `CrawlerTaskRepositoryTests` 17/17 和完整测试通过（Unit 523/523、Architecture 1/1、Contract 10/10、Integration 97 passed / 2 skipped / 0 failed）；第二轮 collection/package smoke 覆盖 direct URL、四类控制、ZIP/EPUB/TXT、完整性和审计并 PASS。临时账号已禁用，Compose 已停止，服务容器无残留，持久卷保留。
+- 远端门槛：候选 `ef2b8dd` 的 [CI 33367713458](https://github.com/nekohands/InkFlow/actions/runs/33367713458)、[Docker 33367713401](https://github.com/nekohands/InkFlow/actions/runs/33367713401)、[Security 33367713423](https://github.com/nekohands/InkFlow/actions/runs/33367713423) 均 GREEN 且 head SHA 一致。
+- 当前状态：自动化 Release Gate 已通过，整体继续为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续待定；本轮不启动 MuMu/阅读 3.0 测试。
 
 ## 5. 关键架构不变量
 
