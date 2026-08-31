@@ -1308,6 +1308,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `5875479` 的 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619) 均 GREEN 且指向同一 head SHA；CI 的完整 Test/Compose/Runtime smoke 也通过。
 - 边界：确定性自动化已关闭“新增章节链路无默认回归”的工程证据缺口，但不替代真实 Official Source 上游新增/修订事件、真实第二来源故障切换、阅读 3.0/MuMu 和其他人工验收；真实追更仍保持第 6 节待定。
 
+### 5.11 最新 dev 全量 VM 与源码 Compose Release Gate 复验（本轮，2026-08-31）
+
+- 范围：针对最新 `dev` 代码栈（代码候选 `5875479`，当前头 `361fe18` 为文档性修订）在 Ubuntu VM 使用隔离 worktree 和源码构建 Compose 重新执行适用门禁；不启动 MuMu/阅读 3.0，不触发真实来源网络请求。
+- Build/Test：Linux .NET 10 SDK 容器完成 `dotnet restore InkFlow.sln`、Release Build（0 warnings / 0 errors）和全量测试；Unit `530/530`、Architecture `1/1`、Contract `10/10`、Integration `104` 项（`102 passed / 2 skipped / 0 failed`）。新增确定性 Scheduler 追更用例在全量运行中通过。
+- Runtime：`docker-compose.build.yml` 源码构建四个业务镜像，Migration/packages-init 正常退出，PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康。Reader/PWA 前端、账户/阅读状态、已发布正文、Legado 四步、双来源 A→B→A、Quality failure、Private Library TXT/EPUB、Developer API、Admin、collection/package（直接地址、暂停/恢复/停止/取消、ZIP/EPUB/TXT、完整性和审计）均 PASS。
+- Observability/Recovery：Core SLO 四面门禁 PASS，p95 为 public `28.058ms`、Legado `15.181ms`、developer `7.840ms`、reader `7.639ms`；在 1 秒指标导出和 detailed debug 配置下，两个 `inkflow.slo.*` 指标及四个 surface 均通过 Collector receipt；PostgreSQL custom-format backup/restore PASS（archive `108510 bytes`，`audit_events=271`）。
+- 过程说明：一次初始运行脚本误先注册了由脚本自身负责注册的测试账户，得到 409；修正编排后相关 smoke 全部通过。首次 OTel 检查早于默认 60 秒导出周期，随后调整为 1 秒导出并复验通过；两次均不构成产品失败。
+- 清理与边界：临时账户已禁用，隔离 Compose 服务/网络/卷、fixture SDK 容器和 worktree 已清理；VM 原工作树未覆盖。该轮关闭的是最新代码栈的自动化 VM Release Gate，不替代真实追更、真实第二来源、真实凭据/Provider、生产 OTLP/SLO、PWA 跨设备、人工视觉验收和 MuMu/阅读 3.0，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1412,12 +1421,12 @@ Official Source
 
 ### 6.2 需要可用环境复验
 
-- [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中完成完整 Testcontainers 集成测试；Unit 479/479、Architecture 1/1、Contract 10/10，Integration 89 项为 87 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox、Sources Capability Health 和 ContentVersion 当前选择边界等持久化链路。Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次 VM 本地容器证据。
+- [x] **PostgreSQL 集成测试（Ubuntu VM 可用 Docker 环境）**：已在 Ubuntu VM 的源码构建 Compose 环境中完成完整 Testcontainers 集成测试；Unit 530/530、Architecture 1/1、Contract 10/10，Integration 104 项为 102 passed / 2 skipped / 0 failed，覆盖 Private Library、Developers/Billing、Operations 告警历史、Messaging Outbox/Inbox、Sources Capability Health、ContentVersion 当前选择边界和确定性 Scheduler 追更链路等持久化场景。Windows 开发机的 `npipe://./pipe/docker_engine` 仍不可用，但不影响本次 VM 本地容器证据。
 - [x] **Kanunu8 真实只读适配器验证**：BookInfo、TOC、章节正文 3/3 通过；Search 能力当前按适配器契约返回空结果，未计为完整 Phase 1A Search 链路。
 - [x] **linovelib 真实公开站点只读链路**：已用 GPT 内置浏览器自动完成 Search（`恶魔高校`）→ BookInfo → 482 章 TOC → 首章正文读取；该证据不涉及登录、账号或站点写入，详见 4.77。
 - [ ] **linovelib RuleAdapter 后端直连链路**：站点搜索表单为 `/S6/` + `searchkey`，规则与离线回归已覆盖；当前普通 HTTP POST 返回 200 但空响应体，尚不能把浏览器页面证据等同于服务端适配器通过。待网络/站点挑战可稳定处理后，再验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/切源候选。
 - [ ] **17K 真实验证**：已在 Ubuntu VM 只读探测官方 API/Web，但当前 API 证书链校验失败或返回“请升级版本/图书信息不存在”，未形成稳定 Search → BookInfo → TOC → 免费 Content；待可用网络环境继续验证非购买 VIP、超时/非 2xx/重定向安全边界。
-- [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：本轮源码 Compose 执行 `scripts/backup-restore-drill.sh`，custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=84366 bytes, audit_events=119`；隔离库已清理，Compose 持久卷保留。此前 GHCR 发布镜像复验也已通过；生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
+- [x] **PostgreSQL 备份恢复演练（Ubuntu VM）**：本轮源码 Compose 执行 `scripts/backup-restore-drill.sh`，custom-format 归档恢复到隔离数据库，所有非系统表行数签名与 `audit.events` 数量一致，最新结果为 `archive=108510 bytes, audit_events=271`；隔离库已清理，Compose 持久卷保留。此前 GHCR 发布镜像复验也已通过；生产异地/加密/保留/RPO-RTO 治理仍待部署环境验收。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境把 Collector 接入受治理的持久化后端，确认 API/Worker/Scheduler/Reader 观测到达，基于合成探针与真实业务窗口完成聚合，验证错误预算告警、访问控制和保留策略；当前 CI 合成探针与 Compose debug exporter 仅是短窗口接收基线，不替代生产证据。
 
 ### 6.3 后续工程事项（非本轮人工验收）
@@ -1442,7 +1451,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `f29256e` 在执行失败文本稳定化基础上补齐 Phase 1B 质量失败运行时演练；质量夹具通过真实 Publishing/Quality/Selection 服务持久化完整版本与故意截断重放，并由 Web、Legado、Reader 三出口确认高质量版本保持选中。质量门禁证据记录提交为 `d5e78ed`，Progress、Handoff 与 Phase 1B 验收文档已同步本轮证据；后续仅文档性修订不改变该代码候选。VM 源码 Compose 运行态健康，质量夹具输出 good `100` / low `30` 且 selected 为 good，运行烟测与脚本回归通过；本机 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10 通过。证据提交 `d5e78ed` 的 [CI 33392373531](https://github.com/nekohands/InkFlow/actions/runs/33392373531)、[Docker 33392373476](https://github.com/nekohands/InkFlow/actions/runs/33392373476)、[Security 33392373377](https://github.com/nekohands/InkFlow/actions/runs/33392373377) 均 GREEN 且 SHA 一致。
+最新状态（2026-08-31）：代码候选 `5875479` 在质量失败运行时演练和确定性 Scheduler 追更证据基础上，已在 Ubuntu VM 以源码构建 Compose 完成最新全量 Release Gate 复验（见 5.11）；Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、Integration 102 passed / 2 skipped / 0 failed，Reader/Legado/failover/quality/private/developer/admin/collection-package/Core SLO/OTel receipt/backup-restore 均有 PASS 证据。当前头 `361fe18` 仅为文档性修订，代码候选未改变。此前质量夹具输出 good `100` / low `30` 且 selected 为 good，远端代码门禁记录仍见 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619)，均 GREEN 且 SHA 一致。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

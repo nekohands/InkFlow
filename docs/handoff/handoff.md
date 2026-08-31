@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`f29256e`；质量门禁证据提交：`d5e78ed`（在执行失败文本稳定化基础上，补齐 Phase 1B 质量失败运行时演练：同一来源完整正文与故意截断正文均经真实 Quality/Selection 服务落库，Web/Legado/Reader 三出口确认高质量版本未被替换；该证据提交的 [CI 33392373531](https://github.com/nekohands/InkFlow/actions/runs/33392373531)、[Docker 33392373476](https://github.com/nekohands/InkFlow/actions/runs/33392373476)、[Security 33392373377](https://github.com/nekohands/InkFlow/actions/runs/33392373377) 均 GREEN 且 SHA 一致；后续仅文档性修订不改变代码候选；真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新代码候选 Commit：`5875479`（后续 `361fe18` 为文档性修订）；质量失败与确定性追更的既有远端门禁记录见 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619)，均 GREEN 且 SHA 一致；本轮最新 Ubuntu VM 全量复验与源码 Compose 证据见 5.11。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -772,7 +772,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [x] **linovelib 真实公开页面只读链路**：GPT 内置浏览器已完成 Search → BookInfo → TOC → Content 页面证据；不等同于服务端 RuleAdapter 直连通过。
 - [ ] **linovelib RuleAdapter 后端直连链路**：当前普通 HTTP POST 搜索返回 200 但空响应体，待网络/站点挑战可稳定处理后验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/故障切换演练。
 - [ ] **17K 真实 Search/阅读链路**：已在 Ubuntu VM 只读探测，但当前 API 证书链校验失败或返回“请升级版本/图书信息不存在”，仍待可用网络环境验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向。
-- [ ] **本机 Docker 集成复验**：Docker 可用后重跑完整 Testcontainers 集成测试；当前全量 89 项中 81 项因 `docker_engine` 不可用而 BLOCKED、2 项跳过、6 项通过，其中包含 Inbox 失败策略、Sources Capability Health 并发变更、Outbox/Inbox、保留清理和 ContentVersion 当前选择边界测试；本机未取得真实容器证据。
+- [ ] **本机 Docker 集成复验**：Windows 本机 Docker Engine 仍不可用；Ubuntu VM 已在 5.11 使用源码构建 Compose 完成 Unit 530/530、Architecture 1/1、Contract 10/10、Integration 102 passed / 2 skipped / 0 failed 的完整容器证据。若需关闭本机复验项，仍待 Windows Docker 恢复后在本机重跑 Testcontainers。
 - [ ] **生产 OTLP 后端与 SLO 窗口验收**：在部署环境将 Collector 接入受治理的持久化后端，验证 API/Worker/Scheduler/Reader 观测到达，执行合成探针和窗口聚合，并验收错误预算告警、访问控制与保留策略；Compose debug exporter/健康 smoke 仅为接收基线。
 
 扩展新来源的方式(书源兼容层):
@@ -1126,6 +1126,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机/VM：Windows 定向测试 1/1 PASS；Ubuntu VM 的 .NET 10 SDK 容器隔离 worktree 定向测试 1/1 PASS。VM 原工作树质量演练未提交改动保留，临时 worktree 已清理。
 - 代码提交：`5875479` 已推送；远端 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619) 均 GREEN 且 head SHA 一致。
 - 边界：确定性追更工程门禁已补齐，但真实上游新增/修订事件、真实第二来源故障切换、真实凭据/Provider、PWA 安装/跨设备、人工视觉验收和阅读 3.0/MuMu 仍按第 6 节待定；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.11 最新 dev 全量 VM 与源码 Compose Release Gate 复验交接（本轮，2026-08-31）
+
+- 范围：在 Ubuntu VM 从最新 `dev` 代码候选 `5875479`（文档头 `361fe18`）建立隔离 worktree，按源码构建 Compose 复验适用 Release Gate；明确跳过 MuMu/阅读 3.0 和真实来源网络请求。
+- 全量测试：Linux .NET 10 SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit `530/530`、Architecture `1/1`、Contract `10/10`、Integration `104` 项（`102 passed / 2 skipped / 0 failed`）；确定性 Scheduler 追更用例在全量测试中通过。
+- 运行态：源码构建四业务镜像，Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康；Reader/PWA、账号/正文、Legado、failover、Quality failure、Private Library TXT/EPUB、Developer API、Admin、collection/package（直接地址和四类控制、ZIP/EPUB/TXT、完整性/审计）均 PASS。
+- 观测与恢复：Core SLO p95 为 public `28.058ms`、Legado `15.181ms`、developer `7.840ms`、reader `7.639ms`，四面 PASS；1 秒指标导出 + detailed debug 下两个 `inkflow.slo.*` 指标和四个 surface 的 Collector receipt PASS；backup/restore PASS，archive `108510 bytes`、`audit_events=271`。
+- 过程与清理：初次运行中一次重复注册测试账户的编排错误产生 409，修正后全套业务 smoke 通过；首次 OTel 检查过早，调整导出周期后通过。临时账户、隔离 Compose 服务/网络/卷、fixture SDK 和 worktree 均已清理，原 VM 工作树保留。
+- 交接边界：本轮仅确认最新代码栈的自动化 VM Release Gate，不关闭真实追更/第二来源/真实凭据与 Provider/生产 OTLP-SLO/生产运维/PWA 跨设备/人工视觉和 MuMu/阅读 3.0；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
