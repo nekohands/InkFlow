@@ -21,14 +21,36 @@ public sealed class FileBookPackageArtifactStore(BookPackageOptions options) : I
         return Path.Combine(_rootDirectory, $".{jobId:N}.tmp");
     }
 
+    public string GetTemporaryPath(Guid jobId, int leaseAttempt)
+    {
+        ValidateLeaseAttempt(leaseAttempt);
+        if (jobId == Guid.Empty)
+        {
+            throw new ArgumentException("jobId must not be empty.", nameof(jobId));
+        }
+
+        return Path.Combine(_rootDirectory, $".{jobId:N}.{leaseAttempt}.tmp");
+    }
+
     public Task<Stream> CreateTemporaryAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
+        => CreateTemporaryCoreAsync(GetTemporaryPath(jobId), cancellationToken);
+
+    public Task<Stream> CreateTemporaryAsync(
+        Guid jobId,
+        int leaseAttempt,
+        CancellationToken cancellationToken = default)
+        => CreateTemporaryCoreAsync(GetTemporaryPath(jobId, leaseAttempt), cancellationToken);
+
+    private Task<Stream> CreateTemporaryCoreAsync(
+        string path,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Directory.CreateDirectory(_rootDirectory);
         Stream stream = new FileStream(
-            GetTemporaryPath(jobId),
+            path,
             FileMode.Create,
             FileAccess.ReadWrite,
             FileShare.None,
@@ -58,6 +80,27 @@ public sealed class FileBookPackageArtifactStore(BookPackageOptions options) : I
             _ => throw new ArgumentOutOfRangeException(nameof(format)),
         };
         return $"{jobId:N}.{extension}";
+    }
+
+    public string GetArtifactFileName(
+        Guid jobId,
+        int leaseAttempt,
+        BookPackageFormat format)
+    {
+        ValidateLeaseAttempt(leaseAttempt);
+        if (jobId == Guid.Empty)
+        {
+            throw new ArgumentException("jobId must not be empty.", nameof(jobId));
+        }
+
+        var extension = format switch
+        {
+            BookPackageFormat.Zip => "zip",
+            BookPackageFormat.Epub => "epub",
+            BookPackageFormat.Txt => "txt",
+            _ => throw new ArgumentOutOfRangeException(nameof(format)),
+        };
+        return $"{jobId:N}-{leaseAttempt}.{extension}";
     }
 
     public Task PublishAsync(
@@ -147,6 +190,14 @@ public sealed class FileBookPackageArtifactStore(BookPackageOptions options) : I
         if (extension is not ".zip" and not ".epub" and not ".txt")
         {
             throw new ArgumentException("artifact file extension is invalid.", nameof(artifactFileName));
+        }
+    }
+
+    private static void ValidateLeaseAttempt(int leaseAttempt)
+    {
+        if (leaseAttempt < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(leaseAttempt));
         }
     }
 }

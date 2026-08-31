@@ -73,6 +73,54 @@ public sealed class BookPackageServiceTests
         }
     }
 
+    [TestMethod]
+    public async Task Process_Drops_Stale_Lease_Without_Marking_Job_Failed()
+    {
+        var book = CanonicalBook.Create("租约书", "作者", T0);
+        var chapter = book.AddChapter(0, "第一章", T0);
+        var version = NewVersion(book.Id, chapter.Id, "正文");
+        var jobs = new InMemoryPackageJobRepository { RejectLeasedSaves = true };
+        var builder = new CapturingBuilder();
+        var root = Path.Combine(Path.GetTempPath(), $"inkflow-package-lease-test-{Guid.NewGuid():N}");
+        var options = new BookPackageOptions(
+            root,
+            MaxChapters: 100,
+            MaxPackageBytes: 1_000_000,
+            Retention: TimeSpan.FromDays(7),
+            LeaseDuration: TimeSpan.FromMinutes(10));
+        var artifacts = new FileBookPackageArtifactStore(options);
+        var service = new BookPackageService(
+            jobs,
+            new InMemoryBookRepository(book),
+            new SnapshotVersionRepository(version),
+            new AllowAllPolicy(),
+            builder,
+            artifacts,
+            options,
+            new FixedClock(T0));
+
+        try
+        {
+            var created = await service.CreateAsync(book.Id, BookPackageFormat.Epub);
+            Assert.IsTrue(created.IsSuccess);
+
+            var job = jobs.Items.Single();
+            job.Lease("package-test", T0, options.LeaseDuration);
+            await service.ProcessAsync(job);
+
+            Assert.AreEqual(BookPackageJobStatus.Running, job.Status);
+            Assert.IsNull(builder.Document);
+            Assert.IsFalse(File.Exists(artifacts.GetTemporaryPath(job.Id, job.AttemptCount)));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static ContentVersion NewVersion(Guid bookId, Guid chapterId, string text) =>
         ContentVersion.Create(
             bookId,
@@ -179,6 +227,8 @@ public sealed class BookPackageServiceTests
     {
         public List<BookPackageJob> Items { get; } = [];
 
+        public bool RejectLeasedSaves { get; set; }
+
         public Task AddAsync(BookPackageJob job, CancellationToken cancellationToken = default)
         {
             Items.Add(job);
@@ -208,6 +258,14 @@ public sealed class BookPackageServiceTests
 
         public Task SaveAsync(BookPackageJob job, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task<bool> SaveLeasedAsync(
+            BookPackageJob job,
+            string leaseOwner,
+            int leaseAttempt,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(!RejectLeasedSaves);
 
         public Task<IReadOnlyList<BookPackageJob>> ListExpiredAsync(
             DateTimeOffset now,

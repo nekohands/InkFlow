@@ -79,6 +79,13 @@ public sealed class EfBookPackageJobRepository(ContentDbContext db) : IBookPacka
 
     public async Task SaveAsync(BookPackageJob job, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(job);
+        if (job.Status == BookPackageJobStatus.Running)
+        {
+            throw new InvalidOperationException(
+                "running package jobs must be saved through the fenced lease operation.");
+        }
+
         var entity = await db.PackageJobs
             .SingleOrDefaultAsync(candidate => candidate.Id == job.Id, cancellationToken)
             .ConfigureAwait(false)
@@ -87,6 +94,49 @@ public sealed class EfBookPackageJobRepository(ContentDbContext db) : IBookPacka
 
         BookPackageJobMapper.ApplyDomain(job, entity);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<bool> SaveLeasedAsync(
+        BookPackageJob job,
+        string leaseOwner,
+        int leaseAttempt,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        if (string.IsNullOrWhiteSpace(leaseOwner) || leaseAttempt < 1)
+        {
+            throw new ArgumentException("package lease identity is invalid.");
+        }
+
+        var affected = await db.PackageJobs
+            .Where(candidate =>
+                candidate.Id == job.Id &&
+                candidate.Status == (int)BookPackageJobStatus.Running &&
+                candidate.LeaseOwner == leaseOwner &&
+                candidate.AttemptCount == leaseAttempt &&
+                candidate.LeaseExpiresAt != null &&
+                candidate.LeaseExpiresAt > now)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(candidate => candidate.Status, _ => (int)job.Status)
+                    .SetProperty(candidate => candidate.AttemptCount, _ => job.AttemptCount)
+                    .SetProperty(candidate => candidate.MaxAttempts, _ => job.MaxAttempts)
+                    .SetProperty(candidate => candidate.ScheduledAt, _ => job.ScheduledAt)
+                    .SetProperty(candidate => candidate.LeaseOwner, _ => job.LeaseOwner)
+                    .SetProperty(candidate => candidate.LeaseExpiresAt, _ => job.LeaseExpiresAt)
+                    .SetProperty(candidate => candidate.TotalChapterCount, _ => job.TotalChapterCount)
+                    .SetProperty(candidate => candidate.CompletedChapterCount, _ => job.CompletedChapterCount)
+                    .SetProperty(candidate => candidate.ArtifactFileName, _ => job.ArtifactFileName)
+                    .SetProperty(candidate => candidate.ArtifactSha256, _ => job.ArtifactSha256)
+                    .SetProperty(candidate => candidate.ArtifactLength, _ => job.ArtifactLength)
+                    .SetProperty(candidate => candidate.FailureReason, _ => job.FailureReason)
+                    .SetProperty(candidate => candidate.UpdatedAt, _ => job.UpdatedAt)
+                    .SetProperty(candidate => candidate.ExpiresAt, _ => job.ExpiresAt),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return affected == 1;
     }
 
     public async Task<IReadOnlyList<BookPackageJob>> ListExpiredAsync(

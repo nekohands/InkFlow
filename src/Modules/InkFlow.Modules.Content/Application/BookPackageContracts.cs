@@ -32,6 +32,16 @@ public interface IBookPackageJobRepository
 
     Task SaveAsync(BookPackageJob job, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 仅在调用方仍持有指定租约尝试时保存任务变更；返回 false 表示租约已被回收或替换。
+    /// </summary>
+    Task<bool> SaveLeasedAsync(
+        BookPackageJob job,
+        string leaseOwner,
+        int leaseAttempt,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<BookPackageJob>> ListExpiredAsync(
         DateTimeOffset now,
         int limit,
@@ -52,11 +62,22 @@ public interface IBookPackageArtifactStore
 {
     string GetTemporaryPath(Guid jobId);
 
+    /// <summary>按租约尝试隔离临时文件，避免旧 Worker 清理新 Worker 的中间产物。</summary>
+    string GetTemporaryPath(Guid jobId, int leaseAttempt);
+
     Task<Stream> CreateTemporaryAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    Task<Stream> CreateTemporaryAsync(
+        Guid jobId,
+        int leaseAttempt,
+        CancellationToken cancellationToken = default);
 
     string GetArtifactPath(string artifactFileName);
 
     string GetArtifactFileName(Guid jobId, BookPackageFormat format);
+
+    /// <summary>按租约尝试生成最终文件名，避免过期 Worker 与新 Worker 争用同一文件。</summary>
+    string GetArtifactFileName(Guid jobId, int leaseAttempt, BookPackageFormat format);
 
     Task PublishAsync(string temporaryPath, string artifactFileName, CancellationToken cancellationToken = default);
 

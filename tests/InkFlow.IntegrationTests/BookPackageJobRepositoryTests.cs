@@ -90,6 +90,53 @@ public sealed class BookPackageJobRepositoryTests
         Assert.AreEqual("worker-b", reclaimed.LeaseOwner);
     }
 
+    [TestMethod]
+    public async Task Stale_Lease_Cannot_Overwrite_Reclaimed_Job()
+    {
+        await using var firstDb = CreateDb();
+        await firstDb.Database.MigrateAsync().ConfigureAwait(false);
+        var firstRepository = new EfBookPackageJobRepository(firstDb);
+        var job = BookPackageJob.Create(
+            Guid.CreateVersion7(),
+            BookPackageFormat.Txt,
+            T0,
+            T0.AddDays(1),
+            maxAttempts: 2);
+
+        await firstRepository.AddAsync(job).ConfigureAwait(false);
+        var firstLease = await firstRepository
+            .TryLeaseAsync(T0, "worker-a", TimeSpan.FromMinutes(1))
+            .ConfigureAwait(false);
+        Assert.IsNotNull(firstLease);
+
+        await using var secondDb = CreateDb();
+        var secondRepository = new EfBookPackageJobRepository(secondDb);
+        var reclaimed = await secondRepository
+            .TryLeaseAsync(T0.AddMinutes(2), "worker-b", TimeSpan.FromMinutes(1))
+            .ConfigureAwait(false);
+        Assert.IsNotNull(reclaimed);
+
+        firstLease!.SetTotalChapterCount(42, T0.AddMinutes(2));
+        await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+                () => firstRepository.SaveAsync(firstLease))
+            .ConfigureAwait(false);
+        var saved = await firstRepository
+            .SaveLeasedAsync(
+                firstLease,
+                "worker-a",
+                leaseAttempt: 1,
+                now: T0.AddMinutes(2))
+            .ConfigureAwait(false);
+
+        var persisted = await secondRepository.GetAsync(job.Id).ConfigureAwait(false);
+        Assert.IsFalse(saved);
+        Assert.IsNotNull(persisted);
+        Assert.AreEqual(BookPackageJobStatus.Running, persisted!.Status);
+        Assert.AreEqual(2, persisted.AttemptCount);
+        Assert.AreEqual("worker-b", persisted.LeaseOwner);
+        Assert.AreEqual(0, persisted.TotalChapterCount);
+    }
+
     private static ContentDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<ContentDbContext>()

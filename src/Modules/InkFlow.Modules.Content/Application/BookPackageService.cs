@@ -133,7 +133,15 @@ public sealed class BookPackageService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(job);
-        var temporaryPath = artifacts.GetTemporaryPath(job.Id);
+        var leaseOwner = job.LeaseOwner;
+        var leaseAttempt = job.AttemptCount;
+        if (string.IsNullOrWhiteSpace(leaseOwner) || leaseAttempt < 1)
+        {
+            throw new InvalidOperationException(
+                $"package job {job.Id} must have an active lease before processing.");
+        }
+
+        var temporaryPath = artifacts.GetTemporaryPath(job.Id, leaseAttempt);
         string? artifactFileName = null;
         var published = false;
 
@@ -156,17 +164,27 @@ public sealed class BookPackageService(
             }
 
             job.SetTotalChapterCount(document.Chapters.Count, clock.GetUtcNow());
-            await jobs.SaveAsync(job, cancellationToken).ConfigureAwait(false);
+            await SaveLeasedOrThrowAsync(
+                    job,
+                    leaseOwner,
+                    leaseAttempt,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             await using (var output = await artifacts
-                             .CreateTemporaryAsync(job.Id, cancellationToken)
+                             .CreateTemporaryAsync(job.Id, leaseAttempt, cancellationToken)
                              .ConfigureAwait(false))
             {
                 async Task OnProgress(int completed)
                 {
                     job.SetProgress(completed, clock.GetUtcNow());
                     job.RenewLease(clock.GetUtcNow(), options.LeaseDuration);
-                    await jobs.SaveAsync(job, cancellationToken).ConfigureAwait(false);
+                    await SaveLeasedOrThrowAsync(
+                            job,
+                            leaseOwner,
+                            leaseAttempt,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 await builder
@@ -183,7 +201,7 @@ public sealed class BookPackageService(
             }
 
             var digest = await ComputeSha256Async(temporaryPath, cancellationToken).ConfigureAwait(false);
-            artifactFileName = artifacts.GetArtifactFileName(job.Id, job.Format);
+            artifactFileName = artifacts.GetArtifactFileName(job.Id, leaseAttempt, job.Format);
             await artifacts
                 .PublishAsync(temporaryPath, artifactFileName, cancellationToken)
                 .ConfigureAwait(false);
@@ -195,7 +213,16 @@ public sealed class BookPackageService(
             }
 
             job.Complete(artifactFileName, digest, length, clock.GetUtcNow());
-            await jobs.SaveAsync(job, cancellationToken).ConfigureAwait(false);
+            await SaveLeasedOrThrowAsync(
+                    job,
+                    leaseOwner,
+                    leaseAttempt,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (PackageLeaseLostException)
+        {
+            await DeleteArtifactsAsync(temporaryPath, artifactFileName, published).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -206,7 +233,34 @@ public sealed class BookPackageService(
         {
             await DeleteArtifactsAsync(temporaryPath, artifactFileName, published).ConfigureAwait(false);
             job.Fail(exception.Message, clock.GetUtcNow(), clock.GetUtcNow() + TimeSpan.FromSeconds(15));
-            await jobs.SaveAsync(job, cancellationToken).ConfigureAwait(false);
+            _ = await jobs
+                .SaveLeasedAsync(
+                    job,
+                    leaseOwner,
+                    leaseAttempt,
+                    clock.GetUtcNow(),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private async Task SaveLeasedOrThrowAsync(
+        BookPackageJob job,
+        string leaseOwner,
+        int leaseAttempt,
+        CancellationToken cancellationToken)
+    {
+        var saved = await jobs
+            .SaveLeasedAsync(
+                job,
+                leaseOwner,
+                leaseAttempt,
+                clock.GetUtcNow(),
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (!saved)
+        {
+            throw new PackageLeaseLostException(job.Id, leaseAttempt);
         }
     }
 
@@ -366,4 +420,8 @@ public sealed class BookPackageService(
             job.UpdatedAt,
             job.ExpiresAt);
     }
+
+    private sealed class PackageLeaseLostException(Guid jobId, int leaseAttempt)
+        : InvalidOperationException(
+            $"package job {jobId} lease attempt {leaseAttempt} is no longer active.");
 }
