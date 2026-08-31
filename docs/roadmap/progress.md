@@ -1369,17 +1369,19 @@ Official Source
 
 ## 7. 当前阻塞
 
-可用环境复验状态：Ubuntu VM 已完成真实 PostgreSQL/Redis/Testcontainers 集成测试和源码 Compose 运行验收，并完成 custom-format 备份恢复演练；Windows 开发机的 Docker Engine 仍不可用，因此 Windows 本机验证继续保持 BLOCKED。
+最新状态（2026-08-31）：代码候选 `052d34e` 的书籍包租约栅栏与尝试隔离已完成本机和 Ubuntu VM 验证；文档同步提交为 `8fb8aeb`。本机 Restore、Release Build（0 warnings / 0 errors）和 Unit 523/523 通过，Integration 项目 Release 编译通过；VM 源码 Compose 构建、Migration、服务健康检查、真实 PostgreSQL 租约回归 3/3 和采集/打包 ZIP/EPUB/TXT 烟测均通过。代码候选与文档候选的 CI、Docker、Security 均已针对各自 head SHA 通过；VM Compose 已停止，持久卷保留，工作区干净。
 
-当前仍有以下验收级限制：本机未安装/运行 Docker，完整 PostgreSQL 集成测试（含 Private Library 私有章节和 Operations 告警历史）无法在本机执行；阅读 3.0 真机流程按用户决定延后；PWA Service Worker/离线壳已由 4.82 在 localhost 安全上下文自动验收，但真实账户、安装/独立窗口、生产 HTTPS、跨设备体验仍未执行；Private Library、Operations Center、Source Authorization、Source 默认 CredentialReference 管理和 Admin Audit Read 的实际安装/操作/跨尺寸浏览器验收尚未执行；真实来源与故障切换仍未执行。Compose 已补齐 OTLP Collector 的内部接收、loopback 健康基线、四服务面合成探针和 CI metrics receipt，但真实生产 OTLP 后端、四个服务面的生产到达、长窗口 SLO 聚合、错误预算告警和生产保留治理尚未验收。CI Security Scan 基线已在远端通过，但生产安全治理、镜像策略和报告保留尚未完成。此前提交 `f83476a` 的 Content Policy、Identity/Repair、Reader/PWA、Operations Center、Source Authorization、Admin Audit Read、Private Library v1/v2 自动化基线与一致性检查已有远端 CI、Compose、Runtime smoke 与 Docker 绿灯证据（CI `33163145132` / Docker `33163145104` / Security `33163144984`）；本轮 Operations 告警历史的候选提交 `4ef206f` 已通过远端 CI `33244304809`、Docker `33244304814` 和 Security `33244304804`；Core SLO 候选提交 `a87c5ae` 已通过远端 CI `33246490603`、Docker `33246490571` 和 Security `33246490589`。这些人工/环境限制属于整体 Release Gate，不改变已通过的本地自动化证据。
+当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
-当前 4.64 全量回归的本地结果为：Restore PASS；Release Build 0 warnings / 0 errors；Unit 472/472、Architecture 1/1、Contract 10/10 PASS；11 个迁移模型检查 PASS；Worker `/health` HTTP 200，后台业务因本机 PostgreSQL `127.0.0.1:5432` 不可用而未完成真实任务处理；Integration 86 项中 6 项通过、2 项跳过、78 项因本机 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；NuGet 漏洞审计无漏洞、敏感信息模式检查和 `git diff --check` PASS。WSL 迁移包装脚本因当前环境找不到 `dotnet` 未执行成功，但 Windows 直接等价迁移模型检查 11/11 PASS。代码候选提交 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的远端 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN。真实设置/清除、真实 Provider、真实来源、阅读 3.0 和人工验收按用户决定未执行。
+以下为历史复验记录，仅用于追溯，不代表当前最新测试数字：
 
-最新可用环境复验：Ubuntu VM 上的 Linux SDK 容器执行完整 `Restore → Build → Test`，Unit 475/475、Architecture 1/1、Contract 10/10、Integration 85 passed / 2 skipped / 0 failed；源码构建 Compose 的 Migration 退出码 0，API/Worker/Scheduler 和 Collector 健康检查通过；Core SLO Runtime smoke 四服务面通过；`scripts/backup-restore-drill.sh` 恢复校验通过（archive=78516 bytes，audit_events=31）。本轮验证后已停止容器，仅保留 PostgreSQL/Redis 卷。
+历史复验记录（4.64）：此前本机 Restore、Release Build、Unit 472/472、Architecture 1/1、Contract 10/10 和迁移模型检查通过；完整 Integration 因本机 Docker Engine 不可用而部分 BLOCKED。代码候选 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的远端 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN。
 
-本轮发布镜像复验：修正后的默认 GHCR Compose 在 Ubuntu VM 成功拉取全部应用镜像并启动，Migration 退出码 0，API/Worker/Scheduler 健康检查通过；默认 Core SLO 探针生成随机证据文件并通过，公开 API、Legado、Reader/PWA 入口均返回预期状态；脚本回归与备份恢复通过（archive=80181 bytes，audit_events=63）。验证后已停止容器，`inkflow_inkflow-postgres` 与 `inkflow_inkflow-redis` 数据卷保留。最终 `ff7ba52` 的 CI/Docker/Security 均 GREEN。
+历史复验记录（早期 Ubuntu VM）：Linux SDK 容器曾执行完整 `Restore → Build → Test`，源码构建 Compose、Core SLO 和备份恢复通过；验证后停止容器并保留 PostgreSQL/Redis 卷。
 
-本轮 ContentVersion 边界复验：Ubuntu VM Linux SDK 容器中的新增 PostgreSQL Testcontainers 用例 2/2 通过，验证跨章节目标拒绝且原当前版本不被清除、同章节切换保持唯一当前版本；临时测试容器已自动清理。
+历史复验记录（GHCR 发布镜像）：默认 GHCR Compose 曾在 Ubuntu VM 拉取镜像并通过 Migration、服务健康、Core SLO、脚本回归和备份恢复；验证后停止容器并保留数据卷。
+
+历史复验记录（ContentVersion）：Ubuntu VM 曾以 PostgreSQL Testcontainers 验证跨章节目标拒绝、原当前版本保留和同章节唯一当前版本；测试容器已清理。
 
 ## 8. dev 分支骨架重建记录（2026-08-25）
 
