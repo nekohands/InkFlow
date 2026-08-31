@@ -16,12 +16,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Pull pinned OTLP Collector image
-        run: docker pull otel/opentelemetry-collector:0.160.0
+        run: docker pull otel/opentelemetry-collector:0.160.0-nightly.779aeb2@sha256:c1490bb380998b9246b8ea054867ee05b2e9fc6be34cd1f3c4f0e1ec88b9fe91
 
       - name: Scan OTLP Collector before publishing application images
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: otel/opentelemetry-collector:0.160.0
+          image-ref: otel/opentelemetry-collector:0.160.0-nightly.779aeb2@sha256:c1490bb380998b9246b8ea054867ee05b2e9fc6be34cd1f3c4f0e1ec88b9fe91
           scanners: vuln
           vuln-type: os,library
           severity: HIGH,CRITICAL
