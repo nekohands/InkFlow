@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`ef2b8dd`（在 `052d34e` 基础上将直接地址采集的 CollectionRun、首个 BookInfo 任务和 TaskCreated Outbox 收敛为同一 PostgreSQL 事务，避免首任务失败留下空活动运行；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL Crawler 回归、完整测试和 ZIP/EPUB/TXT 运行烟测，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`da04e8e`（在直接地址采集启动原子化基础上，补齐带 `RunId` 任务领取时对父 CollectionRun 控制状态的 PostgreSQL 行锁与重新读取；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 并发回归、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1066,6 +1066,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：`ef2b8dd` 源码 Compose 构建、Migration、服务健康检查、真实 PostgreSQL `CrawlerTaskRepositoryTests` 17/17 和完整测试通过（Unit 523/523、Architecture 1/1、Contract 10/10、Integration 97 passed / 2 skipped / 0 failed）；第二轮 collection/package smoke 覆盖 direct URL、四类控制、ZIP/EPUB/TXT、完整性和审计并 PASS。临时账号已禁用，Compose 已停止，服务容器无残留，持久卷保留。
 - 远端门槛：候选 `ef2b8dd` 的 [CI 33367713458](https://github.com/nekohands/InkFlow/actions/runs/33367713458)、[Docker 33367713401](https://github.com/nekohands/InkFlow/actions/runs/33367713401)、[Security 33367713423](https://github.com/nekohands/InkFlow/actions/runs/33367713423) 均 GREEN 且 head SHA 一致。
 - 当前状态：自动化 Release Gate 已通过，整体继续为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续待定；本轮不启动 MuMu/阅读 3.0 测试。
+
+### 5.4 采集任务租约与运行控制并发栅栏交接（本轮，2026-08-31）
+
+- 工作包：保证暂停、停止或取消 CollectionRun 与 Worker 领取其子任务并发发生时，父运行的已提交控制状态优先于候选查询中的旧快照；不改变公开 API、状态机、Source/Canonical 边界或历史任务兼容性。
+- 实现：`EfCrawlerTaskRepository.TryLeaseCoreAsync` 在锁定候选任务后，对 `RunId` 对应的 `crawler.runs` 执行 `FOR UPDATE` 并重新读取状态；父运行不存在或不是 `Pending/Running` 时提交空结果，不写入任务租约。无 `RunId` 的任务继续走既有领取路径。
+- 回归：`Lease_Rechecks_Parent_Run_After_Control_Transaction_Commits` 使用独立 DbContext/事务和定向任务 ID，验证控制事务提交前等待、提交后不领取以及任务仍为 `Pending`；此前全量运行暴露了测试必须定向任务的隔离问题，已在 `da04e8e` 修正并复验。
+- 本机：Release Build 0 warnings / 0 errors、Unit 523/523、Integration 项目 Release 编译和 `git diff --check` 通过；Windows Docker Engine 缺失，本机 Testcontainers 不作为通过证据。
+- Ubuntu VM：候选 `da04e8e` 的定向真实 PostgreSQL 回归 1/1 PASS；同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Unit 523/523、Architecture 1/1、Contract 10/10、Integration 98 passed / 2 skipped / 0 failed。当前 head 重新完成 `docker-compose.build.yml` 源码构建四镜像、Migration 退出 0、Compose 健康等待，API/Worker/Scheduler `/health` 均返回 200。
+- 远端门槛：`da04e8e` 的 [CI 33372702168](https://github.com/nekohands/InkFlow/actions/runs/33372702168)、[Docker 33372702149](https://github.com/nekohands/InkFlow/actions/runs/33372702149)、[Security 33372702139](https://github.com/nekohands/InkFlow/actions/runs/33372702139) 均 GREEN 且 head SHA 一致。
+- 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu 真机、真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备和受保护 Operations 登录后操作继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
 ## 5. 关键架构不变量
 
