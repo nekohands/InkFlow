@@ -75,9 +75,44 @@ public sealed class CrawlerTaskProcessorTests
         Assert.AreEqual(0, repository.SaveCount);
     }
 
+    [TestMethod]
+    public async Task Rejected_Atomic_Start_Does_Not_Advance_Pending_Collection_Run()
+    {
+        var run = CollectionRun.Create(
+            "official-a",
+            "book-1",
+            "https://books.example.com/book-1",
+            T0);
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                "official-a",
+                SourceCapability.Toc,
+                new Dictionary<string, string> { ["bookId"] = "book-1" },
+                RunId: run.Id),
+            maxAttempts: 2,
+            T0);
+        task.Lease(CrawlerTaskExecutionDefaults.Owner, T0, CrawlerTaskExecutionDefaults.LeaseDuration);
+
+        var taskRepository = new InMemoryTaskRepository { RejectStart = true };
+        var runRepository = new InMemoryCollectionRunRepository(run);
+        var collectionRuns = new CollectionRunService(
+            urlResolver: null!,
+            runs: runRepository,
+            clock: new FixedTimeProvider(T0.AddSeconds(10)));
+        var executor = new RecordingExecutor(CrawlOutcome.Ok());
+        var processor = CreateProcessor(taskRepository, executor, collectionRuns);
+
+        await processor.ProcessAsync(task);
+
+        Assert.AreEqual(CollectionRunStatus.Pending, run.Status);
+        Assert.AreEqual(0, executor.CallCount);
+        Assert.AreEqual(0, taskRepository.SaveCount);
+    }
+
     private static CrawlerTaskProcessor CreateProcessor(
         InMemoryTaskRepository repository,
-        RecordingExecutor executor) =>
+        RecordingExecutor executor,
+        CollectionRunService? collectionRuns = null) =>
         new(
             executor,
             repository,
@@ -85,7 +120,8 @@ public sealed class CrawlerTaskProcessorTests
             new RetryPolicy { BaseDelay = TimeSpan.FromSeconds(5), MaxDelay = TimeSpan.FromSeconds(5) },
             new CrawlerFailureReporter(
                 Array.Empty<ICrawlerFailureSink>(),
-                NullLogger<CrawlerFailureReporter>.Instance));
+                NullLogger<CrawlerFailureReporter>.Instance),
+            collectionRuns);
 
     private static CrawlerTask LeaseTask(int maxAttempts)
     {
@@ -200,5 +236,64 @@ public sealed class CrawlerTaskProcessorTests
             string variableValue,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(false);
+    }
+
+    private sealed class InMemoryCollectionRunRepository(CollectionRun run) : ICollectionRunRepository
+    {
+        public Task AddAsync(CollectionRun value, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> TryAddAsync(CollectionRun value, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> TryAddWithInitialTaskAsync(
+            CollectionRun value,
+            CrawlerTask task,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<CollectionRun?> GetAsync(
+            Guid id,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CollectionRun?>(id == run.Id ? run : null);
+
+        public Task<CollectionRun?> MutateAsync(
+            Guid id,
+            Action<CollectionRun> mutation,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            if (id == run.Id)
+            {
+                mutation(run);
+            }
+
+            return Task.FromResult<CollectionRun?>(id == run.Id ? run : null);
+        }
+
+        public Task<CollectionRun?> ReconcileAsync(
+            Guid id,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CollectionRun?>(id == run.Id ? run : null);
+
+        public Task<CollectionRun?> FindActiveAsync(
+            string sourceId,
+            string externalBookId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CollectionRun>> ListAsync(
+            int limit,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SaveAsync(CollectionRun value, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<CollectionRunTaskProgress> GetTaskProgressAsync(
+            Guid runId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new CollectionRunTaskProgress(1, 1, 0, 0, 0, 0, 0));
     }
 }

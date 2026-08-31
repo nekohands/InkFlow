@@ -29,17 +29,22 @@ public sealed class CrawlerTaskProcessor(
                 return;
             }
 
-            if (task.Payload.RunId is { } runId && collectionRuns is not null)
-            {
-                await collectionRuns.MarkWorkStartedAsync(runId, cancellationToken).ConfigureAwait(false);
-            }
-
             if (!await tasks
                     .TryMarkRunningAsync(task, clock.GetUtcNow(), cancellationToken)
                     .ConfigureAwait(false))
             {
                 await ReconcileRunAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
+            }
+
+            // The repository gate is authoritative for production persistence:
+            // it rechecks the parent run and atomically starts the task. Keep
+            // the service mutation only as a compatibility fallback for older
+            // in-memory repositories, and never advance a run before the task
+            // start has been accepted.
+            if (task.Payload.RunId is { } runId && collectionRuns is not null)
+            {
+                await collectionRuns.MarkWorkStartedAsync(runId, cancellationToken).ConfigureAwait(false);
             }
 
             var outcome = await executor
