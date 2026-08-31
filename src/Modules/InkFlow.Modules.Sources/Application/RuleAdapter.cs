@@ -268,6 +268,7 @@ public sealed class RuleAdapter
                     preparedStepRequest,
                     stepResponse,
                     sourceOrigin,
+                    "pre-request",
                     out var stepResponseOriginError))
             {
                 return RuleExecutionResult.Fail([stepResponseOriginError]);
@@ -410,6 +411,16 @@ public sealed class RuleAdapter
             if (!response.IsSuccess)
             {
                 return RuleExecutionResult.Fail([$"http: upstream returned status {(int)response.StatusCode}."]);
+            }
+
+            if (!TryValidateResponseOrigin(
+                    currentRequest,
+                    response,
+                    sourceOrigin,
+                    "request",
+                    out var responseOriginError))
+            {
+                return RuleExecutionResult.Fail([responseOriginError]);
             }
 
             responseBytes += Encoding.UTF8.GetByteCount(response.Body);
@@ -1006,11 +1017,12 @@ public sealed class RuleAdapter
         SourceHttpRequest request,
         SourceHttpResponse response,
         Uri sourceOrigin,
+        string requestContext,
         out string error)
     {
         if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var requestUri))
         {
-            error = "pre-request: request URI is invalid.";
+            error = $"{requestContext}: request URI is invalid.";
             return false;
         }
 
@@ -1020,7 +1032,7 @@ public sealed class RuleAdapter
             responseUri.UserInfo.Length > 0 ||
             !IsSameOrigin(sourceOrigin, responseUri))
         {
-            error = "pre-request: response origin changed during redirect.";
+            error = $"{requestContext}: response origin changed during redirect.";
             return false;
         }
 

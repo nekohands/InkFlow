@@ -1567,6 +1567,30 @@ public sealed class RuleAdapterTests
     }
 
     [TestMethod]
+    public async Task Main_Request_Rejects_Cross_Origin_Final_Response()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Content,
+            RuleRequest.Get("/chapter/1"),
+            [new RuleField("body", new RuleSelector(SelectorKind.Css, "p"), null, [])]);
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "<p>正文</p>",
+                [],
+                new Uri("https://other.example.com/chapter/1")),
+        };
+        var adapter = new RuleAdapter(http, new RuleSelectorEvaluator());
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("response origin")));
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
     public async Task Static_Cookie_Header_Is_Rejected_Without_Hitting_Http()
     {
         var rule = new CapabilityRule(
