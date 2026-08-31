@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`3ffebf2`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复、PWA 安装增强契约测试/前端 smoke，以及 BookInfo 子任务编排回归测试；CI/Docker/Security 门禁均 GREEN；当前候选已在 Ubuntu VM 完成源码 Compose 重建和自动化 Runtime smoke，真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`d5e8322`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复、PWA 安装增强契约测试/前端 smoke、BookInfo 子任务编排回归测试，以及 Operations run-control 请求契约修复；CI/Docker/Security 门禁均 GREEN；当前候选已在 Ubuntu VM 完成源码 Compose 重建、自动化 Runtime smoke 和临时 Operator 登录后的浏览器验收，真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1002,6 +1002,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：候选 `3ffebf2` 已同步；首次 `docker-compose.build.yml` 源码重建在 API/Scheduler 发布阶段遇到外部 NuGet 包下载瞬时超时，NuGet 恢复后重试完成源码构建、Migration、PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康启动。当前提交栈上的 `reader-frontend-runtime-smoke`、Reader 账号/正文、Core SLO、Developer API、Private Library 和完整 `collection-package-runtime-smoke` 均 PASS；采集包 smoke 使用临时管理员/操作员和控制运行夹具，覆盖直接地址、四类持久控制、ZIP/EPUB/TXT、完整性与审计。之后 Compose 已停止，`ps --all` 无残留服务容器，持久卷保留。
 - 远端门槛：候选 `3ffebf2` 的 [CI 33342649568](https://github.com/nekohands/InkFlow/actions/runs/33342649568)、[Docker 33342649537](https://github.com/nekohands/InkFlow/actions/runs/33342649537)、[Security 33342649534](https://github.com/nekohands/InkFlow/actions/runs/33342649534) 均 GREEN 且指向同一 head SHA；Docker Migrations 首次推送的 `unknown blob` 已通过失败 Job 重跑消除。
 - 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实来源/追更/切源、受保护 Operations 登录后操作、真实账户/Provider/PWA 安装跨设备和 MuMu/阅读 3.0 仍按第 6 节待定事项执行。
+
+### 4.97 Operations 登录后控制请求与浏览器验收交接（本轮，2026-08-31）
+
+- 缺口与修复：内置浏览器发现 Operations run-control 对话框只提交 `reason`，遗漏 API 所需的 `action`；新增回归后修复为 run-control 提交 `{ action, reason }`，来源能力和死信重放保持 `{ reason }`。
+- 本机：Restore PASS；Release Build 0 warnings / 0 errors；缺陷回归红→绿；Unit 510/510；Reader 前端脚本回归和 `git diff --check` PASS。
+- Ubuntu VM：候选 `d5e8322` 源码 Compose 重建、Migration、服务健康检查和 `reader-frontend-runtime-smoke` 通过。内置浏览器通过临时 SSH 转发和一次性 Operator 账户完成登录后 Operations 页面验收：直接地址创建运行、取消、暂停、恢复及 EPUB 打包完成/下载入口均通过；运行已取消、临时账户已禁用、Compose 已停止且无残留服务容器。
+- 交接门槛：候选 `d5e8322` 的 [CI 33344939033](https://github.com/nekohands/InkFlow/actions/runs/33344939033)、[Docker 33344939099](https://github.com/nekohands/InkFlow/actions/runs/33344939099)、[Security 33344939034](https://github.com/nekohands/InkFlow/actions/runs/33344939034) 均 GREEN 且指向同一 head SHA。
+- 边界：临时测试账户不等于真实生产凭据；真实来源/追更/切源、生产 Operations 账号与通知、真实 PWA 安装/跨设备及 MuMu/阅读 3.0 真机仍待定，整体不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

@@ -1177,6 +1177,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选 `3ffebf2` 的 [CI 33342649568](https://github.com/nekohands/InkFlow/actions/runs/33342649568)、[Docker 33342649537](https://github.com/nekohands/InkFlow/actions/runs/33342649537)、[Security 33342649534](https://github.com/nekohands/InkFlow/actions/runs/33342649534) 均 GREEN，三者 head SHA 一致；Docker 首次 Migrations 推送遇到 `unknown blob`，失败 Job 重跑后通过。
 - 当前状态：本工作包自动化回归与远端 Release Gate 已通过；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实追更新增事件、真实第二来源故障切换、受保护 Operations 页面输入、真实账户/Provider/PWA 安装跨设备和 MuMu/阅读 3.0 真机验收继续按第 6 节待定事项执行。
 
+### 4.97 Operations 登录后控制请求与浏览器验收（本轮，2026-08-31）
+
+- 缺口：内置浏览器验收发现 Operations 控制对话框虽然要求填写理由，但前端请求只发送 `reason`，遗漏后端契约要求的 `action`，导致取消/暂停/恢复/停止均会被 API 拒绝。
+- TDD 修复：先加入 `Operations_Page_Includes_Run_Control_Action_In_Request_Body` 回归并确认旧实现失败，再让 run-control 请求发送 `{ action, reason }`，来源健康/死信重放请求继续只发送 `{ reason }`。
+- 本机证据：`dotnet restore InkFlow.sln`、Release Build 0 warnings / 0 errors、定向回归红→绿、Unit 510/510、Reader 前端脚本回归和 `git diff --check` 均通过。
+- Ubuntu VM 证据：候选 `d5e8322` 已同步并以 `docker-compose.build.yml` 完成源码重建、Migration、PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康启动；`reader-frontend-runtime-smoke: PASS`。内置浏览器经临时 SSH 转发使用一次性 Operator 账户验证登录后的 Operations 页面、直接地址创建采集运行、取消、暂停、恢复，以及 EPUB 打包完成 100% 和下载入口；验收产生的运行已取消、临时账户已禁用，Compose 已停止且 `ps --all` 无残留服务容器。
+- 远端门禁：候选 `d5e8322` 的 [CI 33344939033](https://github.com/nekohands/InkFlow/actions/runs/33344939033)、[Docker 33344939099](https://github.com/nekohands/InkFlow/actions/runs/33344939099)、[Security 33344939034](https://github.com/nekohands/InkFlow/actions/runs/33344939034) 均 GREEN，三者 head SHA 一致。
+- 当前状态：本工作包自动化回归、浏览器验收与远端 Release Gate 已通过；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实来源/追更/切源、真实凭据/生产环境 Operations 操作、PWA 真实安装跨设备和 MuMu/阅读 3.0 真机验收继续按第 6 节待定事项执行。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
