@@ -1199,6 +1199,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端门禁：测试候选 `3ac8110` 的 [CI 33439541455](https://github.com/nekohands/InkFlow/actions/runs/33439541455)、[Docker 33439541466](https://github.com/nekohands/InkFlow/actions/runs/33439541466)、[Security 33439541469](https://github.com/nekohands/InkFlow/actions/runs/33439541469) 均 GREEN 且 head SHA 一致。
 - 当前状态：本轮关闭阅读状态领域测试盲区；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/凭据、PWA 安装跨设备、人工视觉/长时间阅读和生产治理继续按第 6 节待定。
 
+### 5.20 最新 HEAD Ubuntu VM SDK 复验与 Compose 网络阻塞交接（本轮，2026-09-01）
+
+- 范围：对最新 `dev` HEAD `5673dfc` 做 Ubuntu VM 自动化复验；`3ac8110` 之后只有文档提交，因此没有新增产品行为。按用户决定未启动 ADB、MuMu/阅读 3.0 或第三方 live source。
+- SDK：隔离 worktree 中以 Linux .NET 10 SDK 完成 Restore、工具恢复、Release Build（0 warnings / 0 errors）、11 个 migration context 校验；Unit `537/537`，Integration `106`（`103 passed / 3 skipped / 0 failed`）。
+- Compose：遵循源码构建优先，API/Worker/Scheduler/OTel 构建期间 Worker/Migrations 已完成；API/Scheduler restore 多次遇到 `api.nuget.org` 包下载 60 秒无数据超时。等待约 16 分钟后按环境阻塞中止，未进入 health 或业务 smoke 阶段，故不把本轮记为 Runtime PASS。
+- 清理：诊断脚本以 status `130` 退出后清理钩子成功移除隔离 Compose、容器、临时目录和 worktree；VM 原工作树的 5 项用户改动仍在，敏感 `.env` 未提交。
+- 远端：文档 HEAD `5673dfc` 的 [CI 33440663763](https://github.com/nekohands/InkFlow/actions/runs/33440663763)、[Docker 33440663778](https://github.com/nekohands/InkFlow/actions/runs/33440663778)、[Security 33440663728](https://github.com/nekohands/InkFlow/actions/runs/33440663728) 均 GREEN 且 SHA 一致。
+- 结论：最新 HEAD 的 SDK/测试证据通过，Compose 运行态复验被 VM 到 NuGet 的外部网络可达性阻塞；5.18/5.19 中对应代码候选的源码 Compose/业务 smoke 证据保持有效。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`；人工/真实来源、PWA 跨设备、生产治理及阅读 3.0/MuMu 继续按第 6 节待定。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

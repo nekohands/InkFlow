@@ -1386,6 +1386,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：测试候选 `3ac8110` 的 [CI 33439541455](https://github.com/nekohands/InkFlow/actions/runs/33439541455)、[Docker 33439541466](https://github.com/nekohands/InkFlow/actions/runs/33439541466)、[Security 33439541469](https://github.com/nekohands/InkFlow/actions/runs/33439541469) 均 GREEN 且 head SHA 一致。
 - 结论与边界：本轮关闭阅读状态领域测试盲区，不改变 1.0 功能范围；真实阅读 3.0/MuMu、真实来源/凭据、PWA 安装跨设备及人工视觉验收仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.20 最新 HEAD Ubuntu VM SDK 复验与 Compose 网络阻塞记录（本轮，2026-09-01）
+
+- 目标：对当前 `dev` 最新 HEAD `5673dfc`（代码候选仍为 `3ac8110`，其后仅有文档提交）再次执行可自动化的 Ubuntu VM 复验；按用户决定不启动 ADB、MuMu/阅读 3.0 或第三方 live source。
+- SDK 证据：从 `origin/dev` 建立隔离 worktree，Linux .NET 10 SDK 完成 `dotnet restore`、工具恢复、Release Build（0 warnings / 0 errors）、`verify-migrations.sh` 的 11 个 context 校验；Unit `537/537` PASS，Integration `106` 项为 `103 passed / 3 skipped / 0 failed`。
+- Compose 结果：按源码构建默认策略启动 `docker-compose.build.yml` 的 API/Worker/Scheduler/OTel 服务时，Worker/Migrations 镜像构建完成，API 与 Scheduler 的恢复阶段多次遭遇 `api.nuget.org` 包下载 60 秒无数据超时（涉及 OpenTelemetry、Npgsql、EF Core、AngleSharp 等包）。等待约 16 分钟后按环境阻塞中止，未进入健康检查或业务 smoke；这不是代码失败证据，也不把本轮记为 Runtime PASS。
+- 清理与隔离：中止后的清理钩子完成；隔离 Compose 容器、临时目录和 worktree 均已移除，VM `/home/nekohands/InkFlow` 原有 5 项用户改动保持不变，未读取或提交敏感 `.env`。
+- 远端门禁：当前文档 HEAD `5673dfc` 的 [CI 33440663763](https://github.com/nekohands/InkFlow/actions/runs/33440663763)、[Docker 33440663778](https://github.com/nekohands/InkFlow/actions/runs/33440663778)、[Security 33440663728](https://github.com/nekohands/InkFlow/actions/runs/33440663728) 均 GREEN 且 head SHA 一致。
+- 结论与边界：最新 HEAD 的 SDK/测试证据保持通过，Compose 运行态复验因 VM 到 NuGet 的外部网络可达性受阻；此前 5.18/5.19 的源码 Compose 与运行态证据仍按其候选提交记录有效。整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/PWA 跨设备、人工验收和生产治理继续按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
