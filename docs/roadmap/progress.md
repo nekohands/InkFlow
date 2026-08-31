@@ -1214,6 +1214,17 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选 `8818390` 的 [CI 33354062102](https://github.com/nekohands/InkFlow/actions/runs/33354062102)、[Docker 33354062087](https://github.com/nekohands/InkFlow/actions/runs/33354062087)、[Security 33354062065](https://github.com/nekohands/InkFlow/actions/runs/33354062065) 均 GREEN 且指向同一 head SHA；CI 的 Core SLO 脚本回归、真实合成探针、telemetry receipt、证据上传和既有前端/运行时门禁均通过，Security 仅保留既有 Node 20 弃用提示。
 - 验收边界：本轮只关闭合成运行时的 p95 目标和冷启动隔离，不把短窗口证据扩大解释为生产月度 SLO；生产 OTLP 后端、长窗口聚合、错误预算告警/保留治理、真实来源/切源、真实凭据、Operations 受保护页面和阅读 3.0/MuMu 真机仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.1 Source Rule 有界串行前置请求链（本轮，2026-08-31）
+
+- 缺口：Source Rule 原有响应派生变量只能服务分页续页，无法表达登录/初始化/令牌交换等有限的同源前置步骤；本轮不把 DSL 扩展为递归、分支或任意脚本执行。
+- 实现：`CapabilityRule.PreRequests` 与 `RuleRequestStep` 支持最多 8 个按声明顺序执行的前置请求；每步可通过既有 selector/regex、`Trim`/`Replace` 提取临时响应变量，后续步骤和主请求可使用这些变量。前置请求与主请求共享一次执行的 CredentialReference、Session Cookie、请求数、响应字节、结果大小和超时预算，前置响应正文不进入结果或持久化状态。
+- 安全/失败关闭：发布边界限制步骤数、步骤名、请求结构和变量数量；执行前后均校验绝对 URL、userinfo/fragment、SSRF 与同源响应。变量缺失、跨源、传输、解析或任一共享预算失败时，在主请求前整体失败，不返回部分结果；不支持动态 URL、递归、循环、分支或跨任务持久会话。
+- 契约/回归：`docs/contracts/source-rule-dsl-v1.schema.json`、版本化 JSON codec、Domain Validator、RuleAdapter 回归同步覆盖有界链、步骤间变量、Cookie 转发、共享请求/字节预算和跨源失败；旧的单请求/分页规则保持兼容。
+- 本机证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 522/522、Architecture 1/1、Contract 10/10 PASS；Schema JSON 解析、定向 Source Rule 回归和 `git diff --check` PASS。
+- Ubuntu VM 证据：候选 `bcf8889` 使用 `docker-compose.build.yml` 从源码构建 API/Worker/Scheduler/Migrations，Migration 退出 0，四服务、PostgreSQL、Redis、OTel Collector 健康。Linux SDK 容器完整 `Restore → Build → Test` 为 Unit 522/522、Architecture 1/1、Contract 10/10、Integration 95 passed / 2 skipped / 0 failed；Reader/Legado、双来源 failover、Private Library、Developer API、Admin、collection/package（含暂停/恢复/停止/取消及 ZIP/EPUB/TXT）smoke、Redis 限流 1/1、Core SLO 四面与 telemetry receipt、PostgreSQL backup/restore 均 PASS。Core SLO p95 为 public 60.375ms、Legado 13.887ms、developer 11.865ms、reader 6.705ms；验证后 Compose 已停止，`ps --all` 无残留服务容器，持久卷保留。源码构建期间曾出现 NuGet 瞬时超时，重试后成功，不构成应用失败。
+- 远端证据：候选 `bcf8889` 的 [CI 33357094411](https://github.com/nekohands/InkFlow/actions/runs/33357094411)、[Docker 33357094410](https://github.com/nekohands/InkFlow/actions/runs/33357094410)、[Security 33357094388](https://github.com/nekohands/InkFlow/actions/runs/33357094388) 均 GREEN 且指向同一 head SHA；Restore/Build/Test、Compose/Runtime/SLO、Docker 四镜像、NuGet/Filesystem/SBOM/CodeQL 门禁全部通过。
+- 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实来源/追更/动态多请求与递归、真实 SecretProvider/生产凭据、Operations 生产账号、PWA 安装/跨设备和阅读 3.0/MuMu 真机验收仍按第 6 节待定事项处理。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1340,7 +1351,8 @@ Official Source
   Rule execution budgets 已在 4.53 接入，受控 response-cookie Session 已在 4.54 接入，有界请求模板变量已在
   4.55 接入，任务级 CredentialReference typed 初始认证已在 4.56 接入，有界响应派生变量已在 4.57 接入，
   4.58 已接入来源级默认 CredentialReference 回退，4.59 已接入 Administrator-only 设置/清除和命令审计入口，4.60 已将 Provider 解析上下文收敛为带 Platform/User/Organization Owner Scope 的契约；
-  secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工程工作包。
+  5.1 已接入最多 8 步的同源串行 PreRequests 与临时响应变量，复用请求/字节/结果/时间/Session 预算；
+  secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话、动态多请求/分支/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
 - 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA Service Worker/离线壳已在 4.82 通过 localhost 安全上下文自动验收；真实安装、账户/跨设备体验、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。

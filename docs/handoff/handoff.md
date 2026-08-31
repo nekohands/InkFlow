@@ -1037,6 +1037,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端门槛：候选 `8818390` 的 [CI 33354062102](https://github.com/nekohands/InkFlow/actions/runs/33354062102)、[Docker 33354062087](https://github.com/nekohands/InkFlow/actions/runs/33354062087)、[Security 33354062065](https://github.com/nekohands/InkFlow/actions/runs/33354062065) 均 GREEN 且指向同一 head SHA；CI 的 Core SLO 脚本回归、合成探针、telemetry receipt、证据上传和其他自动化门禁均通过。
 - 边界：短窗口合成证据不等同生产 SLO；生产 OTLP/长窗口/告警保留、真实来源与追更/切源、真实凭据、Operations 受保护操作、PWA 安装跨设备和阅读 3.0/MuMu 真机仍按待定事项处理，整体不标记 `Accepted/Completed`。
 
+### 5.1 Source Rule 有界串行前置请求链交接（本轮，2026-08-31）
+
+- 实现：新增 `CapabilityRule.PreRequests` / `RuleRequestStep`，允许最多 8 个声明式、按顺序执行的同源前置请求；步骤响应可提取临时变量供后续步骤和主请求模板使用。一次执行内复用 CredentialReference、Session Cookie 与 MaxRequests/响应字节/结果大小/超时预算，前置响应正文不进入结果或持久化状态。ADR 见 [0023](../adr/0023-source-rule-bounded-pre-requests.md)。
+- 失败关闭：Schema/codec/Validator 限制步骤与变量边界；每个请求和最终响应均通过绝对 URL、userinfo/fragment、SSRF、同源和控制字符校验。变量缺失、跨源、传输、解析或共享预算失败时不发主请求且不返回部分结果；动态 URL、循环、分支、递归和跨任务持久会话仍明确不支持。
+- 本机：Restore PASS；Release Build 0 warnings / 0 errors；Unit 522/522、Architecture 1/1、Contract 10/10；Schema、定向 RuleAdapter/Validator/JSON 回归和 `git diff --check` PASS。
+- Ubuntu VM：候选 `bcf8889` 以 `docker-compose.build.yml` 源码构建并健康启动；Migration 退出 0。Linux SDK 容器完整测试为 Unit 522/522、Architecture 1/1、Contract 10/10、Integration 95 passed / 2 skipped / 0 failed；Reader/Legado、A→B→A failover、Private Library、Developer API、Admin、collection/package（含四类控制和 ZIP/EPUB/TXT）、Core SLO/OTel receipt、Redis 1/1 和备份恢复均 PASS。Core SLO p95 为 public 60.375ms、Legado 13.887ms、developer 11.865ms、reader 6.705ms；完成后 Compose 已停止，服务容器无残留，持久卷保留。
+- 远端门槛：候选 `bcf8889` 的 [CI 33357094411](https://github.com/nekohands/InkFlow/actions/runs/33357094411)、[Docker 33357094410](https://github.com/nekohands/InkFlow/actions/runs/33357094410)、[Security 33357094388](https://github.com/nekohands/InkFlow/actions/runs/33357094388) 均 GREEN 且 head SHA 一致。
+- 当前状态：本工作包为 `Implemented`，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/动态递归多请求、真实 SecretProvider/生产凭据、生产 Operations、PWA 安装跨设备和阅读 3.0/MuMu 真机验收继续按第 6 节待定。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
