@@ -121,6 +121,54 @@ public sealed class BookPackageServiceTests
         }
     }
 
+    [TestMethod]
+    public async Task Process_Does_Not_Persist_Builder_Exception_Details()
+    {
+        const string marker = "package-secret-marker";
+        var book = CanonicalBook.Create("失败书", "作者", T0);
+        var chapter = book.AddChapter(0, "第一章", T0);
+        var version = NewVersion(book.Id, chapter.Id, "正文");
+        var jobs = new InMemoryPackageJobRepository();
+        var root = Path.Combine(Path.GetTempPath(), $"inkflow-package-test-{Guid.NewGuid():N}");
+        var options = new BookPackageOptions(
+            root,
+            MaxChapters: 100,
+            MaxPackageBytes: 1_000_000,
+            Retention: TimeSpan.FromDays(7),
+            LeaseDuration: TimeSpan.FromMinutes(10));
+        var artifacts = new FileBookPackageArtifactStore(options);
+        var service = new BookPackageService(
+            jobs,
+            new InMemoryBookRepository(book),
+            new SnapshotVersionRepository(version),
+            new AllowAllPolicy(),
+            new ThrowingBuilder(marker),
+            artifacts,
+            options,
+            new FixedClock(T0));
+
+        try
+        {
+            var created = await service.CreateAsync(book.Id, BookPackageFormat.Txt);
+            Assert.IsTrue(created.IsSuccess);
+
+            var job = jobs.Items.Single();
+            job.Lease("package-test", T0, options.LeaseDuration);
+            await service.ProcessAsync(job);
+
+            Assert.AreEqual(BookPackageJobStatus.Queued, job.Status);
+            Assert.AreEqual("package generation failed.", job.FailureReason);
+            Assert.IsFalse(job.FailureReason!.Contains(marker, StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static ContentVersion NewVersion(Guid bookId, Guid chapterId, string text) =>
         ContentVersion.Create(
             bookId,
@@ -147,6 +195,17 @@ public sealed class BookPackageServiceTests
                 document.Chapters.Select(chapter => chapter.CanonicalText)));
             await output.WriteAsync(bytes, cancellationToken);
         }
+    }
+
+    private sealed class ThrowingBuilder(string marker) : IBookPackageBuilder
+    {
+        public Task BuildAsync(
+            BookPackageDocument document,
+            BookPackageFormat format,
+            Stream output,
+            Func<int, Task> progress,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException(marker);
     }
 
     private sealed class SnapshotVersionRepository(params ContentVersion[] versions)

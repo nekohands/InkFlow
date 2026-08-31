@@ -285,6 +285,23 @@ public sealed class RuleAdapterTests
     }
 
     [TestMethod]
+    public async Task Invalid_Regex_Error_Does_Not_Expose_The_Pattern()
+    {
+        const string marker = "regex-secret-marker";
+        var rule = new CapabilityRule(
+            SourceCapability.Content,
+            RuleRequest.Get("/chapter/1"),
+            [new RuleField("body", null, new RuleRegex($"{marker}(", 200), [])]);
+
+        var http = new FakeHttpClient { Responder = _ => new SourceHttpResponse(200, "<html/>") };
+        var result = await new RuleAdapter(http, new FakeSelectorEvaluator()).ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(e => e.Contains("invalid regex pattern")));
+        Assert.IsFalse(result.Errors.Any(e => e.Contains(marker, StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
     public async Task Missing_Field_Match_Lists_The_Field_In_Errors()
     {
         var evaluator = new FakeSelectorEvaluator { Handler = (_, _) => null };
@@ -351,6 +368,7 @@ public sealed class RuleAdapterTests
 
         Assert.IsFalse(result.IsSuccess);
         Assert.IsTrue(result.Errors.Any(e => e.Contains("transport failure")));
+        Assert.IsFalse(result.Errors.Any(e => e.Contains("connection refused (fixture)")));
     }
 
     [TestMethod]

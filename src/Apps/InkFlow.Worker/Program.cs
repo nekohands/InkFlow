@@ -220,9 +220,9 @@ internal sealed class BookPackagePollingService(
             {
                 break;
             }
-            catch (Exception exception)
+            catch (Exception)
             {
-                Console.Error.WriteLine($"book package worker iteration failed: {exception.Message}");
+                Console.Error.WriteLine("book package worker iteration failed.");
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false);
@@ -314,7 +314,7 @@ internal sealed class TaskPollingService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                Console.WriteLine($"polling error: {ex.Message}");
+                Console.WriteLine("polling failed.");
             }
 
             await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);

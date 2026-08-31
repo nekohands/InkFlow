@@ -96,7 +96,7 @@ public sealed class CrawlerTaskProcessor(
         {
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             if (await ShouldCancelAfterFailureAsync(task, cancellationToken).ConfigureAwait(false))
             {
@@ -104,7 +104,7 @@ public sealed class CrawlerTaskProcessor(
             }
             else
             {
-                await FailTaskAsync(task, exception.Message, cancellationToken)
+                await FailTaskAsync(task, "crawler task execution failed.", cancellationToken)
                     .ConfigureAwait(false);
             }
 

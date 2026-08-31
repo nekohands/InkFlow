@@ -58,7 +58,8 @@ public sealed class ContentFetchTaskHandlerTests
         var outcome = await harness.Handler.ExecuteAsync(CreateTask());
 
         Assert.IsFalse(outcome.Succeeded);
-        StringAssert.Contains(outcome.FailureReason!, "boom");
+        Assert.AreEqual("content publish failed.", outcome.FailureReason);
+        Assert.IsFalse(outcome.FailureReason!.Contains("boom", StringComparison.Ordinal));
     }
 
     [TestMethod]

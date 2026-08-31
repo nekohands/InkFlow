@@ -199,10 +199,11 @@ public sealed class CollectionRunService(
             var view = await GetViewAsync(run.Id, cancellationToken).ConfigureAwait(false);
             return new(true, view, null, null);
         }
-        catch (InvalidOperationException exception)
+        catch (InvalidOperationException)
         {
             return CollectionRunControlOutcome.Failure(
-                "collection-run.invalid-state", exception.Message);
+                "collection-run.invalid-state",
+                "collection run cannot apply this control in its current state.");
         }
     }
 

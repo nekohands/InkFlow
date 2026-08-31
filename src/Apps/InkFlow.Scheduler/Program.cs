@@ -94,7 +94,7 @@ internal sealed class UpdateScanBackgroundService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                Console.WriteLine($"update scan error: {ex.Message}");
+                Console.WriteLine("update scan failed.");
             }
 
             await Task.Delay(Interval, stoppingToken);
@@ -131,7 +131,7 @@ internal sealed class HealthProbeBackgroundService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                Console.WriteLine($"health probe error: {ex.Message}");
+                Console.WriteLine("health probe failed.");
             }
 
             await Task.Delay(Interval, stoppingToken);

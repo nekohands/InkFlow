@@ -229,10 +229,13 @@ public sealed class BookPackageService(
             await DeleteArtifactsAsync(temporaryPath, artifactFileName, published).ConfigureAwait(false);
             throw;
         }
-        catch (Exception exception)
+        catch (Exception)
         {
             await DeleteArtifactsAsync(temporaryPath, artifactFileName, published).ConfigureAwait(false);
-            job.Fail(exception.Message, clock.GetUtcNow(), clock.GetUtcNow() + TimeSpan.FromSeconds(15));
+            job.Fail(
+                "package generation failed.",
+                clock.GetUtcNow(),
+                clock.GetUtcNow() + TimeSpan.FromSeconds(15));
             _ = await jobs
                 .SaveLeasedAsync(
                     job,

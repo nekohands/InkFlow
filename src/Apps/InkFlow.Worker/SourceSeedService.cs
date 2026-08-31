@@ -39,7 +39,7 @@ internal sealed class SourceSeedService(IServiceScopeFactory scopeFactory) : Bac
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Console.WriteLine($"source seed error: {ex.Message}");
+            Console.WriteLine("source seed failed.");
         }
     }
 

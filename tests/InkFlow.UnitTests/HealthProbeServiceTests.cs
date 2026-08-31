@@ -53,13 +53,15 @@ public sealed class HealthProbeServiceTests
             searchThrows: new HttpRequestException("connection refused"));
         harness.Clock.Now = T0.AddMinutes(30);
 
-        await harness.Service.ProbeDueAsync();
+        var results = await harness.Service.ProbeDueAsync();
 
         var health = harness.HealthRepo.Store.Single();
+        var result = results.Single();
         Assert.AreEqual(SourceHealthStatus.Unhealthy, health.Status);
         Assert.AreEqual(4, health.ConsecutiveFailures, "探针失败计入失败深度");
-        StringAssert.Contains(health.LastFailureReason!, "probe:");
-        StringAssert.Contains(health.LastFailureReason!, "connection refused");
+        Assert.AreEqual("transport failure.", result.FailureReason);
+        Assert.AreEqual("probe: transport failure.", health.LastFailureReason);
+        Assert.IsFalse(health.LastFailureReason!.Contains("connection refused", StringComparison.Ordinal));
 
         // 失败深度 4 → 冷却翻倍至 60 分钟:锚点后 59 分钟的下一次巡检不得触达。
         harness.Clock.Now = health.UpdatedAt.AddMinutes(59);

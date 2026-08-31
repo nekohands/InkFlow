@@ -61,6 +61,22 @@ public sealed class CrawlerTaskProcessorTests
     }
 
     [TestMethod]
+    public async Task Executor_Exception_Does_Not_Persist_Exception_Details()
+    {
+        const string marker = "crawler-secret-marker";
+        var task = LeaseTask(maxAttempts: 1);
+        var repository = new InMemoryTaskRepository();
+        var processor = CreateProcessor(repository, new ThrowingExecutor(marker));
+
+        await processor.ProcessAsync(task);
+
+        Assert.AreEqual(CrawlerTaskStatus.DeadLettered, task.Status);
+        var deadLetter = repository.DeadLetters.Single();
+        Assert.AreEqual("crawler task execution failed.", deadLetter.Reason);
+        Assert.IsFalse(deadLetter.Reason.Contains(marker, StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task Rejected_Atomic_Start_Does_Not_Invoke_Executor()
     {
         var task = LeaseTask(maxAttempts: 2);
@@ -111,7 +127,7 @@ public sealed class CrawlerTaskProcessorTests
 
     private static CrawlerTaskProcessor CreateProcessor(
         InMemoryTaskRepository repository,
-        RecordingExecutor executor,
+        ICrawlerTaskExecutor executor,
         CollectionRunService? collectionRuns = null) =>
         new(
             executor,
@@ -152,6 +168,14 @@ public sealed class CrawlerTaskProcessorTests
             CallCount++;
             return Task.FromResult(outcome);
         }
+    }
+
+    private sealed class ThrowingExecutor(string marker) : ICrawlerTaskExecutor
+    {
+        public Task<CrawlOutcome> ExecuteAsync(
+            CrawlerTask task,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException(marker);
     }
 
     private sealed class InMemoryTaskRepository : ICrawlerTaskRepository

@@ -214,11 +214,10 @@ public sealed class ContentFetchTaskHandler(
                         cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 // 发布基础设施故障 = 任务失败,交由既有重试退避链处理。
-                return CrawlOutcome.Fail(
-                    $"content task {task.Id} publish failed for chapter '{externalChapterId}': {ex.Message}");
+                return CrawlOutcome.Fail("content publish failed.");
             }
 
             if (!published)

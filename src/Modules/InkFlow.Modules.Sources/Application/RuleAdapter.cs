@@ -403,9 +403,9 @@ public sealed class RuleAdapter
             {
                 return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
             }
-            catch (Exception ex)
+            catch
             {
-                return RuleExecutionResult.Fail([$"http: transport failure — {ex.Message}"]);
+                return RuleExecutionResult.Fail(["http: transport failure."]);
             }
 
             if (!response.IsSuccess)
@@ -1349,9 +1349,9 @@ public sealed class RuleAdapter
 
             return match.Groups.Count > 1 ? match.Groups[1].Value : match.Value;
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
-            errors.Add($"{errorPrefix}: invalid regex pattern — {ex.Message}");
+            errors.Add($"{errorPrefix}: invalid regex pattern.");
             return null;
         }
         catch (RegexMatchTimeoutException)

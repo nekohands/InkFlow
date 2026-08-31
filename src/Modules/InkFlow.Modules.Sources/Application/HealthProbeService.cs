@@ -93,9 +93,10 @@ public sealed class HealthProbeService(
                 .ConfigureAwait(false);
             return new HealthProbeResult(sourceId, SourceCapability.Search, Recovered: true, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            return await ReportFailureAsync(sourceId, SourceCapability.Search, ex.Message, cancellationToken)
+            return await ReportFailureAsync(
+                    sourceId, SourceCapability.Search, "transport failure.", cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -134,10 +135,10 @@ public sealed class HealthProbeService(
                 .ConfigureAwait(false);
             return new HealthProbeResult(sourceId, SourceCapability.Toc, Recovered: true, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return await ReportFailureAsync(
-                    sourceId, SourceCapability.Toc, ex.Message, cancellationToken)
+                    sourceId, SourceCapability.Toc, "transport failure.", cancellationToken)
                 .ConfigureAwait(false);
         }
     }
