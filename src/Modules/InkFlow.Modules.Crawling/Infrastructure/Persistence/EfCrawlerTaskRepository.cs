@@ -155,6 +155,29 @@ public sealed class EfCrawlerTaskRepository(
             return null;
         }
 
+        if (entity.RunId is { } runId)
+        {
+            // The candidate query can observe a parent run before a concurrent
+            // control transaction commits. Lock and re-read that parent before
+            // mutating the task so a lease cannot commit after pause/stop/cancel.
+            var runEntity = await db.Runs
+                .FromSqlInterpolated($"""
+                    SELECT *
+                    FROM "crawler"."runs"
+                    WHERE "Id" = {runId}
+                    FOR UPDATE
+                    """)
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (runEntity is null || runEntity.Status is not (
+                    (int)CollectionRunStatus.Pending or
+                    (int)CollectionRunStatus.Running))
+            {
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                return null;
+            }
+        }
+
         var task = CrawlerTaskMapper.ToDomain(entity);
         if (task.Status is CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running)
         {

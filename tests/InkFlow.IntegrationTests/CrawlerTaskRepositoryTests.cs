@@ -374,6 +374,84 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task Lease_Rechecks_Parent_Run_After_Control_Transaction_Commits()
+    {
+        var sourceId = $"lease-control-race-{Guid.NewGuid():N}";
+        var seed = CreateContext();
+        await using var seedDb = seed.Db;
+        var runRepository = new EfCollectionRunRepository(seedDb, new EfTransactionalOutboxWriter());
+        var run = CollectionRun.Create(
+            sourceId,
+            "book-42",
+            "https://example.com/book/book-42",
+            T0);
+        await runRepository.AddAsync(run).ConfigureAwait(false);
+
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                sourceId,
+                SourceCapability.BookInfo,
+                new Dictionary<string, string> { ["bookId"] = "book-42" },
+                RunId: run.Id),
+            createdAt: T0);
+        await seed.Repo.AddAsync(task).ConfigureAwait(false);
+
+        var control = CreateContext();
+        await using var controlDb = control.Db;
+        await using var controlTransaction = await controlDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        var committed = false;
+        try
+        {
+            await controlDb.Database
+                .ExecuteSqlInterpolatedAsync($"""
+                    UPDATE "crawler"."runs"
+                    SET "Status" = {(int)CollectionRunStatus.Paused}
+                    WHERE "Id" = {run.Id}
+                    """)
+                .ConfigureAwait(false);
+
+            var lease = CreateContext();
+            await using var leaseDb = lease.Db;
+            var leaseTask = lease.Repo.TryLeaseAsync(
+                T0.AddMinutes(1),
+                "worker-after-control",
+                TimeSpan.FromMinutes(1));
+
+            var completedBeforeControlCommit = await Task.WhenAny(
+                    leaseTask,
+                    Task.Delay(TimeSpan.FromMilliseconds(500)))
+                .ConfigureAwait(false);
+            Assert.AreNotSame(
+                leaseTask,
+                completedBeforeControlCommit,
+                "a lease must wait for the parent run control transaction before it can commit");
+
+            await controlTransaction.CommitAsync().ConfigureAwait(false);
+            committed = true;
+
+            var leased = await leaseTask
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            Assert.IsNull(leased, "a task must not be leased after its run is paused");
+        }
+        finally
+        {
+            if (!committed)
+            {
+                await controlTransaction.RollbackAsync().ConfigureAwait(false);
+            }
+        }
+
+        await using var verifyDb = CreateContext().Db;
+        var persistedTask = await verifyDb.Tasks
+            .SingleAsync(candidate => candidate.Id == task.Id)
+            .ConfigureAwait(false);
+        Assert.AreEqual((int)CrawlerTaskStatus.Pending, persistedTask.Status);
+    }
+
+    [TestMethod]
     public async Task Task_Roundtrip_Preserves_Aggregate_State()
     {
         var (_, repo) = CreateContext();
