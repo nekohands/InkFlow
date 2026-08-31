@@ -58,7 +58,6 @@ public sealed record CollectionRunControlOutcome(
 public sealed class CollectionRunService(
     SourceBookUrlResolver urlResolver,
     ICollectionRunRepository runs,
-    ICrawlerTaskRepository tasks,
     TimeProvider clock)
 {
     private const int MaxControlReasonLength = 512;
@@ -99,7 +98,20 @@ public sealed class CollectionRunService(
             resolved.ExternalBookId!,
             resolved.NormalizedUrl!,
             now);
-        if (!await runs.TryAddAsync(run, cancellationToken).ConfigureAwait(false))
+        var initialTask = CrawlerTask.Create(
+            new CrawlPayload(
+                run.SourceId,
+                SourceCapability.BookInfo,
+                new Dictionary<string, string>
+                {
+                    ["bookId"] = run.ExternalBookId,
+                    ["reason"] = "direct-url",
+                },
+                RunId: run.Id),
+            createdAt: now);
+        if (!await runs
+                .TryAddWithInitialTaskAsync(run, initialTask, cancellationToken)
+                .ConfigureAwait(false))
         {
             var concurrent = await runs
                 .FindActiveAsync(
@@ -115,31 +127,6 @@ public sealed class CollectionRunService(
                 true,
                 null,
                 null);
-        }
-
-        try
-        {
-            await tasks
-                .AddAsync(
-                    CrawlerTask.Create(
-                        new CrawlPayload(
-                            run.SourceId,
-                            SourceCapability.BookInfo,
-                            new Dictionary<string, string>
-                            {
-                                ["bookId"] = run.ExternalBookId,
-                                ["reason"] = "direct-url",
-                            },
-                            RunId: run.Id),
-                        createdAt: now),
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch
-        {
-            // The run remains auditable in the database; no task means it cannot
-            // be mistaken for a successfully collected book.
-            throw;
         }
 
         await ReconcileAsync(run.Id, cancellationToken).ConfigureAwait(false);

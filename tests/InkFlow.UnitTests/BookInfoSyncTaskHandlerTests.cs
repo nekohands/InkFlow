@@ -155,7 +155,6 @@ public sealed class BookInfoSyncTaskHandlerTests
         var collectionRuns = new CollectionRunService(
             resolver,
             runs,
-            tasks,
             new FixedTimeProvider(T0));
         var handler = new BookInfoSyncTaskHandler(
             catalog,
@@ -405,6 +404,31 @@ public sealed class BookInfoSyncTaskHandlerTests
         public Task<bool> TryAddAsync(CollectionRun run, CancellationToken cancellationToken = default)
         {
             if (_store.ContainsKey(run.Id))
+            {
+                return Task.FromResult(false);
+            }
+
+            _store[run.Id] = run;
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> TryAddWithInitialTaskAsync(
+            CollectionRun run,
+            CrawlerTask task,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(task);
+            if (task.Payload.RunId != run.Id)
+            {
+                throw new ArgumentException(
+                    "the initial crawler task must reference the collection run.",
+                    nameof(task));
+            }
+
+            if (_store.Values.Any(candidate =>
+                    candidate.SourceId == run.SourceId &&
+                    candidate.ExternalBookId == run.ExternalBookId &&
+                    candidate.CanScheduleFollowUp))
             {
                 return Task.FromResult(false);
             }

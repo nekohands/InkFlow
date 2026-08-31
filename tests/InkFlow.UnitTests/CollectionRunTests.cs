@@ -105,7 +105,6 @@ public sealed class CollectionRunTests
         var service = new CollectionRunService(
             urlResolver: null!,
             runs: repository,
-            tasks: null!,
             clock: new FixedClock(T0.AddSeconds(2)));
 
         await service.ReconcileAsync(run.Id);
@@ -127,7 +126,6 @@ public sealed class CollectionRunTests
         var service = new CollectionRunService(
             urlResolver: null!,
             runs: repository,
-            tasks: null!,
             clock: new FixedClock(T0.AddSeconds(2)));
 
         await service.SetCanonicalBookAsync(run.Id, Guid.NewGuid());
@@ -191,7 +189,6 @@ public sealed class CollectionRunTests
         new(
             urlResolver: null!,
             runs: repository,
-            tasks: null!,
             clock: new FixedClock(T0.AddSeconds(2)));
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
@@ -207,6 +204,12 @@ public sealed class CollectionRunTests
             throw new NotSupportedException();
 
         public Task<bool> TryAddAsync(CollectionRun run, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<bool> TryAddWithInitialTaskAsync(
+            CollectionRun run,
+            CrawlerTask task,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task<CollectionRun?> GetAsync(Guid id, CancellationToken cancellationToken = default)

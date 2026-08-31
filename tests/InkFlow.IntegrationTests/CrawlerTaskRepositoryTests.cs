@@ -94,7 +94,7 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
-    public async Task Concurrent_Active_Collection_Runs_Allow_Only_One_Insert()
+    public async Task Concurrent_Active_Collection_Run_Bootstrap_Allows_Only_One_Insert()
     {
         var sourceId = $"concurrent-run-{Guid.NewGuid():N}";
         var externalBookId = "book-42";
@@ -102,8 +102,8 @@ public sealed class CrawlerTaskRepositoryTests
         await using var firstDb = first.Db;
         var second = CreateContext();
         await using var secondDb = second.Db;
-        var firstRuns = new EfCollectionRunRepository(firstDb);
-        var secondRuns = new EfCollectionRunRepository(secondDb);
+        var firstRuns = new EfCollectionRunRepository(firstDb, new EfTransactionalOutboxWriter());
+        var secondRuns = new EfCollectionRunRepository(secondDb, new EfTransactionalOutboxWriter());
         var firstRun = CollectionRun.Create(
             sourceId,
             externalBookId,
@@ -114,10 +114,24 @@ public sealed class CrawlerTaskRepositoryTests
             externalBookId,
             "https://example.com/book/book-42",
             T0.AddSeconds(1));
+        var firstTask = CrawlerTask.Create(
+            new CrawlPayload(
+                sourceId,
+                SourceCapability.BookInfo,
+                new Dictionary<string, string> { ["bookId"] = externalBookId },
+                RunId: firstRun.Id),
+            createdAt: T0);
+        var secondTask = CrawlerTask.Create(
+            new CrawlPayload(
+                sourceId,
+                SourceCapability.BookInfo,
+                new Dictionary<string, string> { ["bookId"] = externalBookId },
+                RunId: secondRun.Id),
+            createdAt: T0.AddSeconds(1));
 
         var inserted = await Task.WhenAll(
-            firstRuns.TryAddAsync(firstRun),
-            secondRuns.TryAddAsync(secondRun)).ConfigureAwait(false);
+            firstRuns.TryAddWithInitialTaskAsync(firstRun, firstTask),
+            secondRuns.TryAddWithInitialTaskAsync(secondRun, secondTask)).ConfigureAwait(false);
 
         Assert.AreEqual(1, inserted.Count(value => value));
         await using var verifyDb = CreateContext().Db;
@@ -125,6 +139,98 @@ public sealed class CrawlerTaskRepositoryTests
             .CountAsync(run => run.SourceId == sourceId && run.ExternalBookId == externalBookId)
             .ConfigureAwait(false);
         Assert.AreEqual(1, activeCount);
+        var taskCount = await verifyDb.Tasks
+            .CountAsync(task => task.SourceId == sourceId && task.RunId != null)
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, taskCount);
+
+        await using var messaging = new MessagingDbContext(
+            new DbContextOptionsBuilder<MessagingDbContext>()
+                .UseNpgsql(_container!.GetConnectionString())
+                .Options);
+        var outboxCount = await messaging.OutboxMessages
+            .CountAsync(message =>
+                message.MessageType == "crawler.task.created" &&
+                (message.Id == firstTask.Id || message.Id == secondTask.Id))
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, outboxCount);
+    }
+
+    [TestMethod]
+    public async Task Initial_Run_And_Task_Are_Atomic_When_Task_Insert_Fails()
+    {
+        var sourceId = $"atomic-bootstrap-{Guid.NewGuid():N}";
+        var seed = CreateContext();
+        await using (seed.Db)
+        {
+            var existingTask = CrawlerTask.Create(Payload(sourceId, "existing"), createdAt: T0);
+            // Deliberately seed only the task fact. The atomic bootstrap under
+            // test must also enqueue its outbox row, so no event is created here.
+            seed.Db.Tasks.Add(CrawlerTaskMapper.ToEntity(existingTask));
+            await seed.Db.SaveChangesAsync().ConfigureAwait(false);
+
+            var run = CollectionRun.Create(
+                sourceId,
+                "book-42",
+                "https://example.com/book/book-42",
+                T0.AddSeconds(1));
+            var duplicateTask = CrawlerTask.Rehydrate(
+                existingTask.Id,
+                new CrawlPayload(
+                    sourceId,
+                    SourceCapability.BookInfo,
+                    new Dictionary<string, string> { ["bookId"] = "book-42" },
+                    RunId: run.Id),
+                CrawlerTaskStatus.Pending,
+                attemptCount: 0,
+                maxAttempts: 3,
+                leaseOwner: null,
+                leaseExpiresAt: null,
+                createdAt: T0.AddSeconds(1),
+                updatedAt: T0.AddSeconds(1),
+                scheduledAt: T0.AddSeconds(1));
+
+            var attempt = CreateContext();
+            await using (attempt.Db)
+            {
+                var repository = new EfCollectionRunRepository(
+                    attempt.Db,
+                    new EfTransactionalOutboxWriter());
+                var failed = false;
+                try
+                {
+                    await repository
+                        .TryAddWithInitialTaskAsync(run, duplicateTask)
+                        .ConfigureAwait(false);
+                }
+                catch (DbUpdateException)
+                {
+                    failed = true;
+                }
+
+                Assert.IsTrue(failed, "the duplicate task must fail inside the atomic insert");
+            }
+
+            await using var verifyDb = CreateContext().Db;
+            Assert.IsFalse(
+                await verifyDb.Runs.AnyAsync(candidate => candidate.Id == run.Id).ConfigureAwait(false),
+                "a failed initial task insert must roll back the new run");
+            Assert.IsFalse(
+                await verifyDb.Tasks.AnyAsync(candidate => candidate.Id == duplicateTask.Id &&
+                                                            candidate.RunId == run.Id)
+                    .ConfigureAwait(false),
+                "the failed task must not be associated with the new run");
+
+            await using var messaging = new MessagingDbContext(
+                new DbContextOptionsBuilder<MessagingDbContext>()
+                    .UseNpgsql(_container!.GetConnectionString())
+                    .Options);
+            Assert.IsFalse(
+                await messaging.OutboxMessages
+                    .AnyAsync(message => message.Id == duplicateTask.Id)
+                    .ConfigureAwait(false),
+                "the outbox event must roll back with the task and run");
+        }
     }
 
     [TestMethod]
@@ -207,8 +313,8 @@ public sealed class CrawlerTaskRepositoryTests
         await using var firstDb = first.Db;
         var second = CreateContext();
         await using var secondDb = second.Db;
-        var firstRuns = new EfCollectionRunRepository(firstDb);
-        var secondRuns = new EfCollectionRunRepository(secondDb);
+        var firstRuns = new EfCollectionRunRepository(firstDb, new EfTransactionalOutboxWriter());
+        var secondRuns = new EfCollectionRunRepository(secondDb, new EfTransactionalOutboxWriter());
         var run = CollectionRun.Create(
             sourceId,
             "book-42",
@@ -240,8 +346,8 @@ public sealed class CrawlerTaskRepositoryTests
         await using var firstDb = first.Db;
         var second = CreateContext();
         await using var secondDb = second.Db;
-        var firstRuns = new EfCollectionRunRepository(firstDb);
-        var secondRuns = new EfCollectionRunRepository(secondDb);
+        var firstRuns = new EfCollectionRunRepository(firstDb, new EfTransactionalOutboxWriter());
+        var secondRuns = new EfCollectionRunRepository(secondDb, new EfTransactionalOutboxWriter());
         var run = CollectionRun.Create(
             sourceId,
             "book-42",

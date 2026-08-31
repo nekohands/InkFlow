@@ -15,6 +15,15 @@ public interface ICollectionRunRepository
         CollectionRun run,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 在同一数据库事务中插入运行、首个采集任务及其 TaskCreated Outbox 消息。
+    /// 返回 false 表示已有活跃运行；其他持久化失败必须向调用方抛出，不能留下无任务运行。
+    /// </summary>
+    Task<bool> TryAddWithInitialTaskAsync(
+        CollectionRun run,
+        CrawlerTask task,
+        CancellationToken cancellationToken = default);
+
     Task<CollectionRun?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
 using InkFlow.Modules.Crawling.Domain;
@@ -308,7 +309,9 @@ static async Task<int> EnsureCollectionControlRunsAsync(string connectionString)
 {
     var now = DateTimeOffset.UtcNow;
     await using var crawlingDb = new CrawlingDbContext(Options<CrawlingDbContext>(connectionString));
-    var runs = new EfCollectionRunRepository(crawlingDb);
+    var runs = new EfCollectionRunRepository(
+        crawlingDb,
+        new EfTransactionalOutboxWriter());
     var result = new Dictionary<string, Guid>(StringComparer.Ordinal);
     foreach (var action in new[] { "pause", "stop", "cancel", "resume" })
     {
