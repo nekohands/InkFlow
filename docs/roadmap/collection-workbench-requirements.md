@@ -242,7 +242,7 @@ GET  /api/v1/admin/packages/{packageId}/download   # 仅 Completed
 - PostgreSQL migration、运行/任务关联、并发控制命令和租约排除；
 - Worker 重启/租约过期后暂停、停止、取消语义仍成立；
 - BookInfo → Toc → Content 的完整运行进度和失败收敛；
-- API 的 202/404/409/422/401/403/409 状态及响应字段稳定；
+- API 的 202/404/409/422/401/403 状态及响应字段稳定：新建采集运行返回 202，活跃运行复用返回 200，来源地址无法解析返回 422，未知运行返回 404，非法控制状态返回 409，非法输入返回 400；
 - API 响应不含 Variables、CredentialReferenceId、原始正文或秘密；
 - 包在版本变化、下架和缺正文场景下不产生可下载半包。
 

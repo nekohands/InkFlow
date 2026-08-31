@@ -2,6 +2,7 @@ using System.Text.Json;
 using InkFlow.Api;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
+using Microsoft.AspNetCore.Http;
 
 namespace InkFlow.UnitTests;
 
@@ -33,5 +34,16 @@ public sealed class CollectionRunEndpointTests
 
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(response));
         Assert.AreEqual("bookInfo", document.RootElement.GetProperty("stage").GetString());
+    }
+
+    [TestMethod]
+    public void Start_Status_Uses_Unprocessable_Entity_For_Resolver_Failures()
+    {
+        var statusCode = CollectionRunEndpoints.GetStartStatusCode(
+            CollectionRunStartOutcome.Failure(
+                "source-url.scheme",
+                "only HTTP and HTTPS book URLs are supported."));
+
+        Assert.AreEqual(StatusCodes.Status422UnprocessableEntity, statusCode);
     }
 }

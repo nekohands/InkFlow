@@ -182,7 +182,7 @@ expect_status POST /api/v1/admin/collection-runs '' \
   '{"url":"javascript:alert(1)"}' 401 \
   "$work_dir/collection-create-unauthenticated.json"
 expect_status POST /api/v1/admin/collection-runs "$operator_token" \
-  '{"url":"javascript:alert(1)"}' 400 \
+  '{"url":"javascript:alert(1)"}' 422 \
   "$work_dir/collection-invalid-url.json"
 assert_json '.error == "source-url.scheme"' \
   "$work_dir/collection-invalid-url.json" \

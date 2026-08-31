@@ -125,6 +125,15 @@ public static class CollectionRunEndpoints
         updatedAt = value.UpdatedAt,
     };
 
+    public static int GetStartStatusCode(CollectionRunStartOutcome result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return result.IsSuccess
+            ? result.Reused ? StatusCodes.Status200OK : StatusCodes.Status202Accepted
+            : StatusCodes.Status422UnprocessableEntity;
+    }
+
     private static IResult StartAudited(
         CollectionRunStartOutcome result,
         string actorId,
@@ -133,9 +142,7 @@ public static class CollectionRunEndpoints
         TimeProvider clock,
         CancellationToken cancellationToken)
     {
-        var statusCode = result.IsSuccess
-            ? result.Reused ? StatusCodes.Status200OK : StatusCodes.Status202Accepted
-            : StatusCodes.Status400BadRequest;
+        var statusCode = GetStartStatusCode(result);
         var audit = AuditEvent.Create(
             action: "collection.run.start",
             resource: "/api/v1/admin/collection-runs",
