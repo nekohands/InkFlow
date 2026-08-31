@@ -423,10 +423,14 @@ public sealed class CrawlerTaskRepositoryTests
                     leaseTask,
                     Task.Delay(TimeSpan.FromMilliseconds(500)))
                 .ConfigureAwait(false);
-            Assert.AreNotSame(
-                leaseTask,
-                completedBeforeControlCommit,
-                "a lease must wait for the parent run control transaction before it can commit");
+            if (completedBeforeControlCommit == leaseTask)
+            {
+                var prematureLease = await leaseTask.ConfigureAwait(false);
+                Assert.IsNull(
+                    prematureLease,
+                    "a lease must wait for the parent run control transaction before it can commit");
+                Assert.Fail("a lease completed before the parent run control transaction committed");
+            }
 
             await controlTransaction.CommitAsync().ConfigureAwait(false);
             committed = true;
