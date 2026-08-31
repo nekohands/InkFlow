@@ -1034,6 +1034,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 回归：fixture 覆盖 750ms 边界通过和 751ms 超目标失败；预热请求仍校验传输与预期状态，不保存响应正文或身份信息。
 - 本机：脚本语法、回归、`git diff --check` PASS；Release Build 0 warnings / 0 errors；Unit 511/511、Architecture 1/1、Contract 10/10 PASS。
 - Ubuntu VM：`61f739e` 源码构建 Compose 健康启动后，重启 API/Worker/Scheduler 并执行真实四面门禁；p95 为 public 6.887ms、Legado 8.120ms、developer 4.848ms、reader 5.984ms，四面均 PASS，JSON 含四面各 5 个样本和 0 个服务端错误。脚本回归 PASS；验证后 Compose 已停止，`ps --all` 无残留服务容器，卷保留。
+- 远端门槛：候选 `8818390` 的 [CI 33354062102](https://github.com/nekohands/InkFlow/actions/runs/33354062102)、[Docker 33354062087](https://github.com/nekohands/InkFlow/actions/runs/33354062087)、[Security 33354062065](https://github.com/nekohands/InkFlow/actions/runs/33354062065) 均 GREEN 且指向同一 head SHA；CI 的 Core SLO 脚本回归、合成探针、telemetry receipt、证据上传和其他自动化门禁均通过。
 - 边界：短窗口合成证据不等同生产 SLO；生产 OTLP/长窗口/告警保留、真实来源与追更/切源、真实凭据、Operations 受保护操作、PWA 安装跨设备和阅读 3.0/MuMu 真机仍按待定事项处理，整体不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量

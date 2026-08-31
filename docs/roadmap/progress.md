@@ -1211,6 +1211,7 @@ Phase 1A 自动化工作包状态：
 - 实现：脚本新增按服务面的 fail-closed p95 目标检查；每面先执行一次不计入统计但必须返回预期状态的预热请求，再对 1–20 个测量样本计算最近秩 p95。fixture 回归覆盖恰好 750ms 的边界通过和 751ms 的超目标失败，避免门禁只“输出数字”而不真正阻断。
 - 本机证据：`bash -n scripts/core-slo-runtime-smoke.sh`、脚本回归和 `git diff --check` PASS；Release Build 0 warnings / 0 errors；Unit 511/511、Architecture 1/1、Contract 10/10 PASS。
 - Ubuntu VM 证据：`61f739e` 以 `docker-compose.build.yml` 从源码构建并通过 PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康检查；重启 API/Worker/Scheduler 后重新执行真实四面 Core SLO 门禁，输出 `public_api=6.887ms`、`legado_api=8.120ms`、`developer_api=4.848ms`、`reader=5.984ms`，均低于目标；JSON 为 schemaVersion=1、四面各 5 个测量样本、0 个服务端错误。VM 脚本回归 PASS，验证后 Compose 已停止，`ps --all` 无服务容器残留，持久卷保留。
+- 远端门禁：候选 `8818390` 的 [CI 33354062102](https://github.com/nekohands/InkFlow/actions/runs/33354062102)、[Docker 33354062087](https://github.com/nekohands/InkFlow/actions/runs/33354062087)、[Security 33354062065](https://github.com/nekohands/InkFlow/actions/runs/33354062065) 均 GREEN 且指向同一 head SHA；CI 的 Core SLO 脚本回归、真实合成探针、telemetry receipt、证据上传和既有前端/运行时门禁均通过，Security 仅保留既有 Node 20 弃用提示。
 - 验收边界：本轮只关闭合成运行时的 p95 目标和冷启动隔离，不把短窗口证据扩大解释为生产月度 SLO；生产 OTLP 后端、长窗口聚合、错误预算告警/保留治理、真实来源/切源、真实凭据、Operations 受保护页面和阅读 3.0/MuMu 真机仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
