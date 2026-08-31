@@ -368,23 +368,86 @@ public sealed class EfCrawlerTaskRepository(
         CancellationToken cancellationToken = default,
         bool ignoreDeadLettered = false)
     {
-        ArgumentNullException.ThrowIfNull(task);
-        if (string.IsNullOrWhiteSpace(variableName))
+        ValidateDedupeTask(task, variableName, variableValue);
+
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var inserted = await TryAddIfNoConflictingTaskInTransactionAsync(
+                task,
+                variableName,
+                variableValue,
+                cancellationToken,
+                ignoreDeadLettered)
+            .ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return inserted;
+    }
+
+    public async Task<bool> TryAddIfNoConflictingTaskForCollectionRunAsync(
+        CrawlerTask task,
+        Guid runId,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default,
+        bool ignoreDeadLettered = false)
+    {
+        ValidateDedupeTask(task, variableName, variableValue);
+        if (runId == Guid.Empty)
         {
-            throw new ArgumentException("variable name must not be empty.", nameof(variableName));
+            throw new ArgumentException("collection run ID must not be empty.", nameof(runId));
         }
 
-        if (!task.Payload.Variables.TryGetValue(variableName, out var taskVariableValue) ||
-            taskVariableValue != variableValue)
+        if (task.Payload.RunId != runId)
         {
             throw new ArgumentException(
-                "the task must contain the requested dedupe variable and value.",
-                nameof(variableValue));
+                "the task must reference the requested collection run.",
+                nameof(runId));
         }
 
         await using var transaction = await db.Database
             .BeginTransactionAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        // Controls and this enqueue gate lock the same parent row. If a stop or
+        // cancel commits first, the gate re-reads the durable state and rejects
+        // the follow-up; if enqueue commits first, the later control observes it.
+        var runEntity = await db.Runs
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."runs"
+                WHERE "Id" = {runId}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (runEntity is null || runEntity.Status is not (
+                (int)CollectionRunStatus.Pending or
+                (int)CollectionRunStatus.Running or
+                (int)CollectionRunStatus.Paused))
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
+        var inserted = await TryAddIfNoConflictingTaskInTransactionAsync(
+                task,
+                variableName,
+                variableValue,
+                cancellationToken,
+                ignoreDeadLettered)
+            .ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return inserted;
+    }
+
+    private async Task<bool> TryAddIfNoConflictingTaskInTransactionAsync(
+        CrawlerTask task,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken,
+        bool ignoreDeadLettered)
+    {
         await CrawlerTaskAdvisoryLock
             .AcquireAsync(
                 db,
@@ -404,7 +467,6 @@ public sealed class EfCrawlerTaskRepository(
                 ignoreDeadLettered)
                 .ConfigureAwait(false))
         {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             return false;
         }
 
@@ -415,8 +477,27 @@ public sealed class EfCrawlerTaskRepository(
                 CrawlerIntegrationMessages.TaskCreated(task),
                 cancellationToken)
             .ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return true;
+    }
+
+    private static void ValidateDedupeTask(
+        CrawlerTask task,
+        string variableName,
+        string variableValue)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (string.IsNullOrWhiteSpace(variableName))
+        {
+            throw new ArgumentException("variable name must not be empty.", nameof(variableName));
+        }
+
+        if (!task.Payload.Variables.TryGetValue(variableName, out var taskVariableValue) ||
+            taskVariableValue != variableValue)
+        {
+            throw new ArgumentException(
+                "the task must contain the requested dedupe variable and value.",
+                nameof(variableValue));
+        }
     }
 
     public async Task<bool> HasBlockingTaskForCollectionRunAsync(

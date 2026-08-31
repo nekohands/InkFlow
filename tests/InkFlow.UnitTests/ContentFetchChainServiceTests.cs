@@ -114,6 +114,23 @@ public sealed class ContentFetchChainServiceTests
     }
 
     [TestMethod]
+    public async Task Run_Bound_Content_Tasks_Use_Run_Gated_Atomic_Enqueue()
+    {
+        var book = CreateBook(("c1", "第一章"), ("c2", "第二章"));
+        var harness = CreateHarness(book);
+        var runId = Guid.NewGuid();
+
+        var enqueued = await harness.Service.EnqueuePendingContentFetchesAsync(
+            "example-source",
+            "10001",
+            runId: runId);
+
+        Assert.AreEqual(2, enqueued);
+        Assert.AreEqual(2, harness.Tasks.RunGatedEnqueueCalls);
+        Assert.IsTrue(harness.Tasks.Store.All(task => task.Payload.RunId == runId));
+    }
+
+    [TestMethod]
     public async Task Unavailable_Content_Capability_Disables_Chaining()
     {
         var book = CreateBook(("c1", "第一章"));
@@ -274,6 +291,8 @@ public sealed class ContentFetchChainServiceTests
 
         public int AtomicDedupeCalls { get; private set; }
 
+        public int RunGatedEnqueueCalls { get; private set; }
+
         public Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
         {
             if (RequireAtomicDedupe)
@@ -301,6 +320,23 @@ public sealed class ContentFetchChainServiceTests
 
             Store.Add(task);
             return Task.FromResult(true);
+        }
+
+        public Task<bool> TryAddIfNoConflictingTaskForCollectionRunAsync(
+            CrawlerTask task,
+            Guid runId,
+            string variableName,
+            string variableValue,
+            CancellationToken cancellationToken = default,
+            bool ignoreDeadLettered = false)
+        {
+            RunGatedEnqueueCalls++;
+            return TryAddIfNoConflictingTaskAsync(
+                task,
+                variableName,
+                variableValue,
+                cancellationToken,
+                ignoreDeadLettered);
         }
 
         public Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>

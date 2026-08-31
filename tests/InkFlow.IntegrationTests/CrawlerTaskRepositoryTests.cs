@@ -457,6 +457,92 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task Collection_Run_Enqueue_Rechecks_Parent_Run_After_Control_Transaction_Commits()
+    {
+        var sourceId = $"enqueue-control-race-{Guid.NewGuid():N}";
+        var seed = CreateContext();
+        await using var seedDb = seed.Db;
+        var runRepository = new EfCollectionRunRepository(seedDb, new EfTransactionalOutboxWriter());
+        var run = CollectionRun.Create(
+            sourceId,
+            "book-42",
+            "https://example.com/book/book-42",
+            T0);
+        await runRepository.AddAsync(run).ConfigureAwait(false);
+
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                sourceId,
+                SourceCapability.Content,
+                new Dictionary<string, string>
+                {
+                    ["bookId"] = "book-42",
+                    ["chapterId"] = "chapter-7",
+                },
+                RunId: run.Id),
+            createdAt: T0);
+
+        var control = CreateContext();
+        await using var controlDb = control.Db;
+        await using var controlTransaction = await controlDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        var committed = false;
+        try
+        {
+            await controlDb.Database
+                .ExecuteSqlInterpolatedAsync($"""
+                    UPDATE "crawler"."runs"
+                    SET "Status" = {(int)CollectionRunStatus.Cancelled}
+                    WHERE "Id" = {run.Id}
+                    """)
+                .ConfigureAwait(false);
+
+            var candidate = CreateContext();
+            await using var candidateDb = candidate.Db;
+            var gateTask = ((ICrawlerTaskRepository)candidate.Repo)
+                .TryAddIfNoConflictingTaskForCollectionRunAsync(
+                    task,
+                    run.Id,
+                    "chapterId",
+                    "chapter-7");
+
+            var completedBeforeControlCommit = await Task.WhenAny(
+                    gateTask,
+                    Task.Delay(TimeSpan.FromMilliseconds(500)))
+                .ConfigureAwait(false);
+            if (completedBeforeControlCommit == gateTask)
+            {
+                var prematureInsert = await gateTask.ConfigureAwait(false);
+                Assert.IsFalse(
+                    prematureInsert,
+                    "a run-gated enqueue must wait for the parent run control transaction");
+                Assert.Fail("a run-gated enqueue completed before the parent control committed");
+            }
+
+            await controlTransaction.CommitAsync().ConfigureAwait(false);
+            committed = true;
+
+            var inserted = await gateTask
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            Assert.IsFalse(inserted, "a cancelled run must reject follow-up task insertion");
+        }
+        finally
+        {
+            if (!committed)
+            {
+                await controlTransaction.RollbackAsync().ConfigureAwait(false);
+            }
+        }
+
+        await using var verifyDb = CreateContext().Db;
+        Assert.IsFalse(
+            await verifyDb.Tasks.AnyAsync(candidate => candidate.Id == task.Id).ConfigureAwait(false),
+            "a cancelled run must not leave a follow-up task behind");
+    }
+
+    [TestMethod]
     public async Task Task_Roundtrip_Preserves_Aggregate_State()
     {
         var (_, repo) = CreateContext();

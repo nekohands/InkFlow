@@ -84,6 +84,41 @@ public interface ICrawlerTaskRepository
     }
 
     /// <summary>
+    /// 在持久化层原子检查采集运行状态、执行去重并插入后续任务。
+    /// PostgreSQL 实现必须在同一事务内锁定父运行行；这样停止/取消提交后，
+    /// 已经通过内存状态检查的处理器也不能再写入新的运行绑定任务。
+    /// 默认实现仅为旧测试替身提供兼容回退，不能替代生产仓储的父运行锁。
+    /// </summary>
+    Task<bool> TryAddIfNoConflictingTaskForCollectionRunAsync(
+        CrawlerTask task,
+        Guid runId,
+        string variableName,
+        string variableValue,
+        CancellationToken cancellationToken = default,
+        bool ignoreDeadLettered = false)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException("collection run ID must not be empty.", nameof(runId));
+        }
+
+        if (task.Payload.RunId != runId)
+        {
+            throw new ArgumentException(
+                "the task must reference the requested collection run.",
+                nameof(runId));
+        }
+
+        return TryAddIfNoConflictingTaskAsync(
+            task,
+            variableName,
+            variableValue,
+            cancellationToken,
+            ignoreDeadLettered);
+    }
+
+    /// <summary>
     /// 采集运行重试专用冲突查询。新运行可以重新安排历史死信，
     /// 但仍避免与 Pending/Leased/Running 任务并行抓同一章节。
     /// 默认实现保持旧仓储兼容，具体 EF 实现可忽略死信。

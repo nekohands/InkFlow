@@ -104,14 +104,24 @@ public sealed class ContentFetchChainService(
                     credentialReferenceId,
                     runId),
                 createdAt: now);
-            if (await taskRepository
+            var inserted = runId is { } runIdForEnqueue
+                ? await taskRepository
+                    .TryAddIfNoConflictingTaskForCollectionRunAsync(
+                        task,
+                        runIdForEnqueue,
+                        "chapterId",
+                        id,
+                        cancellationToken,
+                        ignoreDeadLettered: true)
+                    .ConfigureAwait(false)
+                : await taskRepository
                     .TryAddIfNoConflictingTaskAsync(
                         task,
                         "chapterId",
                         id,
-                        cancellationToken,
-                        ignoreDeadLettered: runId is not null)
-                    .ConfigureAwait(false))
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            if (inserted)
             {
                 enqueued++;
             }
