@@ -40,6 +40,7 @@ public sealed class BookInfoSyncTaskHandlerTests
         Assert.AreEqual("10001", tocTask.Payload.Variables["bookId"]);
         Assert.AreEqual("collection-run", tocTask.Payload.Variables["reason"]);
         Assert.AreEqual("platform-book-info", tocTask.Payload.CredentialReferenceId);
+        Assert.AreEqual(1, harness.Tasks.RunGatedEnqueueCalls);
     }
 
     [TestMethod]
@@ -322,10 +323,29 @@ public sealed class BookInfoSyncTaskHandlerTests
     {
         public List<CrawlerTask> Store { get; } = [];
 
+        public int RunGatedEnqueueCalls { get; private set; }
+
         public Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
         {
             Store.Add(task);
             return Task.CompletedTask;
+        }
+
+        public Task<bool> TryAddIfNoConflictingTaskForCollectionRunAsync(
+            CrawlerTask task,
+            Guid runId,
+            string variableName,
+            string variableValue,
+            CancellationToken cancellationToken = default,
+            bool ignoreDeadLettered = false)
+        {
+            RunGatedEnqueueCalls++;
+            return ((ICrawlerTaskRepository)this).TryAddIfNoConflictingTaskAsync(
+                task,
+                variableName,
+                variableValue,
+                cancellationToken,
+                ignoreDeadLettered);
         }
 
         public Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>

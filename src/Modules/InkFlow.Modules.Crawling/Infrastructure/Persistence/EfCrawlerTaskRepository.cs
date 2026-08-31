@@ -419,6 +419,7 @@ public sealed class EfCrawlerTaskRepository(
                 WHERE "Id" = {runId}
                 FOR UPDATE
                 """)
+            .AsNoTracking()
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
         if (runEntity is null || runEntity.Status is not (

@@ -69,34 +69,26 @@ public sealed class BookInfoSyncTaskHandler(
             .AdvanceStageAsync(runId, CollectionRunStage.Toc, cancellationToken)
             .ConfigureAwait(false);
 
-        var hasTocConflict = await tasks
-            .HasBlockingTaskForCollectionRunAsync(
-                task.Payload.SourceId,
-                SourceCapability.Toc,
+        await tasks
+            .TryAddIfNoConflictingTaskForCollectionRunAsync(
+                CrawlerTask.Create(
+                    new CrawlPayload(
+                        task.Payload.SourceId,
+                        SourceCapability.Toc,
+                        new Dictionary<string, string>
+                        {
+                            ["bookId"] = externalBookId,
+                            ["reason"] = "collection-run",
+                        },
+                        task.Payload.CredentialReferenceId,
+                        runId),
+                    createdAt: clock.GetUtcNow()),
+                runId,
                 "bookId",
                 externalBookId,
                 cancellationToken,
                 ignoreDeadLettered: true)
             .ConfigureAwait(false);
-        if (!hasTocConflict)
-        {
-            await tasks
-                .AddAsync(
-                    CrawlerTask.Create(
-                        new CrawlPayload(
-                            task.Payload.SourceId,
-                            SourceCapability.Toc,
-                            new Dictionary<string, string>
-                            {
-                                ["bookId"] = externalBookId,
-                                ["reason"] = "collection-run",
-                            },
-                            task.Payload.CredentialReferenceId,
-                            runId),
-                        createdAt: clock.GetUtcNow()),
-                    cancellationToken)
-                .ConfigureAwait(false);
-        }
 
         return CrawlOutcome.Ok();
     }
