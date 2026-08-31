@@ -1355,6 +1355,7 @@ Phase 1A 自动化工作包状态：
 - 目标：继续按“除阅读 App 外尽量自动化”的要求，复核最新源码构建 Compose 栈是否能通过 GPT 内置浏览器完成 Web Reader 页面验收；本轮仍不启动 MuMu/阅读 3.0。
 - VM 运行证据：从最新 `origin/dev`（`8652c99`）建立隔离 worktree，源码构建 `docker-compose.build.yml` 的四个业务镜像并启动 Compose；Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康。通过 SSH 本地转发访问 API `/health` 返回 HTTP 200 和 `{"status":"healthy","service":"InkFlow.Api"}`；验证后 Compose、网络、容器、转发和临时 worktree 已清理，VM 原工作树未覆盖。
 - 浏览器通道结果：GPT 内置浏览器访问公共 HTTPS 页面正常，但访问 `172.19.31.153:8080`、SSH 转发的 `127.0.0.1:18080/3000`、`localhost:18080/3000` 等本地/私网 HTTP 地址均被客户端以 `net::ERR_BLOCKED_BY_CLIENT` 拦截。这是浏览器通道的本地网络限制，不是 Compose `/health` 或应用健康检查失败；未创建公共隧道，也未降低 HTTPS/SSRF 安全边界。
+- 远端门禁：文档提交 `f4583c2` 的 [CI 33422098715](https://github.com/nekohands/InkFlow/actions/runs/33422098715)、[Docker 33422098588](https://github.com/nekohands/InkFlow/actions/runs/33422098588) 和 [Security 33422098584](https://github.com/nekohands/InkFlow/actions/runs/33422098584) 均 GREEN 且指向同一 head SHA；CI 完成全量测试、Compose、前端/运行态、SLO、Redis/PostgreSQL 和备份恢复门禁，Security 完成依赖、SBOM、Trivy 与 CodeQL 门禁。
 - 结论与边界：本轮没有修改代码、Contract、Migration 或产品行为；既有 4.75/4.85 的 Web Reader 自动化证据仍有效，本轮不能新增页面级浏览器证据。视觉、真实账户/PWA 安装/跨设备、阅读 3.0 和其他人工验收继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
