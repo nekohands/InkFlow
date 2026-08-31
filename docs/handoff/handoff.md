@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`da04e8e`（在直接地址采集启动原子化基础上，补齐带 `RunId` 任务领取时对父 CollectionRun 控制状态的 PostgreSQL 行锁与重新读取；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 并发回归、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`b0b48af`（在直接地址采集启动原子化与租约门禁基础上，补齐带 `RunId` 子任务入队和任务执行启动时对父 CollectionRun 控制状态的 PostgreSQL 事务门禁；候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 并发回归、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1076,6 +1076,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：候选 `da04e8e` 的定向真实 PostgreSQL 回归 1/1 PASS；同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Unit 523/523、Architecture 1/1、Contract 10/10、Integration 98 passed / 2 skipped / 0 failed。当前 head 重新完成 `docker-compose.build.yml` 源码构建四镜像、Migration 退出 0、Compose 健康等待，API/Worker/Scheduler `/health` 均返回 200；验证后 Compose 已停止，服务容器和网络已清理，持久卷保留。
 - 远端门槛：`da04e8e` 的 [CI 33372702168](https://github.com/nekohands/InkFlow/actions/runs/33372702168)、[Docker 33372702149](https://github.com/nekohands/InkFlow/actions/runs/33372702149)、[Security 33372702139](https://github.com/nekohands/InkFlow/actions/runs/33372702139) 均 GREEN 且 head SHA 一致。
 - 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu 真机、真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备和受保护 Operations 登录后操作继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
+
+### 5.5 采集子任务入队与执行启动事务门禁交接（本轮，2026-08-31）
+
+- 工作包：关闭 CollectionRun 控制提交与子任务追加、任务执行器调用之间的竞态窗口；不新增 Migration，不改变公开 API、状态机、Source/Canonical 边界或无 `RunId` 历史任务路径。
+- 实现：`ContentFetchChainService`、`BookInfoSyncTaskHandler` 使用带父运行行锁的原子去重入队；`CrawlerTaskProcessor` 使用原子 `TryMarkRunningAsync`，生产 EF 按任务→父运行锁顺序重新检查状态，拒绝终态/缺失父运行并取消任务，避免调用执行器；Pending 父运行与任务启动在同一事务内推进为 Running。仓储接口保留默认兼容实现供既有测试替身使用，生产实现承担真实门禁。
+- 回归：TDD 红→绿覆盖内容链、BookInfo 子任务和处理器；真实 PostgreSQL 定向控制竞态 3/3、任务启动 2/2 通过，包含控制事务提交后的入队拒绝、执行启动拒绝以及 Pending 父运行正向启动。
+- Ubuntu VM：同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Unit 525/525、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed。`b0b48af` 通过 `docker-compose.build.yml` 源码构建四个业务镜像；Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis 健康，三个服务 `/health` 返回 200；验证后 Compose 已停止，`ps --all` 无服务容器残留，网络已清理，持久卷保留。
+- 远端门槛：代码候选 `b0b48af` 的 [CI 33377607509](https://github.com/nekohands/InkFlow/actions/runs/33377607509)、[Docker 33377607515](https://github.com/nekohands/InkFlow/actions/runs/33377607515)、[Security 33377607513](https://github.com/nekohands/InkFlow/actions/runs/33377607513) 均 GREEN 且 head SHA 一致。
+- 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
 ## 5. 关键架构不变量
 

@@ -1,6 +1,6 @@
 # 采集工作台 v1 需求对齐草案
 
-状态：需求已对齐，代码已落地；当前代码候选为 `ef2b8dd`，在书籍包租约写入栅栏和按尝试隔离包文件基础上补齐直接地址采集的 CollectionRun、首个 BookInfo 任务与 TaskCreated Outbox 原子启动。候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL Crawler 回归、完整测试和采集/打包非阅读 App 自动化运行验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
+状态：需求已对齐，代码已落地；当前代码候选为 `b0b48af`，在书籍包租约写入栅栏、直接地址采集启动原子化和 CollectionRun 领取门禁基础上，补齐采集子任务入队与任务执行启动的父运行事务门禁。候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 并发回归、完整测试和采集/打包非阅读 App 自动化运行验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
 日期：2026-08-31
 范围：采集运行控制、进度可视化、书籍地址采集、已入库书籍打包
 
