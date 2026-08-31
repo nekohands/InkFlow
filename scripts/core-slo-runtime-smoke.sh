@@ -94,11 +94,32 @@ probe_surface() {
   local path="$2"
   local expected_status="$3"
   local attempt result status duration sorted rank p95_seconds p95_milliseconds target
-  local error_file
+  local warmup_result error_file
   local -a durations=()
 
   printf 'Core SLO probe: %s (%s, expected HTTP %s, %s request(s))\n' \
     "$surface" "$path" "$expected_status" "$probe_count"
+
+  # A freshly started application may spend its first request warming JIT,
+  # database pools and serializers. Keep that deployment artifact out of the
+  # steady-state synthetic window while still validating its status code.
+  error_file="$probe_dir/$surface-warmup.err"
+  if ! warmup_result="$("$curl_bin" \
+    --silent --show-error \
+    --output /dev/null \
+    --write-out $'%{http_code}\t%{time_total}' \
+    --connect-timeout "$max_time" \
+    --max-time "$max_time" \
+    -- "$base_url$path" 2>"$error_file")"; then
+    fail "$surface warm-up request failed (transport or timeout)"
+  fi
+  if [[ "$warmup_result" != *$'\t'* ]]; then
+    fail "$surface warm-up request returned malformed curl timing output"
+  fi
+  status="${warmup_result%%$'\t'*}"
+  if [[ "$status" != "$expected_status" ]]; then
+    fail "$surface warm-up request returned HTTP $status; expected HTTP $expected_status"
+  fi
 
   for ((attempt = 1; attempt <= probe_count; attempt++)); do
     error_file="$probe_dir/${surface}-${attempt}.err"
