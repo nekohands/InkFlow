@@ -1011,6 +1011,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 交接门槛：候选 `d5e8322` 的 [CI 33344939033](https://github.com/nekohands/InkFlow/actions/runs/33344939033)、[Docker 33344939099](https://github.com/nekohands/InkFlow/actions/runs/33344939099)、[Security 33344939034](https://github.com/nekohands/InkFlow/actions/runs/33344939034) 均 GREEN 且指向同一 head SHA。
 - 边界：临时测试账户不等于真实生产凭据；真实来源/追更/切源、生产 Operations 账号与通知、真实 PWA 安装/跨设备及 MuMu/阅读 3.0 真机仍待定，整体不标记 `Accepted/Completed`。
 
+### 4.98 Legado 四步运行时门禁交接（本轮，2026-08-31）
+
+- 实现：新增 `scripts/legado-runtime-smoke.sh`，逐项校验公开 `book-source.json`、Search、BookInfo、TOC、Content 的响应契约、稳定 ID/URL 和正文纯文本；新增确定性 curl fixture、脚本回归，并接入 CI。
+- 运行时：候选 `df35d5e` 在 Ubuntu VM 通过 `docker-compose.build.yml` 源码构建、Migration 和全套服务健康检查；确定性 Reader 夹具发布后，四步运行时 smoke 输出 PASS。默认空查询用于避免触发真实来源网络请求；关键字过滤和真实来源证据仍按既有单元/契约/真实来源工作包处理。
+- 清理：验证后 Compose 已停止，`ps --all` 无 InkFlow 服务容器残留，持久卷保留。
+- 远端门槛：文档提交 `e4a9ea5` 的 [CI 33349225217](https://github.com/nekohands/InkFlow/actions/runs/33349225217)、[Docker 33349225212](https://github.com/nekohands/InkFlow/actions/runs/33349225212)、[Security 33349225202](https://github.com/nekohands/InkFlow/actions/runs/33349225202) 均 GREEN 且指向同一 head SHA。
+- 边界：本轮未执行阅读 3.0 / MuMu 真机、真实凭据、真实来源访问或真实第二来源故障切换；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

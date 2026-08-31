@@ -1,6 +1,6 @@
 # 采集工作台 v1 需求对齐草案
 
-状态：需求已对齐，代码已落地；当前代码候选为 `df35d5e`，本轮新增 Legado Manifest + Search → BookInfo → TOC → Content 运行时 smoke 及脚本回归。代码候选的 CI/Docker/Security 结果待本轮推送后确认；当前候选已在 Ubuntu VM 以源码构建 Compose 完成健康启动，并通过 Reader/PWA/Operations 前端、临时 Operator 登录后的 Operations 控制/打包浏览器验收、Reader 账号/正文、Core SLO、Developer API、Private Library、采集打包和 Legado 四步链路运行时 smoke；真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
+状态：需求已对齐，代码已落地；当前代码候选为 `df35d5e`，本轮新增 Legado Manifest + Search → BookInfo → TOC → Content 运行时 smoke 及脚本回归。文档提交 `e4a9ea5` 的 CI/Docker/Security 已全部 GREEN；当前候选已在 Ubuntu VM 以源码构建 Compose 完成健康启动，并通过 Reader/PWA/Operations 前端、临时 Operator 登录后的 Operations 控制/打包浏览器验收、Reader 账号/正文、Core SLO、Developer API、Private Library、采集打包和 Legado 四步链路运行时 smoke；真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
 日期：2026-08-31
 范围：采集运行控制、进度可视化、书籍地址采集、已入库书籍打包
 

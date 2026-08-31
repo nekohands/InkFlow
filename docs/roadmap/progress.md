@@ -1192,7 +1192,8 @@ Phase 1A 自动化工作包状态：
 - 实现：新增 `scripts/legado-runtime-smoke.sh`，逐项校验书源 Manifest、`GET /api/legado/v1/search`、BookInfo、TOC、Content 的稳定 ID、URL、标题/作者、正文标记和纯文本输出；新增确定性 curl fixture 与脚本回归，并接入 CI 的 Runtime smoke。脚本默认使用空查询，避免门禁触发已注册真实来源的外部网络请求；非空关键字过滤仍由应用/契约/单元测试及既有真实来源证据覆盖。
 - 本机证据：新增脚本通过 `bash -n` 和 `git diff --check`；Windows 本机缺少 `jq`，因此脚本功能回归转由 Ubuntu VM 与 CI 执行。
 - Ubuntu VM 证据：候选 `df35d5e` 已同步，以 `docker-compose.build.yml` 从源码完成镜像构建、Migration、PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康启动；确定性 Reader 夹具已发布，Legado 四步运行时 smoke 输出 `legado-runtime-smoke: PASS (manifest, Search, BookInfo, TOC, Content)`，脚本回归也通过。验证后 Compose 已停止，`ps --all` 无服务容器残留，持久卷保留。
-- 验收边界：本轮不执行阅读 3.0 / MuMu 真机、真实凭据、真实来源访问或真实第二来源故障切换；这些继续列在第 6 节待定事项。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`，待远端 CI/Docker/Security 对本候选完成后再更新门禁状态。
+- 远端门禁：文档候选 `e4a9ea5` 的 [CI 33349225217](https://github.com/nekohands/InkFlow/actions/runs/33349225217)、[Docker 33349225212](https://github.com/nekohands/InkFlow/actions/runs/33349225212)、[Security 33349225202](https://github.com/nekohands/InkFlow/actions/runs/33349225202) 均 GREEN，三者 head SHA 一致；CI 新增的脚本回归和 Legado contract runtime smoke 均通过。
+- 验收边界：本轮不执行阅读 3.0 / MuMu 真机、真实凭据、真实来源访问或真实第二来源故障切换；这些继续列在第 6 节待定事项。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
