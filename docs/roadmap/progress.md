@@ -5,6 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
+- 最新候选提交：`e96bd2f`（书籍打包租约丢失后的已发布文件清理回归覆盖）；其 CI `33451781181`、Docker `33451781556`、Security `33451781201` 均 GREEN 且指向同一 head SHA。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1411,6 +1412,14 @@ Phase 1A 自动化工作包状态：
 - 清理与门禁：已显式删除 acceptance profile 未被 `down --volumes` 自动回收的两个隔离缓存卷，并移除临时 worktree；原 VM 工作树 5 项用户改动保留。`e7f4414` 的 [CI 33449460834](https://github.com/nekohands/InkFlow/actions/runs/33449460834)、[Docker 33449460843](https://github.com/nekohands/InkFlow/actions/runs/33449460843)、[Security 33449460854](https://github.com/nekohands/InkFlow/actions/runs/33449460854) 均 GREEN。
 - 结论与边界：Acceptance fixture 的重复 NuGet 下载稳定性缺口已关闭；本轮仍不启动 ADB、阅读 3.0 或第三方 live source，整体保持 `1.0 Release Candidate`，未标记 `Accepted/Completed`。
 
+### 5.23 书籍打包租约丢失后的已发布文件清理回归覆盖（本轮，2026-09-01）
+
+- 缺口：代码审计发现 `BookPackageService.ProcessAsync` 在文件已经发布、最终租约保存被拒绝时会进入 `PackageLeaseLostException` 清理分支，但原有单元测试只覆盖了发布前丢失租约，未证明已发布 artifact 和临时文件都不会残留。
+- TDD 与实现：新增 `Process_Removes_Published_Artifact_When_Lease_Is_Lost_Before_Completion`，让测试替身在“设置进度→发布文件→最终保存”这条边界拒绝租约保存；测试验证三次租约保存调用、Builder 已执行、临时路径和最终 EPUB artifact 均被清理。未改变生产代码、API、Migration 或控制语义。
+- 本机证据：`dotnet build InkFlow.sln -c Release --no-restore` 通过（0 warnings / 0 errors）；Unit `538/538`、Architecture `1/1`、Contract `10/10` 和 `git diff --check` 通过。
+- 远端门禁：候选 `e96bd2f` 的 [CI 33451781181](https://github.com/nekohands/InkFlow/actions/runs/33451781181)、[Docker 33451781556](https://github.com/nekohands/InkFlow/actions/runs/33451781556)、[Security 33451781201](https://github.com/nekohands/InkFlow/actions/runs/33451781201) 均 GREEN 且 head SHA 一致；CI 全量 Test、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。
+- 结论与边界：书籍打包租约丢失后的 artifact 清理回归证据已补齐；本轮不启动 ADB、阅读 3.0、真实来源或真实凭据验收，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1545,7 +1554,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：代码候选 `c85975f` 已修复直接地址采集启动状态语义：新建运行 `202`、复用活跃运行 `200`、来源地址无法解析 `422`、空/非法输入 `400`；测试候选 `3ac8110` 又补齐 `ReadingProgress.Update` 领域回归，完整 Unit 为 `537/537`。Ubuntu VM Linux SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit 535/535、Architecture 1/1、Contract 10/10、Integration 106 项（103 passed / 3 skipped / 0 failed），`verify-migrations.sh` 的 11 个上下文 PASS，源码构建 Compose 健康启动，API/Worker/Scheduler `/health` 均返回 healthy，采集/打包业务 smoke PASS。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效。测试候选 `3ac8110` 的 [CI 33439541455](https://github.com/nekohands/InkFlow/actions/runs/33439541455)、[Docker 33439541466](https://github.com/nekohands/InkFlow/actions/runs/33439541466)、[Security 33439541469](https://github.com/nekohands/InkFlow/actions/runs/33439541469) 均 GREEN 且 SHA 一致；本轮未发现新的、非延期范围的 1.0 功能缺口。
+最新状态（2026-09-01）：代码候选 `c85975f` 的直接地址采集状态语义、`3ac8110` 的 `ReadingProgress.Update` 领域回归、`26e5d82` 的源码 Dockerfile NuGet 缓存、`e7f4414` 的 acceptance fixture 缓存以及最新 `e96bd2f` 的书籍打包租约丢失清理回归均已推送。当前本机 Release Build 0 warnings / 0 errors、Unit `538/538`、Architecture `1/1`、Contract `10/10`；`e96bd2f` 的 CI `33451781181`、Docker `33451781556`、Security `33451781201` 均 GREEN 且 SHA 一致，CI 全量测试、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。Ubuntu VM 的源码构建 Compose、Migration、服务健康和采集/打包 smoke 证据见 5.18、5.21、5.22。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效；本轮未发现新的、非延期范围的 1.0 功能缺口。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`3ac8110`；在 `c85975f` 的 CollectionRun 状态语义修复基础上补齐 `ReadingProgress.Update` 领域回归覆盖，最终测试候选为 `3ac8110`，详情及本轮测试证据见 5.19，采集/打包 VM 与 Compose 证据见 5.18。`3ac8110` 的 [CI 33439541455](https://github.com/nekohands/InkFlow/actions/runs/33439541455)、[Docker 33439541466](https://github.com/nekohands/InkFlow/actions/runs/33439541466)、[Security 33439541469](https://github.com/nekohands/InkFlow/actions/runs/33439541469) 均 GREEN 且 SHA 一致。
+- 最新代码候选 Commit：`e96bd2f`；在 `e7f4414` 的 acceptance fixture 缓存基础上补齐书籍打包在发布后丢失租约时的 artifact 清理回归覆盖，详见 5.23。`e96bd2f` 的 [CI 33451781181](https://github.com/nekohands/InkFlow/actions/runs/33451781181)、[Docker 33451781556](https://github.com/nekohands/InkFlow/actions/runs/33451781556)、[Security 33451781201](https://github.com/nekohands/InkFlow/actions/runs/33451781201) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1223,6 +1223,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 清理：发现 Compose `down --volumes` 对未参与 `up` 的 acceptance profile 卷不会自动回收后，已按完整名称显式删除两个缓存卷，并移除临时 worktree；VM 原工作树的 5 项用户改动保留。
 - 远端：`e7f4414` 的 [CI 33449460834](https://github.com/nekohands/InkFlow/actions/runs/33449460834)、[Docker 33449460843](https://github.com/nekohands/InkFlow/actions/runs/33449460843)、[Security 33449460854](https://github.com/nekohands/InkFlow/actions/runs/33449460854) 均 GREEN。
 - 结论：Acceptance fixture 重复 NuGet 下载稳定性缺口已关闭；本轮按决定不启动 ADB、阅读 3.0 或第三方 live source，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.23 书籍打包租约丢失后的已发布文件清理回归覆盖交接（本轮，2026-09-01）
+
+- 缺口：`BookPackageService.ProcessAsync` 在 artifact 已发布而最终租约保存被拒绝时需要清理临时文件和已发布文件；原有测试未覆盖这个发布后租约丢失边界。
+- TDD 与实现：新增 `Process_Removes_Published_Artifact_When_Lease_Is_Lost_Before_Completion`，让测试替身在最终租约保存时拒绝并验证 Builder 执行、三次保存调用以及临时/最终 EPUB artifact 均不存在；未改变生产代码、API、Migration 或控制语义。
+- 本机：Release Build 0 warnings / 0 errors；Unit `538/538`、Architecture `1/1`、Contract `10/10`、`git diff --check` 均 PASS。
+- 远端：候选 `e96bd2f` 的 [CI 33451781181](https://github.com/nekohands/InkFlow/actions/runs/33451781181)、[Docker 33451781556](https://github.com/nekohands/InkFlow/actions/runs/33451781556)、[Security 33451781201](https://github.com/nekohands/InkFlow/actions/runs/33451781201) 均 GREEN；CI 全量 Test、Compose、Runtime、SLO、Redis、备份恢复和诊断步骤通过。
+- 边界：本轮不启动 ADB、阅读 3.0、真实来源或真实凭据验收；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
