@@ -6,11 +6,19 @@ fixture_curl="$root_dir/scripts/tests/core-slo-runtime-smoke.fixture-curl.sh"
 evidence_file="$(mktemp "${TMPDIR:-/tmp}/inkflow-core-slo-test-evidence.XXXXXX.json")"
 default_evidence_dir=""
 default_stale_file=""
+boundary_output=""
+slow_output=""
 
 cleanup() {
   local status=$?
   set +e
   rm -f -- "$evidence_file"
+  if [[ -n "$boundary_output" ]]; then
+    rm -f -- "$boundary_output"
+  fi
+  if [[ -n "$slow_output" ]]; then
+    rm -f -- "$slow_output"
+  fi
   if [[ -n "$default_stale_file" ]]; then
     chmod u+w "$default_stale_file" 2>/dev/null || true
   fi
@@ -37,6 +45,27 @@ grep -q '"public_api"' "$evidence_file"
 grep -q '"legado_api"' "$evidence_file"
 grep -q '"developer_api"' "$evidence_file"
 grep -q '"reader"' "$evidence_file"
+
+boundary_output="$(mktemp "${TMPDIR:-/tmp}/inkflow-core-slo-boundary.XXXXXX.txt")"
+INKFLOW_SLO_FIXTURE_MODE=boundary-public \
+INKFLOW_SLO_CURL_BIN="$fixture_curl" \
+INKFLOW_SLO_PROBE_COUNT=1 \
+INKFLOW_SLO_CURL_MAX_TIME=3 \
+INKFLOW_SLO_EVIDENCE_FILE="$evidence_file" \
+  bash "$root_dir/scripts/core-slo-runtime-smoke.sh" http://fixture.invalid > "$boundary_output"
+grep -q 'public_api PASS (p95=750.000ms, target<=750ms)' "$boundary_output"
+
+slow_output="$(mktemp "${TMPDIR:-/tmp}/inkflow-core-slo-slow.XXXXXX.txt")"
+if INKFLOW_SLO_FIXTURE_MODE=slow-public \
+  INKFLOW_SLO_CURL_BIN="$fixture_curl" \
+  INKFLOW_SLO_PROBE_COUNT=1 \
+  INKFLOW_SLO_CURL_MAX_TIME=3 \
+  INKFLOW_SLO_EVIDENCE_FILE="$evidence_file" \
+    bash "$root_dir/scripts/core-slo-runtime-smoke.sh" http://fixture.invalid > "$slow_output" 2>&1; then
+  printf 'expected slow Core SLO fixture to fail\n' >&2
+  exit 1
+fi
+grep -q 'public_api p95 751.000ms exceeds Core SLO target 750ms' "$slow_output"
 
 default_evidence_dir="$(mktemp -d "${TMPDIR:-/tmp}/inkflow-core-slo-default-test.XXXXXX")"
 default_stale_file="$default_evidence_dir/inkflow-core-slo-evidence.json"

@@ -26,6 +26,20 @@ fail() {
   exit 1
 }
 
+latency_target_for_surface() {
+  case "$1" in
+    public_api|developer_api)
+      printf '750\n'
+      ;;
+    legado_api|reader)
+      printf '1000\n'
+      ;;
+    *)
+      fail "unknown Core SLO surface: $1"
+      ;;
+  esac
+}
+
 case "$base_url" in
   http://*|https://*) ;;
   *) fail 'base URL must use http or https' ;;
@@ -79,7 +93,7 @@ probe_surface() {
   local surface="$1"
   local path="$2"
   local expected_status="$3"
-  local attempt result status duration sorted rank p95_seconds p95_milliseconds
+  local attempt result status duration sorted rank p95_seconds p95_milliseconds target
   local error_file
   local -a durations=()
 
@@ -121,9 +135,15 @@ probe_surface() {
     fail "$surface did not produce a p95 timing sample"
   fi
   p95_milliseconds="$(awk -v value="$p95_seconds" 'BEGIN { printf "%.3f", value * 1000 }')"
+  target="$(latency_target_for_surface "$surface")"
+  if ! awk -v measured="$p95_milliseconds" -v target="$target" \
+    'BEGIN { exit !(measured >= 0 && measured <= target) }'; then
+    fail "$surface p95 ${p95_milliseconds}ms exceeds Core SLO target ${target}ms"
+  fi
 
   PROBE_P95_MILLISECONDS="$p95_milliseconds"
-  printf 'Core SLO probe: %s PASS (p95=%sms)\n' "$surface" "$p95_milliseconds"
+  printf 'Core SLO probe: %s PASS (p95=%sms, target<=%sms)\n' \
+    "$surface" "$p95_milliseconds" "$target"
 }
 
 window_start="$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')"
