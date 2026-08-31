@@ -1300,6 +1300,14 @@ Phase 1A 自动化工作包状态：
 - 证据入口：`scripts/reader-frontend-runtime-smoke.sh`、`scripts/reader-account-runtime-smoke.sh`、`scripts/collection-package-runtime-smoke.sh` 及 `scripts/tests/` 回归；对应运行和浏览器证据见 4.75、4.82–4.86、4.97–4.99、5.8。
 - 当前状态：文档证据已对齐；真实 PWA 安装/跨设备、长时间阅读、真实账户、人工视觉/触控/对比度和阅读 3.0/MuMu 仍保持 `NOT RUN`/待定，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.10 Scheduler/Worker 新章节确定性追更验收（本轮，2026-08-31）
+
+- 发现：此前 `4.87` 只验证了真实 Kanunu8 当前快照的扫描、Worker 消费、任务去重和正文发布；周期扫描遇到“上游目录新增章节”这一关键增量事件仍只有 opt-in live 测试，没有稳定的默认自动证据。
+- 实现：`EndToEndDataFlowTests.Automated_Scheduler_Discovers_New_Chapter_And_Publishes_Content` 使用可控 `ISourceAdapter` 模拟两次周期扫描之间新增第三章，驱动 `UpdateScanService`、真实 `TocSyncTaskHandler`、`ContentFetchChainService`、Canonical 章节映射、`FetchArtifact` 和 `ContentVersion` 发布；最后重复扫描确认已抓取章节不重复创建 Content 任务。
+- 本机/VM 证据：Windows 定向 `dotnet test` 1/1 PASS；Ubuntu VM 中从 `origin/dev` 创建的隔离 worktree 通过 .NET 10 SDK 容器执行同一定向测试，1/1 PASS。VM 原工作树已有的质量演练未提交改动未被触碰；临时 worktree 已清理。
+- 远端门禁：代码候选 `5875479` 的 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619) 均 GREEN 且指向同一 head SHA；CI 的完整 Test/Compose/Runtime smoke 也通过。
+- 边界：确定性自动化已关闭“新增章节链路无默认回归”的工程证据缺口，但不替代真实 Official Source 上游新增/修订事件、真实第二来源故障切换、阅读 3.0/MuMu 和其他人工验收；真实追更仍保持第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1386,7 +1394,7 @@ Official Source
 - [x] **Private Library 非阅读 App 自动化文件/一致性验收**：源码构建 Compose 已覆盖 TXT/EPUB 导入/导出、章节/正文、重复导入不覆盖原书、失败导入无半本书、私有缓存头、所有权及公共路径隔离。
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验、导出文件可读性及长期使用；不作为阅读 App 以外自动化门禁的替代。
 - [x] **Developer API / 商业基础非阅读 App 自动化运行验收**：源码构建 Compose 已自动验证 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、`X-InkFlow-Api-Key` 专用 Header、轮换和撤销；真实 Web 账户、管理员套餐、配额超额和用户停用仍需真实环境补充。
-- [ ] **真实追更验收**：4.87 已用真实 Kanunu8 当前快照自动验证 Scheduler 扫描、Worker 消费、目录同步、任务去重与正文发布；仍需可控的上游新增章节/修订事件，验证下一周期扫描确实产生增量并发布新版本。
+- [ ] **真实追更验收**：4.87 已用真实 Kanunu8 当前快照自动验证 Scheduler 扫描、Worker 消费、目录同步、任务去重与正文发布；5.10 又用确定性来源响应验证新增章节后的增量映射、正文发布和重复扫描幂等；仍需真实 Official Source 上游新增章节/修订事件，验证下一周期扫描确实产生增量并发布新版本。
 - [ ] **真实第二来源与故障切换**：4.99 已用确定性双来源夹具完成源码 Compose 下 Web/Legado 的 A→B→A、稳定 BookId/ChapterId 和恢复验证；仍需从已接入 Official Source 中选择可稳定访问的真实第二来源，确认真实来源故障、真实响应和恢复不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [x] **Content Policy 非阅读 App 自动化验收**：4.83 已用临时管理员和 CanonicalBook fixture 验证下架/恢复、公共详情可见性、权限拒绝和审计过滤。

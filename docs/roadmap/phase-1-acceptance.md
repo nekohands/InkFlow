@@ -68,9 +68,13 @@ checklist below:
 - [x] Unit, Contract and CI runtime gates covered semantic HTML markers,
   `aria-live`/focus/reduced-motion hooks, session-token URL/HTML exclusions and
   stable API response contracts.
+- [x] Deterministic Scheduler/Worker update-chain evidence covered a source response
+  gaining a new chapter, TOC resync, stable chapter mapping, incremental Content task
+  creation, ContentVersion publication and repeat-scan idempotency in
+  `EndToEndDataFlowTests.Automated_Scheduler_Discovers_New_Chapter_And_Publishes_Content`.
 
 Evidence is recorded in `docs/roadmap/progress.md` sections 4.75, 4.82–4.86,
-4.97–4.99 and 5.8, with repository entrypoints
+4.97–4.99, 5.8 and 5.10, with repository entrypoints
 `scripts/reader-frontend-runtime-smoke.sh`,
 `scripts/reader-account-runtime-smoke.sh`,
 `scripts/collection-package-runtime-smoke.sh` and their regressions under
@@ -157,6 +161,16 @@ truncated replay through the real publishing/quality/selection services, asserts
 complete version has the higher score and remains selected, then verifies the selected content
 through the Web API, Legado API, and Reader HTML. This closes the deterministic quality-failure
 gate; it does not replace the real Official Source and manual/real-device acceptance gates below.
+
+### Deterministic update-chain evidence
+
+The automated update gate now uses a mutable in-process source adapter to model an upstream
+TOC gaining a chapter between periodic scans. It drives `UpdateScanService`, the real TOC and
+content task handlers, canonical mapping, FetchArtifact persistence, ContentVersion publishing
+and the public query path, then repeats the scan to prove that already fetched chapters do not
+create duplicate content tasks. This is deterministic release evidence and does not claim that
+a live Official Source has emitted a new chapter; that real-source event remains a release
+acceptance item.
 
 ## Release gate
 

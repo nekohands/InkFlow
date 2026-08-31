@@ -1119,6 +1119,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 对应入口：`scripts/reader-frontend-runtime-smoke.sh`、`scripts/reader-account-runtime-smoke.sh`、`scripts/collection-package-runtime-smoke.sh`，结构回归位于 `scripts/tests/`；运行证据见 Progress 4.75、4.82–4.86、4.97–4.99、5.8。
 - 边界：真实 PWA 安装/跨设备、长时间阅读、真实账户、人工视觉/触控/对比度、真实 Official Source 与阅读 3.0/MuMu 仍未执行；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.10 Scheduler/Worker 新章节确定性追更验收交接（本轮，2026-08-31）
+
+- 工作包：补齐“周期扫描遇到上游新增章节”这一默认自动化证据，不启动真实 Official Source、阅读 3.0 或 MuMu。
+- 回归：`EndToEndDataFlowTests.Automated_Scheduler_Discovers_New_Chapter_And_Publishes_Content` 以可控来源适配器在两次扫描之间追加第三章，验证 `UpdateScanService` 入队、TOC 同步、稳定 CanonicalChapter 映射、增量 Content 任务、FetchArtifact、ContentVersion 发布和公共查询可读；重复扫描不重复创建已完成章节的 Content 任务。
+- 本机/VM：Windows 定向测试 1/1 PASS；Ubuntu VM 的 .NET 10 SDK 容器隔离 worktree 定向测试 1/1 PASS。VM 原工作树质量演练未提交改动保留，临时 worktree 已清理。
+- 代码提交：`5875479` 已推送；远端 [CI 33397704667](https://github.com/nekohands/InkFlow/actions/runs/33397704667)、[Docker 33397704675](https://github.com/nekohands/InkFlow/actions/runs/33397704675)、[Security 33397704619](https://github.com/nekohands/InkFlow/actions/runs/33397704619) 均 GREEN 且 head SHA 一致。
+- 边界：确定性追更工程门禁已补齐，但真实上游新增/修订事件、真实第二来源故障切换、真实凭据/Provider、PWA 安装/跨设备、人工视觉验收和阅读 3.0/MuMu 仍按第 6 节待定；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -1203,7 +1211,7 @@ GET /legado/book-source.json
 Phase 1A / 1B 外部验收：
 
 - 阅读 3.0 导入 `/legado/book-source.json`，Search → BookInfo → TOC → Content 真机验证（按用户决定后续人工执行）。
-- Scheduler/Worker 使用真实更新数据的追更验证；4.87 已自动化当前 Kanunu8 快照的扫描、消费、去重和发布，但可控的上游新增章节事件仍待定。
+- Scheduler/Worker 使用真实更新数据的追更验证；4.87 已自动化当前 Kanunu8 快照的扫描、消费、去重和发布，5.10 又补齐确定性新增章节/增量发布回归，但真实上游新增章节事件仍待定。
 - 第二个真实 Official Source 与真实故障切源演练；当前只有确定性双来源夹具和 17K 离线 CodeAdapter 证据，不能替代真实来源验收。
 - linovelib 已完成 Search 规则的离线定义与回归，真实网络验证仍受 DNS 污染影响，待可用环境复验。
 - 本机 Docker 缺失导致 PostgreSQL Testcontainers 集成测试待本机可用容器环境复验；本轮一致性检查新增用例已在远端 CI PostgreSQL 容器中通过。
