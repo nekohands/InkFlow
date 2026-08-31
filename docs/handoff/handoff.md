@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`b50001c`；在 `2ec2a43` 的 linovelib RuleAdapter 可选真实验收 harness 基础上仅补充脚本可执行权限；本轮 Ubuntu VM、源码 Compose、迁移检查和全量测试证据见 5.15，最终三类远端门禁待运行完成后补录。
+- 最新代码候选 Commit：`b50001c`；在 `2ec2a43` 的 linovelib RuleAdapter 可选真实验收 harness 基础上仅补充脚本可执行权限；本轮 Ubuntu VM、源码 Compose、迁移检查和全量测试证据见 5.15。提交 `8673bff` 的 [CI 33418330334](https://github.com/nekohands/InkFlow/actions/runs/33418330334)、[Docker 33418330294](https://github.com/nekohands/InkFlow/actions/runs/33418330294)、[Security 33418330318](https://github.com/nekohands/InkFlow/actions/runs/33418330318) 均 GREEN 且 SHA 一致。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1163,6 +1163,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 工作包：新增服务端 linovelib RuleAdapter 的 opt-in 真实验收测试和脚本入口，默认不触发第三方网络；显式设置 `INKFLOW_LIVE_TESTS=1` 后才执行 Search → BookInfo → TOC → Content。
 - 实现：`LinovelibSourceAdapterLiveTests` 复用生产安全 HTTP/SSRF 边界和当前 Rule DSL；`scripts/linovelib-live-acceptance.sh` 校验环境门槛并运行过滤测试，CI 对脚本执行 `bash -n`，最终提交 `b50001c` 补齐可执行权限。
 - VM 证据：候选 `2ec2a43` 内容在 Ubuntu VM 隔离 worktree 完成源码构建四镜像；SDK 容器 Restore、Release Build 0 warnings / 0 errors、Unit `533/533`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；`verify-migrations.sh` 的 11 个 context PASS；Compose Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，API/Worker/Scheduler `/health` 返回 healthy。随后切到只改文件模式的 `b50001c`，脚本语法和未设置 live 开关的 NOT RUN 门槛验证通过。
+- 远端证据：提交 `8673bff` 的 [CI 33418330334](https://github.com/nekohands/InkFlow/actions/runs/33418330334)、[Docker 33418330294](https://github.com/nekohands/InkFlow/actions/runs/33418330294)、[Security 33418330318](https://github.com/nekohands/InkFlow/actions/runs/33418330318) 均 GREEN 且指向同一 head SHA；CI 包含新脚本回归、全量测试、Compose、前端、运行态、SLO、Redis/PostgreSQL 和备份恢复门禁。
 - 清理与边界：未设置 `INKFLOW_LIVE_TESTS=1`，没有运行真实 linovelib 网络验收；隔离服务、网络、容器和临时 worktree 已清理，VM 原工作树与持久卷保留。脚本不能绕过 Cloudflare，也不能将浏览器证据等同于服务端通过；该真实链路继续为 BLOCKED，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
