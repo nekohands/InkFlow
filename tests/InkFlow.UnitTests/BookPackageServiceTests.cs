@@ -122,6 +122,57 @@ public sealed class BookPackageServiceTests
     }
 
     [TestMethod]
+    public async Task Process_Removes_Published_Artifact_When_Lease_Is_Lost_Before_Completion()
+    {
+        var book = CanonicalBook.Create("租约发布书", "作者", T0);
+        var chapter = book.AddChapter(0, "第一章", T0);
+        var version = NewVersion(book.Id, chapter.Id, "正文");
+        var jobs = new InMemoryPackageJobRepository { RejectLeasedSaveOnCall = 3 };
+        var builder = new CapturingBuilder();
+        var root = Path.Combine(Path.GetTempPath(), $"inkflow-package-published-lease-test-{Guid.NewGuid():N}");
+        var options = new BookPackageOptions(
+            root,
+            MaxChapters: 100,
+            MaxPackageBytes: 1_000_000,
+            Retention: TimeSpan.FromDays(7),
+            LeaseDuration: TimeSpan.FromMinutes(10));
+        var artifacts = new FileBookPackageArtifactStore(options);
+        var service = new BookPackageService(
+            jobs,
+            new InMemoryBookRepository(book),
+            new SnapshotVersionRepository(version),
+            new AllowAllPolicy(),
+            builder,
+            artifacts,
+            options,
+            new FixedClock(T0));
+
+        try
+        {
+            var created = await service.CreateAsync(book.Id, BookPackageFormat.Epub);
+            Assert.IsTrue(created.IsSuccess);
+
+            var job = jobs.Items.Single();
+            job.Lease("package-test", T0, options.LeaseDuration);
+            await service.ProcessAsync(job);
+
+            Assert.AreEqual(3, jobs.LeasedSaveCallCount);
+            Assert.IsNotNull(builder.Document);
+            Assert.IsFalse(File.Exists(artifacts.GetTemporaryPath(job.Id, 1)));
+            Assert.IsFalse(File.Exists(
+                artifacts.GetArtifactPath(
+                    artifacts.GetArtifactFileName(job.Id, 1, BookPackageFormat.Epub))));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task Process_Does_Not_Persist_Builder_Exception_Details()
     {
         const string marker = "package-secret-marker";
@@ -288,6 +339,10 @@ public sealed class BookPackageServiceTests
 
         public bool RejectLeasedSaves { get; set; }
 
+        public int? RejectLeasedSaveOnCall { get; set; }
+
+        public int LeasedSaveCallCount { get; private set; }
+
         public Task AddAsync(BookPackageJob job, CancellationToken cancellationToken = default)
         {
             Items.Add(job);
@@ -323,8 +378,13 @@ public sealed class BookPackageServiceTests
             string leaseOwner,
             int leaseAttempt,
             DateTimeOffset now,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(!RejectLeasedSaves);
+            CancellationToken cancellationToken = default)
+        {
+            LeasedSaveCallCount++;
+            return Task.FromResult(
+                !RejectLeasedSaves &&
+                RejectLeasedSaveOnCall != LeasedSaveCallCount);
+        }
 
         public Task<IReadOnlyList<BookPackageJob>> ListExpiredAsync(
             DateTimeOffset now,
