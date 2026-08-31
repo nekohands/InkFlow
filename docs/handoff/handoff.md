@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`f29256e`；最终交接提交：`543fcaa`（在执行失败文本稳定化基础上，补齐 Phase 1B 质量失败运行时演练：同一来源完整正文与故意截断正文均经真实 Quality/Selection 服务落库，Web/Legado/Reader 三出口确认高质量版本未被替换；最终 head 的 [CI 33391231297](https://github.com/nekohands/InkFlow/actions/runs/33391231297)、[Docker 33391231323](https://github.com/nekohands/InkFlow/actions/runs/33391231323)、[Security 33391231383](https://github.com/nekohands/InkFlow/actions/runs/33391231383) 均 GREEN 且 SHA 一致；真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`f29256e`；质量门禁证据提交：`d5e78ed`（在执行失败文本稳定化基础上，补齐 Phase 1B 质量失败运行时演练：同一来源完整正文与故意截断正文均经真实 Quality/Selection 服务落库，Web/Legado/Reader 三出口确认高质量版本未被替换；该证据提交的 [CI 33392373531](https://github.com/nekohands/InkFlow/actions/runs/33392373531)、[Docker 33392373476](https://github.com/nekohands/InkFlow/actions/runs/33392373476)、[Security 33392373377](https://github.com/nekohands/InkFlow/actions/runs/33392373377) 均 GREEN 且 SHA 一致；后续仅文档性修订不改变代码候选；真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1109,7 +1109,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 工作包：补齐 Phase 1B 的 Quality failure drill；同一来源先发布完整高质量章节，再发布故意截断的低质量重放，要求选择器保留高质量当前版本。
 - 实现：AcceptanceFixtures 的 `ensure-quality-failure-catalog` 使用真实 `ContentPublishingService`、`QualityEngine` 与 `ContentSelectionService` 创建/重放候选，并输出分数、版本 ID、选择证据；`scripts/quality-failure-runtime-smoke.sh` 通过 Web `/api/v1/chapters/{chapterId}/content`、Legado `/api/legado/v1/chapters/{chapterId}` 和 `/reader/read/{chapterId}` 校验高质量标记存在且低质量标记不存在；脚本回归已加入 `.github/workflows/ci.yml`。
 - 证据：本机 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、脚本语法和 diff 检查 PASS；Ubuntu VM 脚本回归 PASS，当前源码 acceptance fixture 输出 good `100` / low `30` 且 selected 为 good，源码 Compose API/Worker/Scheduler 健康，三个公共出口运行烟测 PASS。Windows 本机缺少 `jq`，因此功能脚本不在 Windows 直接执行。
-- 代码提交：`f29256e`；最终交接提交：`543fcaa`。最终 head 的远端 [CI 33391231297](https://github.com/nekohands/InkFlow/actions/runs/33391231297)、[Docker 33391231323](https://github.com/nekohands/InkFlow/actions/runs/33391231323)、[Security 33391231383](https://github.com/nekohands/InkFlow/actions/runs/33391231383) 均 GREEN 且 SHA 一致。
+- 代码提交：`f29256e`；质量门禁证据提交：`d5e78ed`。该证据提交的远端 [CI 33392373531](https://github.com/nekohands/InkFlow/actions/runs/33392373531)、[Docker 33392373476](https://github.com/nekohands/InkFlow/actions/runs/33392373476)、[Security 33392373377](https://github.com/nekohands/InkFlow/actions/runs/33392373377) 均 GREEN 且 SHA 一致；后续仅文档性修订不改变代码候选。
 - 边界：这是确定性运行时演练，不替代真实 Official Source、真实追更、真实第二来源故障切换、阅读 3.0/MuMu 真机、真实凭据、PWA 安装/跨设备和人工视觉/可访问性验收；整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
