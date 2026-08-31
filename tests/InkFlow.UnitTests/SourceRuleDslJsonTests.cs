@@ -448,4 +448,41 @@ public sealed class SourceRuleDslJsonTests
         StringAssert.Contains(json, "\"session\"");
         Assert.IsFalse(json.Contains("sid=", StringComparison.OrdinalIgnoreCase));
     }
+
+    [TestMethod]
+    public void Serialize_Roundtrips_Bounded_Pre_Request_Chain()
+    {
+        var dsl = new SourceRuleDsl(
+            "1",
+            "pre-request-source",
+            [new CapabilityRule(
+                SourceCapability.Search,
+                new RuleRequest(
+                    RuleHttpMethod.Get,
+                    "/search",
+                    new Dictionary<string, string>(),
+                    new Dictionary<string, string> { ["token"] = "{token}" },
+                    new Dictionary<string, string>()),
+                [],
+                List: new RuleListBinding(".item", "href", string.Empty, string.Empty),
+                PreRequests: [new RuleRequestStep(
+                    "bootstrap",
+                    RuleRequest.Get("/bootstrap"),
+                    [new RuleResponseVariable(
+                        "token",
+                        new RuleSelector(SelectorKind.JsonPath, "$.token"),
+                        null,
+                        [new TrimTransform()])])])]);
+
+        var json = SourceRuleDslJson.Serialize(dsl);
+        var result = SourceRuleDslJson.Parse(json);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        var step = result.Document!.Rules[0].PreRequests!.Single();
+        Assert.AreEqual("bootstrap", step.Name);
+        Assert.AreEqual("/bootstrap", step.Request.PathTemplate);
+        Assert.AreEqual("token", step.ResponseVariables!.Single().Name);
+        StringAssert.Contains(json, "\"preRequests\"");
+        StringAssert.Contains(json, "\"responseVariables\"");
+    }
 }

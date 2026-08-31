@@ -61,10 +61,12 @@ Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在
 - Replace / Trim
 - Variable / Template
 - Pagination
+- 有界串行前置请求链（PreRequests）
 
 上面的列表描述 DSL v1 的目标 AST 能力，不等同于当前执行器全部可用。现阶段 `RuleAdapter` 的执行基线
 覆盖 GET/POST、Header/Query/Form、路径占位符、CSS 选择器、受控 XPath/JSONPath、带超时 Regex、
-Trim/Replace、Search/TOC 列表绑定和三种受控 Pagination。`CapabilityRule.Session` 可为一次
+Trim/Replace、Search/TOC 列表绑定、三种受控 Pagination 和最多 8 步的有界串行 PreRequests。
+`CapabilityRule.Session` 可为一次
 RuleAdapter 执行声明受控的 response-cookie 会话：只接收成功响应的 `Set-Cookie`，按同源最终响应、
 Domain/Path/Secure 和 Max-Age/Expires 规则向后续同源请求发送；策略最多 32 个 Cookie、累计 4 KiB、
 最长 3600 秒，状态不进入 Rule JSON 值、日志、任务载荷或跨执行存储。Session 的最终响应 URI 若因
@@ -78,7 +80,10 @@ Search/TOC 列表绑定可声明 `itemsSelectorKind` 与可选 `textAttribute`�
 `pageNumber` 在规则已声明且唯一的 query/form 参数中按 `startPage`/`pageStep` 递增，并用
 `nextPageSelector` 判断是否继续；`cursor` 从 `cursorSelector` 读取游标并写入同样的已声明参数，保留原请求方法。
 页码/游标参数不得同时出现在 query 和 form，GET 只能使用 query。next-link 必须保持来源
-scheme/host/port 同源；所有模式都受 `maxPages`、`MaxRequests`、响应字节和执行时间预算约束。
+scheme/host/port 同源；所有模式都受 `maxPages`、`MaxRequests`、响应字节和执行时间预算约束。PreRequests 按声明顺序
+串行执行；每步只能使用来源根地址构建请求，可从成功响应按受控 Selector/Regex 提取最多 32 个临时变量，供后续步骤和
+主请求模板使用。前置请求、主请求和分页请求共享 `MaxRequests`、累计响应字节、执行时间和变量上下文预算；前置响应正文
+不进入结果，跨源最终响应、派生值缺失或任一预算超限均在主请求前失败关闭。
 循环链接、重复游标、跨源/带凭据/带 fragment 的链接、非法游标和超出边界的链路整体失败，
 不暴露已抓页面。
 `SourceRuleExecutionLimits` 已接入有限的 MaxRequests、MaxBytes、MaxExecutionTime、MaxRegexTime 和
@@ -87,15 +92,15 @@ MaxResultSize，以及调用方临时请求模板变量上下文的数量、名�
 和 Form 模板值可使用 `{name}` 占位符；发布期与执行期都会拒绝未闭合/非法占位符、非法变量名和控制字符，
 执行失败不回显变量值。生产 HTTP 客户端在解码前按流读取并拒绝单响应超限。完整 XPath/JSONPath 语法仍不
 在当前执行基线内；基于 CredentialReference 的任务级初始认证及来源级默认绑定已形成 typed Bearer/Basic/API-Key
-Header 基线；持久化 Session，以及
-next-link/page-number/cursor 之外的多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
+Header 基线；持久化 Session，以及动态多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。
 派生值缺失、非法或超限会在下一次续页请求前整体失败，失败结果不暴露已抓响应、派生值或部分页面；
-最后一页不要求派生变量。该能力不提供持久化状态、跨执行状态、通用多请求序列或递归编排。
+最后一页不要求派生变量。`CapabilityRule.PreRequests` 仅提供固定的、最多 8 步的同源串行前置链；它不提供动态 URL、
+分支、循环、通用多请求序列或递归编排。
 
 `Source.DefaultCredentialReferenceId` 是来源级可选的非敏感默认绑定：规则型来源在调用方未提供显式
 `CredentialReferenceId` 时使用它，显式引用优先；RuleAdapter/Worker 只把该引用交给

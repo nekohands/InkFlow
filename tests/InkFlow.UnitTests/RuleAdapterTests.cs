@@ -1114,6 +1114,209 @@ public sealed class RuleAdapterTests
     }
 
     [TestMethod]
+    public async Task PreRequest_Derives_Transient_Variable_For_Main_Request()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.BookInfo,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/book/{bookId}",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["token"] = "{token}" },
+                new Dictionary<string, string>()),
+            [new RuleField("title", new RuleSelector(SelectorKind.Css, ".title"), null, [])],
+            PreRequests:
+            [
+                new RuleRequestStep(
+                    "bootstrap",
+                    RuleRequest.Get("/bootstrap"),
+                    [new RuleResponseVariable(
+                        "token",
+                        null,
+                        new RuleRegex("token=([^;]+)", 200),
+                        [new TrimTransform()])]),
+                new RuleRequestStep(
+                    "session",
+                    new RuleRequest(
+                        RuleHttpMethod.Get,
+                        "/session",
+                        new Dictionary<string, string>(),
+                        new Dictionary<string, string> { ["token"] = "{token}" },
+                        new Dictionary<string, string>())),
+            ]);
+        var requests = new List<SourceHttpRequest>();
+        var http = new FakeHttpClient
+        {
+            Responder = request =>
+            {
+                requests.Add(request);
+                return request.Url.EndsWith("/bootstrap", StringComparison.Ordinal)
+                    ? new SourceHttpResponse(200, "token=bootstrap-token;")
+                    : request.Url.Contains("/session?token=bootstrap-token", StringComparison.Ordinal)
+                        ? new SourceHttpResponse(200, "session")
+                    : new SourceHttpResponse(200, "book");
+            },
+        };
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (_, selector) => selector.Expression == ".title" ? "Example" : null,
+        };
+
+        var result = await new RuleAdapter(http, evaluator).ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string> { ["bookId"] = "42" });
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual("Example", result.Values["title"]);
+        Assert.AreEqual(3, requests.Count);
+        StringAssert.Contains(requests[1].Url, "/session");
+        StringAssert.Contains(requests[1].Url, "token=bootstrap-token");
+        StringAssert.Contains(requests[2].Url, "/book/42");
+        StringAssert.Contains(requests[2].Url, "token=bootstrap-token");
+        Assert.AreEqual(1, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task PreRequest_Missing_Variable_Fails_Before_Next_Request()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.BookInfo,
+            new RuleRequest(
+                RuleHttpMethod.Get,
+                "/book/{bookId}",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { ["token"] = "{token}" },
+                new Dictionary<string, string>()),
+            [new RuleField("title", new RuleSelector(SelectorKind.Css, ".title"), null, [])],
+            PreRequests:
+            [
+                new RuleRequestStep(
+                    "bootstrap",
+                    RuleRequest.Get("/bootstrap"),
+                    [new RuleResponseVariable(
+                        "token",
+                        new RuleSelector(SelectorKind.Css, ".token"),
+                        null,
+                        [])]),
+            ]);
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(200, "bootstrap"),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new FakeSelectorEvaluator { Handler = (_, _) => null });
+
+        var result = await adapter.ExecuteAsync(
+            rule,
+            BaseUrl,
+            new Dictionary<string, string> { ["bookId"] = "42" });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("preRequests")));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task PreRequests_Consume_The_Shared_Request_Budget()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.BookInfo,
+            RuleRequest.Get("/book/42"),
+            [new RuleField("title", new RuleSelector(SelectorKind.Css, ".title"), null, [])],
+            PreRequests: [new RuleRequestStep("bootstrap", RuleRequest.Get("/bootstrap"))]);
+        var http = new FakeHttpClient();
+        var adapter = new RuleAdapter(
+            http,
+            new FakeSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxRequests = 1 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("request budget")));
+        Assert.AreEqual(1, http.CallCount);
+    }
+
+    [TestMethod]
+    public async Task PreRequest_Session_Cookie_Is_Forwarded_To_The_Main_Request()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.BookInfo,
+            RuleRequest.Get("/book/42"),
+            [new RuleField("title", new RuleSelector(SelectorKind.Css, ".title"), null, [])],
+            Session: new RuleSession(),
+            PreRequests: [new RuleRequestStep("bootstrap", RuleRequest.Get("/bootstrap"))]);
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url.EndsWith("/bootstrap", StringComparison.Ordinal)
+                ? new SourceHttpResponse(200, "ready", ["sid=pre-request; Path=/"])
+                : new SourceHttpResponse(200, "<span class=\"title\">book</span>"),
+        };
+
+        var result = await new RuleAdapter(http, new FakeSelectorEvaluator()).ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsTrue(result.IsSuccess, string.Join("; ", result.Errors));
+        Assert.AreEqual(2, http.Requests.Count);
+        Assert.IsNull(http.Requests[0].CookieHeader);
+        Assert.AreEqual("sid=pre-request", http.Requests[1].CookieHeader);
+    }
+
+    [TestMethod]
+    public async Task PreRequest_Cross_Origin_Response_Fails_Before_Main_Request()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.BookInfo,
+            RuleRequest.Get("/book/42"),
+            [],
+            PreRequests: [new RuleRequestStep("bootstrap", RuleRequest.Get("/bootstrap"))]);
+        var http = new FakeHttpClient
+        {
+            Responder = _ => new SourceHttpResponse(
+                200,
+                "ready",
+                [],
+                new Uri("https://other.example.com/bootstrap")),
+        };
+
+        var result = await new RuleAdapter(http, new FakeSelectorEvaluator()).ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("response origin")));
+        Assert.AreEqual(1, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task PreRequests_Consume_The_Shared_Response_Byte_Budget()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.BookInfo,
+            RuleRequest.Get("/book/42"),
+            [],
+            PreRequests: [new RuleRequestStep("bootstrap", RuleRequest.Get("/bootstrap"))]);
+        var http = new FakeHttpClient
+        {
+            Responder = request => request.Url.EndsWith("/bootstrap", StringComparison.Ordinal)
+                ? new SourceHttpResponse(200, "12345")
+                : new SourceHttpResponse(200, "1234"),
+        };
+        var adapter = new RuleAdapter(
+            http,
+            new FakeSelectorEvaluator(),
+            new SourceRuleExecutionLimits { MaxBytes = 8 });
+
+        var result = await adapter.ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("response exceeded byte budget")));
+        Assert.AreEqual(2, http.CallCount);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
     public async Task Cursor_Pagination_Fails_Closed_When_A_Cursor_Repeats()
     {
         var rule = new CapabilityRule(

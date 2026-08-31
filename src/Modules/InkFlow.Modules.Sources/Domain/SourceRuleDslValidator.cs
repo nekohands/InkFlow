@@ -34,6 +34,8 @@ public static class SourceRuleDslValidator
     public const int MaxSessionCookies = 32;
     public const int MaxSessionCookieBytes = 4_096;
     public const int MaxSessionCookieLifetimeSeconds = 3_600;
+    public const int MaxPreRequests = 8;
+    public const int MaxRequestStepNameLength = 64;
 
     private static readonly System.Text.RegularExpressions.Regex PlaceholderPattern =
         new(@"\{([A-Za-z_][A-Za-z0-9_]*)\}", RegexOptions.Compiled);
@@ -102,16 +104,20 @@ public static class SourceRuleDslValidator
             ValidatePagination(rule, errors);
             ValidateSession(rule, errors);
             ValidateResponseVariables(rule, errors);
+            ValidatePreRequests(rule, errors);
         }
 
         return errors;
     }
 
-    private static void ValidateRequest(CapabilityRule rule, List<string> errors)
-    {
-        var prefix = $"rules[{rule.Capability}]";
-        var request = rule.Request;
+    private static void ValidateRequest(CapabilityRule rule, List<string> errors) =>
+        ValidateRequest(rule.Request, $"rules[{rule.Capability}]", errors);
 
+    private static void ValidateRequest(
+        RuleRequest? request,
+        string prefix,
+        List<string> errors)
+    {
         if (request is null)
         {
             errors.Add($"{prefix}: request must not be null.");
@@ -526,6 +532,15 @@ public static class SourceRuleDslValidator
         return errors;
     }
 
+    /// <summary>只校验单条能力规则的有界前置请求声明，供执行器复用。</summary>
+    public static IReadOnlyList<string> ValidatePreRequests(CapabilityRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        var errors = new List<string>();
+        ValidatePreRequests(rule, errors);
+        return errors;
+    }
+
     private static void ValidateSession(CapabilityRule rule, List<string> errors)
     {
         var session = rule.Session;
@@ -568,6 +583,22 @@ public static class SourceRuleDslValidator
         {
             errors.Add(
                 $"{prefix}: response variables require page-number or cursor pagination.");
+        }
+
+        ValidateResponseVariables(
+            variables,
+            prefix,
+            errors);
+    }
+
+    private static void ValidateResponseVariables(
+        IReadOnlyList<RuleResponseVariable>? variables,
+        string prefix,
+        List<string> errors)
+    {
+        if (variables is null || variables.Count == 0)
+        {
+            return;
         }
 
         if (variables.Count > MaxResponseVariablesPerRule)
@@ -659,6 +690,52 @@ public static class SourceRuleDslValidator
             }
 
             ValidateResponseVariableTransforms(variablePrefix, variable.Transforms, errors);
+        }
+    }
+
+    private static void ValidatePreRequests(CapabilityRule rule, List<string> errors)
+    {
+        var steps = rule.PreRequests;
+        if (steps is null || steps.Count == 0)
+        {
+            return;
+        }
+
+        var prefix = $"rules[{rule.Capability}] preRequests";
+        if (steps.Count > MaxPreRequests)
+        {
+            errors.Add($"{prefix}: must contain at most {MaxPreRequests} entries.");
+        }
+
+        var seenNames = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < steps.Count; index++)
+        {
+            var step = steps[index];
+            var stepPrefix = $"{prefix}[{index}]";
+            if (step is null)
+            {
+                errors.Add($"{prefix}: entries must not be null.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(step.Name) ||
+                step.Name.Length > MaxRequestStepNameLength ||
+                step.Name.Any(char.IsControl))
+            {
+                errors.Add(
+                    $"{stepPrefix}: name must be non-empty, at most " +
+                    $"{MaxRequestStepNameLength} characters, and contain no control characters.");
+            }
+            else if (!seenNames.Add(step.Name))
+            {
+                errors.Add($"{stepPrefix}: duplicate request step name.");
+            }
+
+            ValidateRequest(step.Request, $"{stepPrefix}.request", errors);
+            ValidateResponseVariables(
+                step.ResponseVariables,
+                $"{stepPrefix}.responseVariables",
+                errors);
         }
     }
 

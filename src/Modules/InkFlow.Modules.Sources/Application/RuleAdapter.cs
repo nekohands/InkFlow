@@ -83,37 +83,53 @@ public sealed class RuleAdapter
             return RuleExecutionResult.Fail(responseVariableDeclarationErrors);
         }
 
+        var preRequestDeclarationErrors = SourceRuleDslValidator.ValidatePreRequests(rule);
+        if (preRequestDeclarationErrors.Count > 0)
+        {
+            return RuleExecutionResult.Fail(preRequestDeclarationErrors);
+        }
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var sourceOrigin))
+        {
+            return RuleExecutionResult.Fail(["request: source base URL must be absolute."]);
+        }
+
+        var preRequests = rule.PreRequests ?? [];
+        var continuationVariables = new Dictionary<string, string>(
+            variables,
+            StringComparer.Ordinal);
         var initialParameterName = pagination?.Mode == RulePaginationMode.PageNumber
             ? pagination.ParameterName
             : null;
         var initialParameterValue = pagination?.Mode == RulePaginationMode.PageNumber
             ? pagination.StartPage.ToString(CultureInfo.InvariantCulture)
             : null;
-        var buildErrors = TryBuildRequest(
-            rule,
+
+        // Build and inspect the first request before resolving credentials. With a pre-request
+        // chain this is the first step; otherwise it is the capability's main request.
+        var firstRequestDefinition = preRequests.Count > 0
+            ? preRequests[0].Request
+            : rule.Request;
+        var firstBuildErrors = TryBuildRequest(
+            firstRequestDefinition,
+            rule.Capability,
             baseUrl,
-            variables,
-            initialParameterName,
-            initialParameterValue,
-            out var request);
-        if (buildErrors.Count > 0)
+            continuationVariables,
+            preRequests.Count == 0 ? initialParameterName : null,
+            preRequests.Count == 0 ? initialParameterValue : null,
+            out var firstRequest);
+        if (firstBuildErrors.Count > 0)
         {
-            return RuleExecutionResult.Fail(buildErrors);
+            return RuleExecutionResult.Fail(firstBuildErrors);
         }
 
         // 出网前的最后一道闸：字面量 SSRF 校验失败绝不发起请求。
-        if (Uri.TryCreate(request!.Url, UriKind.Absolute, out var target))
+        if (!TryValidateInitialRequest(
+                firstRequest!,
+                sourceOrigin,
+                out var firstRequestError))
         {
-            var ssrfErrors = SsrfGuard.InspectLiteral(target);
-            if (ssrfErrors.Count > 0)
-            {
-                return RuleExecutionResult.Fail(
-                    ssrfErrors.Select(e => $"ssrf: {e}").ToList());
-            }
-        }
-        else
-        {
-            return RuleExecutionResult.Fail(["request: built URL is not absolute."]);
+            return RuleExecutionResult.Fail([firstRequestError]);
         }
 
         // A zero request budget is an explicit fail-closed switch and must be checked
@@ -137,29 +153,203 @@ public sealed class RuleAdapter
             return RuleExecutionResult.Fail([credentialResolution.Error]);
         }
 
-        if (!TryApplyCredential(
-                request!,
-                credentialResolution.Credential,
-                out var preparedRequest,
-                out var credentialError))
+        var cookieJar = rule.Session is null ? null : new RuleCookieJar(rule.Session);
+        var requestCount = 0;
+        long responseBytes = 0;
+
+        for (var preIndex = 0; preIndex < preRequests.Count; preIndex++)
         {
-            return RuleExecutionResult.Fail([credentialError]);
+            var step = preRequests[preIndex];
+            SourceHttpRequest? preparedStepRequest;
+            if (preIndex == 0)
+            {
+                if (!TryApplyCredential(
+                        firstRequest!,
+                        credentialResolution.Credential,
+                        out preparedStepRequest,
+                        out var firstCredentialError))
+                {
+                    return RuleExecutionResult.Fail([firstCredentialError]);
+                }
+            }
+            else
+            {
+                var stepBuildErrors = TryBuildRequest(
+                    step.Request,
+                    rule.Capability,
+                    baseUrl,
+                    continuationVariables,
+                    null,
+                    null,
+                    out var stepRequest);
+                if (stepBuildErrors.Count > 0)
+                {
+                    return RuleExecutionResult.Fail(stepBuildErrors);
+                }
+
+                if (!TryValidateInitialRequest(
+                        stepRequest!,
+                        sourceOrigin,
+                        out var stepRequestError))
+                {
+                    return RuleExecutionResult.Fail([stepRequestError]);
+                }
+
+                if (!TryApplyCredential(
+                        stepRequest!,
+                        credentialResolution.Credential,
+                        out preparedStepRequest,
+                        out var stepCredentialError))
+                {
+                    return RuleExecutionResult.Fail([stepCredentialError]);
+                }
+            }
+
+            if (requestCount >= _limits.MaxRequests)
+            {
+                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+            }
+
+            if (preparedStepRequest!.FormBody is not null &&
+                Encoding.UTF8.GetByteCount(preparedStepRequest.FormBody) > _limits.MaxBytes)
+            {
+                return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
+            }
+
+            requestCount++;
+            SourceHttpResponse stepResponse;
+            try
+            {
+                var requestToSend = preparedStepRequest;
+                if (cookieJar is not null &&
+                    Uri.TryCreate(preparedStepRequest.Url, UriKind.Absolute, out var requestUri))
+                {
+                    requestToSend = preparedStepRequest with
+                    {
+                        CookieHeader = cookieJar.BuildCookieHeader(requestUri),
+                    };
+                }
+
+                stepResponse = await _httpClient
+                    .SendAsync(requestToSend, executionCancellation.Token)
+                    .WaitAsync(executionCancellation.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
+            {
+                return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
+            }
+            catch (SourceResponseTooLargeException)
+            {
+                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+            }
+            catch
+            {
+                return RuleExecutionResult.Fail(["http: transport failure."]);
+            }
+
+            if (!stepResponse.IsSuccess)
+            {
+                return RuleExecutionResult.Fail(
+                    [$"http: upstream returned status {stepResponse.StatusCode}."]);
+            }
+
+            responseBytes += Encoding.UTF8.GetByteCount(stepResponse.Body);
+            if (responseBytes > _limits.MaxBytes)
+            {
+                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+            }
+
+            if (!TryValidateResponseOrigin(
+                    preparedStepRequest,
+                    stepResponse,
+                    sourceOrigin,
+                    out var stepResponseOriginError))
+            {
+                return RuleExecutionResult.Fail([stepResponseOriginError]);
+            }
+
+            if (!TryAcceptResponseCookies(
+                    cookieJar,
+                    preparedStepRequest,
+                    stepResponse,
+                    sourceOrigin,
+                    out var stepSessionError))
+            {
+                return RuleExecutionResult.Fail([stepSessionError]);
+            }
+
+            var stepVariableErrors = TryBuildResponseVariables(
+                step.ResponseVariables,
+                $"rules[{rule.Capability}] preRequests[{preIndex}].responseVariables",
+                stepResponse.Body,
+                continuationVariables,
+                out var updatedVariables);
+            if (stepVariableErrors.Count > 0)
+            {
+                return RuleExecutionResult.Fail(stepVariableErrors);
+            }
+
+            continuationVariables = updatedVariables!;
         }
 
-        var sourceOrigin = target!;
-        var currentRequest = preparedRequest!;
-        var cookieJar = rule.Session is null ? null : new RuleCookieJar(rule.Session);
+        SourceHttpRequest? preparedMainRequest;
+        if (preRequests.Count == 0)
+        {
+            if (!TryApplyCredential(
+                    firstRequest!,
+                    credentialResolution.Credential,
+                    out preparedMainRequest,
+                    out var mainCredentialError))
+            {
+                return RuleExecutionResult.Fail([mainCredentialError]);
+            }
+        }
+        else
+        {
+            var mainBuildErrors = TryBuildRequest(
+                rule.Request,
+                rule.Capability,
+                baseUrl,
+                continuationVariables,
+                initialParameterName,
+                initialParameterValue,
+                out var mainRequest);
+            if (mainBuildErrors.Count > 0)
+            {
+                return RuleExecutionResult.Fail(mainBuildErrors);
+            }
+
+            if (!TryValidateInitialRequest(
+                    mainRequest!,
+                    sourceOrigin,
+                    out var mainRequestError))
+            {
+                return RuleExecutionResult.Fail([mainRequestError]);
+            }
+
+            if (!TryApplyCredential(
+                    mainRequest!,
+                    credentialResolution.Credential,
+                    out preparedMainRequest,
+                    out var mainCredentialError))
+            {
+                return RuleExecutionResult.Fail([mainCredentialError]);
+            }
+        }
+
+        var currentRequest = preparedMainRequest!;
         var pageBodies = new List<string>();
         var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
-        var continuationVariables = new Dictionary<string, string>(
-            variables,
-            StringComparer.Ordinal);
-        long responseBytes = 0;
 
         for (var page = 1; ; page++)
         {
-            if (page > _limits.MaxRequests)
+            if (requestCount >= _limits.MaxRequests)
             {
                 return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
             }
@@ -181,6 +371,7 @@ public sealed class RuleAdapter
                 return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
             }
 
+            requestCount++;
             SourceHttpResponse response;
             try
             {
@@ -269,6 +460,7 @@ public sealed class RuleAdapter
 
                     if (!TryContinueAfterPage(
                             page,
+                            requestCount,
                             pagination,
                             out var limitError))
                     {
@@ -302,6 +494,7 @@ public sealed class RuleAdapter
 
                     if (!TryContinueAfterPage(
                             page,
+                            requestCount,
                             pagination,
                             out var limitError))
                     {
@@ -309,7 +502,8 @@ public sealed class RuleAdapter
                     }
 
                     var responseVariableErrors = TryBuildResponseVariables(
-                        rule,
+                        rule.ResponseVariables,
+                        $"rules[{rule.Capability}] responseVariables",
                         response.Body,
                         continuationVariables,
                         out var updatedVariables);
@@ -374,6 +568,7 @@ public sealed class RuleAdapter
 
                     if (!TryContinueAfterPage(
                             page,
+                            requestCount,
                             pagination,
                             out var limitError))
                     {
@@ -381,7 +576,8 @@ public sealed class RuleAdapter
                     }
 
                     var responseVariableErrors = TryBuildResponseVariables(
-                        rule,
+                        rule.ResponseVariables,
+                        $"rules[{rule.Capability}] responseVariables",
                         response.Body,
                         continuationVariables,
                         out var updatedVariables);
@@ -556,13 +752,13 @@ public sealed class RuleAdapter
     }
 
     private List<string> TryBuildResponseVariables(
-        CapabilityRule rule,
+        IReadOnlyList<RuleResponseVariable>? responseVariables,
+        string prefix,
         string body,
         IReadOnlyDictionary<string, string> currentVariables,
         out Dictionary<string, string>? updatedVariables)
     {
         updatedVariables = null;
-        var responseVariables = rule.ResponseVariables;
         if (responseVariables is null || responseVariables.Count == 0)
         {
             updatedVariables = new Dictionary<string, string>(
@@ -579,8 +775,7 @@ public sealed class RuleAdapter
         foreach (var variable in responseVariables)
         {
             string? extracted;
-            var errorPrefix =
-                $"rules[{rule.Capability}] responseVariables['{variable.Name}']";
+            var errorPrefix = $"{prefix}['{variable.Name}']";
 
             if (variable.Selector is { } selector)
             {
@@ -643,6 +838,7 @@ public sealed class RuleAdapter
 
     private bool TryContinueAfterPage(
         int page,
+        int requestsUsed,
         RulePagination pagination,
         out string error)
     {
@@ -652,7 +848,7 @@ public sealed class RuleAdapter
             return false;
         }
 
-        if (page >= _limits.MaxRequests)
+        if (requestsUsed >= _limits.MaxRequests)
         {
             error = "execution: request budget exceeded.";
             return false;
@@ -776,8 +972,118 @@ public sealed class RuleAdapter
         string.Equals(expected.Host, actual.Host, StringComparison.OrdinalIgnoreCase) &&
         expected.Port == actual.Port;
 
+    private static bool TryValidateInitialRequest(
+        SourceHttpRequest request,
+        Uri sourceOrigin,
+        out string error)
+    {
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var target) ||
+            target.Fragment.Length > 0 ||
+            target.UserInfo.Length > 0)
+        {
+            error = "request: built URL is not a permitted URL.";
+            return false;
+        }
+
+        var ssrfErrors = SsrfGuard.InspectLiteral(target);
+        if (ssrfErrors.Count > 0)
+        {
+            error = $"ssrf: {string.Join("; ", ssrfErrors)}";
+            return false;
+        }
+
+        if (!IsSameOrigin(sourceOrigin, target))
+        {
+            error = "request: built URL must stay on the source origin.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryValidateResponseOrigin(
+        SourceHttpRequest request,
+        SourceHttpResponse response,
+        Uri sourceOrigin,
+        out string error)
+    {
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var requestUri))
+        {
+            error = "pre-request: request URI is invalid.";
+            return false;
+        }
+
+        var responseUri = response.ResponseUri ?? requestUri;
+        if (!responseUri.IsAbsoluteUri ||
+            responseUri.Fragment.Length > 0 ||
+            responseUri.UserInfo.Length > 0 ||
+            !IsSameOrigin(sourceOrigin, responseUri))
+        {
+            error = "pre-request: response origin changed during redirect.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static bool TryAcceptResponseCookies(
+        RuleCookieJar? cookieJar,
+        SourceHttpRequest request,
+        SourceHttpResponse response,
+        Uri sourceOrigin,
+        out string error)
+    {
+        if (cookieJar is null)
+        {
+            error = string.Empty;
+            return true;
+        }
+
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var requestUri))
+        {
+            error = "session: request URI is invalid.";
+            return false;
+        }
+
+        var responseUri = response.ResponseUri ?? requestUri;
+        if (!responseUri.IsAbsoluteUri || !IsSameOrigin(sourceOrigin, responseUri))
+        {
+            error = "session: response origin changed during redirect.";
+            return false;
+        }
+
+        var sessionError = cookieJar.Accept(response.SetCookieHeaders, responseUri);
+        if (sessionError is not null)
+        {
+            error = sessionError;
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
     private static List<string> TryBuildRequest(
         CapabilityRule rule,
+        string baseUrl,
+        IReadOnlyDictionary<string, string> variables,
+        string? overrideParameterName,
+        string? overrideParameterValue,
+        out SourceHttpRequest? request)
+        => TryBuildRequest(
+            rule.Request,
+            rule.Capability,
+            baseUrl,
+            variables,
+            overrideParameterName,
+            overrideParameterValue,
+            out request);
+
+    private static List<string> TryBuildRequest(
+        RuleRequest requestDefinition,
+        SourceCapability capability,
         string baseUrl,
         IReadOnlyDictionary<string, string> variables,
         string? overrideParameterName,
@@ -786,7 +1092,7 @@ public sealed class RuleAdapter
     {
         request = null;
         var errors = new List<string>();
-        var prefix = $"rules[{rule.Capability}]";
+        var prefix = $"rules[{capability}]";
 
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
@@ -794,7 +1100,7 @@ public sealed class RuleAdapter
             return errors;
         }
 
-        if (rule.Request.Headers.Keys.Any(IsCookieHeaderName))
+        if (requestDefinition.Headers.Keys.Any(IsCookieHeaderName))
         {
             errors.Add(
                 $"{prefix}: Cookie/Set-Cookie headers are not allowed; " +
@@ -802,14 +1108,18 @@ public sealed class RuleAdapter
             return errors;
         }
 
-        var path = FillTemplate($"{prefix}.pathTemplate", rule.Request.PathTemplate, variables, errors);
-        var queryValues = rule.Request.Query.ToDictionary(
+        var path = FillTemplate(
+            $"{prefix}.pathTemplate",
+            requestDefinition.PathTemplate,
+            variables,
+            errors);
+        var queryValues = requestDefinition.Query.ToDictionary(
             pair => pair.Key,
             pair => string.Equals(pair.Key, overrideParameterName, StringComparison.Ordinal)
                 ? overrideParameterValue ?? string.Empty
                 : FillTemplate($"{prefix}.query['{pair.Key}']", pair.Value, variables, errors));
 
-        var headers = rule.Request.Headers.ToDictionary(
+        var headers = requestDefinition.Headers.ToDictionary(
             pair => pair.Key,
             pair => FillTemplate($"{prefix}.headers['{pair.Key}']", pair.Value, variables,
                 errors, encodeValues: false),
@@ -843,8 +1153,8 @@ public sealed class RuleAdapter
             builder.Query = string.IsNullOrEmpty(existing) ? appended : $"{existing}&{appended}";
         }
 
-        var formBody = rule.Request.Method == RuleHttpMethod.Post && rule.Request.Form.Count > 0
-            ? string.Join('&', rule.Request.Form.Select(p =>
+        var formBody = requestDefinition.Method == RuleHttpMethod.Post && requestDefinition.Form.Count > 0
+            ? string.Join('&', requestDefinition.Form.Select(p =>
                 $"{Uri.EscapeDataString(FillTemplate(prefix, p.Key, variables, errors, encodeValues: false))}=" +
                 $"{Uri.EscapeDataString(string.Equals(p.Key, overrideParameterName, StringComparison.Ordinal)
                     ? overrideParameterValue ?? string.Empty
@@ -858,7 +1168,7 @@ public sealed class RuleAdapter
 
         // AbsoluteUri 保留百分号编码；ToString() 会为显示而把转义还原成原始字符。
         request = new SourceHttpRequest(
-            rule.Request.Method,
+            requestDefinition.Method,
             builder.Uri.AbsoluteUri,
             headers,
             formBody);

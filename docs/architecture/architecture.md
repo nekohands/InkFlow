@@ -90,9 +90,9 @@ Quality 决策必须输出可解释 Evidence 和 AlgorithmVersion，并支持人
 
 RuleAdapter 的 Rule JSON 经过版本化严格 codec 和离线 Fixture 边界；未知属性/转换类型、缺失核心字段、
 超大文档和超出集合/表达式上限的规则必须 fail-closed。当前执行基线覆盖 GET/POST、Header/Query/Form、路径
-占位符、CSS、受控 XPath/JSONPath、带超时 Regex、Trim/Replace、列表绑定和三种受控 Pagination；路径、Header、
-Query、Form 模板均支持有界的调用方变量上下文，执行器已应用有限的请求数、请求/响应字节、执行时间、正则
-时间、结果大小和变量上下文预算，生产 HTTP 读取也有流式响应体上限。
+占位符、CSS、受控 XPath/JSONPath、带超时 Regex、Trim/Replace、列表绑定、三种受控 Pagination 和最多 8 步的
+有界同源前置请求链；路径、Header、Query、Form 模板均支持有界的调用方变量上下文，执行器已应用有限的请求数、
+请求/响应字节、执行时间、正则时间、结果大小和变量上下文预算，生产 HTTP 读取也有流式响应体上限。
 任务级 `CredentialReferenceId` 已通过 `SourceExecutionContext` 贯通活动 Worker 的 TOC/Content 链路；
 `Source.DefaultCredentialReferenceId` 提供来源级可选的非敏感默认绑定，RuleAdapter/Worker 仅在调用方
 未提供显式引用时回退，显式引用优先。两者均由 `ISourceCredentialProvider` 解析并仅投影为 Bearer、Basic
@@ -112,9 +112,12 @@ DTD/外部实体、超大文档或超量匹配必须 fail-closed。`RulePaginati
 Domain/Path/Secure、生命周期和数量/字节边界发送到后续请求，Cookie 不写入 Rule JSON 值、日志、任务载荷
 或跨执行存储。`CapabilityRule.ResponseVariables` 仅在 page-number/cursor 续页存在时从当前响应派生
 临时请求变量，复用同一变量预算，缺失/非法/超限在续页出网前整体失败且不进入结果或日志；不提供
-持久化或跨执行状态。来源级默认 CredentialReference 回退已接入，但持久化 Session，以及三种受控分页之外的
-多请求/递归执行所需的完整 Redirect/Depth 策略仍需
-对应运行时引擎与独立回归，不能由解析通过替代真实执行验收。
+持久化或跨执行状态。`CapabilityRule.PreRequests` 的每一步只能声明一个同源请求，并可从成功响应派生临时变量
+供后续步骤或主请求使用；步骤、主请求和分页请求共享 `MaxRequests`、累计响应字节和执行时间预算，前置响应正文
+不进入 `RuleExecutionResult`，跨源响应、派生值缺失或任一预算超限均在主请求前整体失败。该能力不提供动态 URL、
+分支、循环或递归编排。来源级默认 CredentialReference 回退已接入，但持久化 Session，以及三种受控分页与固定
+前置链之外的多请求/递归执行所需的完整 Redirect/Depth 策略仍需对应运行时引擎与独立回归，不能由解析通过替代真实
+执行验收。
 
 抓取分层：
 

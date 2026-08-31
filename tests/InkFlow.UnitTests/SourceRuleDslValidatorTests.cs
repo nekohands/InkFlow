@@ -457,4 +457,91 @@ public sealed class SourceRuleDslValidatorTests
 
         Assert.IsTrue(result.Any(error => error.Contains("control characters")));
     }
+
+    [TestMethod]
+    public void Bounded_Pre_Request_Chain_Passes_Validation()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            PreRequests = [
+                new RuleRequestStep(
+                    "bootstrap",
+                    RuleRequest.Get("/bootstrap"),
+                    [new RuleResponseVariable(
+                        "token",
+                        new RuleSelector(SelectorKind.JsonPath, "$.token"),
+                        null,
+                        [new TrimTransform()])]),
+                new RuleRequestStep(
+                    "session",
+                    new RuleRequest(
+                        RuleHttpMethod.Post,
+                        "/session",
+                        new Dictionary<string, string>(),
+                        new Dictionary<string, string>(),
+                        new Dictionary<string, string> { ["token"] = "{token}" }))
+            ]
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "pre-request-source", [rule]));
+
+        CollectionAssert.AreEqual(Array.Empty<string>(), (System.Collections.ICollection)result);
+    }
+
+    [TestMethod]
+    public void Pre_Request_Chain_Rejects_Overlong_And_Duplicate_Steps()
+    {
+        var steps = Enumerable.Range(0, SourceRuleDslValidator.MaxPreRequests + 1)
+            .Select(index => new RuleRequestStep(
+                index == 1 ? "bootstrap" : "step-" + index,
+                RuleRequest.Get("/step-" + index)))
+            .ToArray();
+        steps[0] = steps[0] with { Name = "bootstrap" };
+
+        var rule = ValidDsl().Rules[0] with { PreRequests = steps };
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "pre-request-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("at most 8 entries")));
+        Assert.IsTrue(result.Any(error => error.Contains("duplicate request step name")));
+    }
+
+    [TestMethod]
+    public void Pre_Request_Step_Name_Must_Be_Safe_And_Bounded()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            PreRequests = [new RuleRequestStep(
+                new string('x', SourceRuleDslValidator.MaxRequestStepNameLength + 1),
+                RuleRequest.Get("/bootstrap"))]
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "pre-request-source", [rule]));
+
+        Assert.IsTrue(result.Any(error => error.Contains("preRequests[0]") && error.Contains("name")));
+    }
+
+    [TestMethod]
+    public void Pre_Request_Response_Variables_Do_Not_Require_Pagination()
+    {
+        var rule = ValidDsl().Rules[0] with
+        {
+            PreRequests = [new RuleRequestStep(
+                "bootstrap",
+                RuleRequest.Get("/bootstrap"),
+                [new RuleResponseVariable(
+                    "token",
+                    new RuleSelector(SelectorKind.JsonPath, "$.token"),
+                    null,
+                    [])])]
+        };
+
+        var result = SourceRuleDslValidator.Validate(
+            new SourceRuleDsl("1", "pre-request-source", [rule]));
+
+        Assert.IsFalse(result.Any(error => error.Contains("page-number or cursor")));
+        Assert.IsFalse(result.Any(error => error.Contains("preRequests")));
+    }
 }
