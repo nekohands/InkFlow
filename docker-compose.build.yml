@@ -81,6 +81,8 @@ services:
       NUGET_PACKAGES: /tmp/nuget-packages
     volumes:
       - .:/workspace:ro
+      - inkflow-acceptance-nuget:/tmp/nuget-packages
+      - inkflow-acceptance-nuget-http:/tmp/nuget-http-cache
     depends_on:
       postgres:
         condition: service_healthy
@@ -212,6 +214,8 @@ services:
       start_period: 5s
 
 volumes:
+  inkflow-acceptance-nuget:
+  inkflow-acceptance-nuget-http:
   inkflow-postgres:
   inkflow-redis:
   inkflow-packages:
