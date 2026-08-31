@@ -89,7 +89,9 @@ jobs:
           bash scripts/tests/quality-failure-runtime-smoke.test.sh
 
       - name: Opt-in live source acceptance script regression
-        run: bash -n scripts/kanunu-live-acceptance.sh
+        run: |
+          bash -n scripts/kanunu-live-acceptance.sh
+          bash -n scripts/linovelib-live-acceptance.sh
 
       - name: Private library smoke script regression
         run: |
