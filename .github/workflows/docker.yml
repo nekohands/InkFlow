@@ -22,7 +22,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: otel/opentelemetry-collector:0.159.0
-          trivyignores: .trivyignore-collector
+          trivyignores: ${{ github.workspace }}/.trivyignore-collector
           scanners: vuln
           vuln-type: os,library
           severity: HIGH,CRITICAL
