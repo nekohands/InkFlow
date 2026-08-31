@@ -1,6 +1,6 @@
 # 采集工作台 v1 需求对齐草案
 
-状态：需求已对齐，代码已落地；当前代码候选为 `b0b48af`，在书籍包租约写入栅栏、直接地址采集启动原子化和 CollectionRun 领取门禁基础上，补齐采集子任务入队与任务执行启动的父运行事务门禁。候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 并发回归、完整测试和采集/打包非阅读 App 自动化运行验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
+状态：需求已对齐，代码已落地；当前代码候选为 `835ccd5`，在书籍包租约写入栅栏、直接地址采集启动原子化和 CollectionRun 领取门禁基础上，补齐采集子任务入队与任务执行启动的父运行事务门禁，并确保任务启动被拒绝时不提前推进父运行。候选已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 并发回归、完整测试和采集/打包非阅读 App 自动化运行验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
 日期：2026-08-31
 范围：采集运行控制、进度可视化、书籍地址采集、已入库书籍打包
 
@@ -202,6 +202,7 @@ GET  /api/v1/admin/packages/{packageId}/download   # 仅 Completed
 - 新增 `crawler.runs`，保存运行身份、来源、外部书籍 ID、规范化输入地址、阶段、状态、错误和时间戳；
 - `crawler.tasks` 增加可选 `RunId`，现有无父运行的周期追更任务保持兼容；
 - CrawlerTask 的租约查询必须排除 `Paused`、`Stopping`、`Stopped`、`Cancelled`、`Failed`、`Completed` 运行下的新任务；
+- 带 `RunId` 的后续任务入队和已领取任务启动必须在持久化层重新锁定并读取父运行状态；任务启动门禁拒绝时不得调用执行器或提前推进父运行，`Pending` 父运行与成功启动的任务在生产事务内一起进入 `Running`；
 - 进度查询基于数据库事实，不能仅依赖消息或内存计数。
 
 ### 9.2 Sources / Library / Content

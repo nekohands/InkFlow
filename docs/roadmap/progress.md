@@ -1259,9 +1259,9 @@ Phase 1A 自动化工作包状态：
 
 - 缺陷：内容抓取链和 BookInfo 处理器先读取父 `CollectionRun` 状态、再分别做去重/插入子任务；任务处理器也先读取状态、标记工作开始并保存任务，随后才调用执行器。暂停、停止或取消事务可能在这些步骤之间提交，导致已受控运行仍追加任务或调用外部执行器。
 - TDD 与实现：新增 `TryAddIfNoConflictingTaskForCollectionRunAsync` 与 `TryMarkRunningAsync` 仓储 seam；生产 EF 实现在同一 PostgreSQL 事务内锁定父运行 `FOR UPDATE` 并重新读取状态，将带 `RunId` 的去重、子任务和 Outbox 写入置于运行门禁之后。执行启动按任务→父运行顺序加锁，只允许 `Pending/Running/Paused` 入队、允许 `Pending/Running/Paused/Stopping` 启动；父运行终态/缺失时原子取消任务且不调用执行器，`Pending` 父运行与任务启动在同一事务内推进为 `Running`。不新增 Migration，不改变无 `RunId` 历史任务兼容路径。
-- 回归：新增内容链、BookInfo 子任务入队和执行启动的红→绿回归；跨连接 PostgreSQL 回归覆盖 `Collection_Run_Enqueue_Rechecks_Parent_Run_After_Control_Transaction_Commits`、`Task_Start_Rechecks_Parent_Run_After_Control_Transaction_Commits` 及 Pending 父运行正向启动。VM 定向控制竞态 3/3、任务启动 2/2 通过；Unit 中 ContentFetchChain 10/10、BookInfo 5/5、Processor 4/4 通过。
-- Ubuntu VM 证据：同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Architecture 1/1、Contract 10/10、Unit 525/525、Integration 101 passed / 2 skipped / 0 failed。当前 `b0b48af` 以 `docker-compose.build.yml` 源码构建四个业务镜像；Migration 与 packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis 健康，三个服务 `/health` 均返回 200。按本轮要求已执行 `docker compose down --remove-orphans`，服务容器和网络已清理，持久卷保留。
-- 远端门禁：代码候选 `b0b48af` 的 [CI 33377607509](https://github.com/nekohands/InkFlow/actions/runs/33377607509)、[Docker 33377607515](https://github.com/nekohands/InkFlow/actions/runs/33377607515)、[Security 33377607513](https://github.com/nekohands/InkFlow/actions/runs/33377607513) 均 GREEN 且指向同一 head SHA。
+- 回归：新增内容链、BookInfo 子任务入队和执行启动的红→绿回归；跨连接 PostgreSQL 回归覆盖 `Collection_Run_Enqueue_Rechecks_Parent_Run_After_Control_Transaction_Commits`、`Task_Start_Rechecks_Parent_Run_After_Control_Transaction_Commits` 及 Pending 父运行正向启动。二次审计又补充 `Rejected_Atomic_Start_Does_Not_Advance_Pending_Collection_Run`，确保启动门禁拒绝时父运行仍为 Pending。VM 定向控制竞态 3/3、任务启动 2/2 通过；Unit 中 ContentFetchChain 10/10、BookInfo 5/5、Processor 5/5 通过。
+- Ubuntu VM 证据：同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Architecture 1/1、Contract 10/10、Unit 526/526、Integration 101 passed / 2 skipped / 0 failed。当前 `835ccd5` 以 `docker-compose.build.yml` 源码构建四个业务镜像；Migration 与 packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis 健康，三个服务 `/health` 均返回 200。按本轮要求已执行 `docker compose down --remove-orphans`，服务容器和网络已清理，持久卷保留。
+- 远端门禁：代码候选 `835ccd5` 的 [CI 33380404527](https://github.com/nekohands/InkFlow/actions/runs/33380404527)、[Docker 33380404455](https://github.com/nekohands/InkFlow/actions/runs/33380404455)、[Security 33380404474](https://github.com/nekohands/InkFlow/actions/runs/33380404474) 均 GREEN 且指向同一 head SHA。
 - 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
 ## 5. Phase 1A 核心验收链路
@@ -1398,7 +1398,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `b0b48af` 已补齐采集任务租约、CollectionRun 控制状态、子任务入队与任务执行启动的 PostgreSQL 并发事务门禁；Progress、Handoff 与需求对齐文档已同步本轮证据。VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit 525/525、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed，新增定向竞态回归 3/3 与任务启动回归 2/2；当前 head 的源码 Compose 重建、Migration、服务健康检查均通过，随后 Compose 已停止，服务容器和网络已清理，持久卷保留。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过。
+最新状态（2026-08-31）：代码候选 `835ccd5` 已补齐采集任务租约、CollectionRun 控制状态、子任务入队与任务执行启动的 PostgreSQL 并发事务门禁，并修复任务启动拒绝时父运行被提前推进的问题；Progress、Handoff、ADR 与需求对齐文档已同步本轮证据。VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit 526/526、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed，新增定向控制竞态 3/3、任务启动 2/2 和处理器回归 5/5；当前 head 的源码 Compose 重建、Migration、服务健康检查均通过，随后 Compose 已停止，服务容器和网络已清理，持久卷保留。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
