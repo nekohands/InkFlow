@@ -335,8 +335,10 @@ jobs:
 
       - name: Developer API runtime smoke
         run: |
-          chmod +x scripts/developer-api-runtime-smoke.sh
-          scripts/developer-api-runtime-smoke.sh http://localhost:8080
+          chmod +x scripts/developer-api-runtime-smoke.sh scripts/disable-acceptance-user.sh
+          env \
+            INKFLOW_DEVELOPER_API_SMOKE_DISABLE_USER_HELPER="$GITHUB_WORKSPACE/scripts/disable-acceptance-user.sh" \
+            scripts/developer-api-runtime-smoke.sh http://localhost:8080
 
       - name: Admin runtime smoke
         run: |

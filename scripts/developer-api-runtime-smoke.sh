@@ -11,13 +11,20 @@ base_url="${1:-${INKFLOW_DEVELOPER_API_SMOKE_BASE_URL:-http://localhost:8080}}"
 max_time="${INKFLOW_DEVELOPER_API_SMOKE_CURL_MAX_TIME:-10}"
 curl_bin="${INKFLOW_DEVELOPER_API_SMOKE_CURL_BIN:-curl}"
 jq_bin="${INKFLOW_DEVELOPER_API_SMOKE_JQ_BIN:-jq}"
+disable_user_helper="${INKFLOW_DEVELOPER_API_SMOKE_DISABLE_USER_HELPER:-$script_dir/disable-acceptance-user.sh}"
 work_dir=""
+email=""
 user_token=""
 application_id=""
 issued_key_id=""
 issued_raw_key=""
 rotated_key_id=""
 rotated_raw_key=""
+other_user_token=""
+other_application_id=""
+other_raw_key=""
+other_email=""
+quota_raw_keys=()
 
 fail() {
   printf 'developer-api-runtime-smoke: %s\n' "$1" >&2
@@ -50,6 +57,10 @@ if ! command -v "$jq_bin" >/dev/null 2>&1; then
   fail "jq executable not found: $jq_bin"
 fi
 
+if [[ ! -f "$disable_user_helper" ]]; then
+  fail "disabled-user helper not found: $disable_user_helper"
+fi
+
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/inkflow-developer-api.XXXXXX")"
 
 cleanup() {
@@ -58,12 +69,30 @@ cleanup() {
 
   # There is intentionally no account-delete API. Revoke the application so
   # a failed smoke run cannot leave an active developer credential behind.
+  if [[ -n "$other_user_token" && -n "$other_application_id" ]]; then
+    "$curl_bin" --silent --show-error --max-time "$max_time" \
+      --request DELETE \
+      -H "Authorization: Bearer $other_user_token" \
+      "$base_url/api/v1/me/developer-applications/$other_application_id" \
+      >/dev/null 2>&1 || true
+  fi
+
   if [[ -n "$user_token" && -n "$application_id" ]]; then
     "$curl_bin" --silent --show-error --max-time "$max_time" \
       --request DELETE \
       -H "Authorization: Bearer $user_token" \
       "$base_url/api/v1/me/developer-applications/$application_id" \
       >/dev/null 2>&1 || true
+  fi
+
+  # Keep generated accounts from remaining active. The helper is deliberately
+  # an explicit local/CI seam because disabling a user is an infrastructure
+  # fixture operation, not a public product API.
+  if [[ -n "$other_email" ]]; then
+    bash "$disable_user_helper" "$other_email" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$email" ]]; then
+    bash "$disable_user_helper" "$email" >/dev/null 2>&1 || true
   fi
 
   if [[ -n "$work_dir" ]]; then
@@ -251,8 +280,74 @@ get_json "/api/v1/me/developer-applications/$application_id/keys" "$user_token" 
   'all(.[]; has("apiKey") | not) and any(.[]; .keyId == $old_key_id and .revokedAt != null) and any(.[]; .keyId == $new_key_id and .revokedAt == null)' \
   "$work_dir/key-list-after-rotation.json" >/dev/null || fail 'key rotation state is not reflected in the key list'
 
-expect_developer_status '/api/developer/v1/books?limit=1' "$rotated_raw_key" 200 \
-  "$work_dir/catalog-before-revoke.json"
+quota_raw_keys=("$rotated_raw_key")
+for quota_key_index in 1 2 3; do
+  quota_key_payload="$("$jq_bin" -nc \
+    --arg name "CI Developer Quota Key $quota_key_index" \
+    '{name: $name}')"
+  post_json "/api/v1/me/developer-applications/$application_id/keys" "$user_token" \
+    "$quota_key_payload" "$work_dir/quota-key-$quota_key_index.json"
+  quota_raw_keys+=("$("$jq_bin" -er '.apiKey' "$work_dir/quota-key-$quota_key_index.json")")
+done
+
+get_json /api/v1/me/entitlement "$user_token" "$work_dir/quota-entitlement-before.json"
+quota_remaining="$("$jq_bin" -er '.quota.remainingUnits' "$work_dir/quota-entitlement-before.json")"
+quota_cost=5
+quota_success_count=$((quota_remaining / quota_cost))
+if (( quota_success_count < 1 || quota_success_count > 1000 )); then
+  fail "free quota remaining units produced an unsafe smoke count: $quota_remaining"
+fi
+
+quota_route='/api/developer/v1/chapters/00000000-0000-4000-8000-000000000001/content'
+quota_response="$work_dir/quota-response.json"
+for ((quota_request_index = 0; quota_request_index < quota_success_count; quota_request_index++)); do
+  quota_key="${quota_raw_keys[$((quota_request_index % ${#quota_raw_keys[@]}))]}"
+  expect_developer_status "$quota_route" "$quota_key" 404 "$quota_response"
+done
+
+quota_exceeded_key="${quota_raw_keys[$((quota_success_count % ${#quota_raw_keys[@]}))]}"
+expect_developer_status "$quota_route" "$quota_exceeded_key" 429 \
+  "$work_dir/quota-exceeded.json" --dump-header "$work_dir/quota-exceeded.headers"
+"$jq_bin" -e \
+  '.error == "quota_exceeded" and (.periodEnd | type == "string") and (.remainingUnits | type == "number")' \
+  "$work_dir/quota-exceeded.json" >/dev/null || fail 'quota overage response is invalid'
+if ! grep -Eiq '^Retry-After:[[:space:]]*[1-9][0-9]*[[:space:]]*$' \
+  "$work_dir/quota-exceeded.headers"; then
+  fail 'quota overage response is missing a positive Retry-After header'
+fi
+
+other_email="ci-developer-isolation-${run_id}@example.com"
+other_registration_payload="$("$jq_bin" -nc \
+  --arg email "$other_email" \
+  --arg password "$test_password" \
+  '{email: $email, password: $password}')"
+post_json /api/v1/auth/register '' "$other_registration_payload" "$work_dir/other-register.json"
+other_user_token="$("$jq_bin" -er '.access_token' "$work_dir/other-register.json")"
+
+get_json /api/v1/me/entitlement "$other_user_token" "$work_dir/other-entitlement-before.json"
+"$jq_bin" -e \
+  '.plan.code == "free" and .quota.usedUnits == 0 and .quota.remainingUnits == .quota.limitUnits' \
+  "$work_dir/other-entitlement-before.json" >/dev/null || fail 'a second user did not receive an isolated fresh quota'
+
+post_json /api/v1/me/developer-applications/ "$other_user_token" \
+  '{"name":"CI Developer Isolation Smoke"}' "$work_dir/other-application-create.json"
+other_application_id="$("$jq_bin" -er '.applicationId' "$work_dir/other-application-create.json")"
+post_json "/api/v1/me/developer-applications/$other_application_id/keys" "$other_user_token" \
+  '{"name":"CI Developer Isolation Key"}' "$work_dir/other-key-create.json"
+other_raw_key="$("$jq_bin" -er '.apiKey' "$work_dir/other-key-create.json")"
+expect_developer_status '/api/developer/v1/books?limit=1' "$other_raw_key" 200 \
+  "$work_dir/other-catalog.json"
+"$jq_bin" -e 'type == "array"' "$work_dir/other-catalog.json" >/dev/null || \
+  fail 'a second user could not access the developer catalog after the first user exhausted quota'
+
+if ! bash "$disable_user_helper" "$other_email" >/dev/null 2>&1; then
+  fail 'disabled-user fixture could not disable the second smoke account'
+fi
+expect_status /api/v1/me/entitlement 401 "$work_dir/other-entitlement-disabled.json" \
+  -H "Authorization: Bearer $other_user_token"
+expect_status '/api/developer/v1/books?limit=1' 401 "$work_dir/other-catalog-disabled.json" \
+  -H "X-InkFlow-Api-Key: $other_raw_key"
+
 if ! "$curl_bin" --silent --show-error --fail --max-time "$max_time" \
   --request DELETE \
   -H "Authorization: Bearer $user_token" \
@@ -273,4 +368,4 @@ if ! "$curl_bin" --silent --show-error --fail --max-time "$max_time" \
 fi
 application_id=''
 
-printf 'developer-api-runtime-smoke: PASS (account, entitlement, app/key lifecycle, redaction, header-only auth, catalog quota path, rotation, revoke)\n'
+printf 'developer-api-runtime-smoke: PASS (account, entitlement, app/key lifecycle, redaction, header-only auth, catalog quota path, quota 429/retry-after, cross-account isolation, disabled-user rejection, rotation, revoke)\n'
