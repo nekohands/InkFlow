@@ -1293,6 +1293,13 @@ Phase 1A 自动化工作包状态：
 - 远端门槛：代码候选 `f29256e` 尚未推送；推送后必须重新确认 CI、Docker、Security 三者均指向最终 head SHA 并通过。
 - 当前状态：本工作包为 `Implemented`，质量失败自动化门禁已补齐，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
+### 5.9 1.0 前端自动化证据矩阵对齐（本轮，2026-08-31）
+
+- 发现：`phase-1-acceptance.md` 的 Phase 1A UX 清单仍全部使用未勾选状态，未区分已经完成的浏览器/运行时自动化门禁与仍需人工视觉、真实账户、PWA 安装和阅读 3.0 验收的项目，容易造成证据状态误读。
+- 修复：在 Phase 1A 验收文档新增独立的 Automated evidence 小节，明确记录 Web Reader 多视口、Reader/PWA shell 与离线、Operations/采集打包、敏感字段排除和契约门禁的自动化范围；原 UX 清单改标为 Human / visual acceptance evidence，保持未完成项不被自动化结果替代。
+- 证据入口：`scripts/reader-frontend-runtime-smoke.sh`、`scripts/reader-account-runtime-smoke.sh`、`scripts/collection-package-runtime-smoke.sh` 及 `scripts/tests/` 回归；对应运行和浏览器证据见 4.75、4.82–4.86、4.97–4.99、5.8。
+- 当前状态：文档证据已对齐；真实 PWA 安装/跨设备、长时间阅读、真实账户、人工视觉/触控/对比度和阅读 3.0/MuMu 仍保持 `NOT RUN`/待定，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

@@ -1112,6 +1112,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 代码提交：`f29256e`；质量门禁证据提交：`d5e78ed`。该证据提交的远端 [CI 33392373531](https://github.com/nekohands/InkFlow/actions/runs/33392373531)、[Docker 33392373476](https://github.com/nekohands/InkFlow/actions/runs/33392373476)、[Security 33392373377](https://github.com/nekohands/InkFlow/actions/runs/33392373377) 均 GREEN 且 SHA 一致；后续仅文档性修订不改变代码候选。
 - 边界：这是确定性运行时演练，不替代真实 Official Source、真实追更、真实第二来源故障切换、阅读 3.0/MuMu 真机、真实凭据、PWA 安装/跨设备和人工视觉/可访问性验收；整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.9 1.0 前端自动化证据矩阵对齐交接（本轮，2026-08-31）
+
+- 发现：`docs/roadmap/phase-1-acceptance.md` 的旧 UX 清单没有区分自动化门禁和人工/真实环境验收，虽然 Progress 已记录浏览器自动化通过，但文件状态容易被误读为自动化未执行。
+- 修复：Phase 1A 文档新增 Automated evidence 小节，列出 Web Reader 多视口、Reader/PWA shell/离线、Operations/采集打包、敏感信息排除和契约检查的自动化范围；原清单明确标为 Human / visual acceptance evidence，未把人工项错误勾选为完成。
+- 对应入口：`scripts/reader-frontend-runtime-smoke.sh`、`scripts/reader-account-runtime-smoke.sh`、`scripts/collection-package-runtime-smoke.sh`，结构回归位于 `scripts/tests/`；运行证据见 Progress 4.75、4.82–4.86、4.97–4.99、5.8。
+- 边界：真实 PWA 安装/跨设备、长时间阅读、真实账户、人工视觉/触控/对比度、真实 Official Source 与阅读 3.0/MuMu 仍未执行；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

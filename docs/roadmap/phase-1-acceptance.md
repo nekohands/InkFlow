@@ -49,6 +49,36 @@ Search
 
 Acceptance evidence:
 
+### Automated evidence (2026-08-31)
+
+The following automated evidence is complete and is separate from the human/visual
+checklist below:
+
+- [x] Browser automation covered the Web Reader public routes, search interaction,
+  empty/error states, chapter shell width, keyboard focus and horizontal-overflow
+  boundaries at mobile, tablet, desktop and wide-desktop viewports.
+- [x] Source-built Compose runtime smoke covered the public Reader/PWA shell,
+  manifest, icons, Service Worker registration/activation, offline-shell fallback,
+  account/shelf/history state paths and sensitive-data exclusions.
+- [x] Source-built Compose runtime smoke covered the protected Operations page,
+  anonymous authorization rejection, status/empty/error rendering and the
+  authenticated collection/package contract; the collection workbench smoke also
+  covered direct URL input, persisted controls, EPUB/TXT/ZIP integrity and download
+  availability.
+- [x] Unit, Contract and CI runtime gates covered semantic HTML markers,
+  `aria-live`/focus/reduced-motion hooks, session-token URL/HTML exclusions and
+  stable API response contracts.
+
+Evidence is recorded in `docs/roadmap/progress.md` sections 4.75, 4.82–4.86,
+4.97–4.99 and 5.8, with repository entrypoints
+`scripts/reader-frontend-runtime-smoke.sh`,
+`scripts/reader-account-runtime-smoke.sh`,
+`scripts/collection-package-runtime-smoke.sh` and their regressions under
+`scripts/tests/`. These checks do not claim real PWA installation, long-duration
+reading, real-account behavior or Reading 3.0/MuMu acceptance.
+
+### Human / visual acceptance evidence
+
 - [ ] Search → Book → Read has no unnecessary intermediate step.
 - [ ] Book Detail has an obvious `Start/Continue Reading` primary action.
 - [ ] TOC can clearly identify the current/latest chapter.
