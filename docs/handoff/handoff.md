@@ -3,9 +3,9 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
+- 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`df35d5e`（在 `d5e8322` 基础上新增 Legado Manifest + Search → BookInfo → TOC → Content 独立运行时 smoke、确定性 fixture/脚本回归及 CI 接入；候选已在 Ubuntu VM 以源码构建 Compose 完成健康启动和公开四步链路运行时验收，真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`80962fb`（在 `df35d5e` 基础上补齐公共正文读取前的持久化候选重选、双来源 A→B→A Web/Legado 运行时 smoke、确定性 fixture/脚本回归及 CI 接入；候选已在 Ubuntu VM 以源码构建 Compose 完成全量测试和实际 failover 验收，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -768,7 +768,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验与长期使用；不替代自动化门禁。
 - [x] **Developer API / 商业基础非阅读 App 自动化 runtime smoke**：源码构建 Compose 已覆盖 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、Header-only 鉴权、轮换和撤销；真实账户、套餐管理、配额超额和用户停用仍待真实环境补充。
 - [ ] **真实追更**：用真实来源数据验证 Scheduler → Worker → 目录增量 → 正文发布闭环。
-- [ ] **真实第二来源故障切换**：从已接入来源中选择可稳定访问的真实第二 Official Source；禁用 Source A 后验证 Web/Legado 可继续读取，BookId/ChapterId 不变；恢复后不得产生重复 Canonical 身份。
+- [ ] **真实第二来源故障切换**：4.99 已在源码 Compose 确定性 fixture 中验证 Web/Legado A→B→A、稳定 BookId/ChapterId 和恢复；仍需用可稳定访问的真实第二 Official Source 验证真实故障、响应和恢复，不得产生重复 Canonical 身份。
 - [x] **linovelib 真实公开页面只读链路**：GPT 内置浏览器已完成 Search → BookInfo → TOC → Content 页面证据；不等同于服务端 RuleAdapter 直连通过。
 - [ ] **linovelib RuleAdapter 后端直连链路**：当前普通 HTTP POST 搜索返回 200 但空响应体，待网络/站点挑战可稳定处理后验证服务端 Search → BookInfo → TOC → Content，并纳入真实第二来源/故障切换演练。
 - [ ] **17K 真实 Search/阅读链路**：已在 Ubuntu VM 只读探测，但当前 API 证书链校验失败或返回“请升级版本/图书信息不存在”，仍待可用网络环境验证 Search → BookInfo → TOC → 免费 Content、VIP 访问边界和安全重定向。
@@ -1018,6 +1018,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 清理：验证后 Compose 已停止，`ps --all` 无 InkFlow 服务容器残留，持久卷保留。
 - 远端门槛：文档提交 `e4a9ea5` 的 [CI 33349225217](https://github.com/nekohands/InkFlow/actions/runs/33349225217)、[Docker 33349225212](https://github.com/nekohands/InkFlow/actions/runs/33349225212)、[Security 33349225202](https://github.com/nekohands/InkFlow/actions/runs/33349225202) 均 GREEN 且指向同一 head SHA。
 - 边界：本轮未执行阅读 3.0 / MuMu 真机、真实凭据、真实来源访问或真实第二来源故障切换；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 4.99 双来源故障切换运行时门禁交接（本轮，2026-08-31）
+
+- 缺口与修复：公共正文读取此前只加载已存当前版本，未在 Source A 被管理员停用后重新评估持久化候选；`CatalogQueryService` 现通过 `IContentSelectionService` 先按已存候选/能力健康重选，再复查 Policy 和稳定正典身份，不在阅读路径触发第三方网络。ADR 见 [0022](../adr/0022-canonical-content-read-reselection.md)。
+- 自动化：新增 `ensure-failover-catalog` fixture、`source-failover-runtime-smoke.sh` 和 curl fixture 回归，覆盖 Web Book/Content、Legado Search/BookInfo/TOC/Content 以及 Manifest；状态序列为 Source A 正常 → A Content 停用、切到 B → A 恢复、切回 A，并断言 BookId/ChapterId 不变。
+- 本机：Release Build 0 warnings / 0 errors；Unit 511/511、Architecture 1/1、Contract 10/10、脚本语法 PASS。Windows 缺少 `jq`，新脚本功能测试本机 `BLOCKED`，由 VM/CI 执行。
+- Ubuntu VM：`80962fb` 以源码 Compose 健康启动；全量 `Restore → Build → Test` 为 Unit 511/511、Architecture 1/1、Contract 10/10、Integration 95 passed / 2 skipped / 0 failed；Legado/failover 脚本回归 PASS；实际 `source-failover-runtime-smoke` 输出 PASS。临时管理员已清理，Compose 已停止，`ps --all` 无残留 InkFlow 容器，卷保留。
+- 远端门槛：[CI 33351257794](https://github.com/nekohands/InkFlow/actions/runs/33351257794)、[Docker 33351257775](https://github.com/nekohands/InkFlow/actions/runs/33351257775)、[Security 33351257773](https://github.com/nekohands/InkFlow/actions/runs/33351257773) 均 GREEN 且指向同一 head SHA `80962fb`。
+- 边界：本轮关闭确定性 Web/Legado 运行时切源基线，但不关闭真实 Official Source pair、真实追更、真实凭据、受保护生产 Operations、PWA 安装/跨设备或阅读 3.0/MuMu 真机验收；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

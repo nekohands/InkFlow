@@ -15,7 +15,7 @@
 | Repository Bootstrap | ✅ Completed | .NET 10 基础仓库与最初 CI 已建立 |
 | Phase 0 — Foundation | ✅ Completed | 模块边界、Persistence、Migration、Outbox/Inbox、OTel、测试与 Runtime CI Gate 已验收 |
 | Phase 1A — Single Source Vertical Slice | 🚧 Ready for Real-Device Acceptance | 自动化链路与 kanunu8 真实源验证已完成；阅读 3.0 真机导入/阅读及真实追更仍待人工验收 |
-| Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优与健康感知切源；真实故障切源仍待后续验收 |
+| Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优、健康感知切源及源码 Compose A→B→A 运行时；真实 Official Source 故障切源仍待后续验收 |
 | Phase 2 — Multi-Source Production | 🚧 In Progress | Capability Health v1 与 Worker 任务可靠性基础已落地；自适应追更、健康评分、规则 Canary 仍待推进 |
 | Phase 3 — User Product | 🚧 In Progress | Reading State v1、Web Reader v1、Reader/PWA 用户状态 v1 与 Private Library 私有正文/导入导出自动化基础已落地；Web/PWA/Operations 前端纳入 1.0 强制 Release Gate，PWA Service Worker/离线壳自动化已补齐，真实账户、安装和私有路径补充验收仍待推进 |
 | Phase 4 — Commercial Platform | 🚧 Release Candidate | Developers/Billing/Entitlement/Developer API v1 自动化基线与远端门禁已通过；真实凭据、真实 PostgreSQL/Redis 与人工验收仍待推进 |
@@ -1195,6 +1195,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：文档候选 `e4a9ea5` 的 [CI 33349225217](https://github.com/nekohands/InkFlow/actions/runs/33349225217)、[Docker 33349225212](https://github.com/nekohands/InkFlow/actions/runs/33349225212)、[Security 33349225202](https://github.com/nekohands/InkFlow/actions/runs/33349225202) 均 GREEN，三者 head SHA 一致；CI 新增的脚本回归和 Legado contract runtime smoke 均通过。
 - 验收边界：本轮不执行阅读 3.0 / MuMu 真机、真实凭据、真实来源访问或真实第二来源故障切换；这些继续列在第 6 节待定事项。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 4.99 双来源故障切换运行时门禁与正文读取重选（本轮，2026-08-31）
+
+- 缺口：健康停用只影响显式的 Content Selection 调用，公共 Web/Legado 正文读取此前直接读取已存 `IsCurrent` 版本；仅通过管理员停用 Source A 不能让真实公开读取自动转到 Source B。
+- 修复与决策：`CatalogQueryService.GetChapterContentAsync` 在加载正文前通过 `IContentSelectionService` 基于已持久化候选和能力健康重新选择，再复查 Content Policy 与当前正典身份；不触发第三方网络请求。API 组合根补齐 EF Selection Decision 仓储和服务注册，决策记录见 [ADR 0022](../adr/0022-canonical-content-read-reselection.md)。
+- 自动化：新增双来源 failover fixture、`scripts/source-failover-runtime-smoke.sh` 及 curl fixture 回归。脚本在初始、Source A 停用、Source A 恢复三个状态，分别验证 Web Book/Content 与 Legado Search/BookInfo/TOC/Content，断言 A→B→A、稳定 BookId/ChapterId、Manifest 和选择恢复。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 511/511、Architecture 1/1、Contract 10/10 PASS；脚本语法 PASS。Windows 本机缺少 `jq`，新脚本功能回归在本机为 `BLOCKED`，未将其记为通过。
+- Ubuntu VM 证据：候选 `80962fb` 以 `docker-compose.build.yml` 源码构建并通过 PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康检查；VM 内 `Restore → Release Build`（0 warnings / 0 errors）及全量测试通过：Unit 511/511、Architecture 1/1、Contract 10/10、Integration 95 passed / 2 skipped / 0 failed。Legado 与 failover fixture 回归均 PASS；真实 API 运行时 `source-failover-runtime-smoke: PASS (stable Web/Legado identities, A→B failover, A recovery)`。临时管理员已清理，Compose 已停止，`ps --all` 无 InkFlow 容器残留，持久卷保留。
+- 远端门禁：候选 `80962fb` 的 [CI 33351257794](https://github.com/nekohands/InkFlow/actions/runs/33351257794)、[Docker 33351257775](https://github.com/nekohands/InkFlow/actions/runs/33351257775)、[Security 33351257773](https://github.com/nekohands/InkFlow/actions/runs/33351257773) 均 GREEN，三者 head SHA 一致；新增脚本回归、failover Runtime 和既有 Legado Runtime 均通过。
+- 验收边界：本轮关闭的是确定性、无第三方流量的 Web/Legado 运行时切源基线，不等同于真实 Official Source pair 验收；真实来源追更、真实第二来源切换、真实凭据、阅读 3.0/MuMu 和其他人工/生产事项继续列在第 6 节，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1249,7 +1259,7 @@ Official Source
 | 一个 CanonicalChapter 至少 2 个 SourceChapter 候选 | ✅ 自动化 | 每个正典章节均有 `official-a` / `official-b` 映射 |
 | 一个 CanonicalChapter 至少 2 个 ContentVersion 候选 | ✅ 自动化 | 同章节 2 个不同 CanonicalHash 版本 |
 | Quality Selection 有版本与证据 | ✅ 自动化 | `quality-v1` + 段落/字符/平均段长证据；低质量候选未替换当前版本 |
-| 真实来源故障切换 / Legado 端到端 | ⏳ 待验收 | 真机与真实运行时按后续人工流程执行；本轮不宣称完成 |
+| 真实来源故障切换 / Legado 端到端 | ⏳ 待真实来源 | 4.99 已以源码 Compose 夹具完成 Web/Legado A→B→A 运行时验证；真实 Official Source pair 与阅读 3.0 真机仍待验收 |
 | Capability Health 感知的自动切源 | ✅ 自动化 | `SourceCapabilityHealth` + `ContentSelectionService`；确定性测试覆盖禁用、切换、恢复和审计证据 |
 
 结论：Phase 1B 已建立可回归的双来源自动化切源基线，尚未标记 Completed；真实故障切源和运行时/真机证据仍是 Release Gate。
@@ -1282,7 +1292,7 @@ Official Source
 - [ ] **Private Library 真实账户/人工体验补充验收**：如需发布前补充，使用专用真实测试账户和真实 TXT/EPUB 验证浏览体验、导出文件可读性及长期使用；不作为阅读 App 以外自动化门禁的替代。
 - [x] **Developer API / 商业基础非阅读 App 自动化运行验收**：源码构建 Compose 已自动验证 Free Entitlement、应用/密钥创建与列表脱敏、目录读取、`X-InkFlow-Api-Key` 专用 Header、轮换和撤销；真实 Web 账户、管理员套餐、配额超额和用户停用仍需真实环境补充。
 - [ ] **真实追更验收**：4.87 已用真实 Kanunu8 当前快照自动验证 Scheduler 扫描、Worker 消费、目录同步、任务去重与正文发布；仍需可控的上游新增章节/修订事件，验证下一周期扫描确实产生增量并发布新版本。
-- [ ] **真实第二来源与故障切换**：从已接入的 Official Source 中选择可稳定访问的真实第二来源；禁用 Source A 后验证 Web/Legado 仍可读，BookId/ChapterId 不变，恢复后不产生重复正典身份。
+- [ ] **真实第二来源与故障切换**：4.99 已用确定性双来源夹具完成源码 Compose 下 Web/Legado 的 A→B→A、稳定 BookId/ChapterId 和恢复验证；仍需从已接入 Official Source 中选择可稳定访问的真实第二来源，确认真实来源故障、真实响应和恢复不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [x] **Content Policy 非阅读 App 自动化验收**：4.83 已用临时管理员和 CanonicalBook fixture 验证下架/恢复、公共详情可见性、权限拒绝和审计过滤。
 - [x] **Operations Center 浏览器自动验收（1.0 必选）**：匿名角色拒绝、页面结构、状态提示、刷新按钮禁用态、桌面/移动布局、焦点/无横向溢出和浏览器错误日志已由 4.75 自动化；受保护命令的 API/集成基线已自动化。
