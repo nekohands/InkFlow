@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`80962fb`（在 `df35d5e` 基础上补齐公共正文读取前的持久化候选重选、双来源 A→B→A Web/Legado 运行时 smoke、确定性 fixture/脚本回归及 CI 接入；候选已在 Ubuntu VM 以源码构建 Compose 完成全量测试和实际 failover 验收，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`61f739e`（在 `80962fb` 基础上为 Core SLO 合成探针补齐按服务面 p95 目标的 fail-closed 门禁，并隔离每面首个冷启动预热请求；候选已在 Ubuntu VM 以源码构建 Compose 完成真实四面门禁验收，真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1027,6 +1027,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：`80962fb` 以源码 Compose 健康启动；全量 `Restore → Build → Test` 为 Unit 511/511、Architecture 1/1、Contract 10/10、Integration 95 passed / 2 skipped / 0 failed；Legado/failover 脚本回归 PASS；实际 `source-failover-runtime-smoke` 输出 PASS。临时管理员已清理，Compose 已停止，`ps --all` 无残留 InkFlow 容器，卷保留。
 - 远端门槛：[CI 33351257794](https://github.com/nekohands/InkFlow/actions/runs/33351257794)、[Docker 33351257775](https://github.com/nekohands/InkFlow/actions/runs/33351257775)、[Security 33351257773](https://github.com/nekohands/InkFlow/actions/runs/33351257773) 均 GREEN 且指向同一 head SHA `80962fb`。
 - 边界：本轮关闭确定性 Web/Legado 运行时切源基线，但不关闭真实 Official Source pair、真实追更、真实凭据、受保护生产 Operations、PWA 安装/跨设备或阅读 3.0/MuMu 真机验收；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.0 Core SLO p95 目标门禁与冷启动隔离交接（本轮，2026-08-31）
+
+- 缺口与修复：原合成探针会输出 p95 但不校验服务面目标，且源码 Compose 冷启动首个请求可能把初始化耗时计入短窗口；`core-slo-runtime-smoke.sh` 现按服务面 fail-closed 校验 p95（public/developer ≤ 750ms，Legado/reader ≤ 1000ms），每面先执行一次不计入统计的预热请求。
+- 回归：fixture 覆盖 750ms 边界通过和 751ms 超目标失败；预热请求仍校验传输与预期状态，不保存响应正文或身份信息。
+- 本机：脚本语法、回归、`git diff --check` PASS；Release Build 0 warnings / 0 errors；Unit 511/511、Architecture 1/1、Contract 10/10 PASS。
+- Ubuntu VM：`61f739e` 源码构建 Compose 健康启动后，重启 API/Worker/Scheduler 并执行真实四面门禁；p95 为 public 6.887ms、Legado 8.120ms、developer 4.848ms、reader 5.984ms，四面均 PASS，JSON 含四面各 5 个样本和 0 个服务端错误。脚本回归 PASS；验证后 Compose 已停止，`ps --all` 无残留服务容器，卷保留。
+- 边界：短窗口合成证据不等同生产 SLO；生产 OTLP/长窗口/告警保留、真实来源与追更/切源、真实凭据、Operations 受保护操作、PWA 安装跨设备和阅读 3.0/MuMu 真机仍按待定事项处理，整体不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

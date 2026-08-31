@@ -1,6 +1,6 @@
 # 采集工作台 v1 需求对齐草案
 
-状态：需求已对齐，代码已落地；当前代码候选为 `80962fb`，在 Legado 四步门禁基础上新增正文读取重选与双来源 A→B→A Web/Legado 运行时 smoke 及脚本回归。候选已在 Ubuntu VM 以源码构建 Compose 完成全量测试、健康启动和实际 failover 验收；CI/Docker/Security 已全部 GREEN。真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
+状态：需求已对齐，代码已落地；当前代码候选为 `61f739e`，在双来源 A→B→A 运行时门禁基础上补齐 Core SLO 按服务面 p95 目标的 fail-closed 检查、冷启动预热隔离及脚本回归。候选已在 Ubuntu VM 以源码构建 Compose 完成真实四面门禁验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理
 日期：2026-08-31
 范围：采集运行控制、进度可视化、书籍地址采集、已入库书籍打包
 
