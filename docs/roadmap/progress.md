@@ -1395,6 +1395,14 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：当前文档 HEAD `5673dfc` 的 [CI 33440663763](https://github.com/nekohands/InkFlow/actions/runs/33440663763)、[Docker 33440663778](https://github.com/nekohands/InkFlow/actions/runs/33440663778)、[Security 33440663728](https://github.com/nekohands/InkFlow/actions/runs/33440663728) 均 GREEN 且 head SHA 一致。
 - 结论与边界：最新 HEAD 的 SDK/测试证据保持通过，Compose 运行态复验因 VM 到 NuGet 的外部网络可达性受阻；此前 5.18/5.19 的源码 Compose 与运行态证据仍按其候选提交记录有效。整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/PWA 跨设备、人工验收和生产治理继续按第 6 节待定。
 
+### 5.21 源码 Dockerfile NuGet 缓存与 VM Compose 复验（本轮，2026-09-01）
+
+- 缺口：源码 Compose 的四个业务 Dockerfile 将 `dotnet publish` 的 NuGet 恢复放在单次构建层内；网络短暂抖动会让已下载依赖无法跨重试复用，降低 VM 源码构建验证的可靠性。
+- 实现：API、Worker、Scheduler、Migrations 四个 Dockerfile 增加 BuildKit `type=cache` 挂载，分别持久化 `/root/.nuget/packages` 与 NuGet HTTP cache，并使用 `sharing=locked` 保护并行恢复；缓存只属于构建器，不进入最终运行镜像，不改变运行时行为或依赖版本。
+- VM 证据：候选 `26e5d82` 在 Ubuntu VM 隔离 worktree 按源码构建 Compose；四业务镜像全部成功构建，Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，三个服务 `/health` 均返回 `healthy`。验证后隔离 Compose、网络、容器、临时目录和 worktree 已清理，VM 原工作树改动保持不变。
+- 回归与门禁：本机 `git diff --check` PASS；本机未安装 Docker CLI，未把本机 Compose 配置检查误记为通过。候选 `26e5d82` 的 [CI 33447522462](https://github.com/nekohands/InkFlow/actions/runs/33447522462)、[Docker 33447522530](https://github.com/nekohands/InkFlow/actions/runs/33447522530)、[Security 33447522397](https://github.com/nekohands/InkFlow/actions/runs/33447522397) 均 GREEN 且 head SHA 一致；CI 的全量 Test、Compose、前端、业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。
+- 结论与边界：源码构建的 NuGet cache reliability gap 已关闭，最新 VM Runtime 健康证据已恢复；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/PWA 跨设备、人工验收及生产治理继续按第 6 节待定。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

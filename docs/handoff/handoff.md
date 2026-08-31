@@ -1208,6 +1208,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端：文档 HEAD `5673dfc` 的 [CI 33440663763](https://github.com/nekohands/InkFlow/actions/runs/33440663763)、[Docker 33440663778](https://github.com/nekohands/InkFlow/actions/runs/33440663778)、[Security 33440663728](https://github.com/nekohands/InkFlow/actions/runs/33440663728) 均 GREEN 且 SHA 一致。
 - 结论：最新 HEAD 的 SDK/测试证据通过，Compose 运行态复验被 VM 到 NuGet 的外部网络可达性阻塞；5.18/5.19 中对应代码候选的源码 Compose/业务 smoke 证据保持有效。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`；人工/真实来源、PWA 跨设备、生产治理及阅读 3.0/MuMu 继续按第 6 节待定。
 
+### 5.21 源码 Dockerfile NuGet 缓存与 VM Compose 复验交接（本轮，2026-09-01）
+
+- 工作包：为四个业务 Dockerfile 的 NuGet restore 增加 BuildKit cache mount，改善“源码构建优先”在网络短暂抖动时的可重复性；不改变产品行为、依赖版本或最终镜像内容。
+- 实现：缓存 `/root/.nuget/packages` 和 NuGet HTTP cache，使用 `sharing=locked` 支持并行服务构建；缓存仅由 BuildKit 构建器持有，不进入最终镜像。
+- VM/Runtime：候选 `26e5d82` 的隔离 worktree 源码 Compose 四镜像构建成功；Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，API/Worker/Scheduler `/health` 均 `healthy`。验证后隔离资源清理完成，VM 原工作树用户改动保留。
+- 回归与远端：本机 `git diff --check` PASS；本机没有 Docker CLI，故未伪造本机 Compose 结果。`26e5d82` 的 [CI 33447522462](https://github.com/nekohands/InkFlow/actions/runs/33447522462)、[Docker 33447522530](https://github.com/nekohands/InkFlow/actions/runs/33447522530)、[Security 33447522397](https://github.com/nekohands/InkFlow/actions/runs/33447522397) 均 GREEN，CI 全量测试、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断均通过。
+- 结论：源码构建 NuGet cache reliability gap 已关闭，最新 VM Runtime 健康证据恢复；整体仍为 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/PWA 跨设备、人工验收和生产治理继续按第 6 节待定。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
