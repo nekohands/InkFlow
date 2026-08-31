@@ -32,6 +32,62 @@ public sealed class ReadingStateTests
     }
 
     [TestMethod]
+    public void Progress_Update_Replaces_Chapter_Position_And_Timestamp()
+    {
+        var bookId = Guid.CreateVersion7();
+        var firstChapterId = Guid.CreateVersion7();
+        var nextChapterId = Guid.CreateVersion7();
+        var progress = ReadingProgress.Create(
+            UserA,
+            bookId,
+            firstChapterId,
+            paragraphIndex: 2,
+            progressPercent: 25,
+            T0);
+        var updatedAt = T0.AddMinutes(5);
+
+        progress.Update(
+            nextChapterId,
+            paragraphIndex: 7,
+            progressPercent: 80,
+            updatedAt);
+
+        Assert.AreEqual(nextChapterId, progress.CanonicalChapterId);
+        Assert.AreEqual(7, progress.ParagraphIndex);
+        Assert.AreEqual(80, progress.ProgressPercent);
+        Assert.AreEqual(updatedAt, progress.UpdatedAt);
+    }
+
+    [TestMethod]
+    public void Progress_Update_Rejects_Invalid_Input_Without_Mutating_State()
+    {
+        var bookId = Guid.CreateVersion7();
+        var chapterId = Guid.CreateVersion7();
+        var nextChapterId = Guid.CreateVersion7();
+        var progress = ReadingProgress.Create(
+            UserA,
+            bookId,
+            chapterId,
+            paragraphIndex: 2,
+            progressPercent: 25,
+            T0);
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            progress.Update(nextChapterId, paragraphIndex: -1, progressPercent: 80, T0.AddMinutes(1)));
+        Assert.AreEqual(chapterId, progress.CanonicalChapterId);
+        Assert.AreEqual(2, progress.ParagraphIndex);
+        Assert.AreEqual(25, progress.ProgressPercent);
+        Assert.AreEqual(T0, progress.UpdatedAt);
+
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            progress.Update(nextChapterId, paragraphIndex: 7, progressPercent: 101, T0.AddMinutes(2)));
+        Assert.AreEqual(chapterId, progress.CanonicalChapterId);
+        Assert.AreEqual(2, progress.ParagraphIndex);
+        Assert.AreEqual(25, progress.ProgressPercent);
+        Assert.AreEqual(T0, progress.UpdatedAt);
+    }
+
+    [TestMethod]
     public async Task User_State_Is_Isolated_And_Progress_Updates_Current_Chapter()
     {
         var book = CreateBook();
