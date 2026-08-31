@@ -257,6 +257,57 @@ public sealed class DeveloperBillingPersistenceTests
         await second.DisposeAsync();
     }
 
+    [TestMethod]
+    public async Task Quota_Snapshot_Cache_Cannot_Return_A_Different_User()
+    {
+        await using (var setup = CreateBillingDb())
+        {
+            await setup.Database.MigrateAsync().ConfigureAwait(false);
+        }
+
+        var userId = Guid.CreateVersion7();
+        var otherUserId = Guid.CreateVersion7();
+        await using var db = CreateBillingDb();
+        var entitlements = new EntitlementService(
+            new EfPlanRepository(db),
+            new EfEntitlementAssignmentRepository(db),
+            new ActiveBillingUserReader(),
+            new FixedClock(T0));
+        var entitlement = await entitlements.GetForUserAsync(userId).ConfigureAwait(false);
+        Assert.IsNotNull(entitlement);
+
+        var periodStart = new DateTimeOffset(
+            T0.Year,
+            T0.Month,
+            1,
+            0,
+            0,
+            0,
+            TimeSpan.Zero);
+        var cache = new FixedQuotaCache(new QuotaSnapshot(
+            otherUserId,
+            entitlement!.Plan.Code,
+            entitlement.Plan.Version,
+            periodStart,
+            periodStart.AddMonths(1),
+            entitlement.Plan.MonthlyQuotaUnits,
+            UsedUnits: 999,
+            RemainingUnits: 1,
+            AlgorithmVersion: entitlement.Plan.QuotaAlgorithmVersion));
+        var service = new QuotaService(
+            db,
+            entitlements,
+            cache,
+            new FixedClock(T0));
+
+        var snapshot = await service.GetSnapshotAsync(userId).ConfigureAwait(false);
+
+        Assert.IsNotNull(snapshot);
+        Assert.AreEqual(userId, snapshot!.UserId);
+        Assert.AreEqual(0, snapshot.UsedUnits);
+        Assert.AreEqual(1, cache.SetCount, "A rejected cache payload must be replaced by the authoritative snapshot.");
+    }
+
     private static DeveloperDbContext CreateDeveloperDb() =>
         new(new DbContextOptionsBuilder<DeveloperDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
@@ -357,5 +408,33 @@ public sealed class DeveloperBillingPersistenceTests
 
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FixedQuotaCache(QuotaSnapshot? value) : IQuotaSnapshotCache
+    {
+        private QuotaSnapshot? _value = value;
+
+        public int SetCount { get; private set; }
+
+        public Task<QuotaSnapshot?> GetAsync(
+            Guid userId,
+            DateTimeOffset periodStart,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_value);
+
+        public Task SetAsync(
+            QuotaSnapshot snapshot,
+            CancellationToken cancellationToken = default)
+        {
+            _value = snapshot;
+            SetCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(
+            Guid userId,
+            DateTimeOffset periodStart,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }

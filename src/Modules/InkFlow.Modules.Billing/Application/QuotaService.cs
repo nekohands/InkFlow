@@ -134,6 +134,8 @@ public sealed class QuotaService(
         var periodStart = StartOfMonth(now);
         var cached = await cache.GetAsync(userId, periodStart, cancellationToken).ConfigureAwait(false);
         if (cached is not null
+            && cached.UserId == userId
+            && cached.PeriodStart == periodStart
             && cached.PeriodEnd > now
             && string.Equals(cached.PlanCode, entitlement.Plan.Code, StringComparison.Ordinal)
             && cached.PlanVersion == entitlement.Plan.Version

@@ -28,6 +28,11 @@ public sealed class RedisQuotaSnapshotCache(IConnectionMultiplexer redis) : IQuo
         {
             return null;
         }
+        catch (JsonException)
+        {
+            // A corrupt or incompatible cache entry is a miss; PostgreSQL remains authoritative.
+            return null;
+        }
     }
 
     public async Task SetAsync(
