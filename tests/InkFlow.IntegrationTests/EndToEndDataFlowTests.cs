@@ -290,6 +290,146 @@ public sealed class EndToEndDataFlowTests
             $"contentTasks={contentTasks.Count}, published={versions.Store.Count}");
     }
 
+    [TestMethod]
+    public async Task Automated_Scheduler_Discovers_New_Chapter_And_Publishes_Content()
+    {
+        // Deterministic equivalent of the periodic scheduler/worker path. The
+        // live-source test above remains opt-in, while this test always runs so
+        // a release gate can prove the update chain without a third-party site.
+        var adapter = new MutableUpdateSourceAdapter();
+        var sourceBooks = new InMemorySourceBooks();
+        var canonicalRepo = new InMemoryCanonicalRepo();
+        var candidates = new InMemoryCandidateRepository();
+        var mappings = new InMemoryMappingRepository();
+        var versions = new InMemoryVersions();
+        var artifacts = new InMemoryArtifacts();
+        var tasks = new InMemoryCrawlerTasks();
+
+        var factory = new FixedAdapterFactory(adapter);
+        var catalog = new SourceCatalogService(factory, sourceBooks, TimeProvider.System);
+        var matching = new CanonicalBookMatchingService(sourceBooks, canonicalRepo, candidates);
+        var chapterMapping = new CanonicalChapterMappingService(
+            sourceBooks, candidates, canonicalRepo, mappings);
+        var contentService = new SourceContentService(
+            factory, sourceBooks, artifacts, TimeProvider.System);
+        var publishing = new ContentPublishingService(versions);
+        var query = new CatalogQueryService(
+            canonicalRepo, versions, new AllowAllContentPolicyReader());
+        var contentChain = new ContentFetchChainService(
+            sourceBooks, artifacts, tasks, TimeProvider.System);
+        var tocHandler = new TocSyncTaskHandler(catalog, chapterMapping, contentChain);
+        var contentHandler = new ContentFetchTaskHandler(
+            contentService,
+            new MappingContentPublisher(mappings, publishing));
+        var failureReporter = new CrawlerFailureReporter(
+            Array.Empty<ICrawlerFailureSink>(),
+            NullLogger<CrawlerFailureReporter>.Instance);
+        var leaseService = new CrawlerLeaseService(TimeProvider.System);
+        var tocProcessor = new CrawlerTaskProcessor(
+            tocHandler,
+            tasks,
+            TimeProvider.System,
+            new RetryPolicy { BaseDelay = TimeSpan.FromMilliseconds(1), MaxDelay = TimeSpan.FromMilliseconds(1) },
+            failureReporter);
+        var contentProcessor = new CrawlerTaskProcessor(
+            contentHandler,
+            tasks,
+            TimeProvider.System,
+            new RetryPolicy { BaseDelay = TimeSpan.FromMilliseconds(1), MaxDelay = TimeSpan.FromMilliseconds(1) },
+            failureReporter);
+
+        var import = await catalog.ImportBookInfoAsync(
+            MutableUpdateSourceAdapter.SourceIdValue,
+            MutableUpdateSourceAdapter.ExternalBookId);
+        Assert.IsTrue(import.IsSuccess, string.Join("; ", import.Errors));
+        var initialToc = await catalog.SyncChaptersAsync(
+            MutableUpdateSourceAdapter.SourceIdValue,
+            MutableUpdateSourceAdapter.ExternalBookId);
+        Assert.IsTrue(initialToc.IsSuccess, string.Join("; ", initialToc.Errors));
+        Assert.AreEqual(2, initialToc.Book!.Chapters.Count);
+
+        var match = await matching.CreateOrMatchAsync(
+            MutableUpdateSourceAdapter.SourceIdValue,
+            MutableUpdateSourceAdapter.ExternalBookId);
+        Assert.IsTrue(match.IsSuccess, string.Join("; ", match.Errors));
+        var initialMapping = await chapterMapping.SyncChapterMappingAsync(
+            MutableUpdateSourceAdapter.SourceIdValue,
+            MutableUpdateSourceAdapter.ExternalBookId);
+        Assert.IsTrue(initialMapping.IsSuccess, string.Join("; ", initialMapping.Errors));
+        Assert.AreEqual(2, initialMapping.NewlyMappedCount);
+
+        var updateScan = new UpdateScanService(sourceBooks, tasks, TimeProvider.System);
+
+        // First scheduled scan establishes the durable content baseline.
+        Assert.AreEqual(1, await updateScan.EnqueueTocScansAsync());
+        var firstTocTask = tasks.Store.Single(task =>
+            task.Payload.Capability == SourceCapability.Toc &&
+            task.Status == CrawlerTaskStatus.Pending);
+        Assert.IsTrue(leaseService.TryLease(firstTocTask, "automated-update-worker"));
+        await tocProcessor.ProcessAsync(firstTocTask);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, firstTocTask.Status);
+
+        var initialContentTasks = tasks.Store
+            .Where(task => task.Payload.Capability == SourceCapability.Content)
+            .ToList();
+        Assert.AreEqual(2, initialContentTasks.Count);
+        foreach (var contentTask in initialContentTasks)
+        {
+            Assert.IsTrue(leaseService.TryLease(contentTask, "automated-update-worker"));
+            await contentProcessor.ProcessAsync(contentTask);
+            Assert.AreEqual(CrawlerTaskStatus.Completed, contentTask.Status);
+        }
+
+        Assert.AreEqual(2, artifacts.Store.Count);
+        Assert.AreEqual(2, versions.Store.Count);
+
+        // The source changes between periodic scans. No database edit is used
+        // to inject the chapter: only the source response changes.
+        adapter.AddNextChapter();
+
+        Assert.AreEqual(1, await updateScan.EnqueueTocScansAsync());
+        var secondTocTask = tasks.Store.Single(task =>
+            task.Payload.Capability == SourceCapability.Toc &&
+            task.Status == CrawlerTaskStatus.Pending);
+        Assert.IsTrue(leaseService.TryLease(secondTocTask, "automated-update-worker"));
+        await tocProcessor.ProcessAsync(secondTocTask);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, secondTocTask.Status);
+
+        Assert.AreEqual(3, sourceBooks.Book!.Chapters.Count);
+        Assert.AreEqual(3, canonicalRepo.Book!.Chapters.Count);
+        Assert.AreEqual(3, mappings.Store.Count);
+
+        var newContentTask = tasks.Store.Single(task =>
+            task.Payload.Capability == SourceCapability.Content &&
+            task.Payload.Variables["chapterId"] == MutableUpdateSourceAdapter.NewChapterId &&
+            task.Status == CrawlerTaskStatus.Pending);
+        Assert.AreEqual("new", newContentTask.Payload.Variables["reason"]);
+        Assert.IsTrue(leaseService.TryLease(newContentTask, "automated-update-worker"));
+        await contentProcessor.ProcessAsync(newContentTask);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, newContentTask.Status);
+
+        Assert.AreEqual(3, artifacts.Store.Count);
+        Assert.AreEqual(3, versions.Store.Count);
+        var newMapping = mappings.Store.Single(mapping =>
+            mapping.ExternalChapterId == MutableUpdateSourceAdapter.NewChapterId);
+        var readable = await query.GetChapterContentAsync(newMapping.CanonicalChapterId);
+        Assert.IsNotNull(readable);
+        StringAssert.Contains(readable.Paragraphs[0], "第三章由自动更新发现");
+
+        // A subsequent scan is still allowed to re-check the source, but must
+        // not duplicate content work for already fetched chapters.
+        Assert.AreEqual(1, await updateScan.EnqueueTocScansAsync());
+        var repeatedTocTask = tasks.Store.Single(task =>
+            task.Payload.Capability == SourceCapability.Toc &&
+            task.Status == CrawlerTaskStatus.Pending);
+        Assert.IsTrue(leaseService.TryLease(repeatedTocTask, "automated-update-worker"));
+        await tocProcessor.ProcessAsync(repeatedTocTask);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, repeatedTocTask.Status);
+        Assert.AreEqual(3, tasks.Store.Count(task => task.Payload.Capability == SourceCapability.Content));
+        Assert.AreEqual(4, adapter.TocCallCount);
+        Assert.AreEqual(3, adapter.ContentCallCount);
+    }
+
     // ---- 内存实现 ----
 
     private sealed class NullSourceRepository : ISourceRepository
@@ -461,6 +601,70 @@ public sealed class EndToEndDataFlowTests
 
             return true;
         }
+    }
+
+    private sealed class MutableUpdateSourceAdapter : ISourceAdapter
+    {
+        public const string SourceIdValue = "inkflow-update-fixture";
+        public const string ExternalBookId = "update-book";
+        public const string NewChapterId = "update-chapter-3";
+
+        private readonly List<SourceTocEntry> _chapters =
+        [
+            new("update-chapter-1", 0, "第一章"),
+            new("update-chapter-2", 1, "第二章"),
+        ];
+
+        public string SourceId => SourceIdValue;
+        public int TocCallCount { get; private set; }
+        public int ContentCallCount { get; private set; }
+
+        public void AddNextChapter()
+        {
+            _chapters.Add(new SourceTocEntry(NewChapterId, 2, "第三章"));
+        }
+
+        public Task<IReadOnlyList<SourceSearchResult>> SearchAsync(
+            string keyword,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SourceSearchResult>>([]);
+
+        public Task<SourceBookInfo?> GetBookInfoAsync(
+            string externalBookId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<SourceBookInfo?>(new("自动更新验收书", "InkFlow Automation"));
+
+        public Task<IReadOnlyList<SourceTocEntry>> GetTableOfContentsAsync(
+            string externalBookId,
+            CancellationToken cancellationToken = default)
+        {
+            TocCallCount++;
+            return Task.FromResult<IReadOnlyList<SourceTocEntry>>(_chapters.ToArray());
+        }
+
+        public Task<string?> GetChapterContentAsync(
+            string externalChapterId,
+            CancellationToken cancellationToken = default)
+        {
+            ContentCallCount++;
+            var content = externalChapterId switch
+            {
+                "update-chapter-1" => "<p>第一章初始正文</p>",
+                "update-chapter-2" => "<p>第二章初始正文</p>",
+                NewChapterId => "<p>第三章由自动更新发现</p>",
+                _ => null,
+            };
+            return Task.FromResult(content);
+        }
+    }
+
+    private sealed class FixedAdapterFactory(ISourceAdapter adapter) : ISourceAdapterFactory
+    {
+        public Task<ISourceAdapter?> GetAdapterAsync(
+            string sourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<ISourceAdapter?>(
+                adapter.SourceId == sourceId ? adapter : null);
     }
 
     private sealed class InMemoryCrawlerTasks : ICrawlerTaskRepository
