@@ -1389,7 +1389,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `da04e8e` 已补齐采集任务租约与 CollectionRun 控制状态的 PostgreSQL 并发栅栏；Progress、Handoff 与需求对齐文档已同步本轮证据。本机 Release Build（0 warnings / 0 errors）、Unit 523/523 和 Integration 项目 Release 编译通过；VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Unit 523/523、Architecture 1/1、Contract 10/10、Integration 98 passed / 2 skipped / 0 failed，新增定向回归 1/1；VM 当前 head 的源码 Compose 重建、Migration、服务健康检查均通过。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过；Compose 当前为运行状态，后续收尾时可停止并保留持久卷。
+最新状态（2026-08-31）：代码候选 `da04e8e` 已补齐采集任务租约与 CollectionRun 控制状态的 PostgreSQL 并发栅栏；Progress、Handoff 与需求对齐文档已同步本轮证据。本机 Release Build（0 warnings / 0 errors）、Unit 523/523 和 Integration 项目 Release 编译通过；VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Unit 523/523、Architecture 1/1、Contract 10/10、Integration 98 passed / 2 skipped / 0 failed，新增定向回归 1/1；VM 当前 head 的源码 Compose 重建、Migration、服务健康检查均通过。代码候选的 CI、Docker、Security 均已针对同一 head SHA 通过；验证完成后 Compose 已停止，服务容器和网络已清理，持久卷保留。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

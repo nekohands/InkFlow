@@ -1073,7 +1073,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 实现：`EfCrawlerTaskRepository.TryLeaseCoreAsync` 在锁定候选任务后，对 `RunId` 对应的 `crawler.runs` 执行 `FOR UPDATE` 并重新读取状态；父运行不存在或不是 `Pending/Running` 时提交空结果，不写入任务租约。无 `RunId` 的任务继续走既有领取路径。
 - 回归：`Lease_Rechecks_Parent_Run_After_Control_Transaction_Commits` 使用独立 DbContext/事务和定向任务 ID，验证控制事务提交前等待、提交后不领取以及任务仍为 `Pending`；此前全量运行暴露了测试必须定向任务的隔离问题，已在 `da04e8e` 修正并复验。
 - 本机：Release Build 0 warnings / 0 errors、Unit 523/523、Integration 项目 Release 编译和 `git diff --check` 通过；Windows Docker Engine 缺失，本机 Testcontainers 不作为通过证据。
-- Ubuntu VM：候选 `da04e8e` 的定向真实 PostgreSQL 回归 1/1 PASS；同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Unit 523/523、Architecture 1/1、Contract 10/10、Integration 98 passed / 2 skipped / 0 failed。当前 head 重新完成 `docker-compose.build.yml` 源码构建四镜像、Migration 退出 0、Compose 健康等待，API/Worker/Scheduler `/health` 均返回 200。
+- Ubuntu VM：候选 `da04e8e` 的定向真实 PostgreSQL 回归 1/1 PASS；同一 Linux SDK 容器完整 `Restore → Build → Test` 为 Unit 523/523、Architecture 1/1、Contract 10/10、Integration 98 passed / 2 skipped / 0 failed。当前 head 重新完成 `docker-compose.build.yml` 源码构建四镜像、Migration 退出 0、Compose 健康等待，API/Worker/Scheduler `/health` 均返回 200；验证后 Compose 已停止，服务容器和网络已清理，持久卷保留。
 - 远端门槛：`da04e8e` 的 [CI 33372702168](https://github.com/nekohands/InkFlow/actions/runs/33372702168)、[Docker 33372702149](https://github.com/nekohands/InkFlow/actions/runs/33372702149)、[Security 33372702139](https://github.com/nekohands/InkFlow/actions/runs/33372702139) 均 GREEN 且 head SHA 一致。
 - 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu 真机、真实来源/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备和受保护 Operations 登录后操作继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
