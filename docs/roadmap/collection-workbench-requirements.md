@@ -1,6 +1,6 @@
 # 采集工作台 v1 需求对齐草案
 
-状态：需求已对齐，代码已落地；当前代码候选为 `3ffebf2`，本轮 BookInfo 编排回归与文档同步已完成。代码候选 CI/Docker/Security 已 GREEN；既有源码构建栈上的 PostgreSQL/采集打包、Reader/PWA/Operations 前端及相关运行时 smoke 已通过，本轮 VM 新提交源码重建受外部 NuGet 下载超时影响；受保护运维页面登录后的浏览器验收和阅读 3.0 真机链路仍按待定事项处理
+状态：需求已对齐，代码已落地；当前代码候选为 `3ffebf2`，本轮 BookInfo 编排回归与文档同步已完成。代码候选 CI/Docker/Security 已 GREEN；当前候选已在 Ubuntu VM 以源码构建 Compose 完成健康启动，并通过 Reader/PWA/Operations 前端、Reader 账号/正文、Core SLO、Developer API、Private Library 和采集打包运行时 smoke；受保护运维页面登录后的浏览器验收和阅读 3.0 真机链路仍按待定事项处理
 日期：2026-08-31
 范围：采集运行控制、进度可视化、书籍地址采集、已入库书籍打包
 

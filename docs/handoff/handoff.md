@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B/商业基础/前端自动化门禁已通过，外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`3ffebf2`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复、PWA 安装增强契约测试/前端 smoke，以及 BookInfo 子任务编排回归测试；CI/Docker/Security 门禁均 GREEN；本轮 VM 新提交源码重建受外部 NuGet 超时影响，真实阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`3ffebf2`（包含采集运行聚合写入口、Reconcile 与控制状态原子化修复、PWA 安装增强契约测试/前端 smoke，以及 BookInfo 子任务编排回归测试；CI/Docker/Security 门禁均 GREEN；当前候选已在 Ubuntu VM 完成源码 Compose 重建和自动化 Runtime smoke，真实阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -999,9 +999,9 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 - `BookInfoSyncTaskHandlerTests` 新增 5 个回归用例，覆盖成功的来源导入/正典匹配/Toc 子任务编排、输入缺失、来源失败、悬空匹配和 Stopping 运行；成功用例验证子任务与父运行共享 `RunId`，凭据只以引用传递。
 - 本机：Release Build 0 warnings / 0 errors，定向 5/5，Unit 509/509，`git diff --check` PASS。
-- Ubuntu VM：候选 `3ffebf2` 已同步；本轮以 `docker-compose.build.yml` 重建时，API/Scheduler 发布阶段因外部 NuGet 包下载超时中止；保留的既有健康源码栈上 `reader-frontend-runtime-smoke`、Core SLO、Developer API、Private Library smoke 均 PASS，之后 Compose 已停止且无残留服务容器。
+- Ubuntu VM：候选 `3ffebf2` 已同步；首次 `docker-compose.build.yml` 源码重建在 API/Scheduler 发布阶段遇到外部 NuGet 包下载瞬时超时，NuGet 恢复后重试完成源码构建、Migration、PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康启动。当前提交栈上的 `reader-frontend-runtime-smoke`、Reader 账号/正文、Core SLO、Developer API、Private Library 和完整 `collection-package-runtime-smoke` 均 PASS；采集包 smoke 使用临时管理员/操作员和控制运行夹具，覆盖直接地址、四类持久控制、ZIP/EPUB/TXT、完整性与审计。之后 Compose 已停止，`ps --all` 无残留服务容器，持久卷保留。
 - 远端门槛：候选 `3ffebf2` 的 [CI 33342649568](https://github.com/nekohands/InkFlow/actions/runs/33342649568)、[Docker 33342649537](https://github.com/nekohands/InkFlow/actions/runs/33342649537)、[Security 33342649534](https://github.com/nekohands/InkFlow/actions/runs/33342649534) 均 GREEN 且指向同一 head SHA；Docker Migrations 首次推送的 `unknown blob` 已通过失败 Job 重跑消除。
-- 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。采集包专用 smoke 变量配置、VM 新提交源码重建、真实来源/追更/切源、受保护 Operations 登录后操作、真实账户/Provider/PWA 安装跨设备和 MuMu/阅读 3.0 仍按第 6 节待定事项执行。
+- 当前状态：本工作包为 `Implemented`，整体继续保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实来源/追更/切源、受保护 Operations 登录后操作、真实账户/Provider/PWA 安装跨设备和 MuMu/阅读 3.0 仍按第 6 节待定事项执行。
 
 ## 5. 关键架构不变量
 
