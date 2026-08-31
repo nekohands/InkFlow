@@ -1058,9 +1058,12 @@ public static partial class ReaderHtml
             } else {
               path = "/api/v1/admin/sources/" + encodeURIComponent(pendingAction.sourceId) + "/health/" + encodeURIComponent(pendingAction.capability) + "/" + pendingAction.action;
             }
+            const requestBody = pendingAction.action === "run-control"
+              ? { action: pendingAction.controlAction, reason }
+              : { reason };
             const response = await client.apiFetch(path, {
               method: "POST",
-              body: JSON.stringify({ reason })
+              body: JSON.stringify(requestBody)
             });
             const payload = response ? await response.json().catch(() => null) : null;
             if (response?.ok) {

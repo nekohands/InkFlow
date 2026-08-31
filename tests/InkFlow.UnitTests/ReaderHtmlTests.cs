@@ -273,6 +273,16 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Operations_Page_Includes_Run_Control_Action_In_Request_Body()
+    {
+        var html = ReaderHtml.OperationsPage();
+
+        StringAssert.Contains(html, "const requestBody = pendingAction.action === \"run-control\"");
+        StringAssert.Contains(html, "action: pendingAction.controlAction");
+        StringAssert.Contains(html, "body: JSON.stringify(requestBody)");
+    }
+
+    [TestMethod]
     public void Operations_Page_Does_Not_Render_Secrets_Or_Unsafe_Html_Sinks()
     {
         var html = ReaderHtml.OperationsPage();
