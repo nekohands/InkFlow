@@ -121,6 +121,13 @@ The Web UI must present failover as a stable reading experience. A normal user s
 
 Make Source A return or replay a deliberately truncated/low-quality chapter fixture. The Quality Engine must reject or de-prioritize it rather than silently replacing a better selected version.
 
+The deterministic drill is now executable through `ensure-quality-failure-catalog` and
+`scripts/quality-failure-runtime-smoke.sh`: the fixture persists a complete and a deliberately
+truncated replay through the real publishing/quality/selection services, asserts that the
+complete version has the higher score and remains selected, then verifies the selected content
+through the Web API, Legado API, and Reader HTML. This closes the deterministic quality-failure
+gate; it does not replace the real Official Source and manual/real-device acceptance gates below.
+
 ## Release gate
 
 Phase 1 is not complete until:

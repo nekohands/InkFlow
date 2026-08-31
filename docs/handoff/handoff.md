@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选代码 Commit：`e167a1f`（在 Rule 主请求最终 `ResponseUri` 同源门禁基础上，收敛 Rule/Crawler/Content/Health/Book Package/Collection Run 及宿主执行失败文本，避免业务结果、持久化失败原因和控制台路径直接传播原始 `Exception.Message`；候选已在 Ubuntu VM 以源码构建 Compose 完成迁移、完整测试和服务健康验证，真实 Official Source/阅读 App/凭据验收仍待定）
+- 最新候选代码 Commit：`f29256e`（在执行失败文本稳定化基础上，补齐 Phase 1B 质量失败运行时演练：同一来源完整正文与故意截断正文均经真实 Quality/Selection 服务落库，Web/Legado/Reader 三出口确认高质量版本未被替换；真实 Official Source/阅读 App/凭据验收仍待定）
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-08-31；dev 骨架重建更新：2026-08-25
 
@@ -1103,6 +1103,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：`e167a1f` 在 Linux SDK 容器完整 `Restore → Build → Test` 为 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed；`verify-migrations.sh` 通过 11 个 contexts。`docker-compose.build.yml` 低并发源码构建四业务镜像并健康启动，Migration/packages-init 正常退出，API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康，三个服务 `/health` 返回 healthy；验证后 Compose 已停止，服务容器和网络清理，持久卷保留。
 - 远端门槛：代码候选已推送；文档候选提交后必须重新查询 CI、Docker、Security，并确认三者指向同一最终 head SHA。
 - 当前状态：本工作包为 `Implemented`，自动化 Release Gate 已通过，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
+
+### 5.8 Quality failure drill 运行时门禁交接（本轮，2026-08-31）
+
+- 工作包：补齐 Phase 1B 的 Quality failure drill；同一来源先发布完整高质量章节，再发布故意截断的低质量重放，要求选择器保留高质量当前版本。
+- 实现：AcceptanceFixtures 的 `ensure-quality-failure-catalog` 使用真实 `ContentPublishingService`、`QualityEngine` 与 `ContentSelectionService` 创建/重放候选，并输出分数、版本 ID、选择证据；`scripts/quality-failure-runtime-smoke.sh` 通过 Web `/api/v1/chapters/{chapterId}/content`、Legado `/api/legado/v1/chapters/{chapterId}` 和 `/reader/read/{chapterId}` 校验高质量标记存在且低质量标记不存在；脚本回归已加入 `.github/workflows/ci.yml`。
+- 证据：本机 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、脚本语法和 diff 检查 PASS；Ubuntu VM 脚本回归 PASS，当前源码 acceptance fixture 输出 good `100` / low `30` 且 selected 为 good，源码 Compose API/Worker/Scheduler 健康，三个公共出口运行烟测 PASS。Windows 本机缺少 `jq`，因此功能脚本不在 Windows 直接执行。
+- 代码提交：`f29256e`。远端 CI、Docker、Security 尚待推送后查询，不能提前标记远端门禁 GREEN。
+- 边界：这是确定性运行时演练，不替代真实 Official Source、真实追更、真实第二来源故障切换、阅读 3.0/MuMu 真机、真实凭据、PWA 安装/跨设备和人工视觉/可访问性验收；整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

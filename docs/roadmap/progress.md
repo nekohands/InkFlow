@@ -15,7 +15,7 @@
 | Repository Bootstrap | ✅ Completed | .NET 10 基础仓库与最初 CI 已建立 |
 | Phase 0 — Foundation | ✅ Completed | 模块边界、Persistence、Migration、Outbox/Inbox、OTel、测试与 Runtime CI Gate 已验收 |
 | Phase 1A — Single Source Vertical Slice | 🚧 Ready for Real-Device Acceptance | 自动化链路与 kanunu8 真实源验证已完成；阅读 3.0 真机导入/阅读及真实追更仍待人工验收 |
-| Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优、健康感知切源及源码 Compose A→B→A 运行时；真实 Official Source 故障切源仍待后续验收 |
+| Phase 1B — Dual Source Validation | 🚧 In Progress | 确定性双 Official Source 夹具已覆盖正典身份、章节对齐、质量选优、质量失败演练、健康感知切源及源码 Compose A→B→A 运行时；真实 Official Source 故障切源仍待后续验收 |
 | Phase 2 — Multi-Source Production | 🚧 In Progress | Capability Health v1 与 Worker 任务可靠性基础已落地；自适应追更、健康评分、规则 Canary 仍待推进 |
 | Phase 3 — User Product | 🚧 In Progress | Reading State v1、Web Reader v1、Reader/PWA 用户状态 v1 与 Private Library 私有正文/导入导出自动化基础已落地；Web/PWA/Operations 前端纳入 1.0 强制 Release Gate，PWA Service Worker/离线壳自动化已补齐，真实账户、安装和私有路径补充验收仍待推进 |
 | Phase 4 — Commercial Platform | 🚧 Release Candidate | Developers/Billing/Entitlement/Developer API v1 自动化基线与远端门禁已通过；真实凭据、真实 PostgreSQL/Redis 与人工验收仍待推进 |
@@ -1284,6 +1284,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：代码候选 `e167a1f` 已推送；最终文档候选的 CI、Docker、Security 必须重新查询并以同一最终 head SHA 为准，不以旧提交门禁替代。
 - 当前状态：本工作包自动化 Release Gate 已通过，整体保持 `1.0 Release Candidate`，不等同 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后人工验收和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
 
+### 5.8 Quality failure drill 运行时门禁（本轮，2026-08-31）
+
+- 工作包：关闭 Phase 1B 明确列出的质量失败演练缺口；模拟同一来源先返回完整高质量章节、随后重放故意截断的低质量正文，确认低质量候选不会静默替换已选版本。
+- 实现：`InkFlow.AcceptanceFixtures` 新增 `ensure-quality-failure-catalog`，通过真实 `ContentPublishingService → QualityEngine → ContentSelectionService` 持久化两个不可变 `ContentVersion`，输出分数、版本 ID 和选择证据；新增 `scripts/quality-failure-runtime-smoke.sh`，从 Web API、Legado API 和 Reader HTML 三个公共出口核验高质量标记仍可见、低质量标记不可见；脚本回归已接入 CI。
+- 回归：本机脚本语法、`git diff --check`、Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10 PASS；Windows 本机缺少 `jq`，脚本功能回归改由 VM/CI 执行。
+- Ubuntu VM：当前源码挂载的 acceptance fixture 实际输出高质量分 `100`、低质量重放分 `30`，`selectedVersionId == goodVersionId`；源码 Compose 运行态 API/Worker/Scheduler 健康，质量门禁在 Web/Legado/Reader 三出口均输出 PASS，脚本回归 PASS。为避免 NuGet 网络超时，本轮复用此前已验证的源码构建业务镜像；新增 fixture 代码在容器内从当前源码编译执行。
+- 远端门槛：代码候选 `f29256e` 尚未推送；推送后必须重新确认 CI、Docker、Security 三者均指向最终 head SHA 并通过。
+- 当前状态：本工作包为 `Implemented`，质量失败自动化门禁已补齐，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。真实 Official Source/追更/第二来源故障切换、真实凭据/Provider/生产运维、PWA 安装跨设备、受保护 Operations 登录后操作和 MuMu/阅读 3.0 真机验收继续按第 6 节待定；本轮不启动 MuMu/阅读 3.0 测试。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1418,7 +1427,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `e167a1f` 在 Rule 主请求同源门禁基础上收敛 Rule/Crawler/Content/Health/Book Package/Collection Run 及宿主执行失败文本，避免业务结果、持久化失败原因和控制台路径直接传播原始 `Exception.Message`；Progress、Handoff 与架构安全/运行时文档已同步本轮证据。VM 同一 Linux SDK 容器完整 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10、Integration 101 passed / 2 skipped / 0 failed，`verify-migrations.sh` 通过 11 个 DbContext；源码 Compose 低并发重建、Migration/packages-init、服务健康检查均通过，随后 Compose 已停止，服务容器和网络已清理，持久卷保留。最终文档候选的 CI、Docker、Security 仍需以同一最终 head SHA 查询确认。
+最新状态（2026-08-31）：代码候选 `f29256e` 在执行失败文本稳定化基础上补齐 Phase 1B 质量失败运行时演练；质量夹具通过真实 Publishing/Quality/Selection 服务持久化完整版本与故意截断重放，并由 Web、Legado、Reader 三出口确认高质量版本保持选中。Progress、Handoff 与 Phase 1B 验收文档已同步本轮证据。VM 源码 Compose 运行态健康，质量夹具输出 good `100` / low `30` 且 selected 为 good，运行烟测与脚本回归通过；本机 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10 通过。最终文档候选的 CI、Docker、Security 仍需以同一最终 head SHA 查询确认。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
