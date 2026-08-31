@@ -1427,7 +1427,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-08-31）：代码候选 `f29256e` 在执行失败文本稳定化基础上补齐 Phase 1B 质量失败运行时演练；质量夹具通过真实 Publishing/Quality/Selection 服务持久化完整版本与故意截断重放，并由 Web、Legado、Reader 三出口确认高质量版本保持选中。Progress、Handoff 与 Phase 1B 验收文档已同步本轮证据。VM 源码 Compose 运行态健康，质量夹具输出 good `100` / low `30` 且 selected 为 good，运行烟测与脚本回归通过；本机 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10 通过。最终文档候选的 CI、Docker、Security 仍需以同一最终 head SHA 查询确认。
+最新状态（2026-08-31）：代码候选 `f29256e` 在执行失败文本稳定化基础上补齐 Phase 1B 质量失败运行时演练；质量夹具通过真实 Publishing/Quality/Selection 服务持久化完整版本与故意截断重放，并由 Web、Legado、Reader 三出口确认高质量版本保持选中。最终交接提交为 `543fcaa`，Progress、Handoff 与 Phase 1B 验收文档已同步本轮证据。VM 源码 Compose 运行态健康，质量夹具输出 good `100` / low `30` 且 selected 为 good，运行烟测与脚本回归通过；本机 Release Build 0 warnings / 0 errors、Unit 530/530、Architecture 1/1、Contract 10/10 通过。最终 head `543fcaa` 的 [CI 33391231297](https://github.com/nekohands/InkFlow/actions/runs/33391231297)、[Docker 33391231323](https://github.com/nekohands/InkFlow/actions/runs/33391231323)、[Security 33391231383](https://github.com/nekohands/InkFlow/actions/runs/33391231383) 均 GREEN 且 SHA 一致。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
