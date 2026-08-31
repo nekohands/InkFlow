@@ -40,8 +40,9 @@ PostgreSQL 实现以 `(SourceId, Capability)` 的稳定摘要获取事务级 adv
 
 Content 选优通过 `ContentSelectionService` 读取该能力状态：优先在可用来源中按质量选优，
 全来源不可用时保留已落库当前版本；每次选择追加 `content.selection_decisions` 审计记录，
-保存算法版本、候选/排除数量、选中版本和来源及回退标志。读取路径仍只读取 Canonical Content，
-不会因故障切源而实时访问第三方站点。
+保存算法版本、候选/排除数量、选中版本和来源及回退标志。公共正文读取在加载正文前，
+通过同一服务对已落库候选执行一次重选，因此来源被停用后下一次读取可切到有效的 B 来源，
+恢复后也可回到质量更高的 A 版本；此步骤不访问第三方 URL，失败不会绕过正文策略门控。
 
 ## 3. RuleAdapter DSL v1
 

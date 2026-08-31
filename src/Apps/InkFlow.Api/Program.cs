@@ -1,5 +1,5 @@
-// Public Content API:目录/内容端点只读(数据来自已落库正典数据),
-// /search 端点是唯一的写侧入口——触发来源发现(幂等导入+匹配),随后仍从落库数据返回。
+// Public Content API:目录端点只读,正文端点只在已落库候选中重选当前版本后读取正典数据;
+// /search 端点是唯一的来源发现写侧入口——触发来源发现(幂等导入+匹配),随后仍从落库数据返回。
 using System.Security.Claims;
 using System.Text.Json;
 using InkFlow.Api;
@@ -243,6 +243,10 @@ builder.Services.AddScoped<InkFlow.Modules.Content.Infrastructure.Persistence.Co
             .Options));
 builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentVersionRepository,
     InkFlow.Modules.Content.Infrastructure.Persistence.EfContentVersionRepository>();
+builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentSelectionDecisionRepository,
+    InkFlow.Modules.Content.Infrastructure.Persistence.EfContentSelectionDecisionRepository>();
+builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentSelectionService,
+    InkFlow.Modules.Content.Application.ContentSelectionService>();
 builder.Services.AddScoped<InkFlow.Modules.Content.Application.IContentPolicyRepository,
     InkFlow.Modules.Content.Infrastructure.Persistence.EfContentPolicyRepository>();
 builder.Services.AddScoped<InkFlow.Modules.Content.Application.ContentPolicyService>();

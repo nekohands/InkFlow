@@ -74,6 +74,13 @@ jobs:
           bash -n scripts/tests/legado-runtime-smoke.test.sh
           bash scripts/tests/legado-runtime-smoke.test.sh
 
+      - name: Source failover runtime smoke script regression
+        run: |
+          bash -n scripts/source-failover-runtime-smoke.sh
+          bash -n scripts/tests/source-failover-runtime-smoke.fixture-curl.sh
+          bash -n scripts/tests/source-failover-runtime-smoke.test.sh
+          bash scripts/tests/source-failover-runtime-smoke.test.sh
+
       - name: Opt-in live source acceptance script regression
         run: bash -n scripts/kanunu-live-acceptance.sh
 
@@ -261,6 +268,39 @@ jobs:
             "INKFLOW_LEGADO_RUNTIME_SMOKE_BOOK_ID=$book_id" \
             "INKFLOW_LEGADO_RUNTIME_SMOKE_CHAPTER_ID=$chapter_id" \
             bash scripts/legado-runtime-smoke.sh http://localhost:8080
+
+      - name: Source failover runtime smoke
+        run: |
+          set -euo pipefail
+          test_password='correct horse battery staple'
+          run_id="$(date -u +%s%N)-$$"
+          admin_email="ci-failover-runtime-$run_id@example.com"
+          fixture_cmd=(docker compose -f docker-compose.build.yml --profile acceptance run --rm --no-deps acceptance-fixtures)
+
+          cleanup() {
+            set +e
+            "${fixture_cmd[@]}" disable-user "$admin_email" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          admin_payload="$(jq -nc --arg email "$admin_email" --arg password "$test_password" '{email: $email, password: $password}')"
+          admin_registration="$(curl --fail --silent -H 'Content-Type: application/json' --data "$admin_payload" http://localhost:8080/api/v1/auth/register)"
+          admin_token="$(printf '%s' "$admin_registration" | jq -er '.access_token')"
+          "${fixture_cmd[@]}" set-role "$admin_email" administrator >/dev/null
+
+          fixture_json="$("${fixture_cmd[@]}" ensure-failover-catalog | tail -n 1)"
+          source_a_id="$(printf '%s' "$fixture_json" | jq -er '.sourceAId')"
+          source_b_id="$(printf '%s' "$fixture_json" | jq -er '.sourceBId')"
+          book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
+          chapter_id="$(printf '%s' "$fixture_json" | jq -er '.chapterId')"
+
+          env \
+            "INKFLOW_FAILOVER_RUNTIME_SMOKE_ADMIN_TOKEN=$admin_token" \
+            "INKFLOW_FAILOVER_RUNTIME_SMOKE_SOURCE_A_ID=$source_a_id" \
+            "INKFLOW_FAILOVER_RUNTIME_SMOKE_SOURCE_B_ID=$source_b_id" \
+            "INKFLOW_FAILOVER_RUNTIME_SMOKE_BOOK_ID=$book_id" \
+            "INKFLOW_FAILOVER_RUNTIME_SMOKE_CHAPTER_ID=$chapter_id" \
+            bash scripts/source-failover-runtime-smoke.sh http://localhost:8080
 
       - name: Private library runtime smoke
         run: |

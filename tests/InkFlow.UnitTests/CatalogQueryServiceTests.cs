@@ -174,6 +174,43 @@ public sealed class CatalogQueryServiceTests
     }
 
     [TestMethod]
+    public async Task GetChapterContent_Reevaluates_Current_From_Persisted_Candidates()
+    {
+        var books = new InMemoryBookRepository();
+        var versions = new InMemoryVersionRepository();
+        var book = CreateBook("切源书", "作者", withChapters: true);
+        await books.AddAsync(book);
+        var chapter = book.Chapters.Single();
+
+        var sourceA = await new ContentPublishingService(versions).PublishAsync(
+            book.Id,
+            chapter.Id,
+            "source-a",
+            "<p>A 版本第一段</p><p>A 版本第二段</p><p>A 版本第三段</p>");
+        var sourceB = await new ContentPublishingService(versions).PublishAsync(
+            book.Id,
+            chapter.Id,
+            "source-b",
+            "<p>B 版本第一段</p><p>B 版本第二段</p><p>B 版本第三段</p>");
+        Assert.IsTrue(sourceA.IsSuccess && sourceB.IsSuccess);
+        await versions.SetCurrentAsync(chapter.Id, sourceA.Version!.Id);
+
+        var selector = new SelectingVersionService(versions, sourceB.Version!.Id);
+        var service = new CatalogQueryService(
+            books,
+            versions,
+            new AllowAllContentPolicyReader(),
+            selector);
+
+        var content = await service.GetChapterContentAsync(chapter.Id);
+
+        Assert.IsNotNull(content);
+        Assert.AreEqual(1, selector.Calls);
+        Assert.AreEqual("source-b", content.SourceId);
+        StringAssert.Contains(content.Paragraphs[0], "B 版本");
+    }
+
+    [TestMethod]
     public async Task Takedown_Hides_Book_And_Blocks_Body_Load()
     {
         var books = new InMemoryBookRepository();
@@ -244,5 +281,26 @@ public sealed class CatalogQueryServiceTests
             Guid canonicalBookId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(canonicalBookId == takenDownBookId);
+    }
+
+    private sealed class SelectingVersionService(
+        InMemoryVersionRepository versions,
+        Guid selectedVersionId) : IContentSelectionService
+    {
+        public int Calls { get; private set; }
+
+        public async Task<ContentSelectionOutcome> SelectCurrentAsync(
+            Guid canonicalChapterId,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            await versions.SetCurrentAsync(canonicalChapterId, selectedVersionId, cancellationToken);
+            var selected = versions.Store.Single(version => version.Id == selectedVersionId);
+            return ContentSelectionOutcome.Ok(
+                selected,
+                changed: true,
+                usedFallback: false,
+                evidence: "catalog-query-test");
+        }
     }
 }

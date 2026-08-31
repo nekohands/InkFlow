@@ -7,6 +7,7 @@ using InkFlow.Modules.Identity.Domain;
 using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
+using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,22 @@ const string FixtureReaderContent = """
     <p>正文来自已发布的 Canonical Content，阅读页应展示已落库内容。</p>
     <p>滚动、阅读进度和历史记录由浏览器自动化链路验证。</p>
     """;
+const string FailoverSourceAId = "inkflow-failover-a";
+const string FailoverSourceBId = "inkflow-failover-b";
+const string FailoverBookTitle = "InkFlow Source Failover Fixture";
+const string FailoverBookAuthor = "InkFlow Automation";
+const string FailoverChapterTitle = "Failover Acceptance Chapter";
+const string FailoverSourceABaseUrl = "https://inkflow-failover-a.invalid";
+const string FailoverSourceBBaseUrl = "https://inkflow-failover-b.invalid";
+const string FailoverSourceAContent = """
+    <p>InkFlow failover source A marker. This authoritative fixture paragraph is intentionally long enough to represent a high quality published chapter and to make the selected source observable during the failover drill.</p>
+    <p>The source A content remains available in canonical storage while its upstream capability is disabled, so the public Web and Legado readers can prove that reading does not synchronously depend on a live source.</p>
+    <p>Restoring source A must make this version the preferred candidate again without changing the canonical book or chapter identity.</p>
+    """;
+const string FailoverSourceBContent = """
+    <p>InkFlow failover source B marker. This secondary fixture remains readable when source A is disabled and provides a distinct canonical content version.</p>
+    <p>The fallback response keeps the same canonical identifiers and is intentionally scored below source A so recovery can be observed deterministically.</p>
+    """;
 
 var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Database");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -30,7 +47,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 if (args.Length == 0)
 {
-    return Fail("usage: ensure-catalog | ensure-reader-catalog | ensure-collection-control-runs | set-role <email> <operator|administrator> | disable-user <email>");
+    return Fail("usage: ensure-catalog | ensure-reader-catalog | ensure-failover-catalog | ensure-collection-control-runs | set-role <email> <operator|administrator> | disable-user <email>");
 }
 
 try
@@ -41,6 +58,8 @@ try
             await EnsureCatalogAsync(connectionString, publishReaderContent: false),
         "ensure-reader-catalog" when args.Length == 1 =>
             await EnsureCatalogAsync(connectionString, publishReaderContent: true),
+        "ensure-failover-catalog" when args.Length == 1 =>
+            await EnsureFailoverCatalogAsync(connectionString),
         "ensure-collection-control-runs" when args.Length == 1 =>
             await EnsureCollectionControlRunsAsync(connectionString),
         "set-role" when args.Length == 3 =>
@@ -123,56 +142,19 @@ static async Task<int> DisableUserAsync(string connectionString, string email)
 static async Task<int> EnsureCatalogAsync(string connectionString, bool publishReaderContent)
 {
     var now = DateTimeOffset.UtcNow;
-    await using (var sourceDb = new SourcesDbContext(Options<SourcesDbContext>(connectionString)))
-    {
-        var sources = new EfSourceRepository(sourceDb);
-        var source = await sources.GetAsync(FixtureSourceId);
-        if (source is null)
-        {
-            source = Source.Create(
-                FixtureSourceId,
-                "InkFlow Acceptance Source",
-                FixtureSourceBaseUrl,
-                now);
-            source.UpdateRuleDsl(BuildFixtureRuleDsl(), now);
-            await sources.AddAsync(source);
-        }
-        else if (source.RuleDsl is null)
-        {
-            source.UpdateRuleDsl(BuildFixtureRuleDsl(), now);
-            await sources.SaveAsync(source);
-        }
-    }
+    await EnsureSourceAsync(
+        connectionString,
+        FixtureSourceId,
+        "InkFlow Acceptance Source",
+        FixtureSourceBaseUrl,
+        now);
 
-    Guid bookId;
-    Guid chapterId;
-    await using (var libraryDb = new LibraryDbContext(Options<LibraryDbContext>(connectionString)))
-    {
-        var books = new EfCanonicalBookRepository(libraryDb);
-        var book = await books.FindByTitleAuthorAsync(FixtureBookTitle, FixtureBookAuthor);
-        if (book is null)
-        {
-            book = CanonicalBook.Create(FixtureBookTitle, FixtureBookAuthor, now);
-            var chapter = book.AddChapter(0, FixtureChapterTitle, now);
-            await books.AddAsync(book);
-            bookId = book.Id;
-            chapterId = chapter.Id;
-        }
-        else
-        {
-            book = await books.GetAsync(book.Id)
-                ?? throw new InvalidOperationException("acceptance fixture book disappeared while loading.");
-            var existingChapter = book.Chapters.FirstOrDefault();
-            if (existingChapter is null)
-            {
-                existingChapter = book.AddChapter(0, FixtureChapterTitle, now);
-                await books.SaveAsync(book);
-            }
-
-            bookId = book.Id;
-            chapterId = existingChapter.Id;
-        }
-    }
+    var (bookId, chapterId) = await EnsureCanonicalBookAsync(
+        connectionString,
+        FixtureBookTitle,
+        FixtureBookAuthor,
+        FixtureChapterTitle,
+        now);
 
     if (publishReaderContent)
     {
@@ -199,6 +181,129 @@ static async Task<int> EnsureCatalogAsync(string connectionString, bool publishR
     return 0;
 }
 
+static async Task<int> EnsureFailoverCatalogAsync(string connectionString)
+{
+    var now = DateTimeOffset.UtcNow;
+    await EnsureSourceAsync(
+        connectionString,
+        FailoverSourceAId,
+        "InkFlow Failover Source A",
+        FailoverSourceABaseUrl,
+        now);
+    await EnsureSourceAsync(
+        connectionString,
+        FailoverSourceBId,
+        "InkFlow Failover Source B",
+        FailoverSourceBBaseUrl,
+        now);
+
+    var (bookId, chapterId) = await EnsureCanonicalBookAsync(
+        connectionString,
+        FailoverBookTitle,
+        FailoverBookAuthor,
+        FailoverChapterTitle,
+        now);
+
+    await using var sourceDb = new SourcesDbContext(Options<SourcesDbContext>(connectionString));
+    var health = new SourceHealthService(
+        new EfSourceHealthRepository(sourceDb),
+        TimeProvider.System);
+    await health.EnableAsync(FailoverSourceAId, SourceCapability.Content);
+    await health.EnableAsync(FailoverSourceBId, SourceCapability.Content);
+
+    await using var contentDb = new ContentDbContext(Options<ContentDbContext>(connectionString));
+    var versions = new EfContentVersionRepository(contentDb);
+    var selector = new ContentSelectionService(
+        versions,
+        health,
+        new EfContentSelectionDecisionRepository(contentDb),
+        TimeProvider.System);
+    var publisher = new ContentPublishingService(versions, selector);
+
+    foreach (var (sourceId, content) in new[]
+    {
+        (FailoverSourceAId, FailoverSourceAContent),
+        (FailoverSourceBId, FailoverSourceBContent),
+    })
+    {
+        var outcome = await publisher.PublishAsync(bookId, chapterId, sourceId, content);
+        if (!outcome.IsSuccess || outcome.Version is null)
+        {
+            throw new InvalidOperationException(
+                $"failover fixture content for '{sourceId}' could not be published: {string.Join("; ", outcome.Errors)}");
+        }
+    }
+
+    var selected = await selector.SelectCurrentAsync(chapterId);
+    if (!selected.IsSuccess || selected.SelectedVersion?.SourceId != FailoverSourceAId)
+    {
+        throw new InvalidOperationException(
+            $"failover fixture did not select source A initially: {selected.Evidence}");
+    }
+
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        sourceAId = FailoverSourceAId,
+        sourceBId = FailoverSourceBId,
+        bookId,
+        chapterId,
+    }));
+    return 0;
+}
+
+static async Task EnsureSourceAsync(
+    string connectionString,
+    string sourceId,
+    string displayName,
+    string baseUrl,
+    DateTimeOffset now)
+{
+    await using var sourceDb = new SourcesDbContext(Options<SourcesDbContext>(connectionString));
+    var sources = new EfSourceRepository(sourceDb);
+    var source = await sources.GetAsync(sourceId);
+    if (source is null)
+    {
+        source = Source.Create(sourceId, displayName, baseUrl, now);
+        source.UpdateRuleDsl(BuildFixtureRuleDsl(sourceId), now);
+        await sources.AddAsync(source);
+    }
+    else if (source.RuleDsl is null)
+    {
+        source.UpdateRuleDsl(BuildFixtureRuleDsl(sourceId), now);
+        await sources.SaveAsync(source);
+    }
+}
+
+static async Task<(Guid BookId, Guid ChapterId)> EnsureCanonicalBookAsync(
+    string connectionString,
+    string title,
+    string author,
+    string chapterTitle,
+    DateTimeOffset now)
+{
+    await using var libraryDb = new LibraryDbContext(Options<LibraryDbContext>(connectionString));
+    var books = new EfCanonicalBookRepository(libraryDb);
+    var book = await books.FindByTitleAuthorAsync(title, author);
+    if (book is null)
+    {
+        book = CanonicalBook.Create(title, author, now);
+        var chapter = book.AddChapter(0, chapterTitle, now);
+        await books.AddAsync(book);
+        return (book.Id, chapter.Id);
+    }
+
+    book = await books.GetAsync(book.Id)
+        ?? throw new InvalidOperationException("acceptance fixture book disappeared while loading.");
+    var existingChapter = book.Chapters.FirstOrDefault();
+    if (existingChapter is null)
+    {
+        existingChapter = book.AddChapter(0, chapterTitle, now);
+        await books.SaveAsync(book);
+    }
+
+    return (book.Id, existingChapter.Id);
+}
+
 static async Task<int> EnsureCollectionControlRunsAsync(string connectionString)
 {
     var now = DateTimeOffset.UtcNow;
@@ -221,7 +326,7 @@ static async Task<int> EnsureCollectionControlRunsAsync(string connectionString)
     return 0;
 }
 
-static SourceRuleDsl BuildFixtureRuleDsl() => new("1", FixtureSourceId,
+static SourceRuleDsl BuildFixtureRuleDsl(string sourceId) => new("1", sourceId,
 [
     new CapabilityRule(
         SourceCapability.BookInfo,

@@ -71,6 +71,8 @@ Private Book 是绑定单一 UserId 的用户私有书目元数据，使用独�
 保存 RawHash 与 CanonicalHash。仅 Raw 变化而 CanonicalHash 不变时，不创建新的有效正文版本。
 
 正文不覆盖旧版本：每次有效变化形成新的 `ContentVersion`。`SelectedContentVersionId` 只指向当前最佳版本。
+公共正文读取前会在已落库候选和来源能力健康状态中重选当前版本；该重选不触网，
+使来源停用后的下一次 Web/Legado 读取可以完成确定性故障切换，同时保留正文历史和正典身份。
 
 Quality 决策必须输出可解释 Evidence 和 AlgorithmVersion，并支持人工 Lock。
 

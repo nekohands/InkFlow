@@ -18,13 +18,14 @@ public sealed record ChapterContent(
     string SourceId, IReadOnlyList<string> Paragraphs);
 
 /// <summary>
-/// 公共目录/阅读查询服务(只读)。全部数据来自已落库的正典书目与 IsCurrent 内容版本——
-/// 普通阅读路径零实时抓取(架构不变量 3)。
+/// 公共目录/阅读查询服务。全部数据来自已落库的正典书目与 ContentVersion——
+/// 正文读取前可在已落库的候选与来源健康状态中重选当前版本，但绝不实时抓取第三方。
 /// </summary>
 public sealed class CatalogQueryService(
     ICanonicalBookRepository bookRepository,
     IContentVersionRepository versionRepository,
-    IContentPolicyReader policyReader)
+    IContentPolicyReader policyReader,
+    IContentSelectionService? selectionService = null)
 {
     public async Task<IReadOnlyList<BookListItem>> ListBooksAsync(CancellationToken cancellationToken = default)
     {
@@ -109,6 +110,29 @@ public sealed class CatalogQueryService(
             .ConfigureAwait(false))
         {
             return null;
+        }
+
+        // 健康状态变化后，第一次正文读取负责在已落库候选中完成重选。
+        // 该步骤不访问任何来源 URL；选择失败不应绕过后续的可见性门控。
+        if (selectionService is not null)
+        {
+            var selection = await selectionService
+                .SelectCurrentAsync(chapterId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!selection.IsSuccess)
+            {
+                return null;
+            }
+
+            canonicalBookId = await versionRepository
+                .GetCurrentCanonicalBookIdAsync(chapterId, cancellationToken)
+                .ConfigureAwait(false);
+            if (canonicalBookId is null || await policyReader
+                .IsTakedownAsync(canonicalBookId.Value, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                return null;
+            }
         }
 
         var version = await versionRepository
