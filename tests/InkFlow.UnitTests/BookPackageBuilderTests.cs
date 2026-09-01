@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using System.Xml.Linq;
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Content.Domain;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -72,6 +73,67 @@ public sealed class BookPackageBuilderTests
         StringAssert.Contains(ReadEntry(archive, "OEBPS/nav.xhtml"), "第一章");
         StringAssert.Contains(ReadEntry(archive, "OEBPS/chapters/000001.xhtml"), "正文第一段");
         CollectionAssert.AreEqual(new[] { 1 }, progress.ToArray());
+    }
+
+    [TestMethod]
+    public async Task Builds_MultiChapter_Epub_With_Escaped_Metadata_And_Ordered_Progress()
+    {
+        using var output = new MemoryStream();
+        var builder = new BookPackageBuilder();
+        var progress = new List<int>();
+        var document = CreateDocument() with
+        {
+            Title = "测试 & <书>",
+            Author = "作者 >",
+            Chapters =
+            [
+                new(
+                    Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                    0,
+                    "第一 & <章>",
+                    "正文 <一>\r\n\r\n第二段",
+                    Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                    "hash-2"),
+                new(
+                    Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                    1,
+                    "第二章",
+                    "第二章正文",
+                    Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                    "hash-3"),
+            ],
+        };
+
+        await builder.BuildAsync(
+            document,
+            BookPackageFormat.Epub,
+            output,
+            value =>
+            {
+                progress.Add(value);
+                return Task.CompletedTask;
+            });
+
+        output.Position = 0;
+        using var archive = new ZipArchive(output, ZipArchiveMode.Read);
+        XNamespace xhtml = "http://www.w3.org/1999/xhtml";
+        XNamespace dc = "http://purl.org/dc/elements/1.1/";
+        var navigation = XDocument.Parse(ReadEntry(archive, "OEBPS/nav.xhtml"));
+        var opf = XDocument.Parse(ReadEntry(archive, "OEBPS/content.opf"));
+        var firstChapter = XDocument.Parse(
+            ReadEntry(archive, "OEBPS/chapters/000001.xhtml"));
+
+        CollectionAssert.AreEqual(
+            new[] { "第一 & <章>", "第二章" },
+            navigation.Descendants(xhtml + "a").Select(link => link.Value).ToArray());
+        Assert.AreEqual(
+            "测试 & <书>",
+            opf.Descendants(dc + "title").Single().Value);
+        Assert.AreEqual(
+            "第一 & <章>",
+            firstChapter.Descendants(xhtml + "h1").Single().Value);
+        StringAssert.Contains(firstChapter.Root!.Value, "正文 <一>");
+        CollectionAssert.AreEqual(new[] { 1, 2 }, progress.ToArray());
     }
 
     private static BookPackageDocument CreateDocument() =>
