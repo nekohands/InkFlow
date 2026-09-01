@@ -86,7 +86,8 @@ public static partial class ReaderHtml
           .operations-form__actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
           .operations-form__hint { grid-column: 1 / -1; margin: 0; color: var(--reader-muted); font-size: 0.82rem; }
           .operations-run-list,
-          .operations-package-list { display: grid; gap: 0.75rem; padding: 0; margin: 1rem 0 0; list-style: none; }
+          .operations-package-list,
+          .operations-policy-list { display: grid; gap: 0.75rem; padding: 0; margin: 1rem 0 0; list-style: none; }
           .operations-run-card,
           .operations-package-card {
             display: grid;
@@ -115,6 +116,29 @@ public static partial class ReaderHtml
           .operations-run-card__actions .button,
           .operations-package-card__actions .button { min-height: 2.35rem; padding-block: 0.42rem; font-size: 0.82rem; }
           .operations-package-card__actions a.button { display: inline-flex; align-items: center; text-decoration: none; }
+          .operations-policy-card {
+            display: grid;
+            gap: 0.65rem;
+            padding: 0.95rem 1rem;
+            border: 1px solid var(--reader-border);
+            border-radius: 0.8rem;
+            background: var(--reader-bg);
+          }
+          .operations-policy-card__header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+          }
+          .operations-policy-card__title,
+          .operations-policy-card__meta,
+          .operations-policy-card__reason { margin: 0; overflow-wrap: anywhere; }
+          .operations-policy-card__title { font-weight: 750; }
+          .operations-policy-card__meta,
+          .operations-policy-card__reason { color: var(--reader-muted); font-size: 0.82rem; }
+          .operations-policy-card__reason { max-width: 48rem; }
+          .operations-policy-card__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+          .operations-policy-card__actions .button { min-height: 2.4rem; padding-block: 0.45rem; font-size: 0.84rem; }
           .operations-run-card__error,
           .operations-package-card__error { margin: 0; color: #8e321f; font-size: 0.84rem; overflow-wrap: anywhere; }
           .operations-state {
@@ -246,7 +270,8 @@ public static partial class ReaderHtml
             .operations-toolbar { align-items: stretch; flex-direction: column; }
             .operations-toolbar .button { width: 100%; }
             .operations-panel__header { align-items: flex-start; flex-direction: column; }
-            .operations-card__header { flex-direction: column; }
+            .operations-card__header,
+            .operations-policy-card__header { flex-direction: column; }
             .operations-form { grid-template-columns: 1fr; }
             .operations-form__actions { flex-direction: column; }
             .operations-form__actions .button { width: 100%; }
@@ -284,6 +309,11 @@ public static partial class ReaderHtml
           const packageSubmit = document.getElementById("operations-package-submit");
           const packageStatus = document.getElementById("operations-package-status");
           const packageList = document.getElementById("operations-package-list");
+          const policyForm = document.getElementById("operations-policy-form");
+          const policyBookId = document.getElementById("operations-policy-book-id");
+          const policySubmit = document.getElementById("operations-policy-submit");
+          const policyStatus = document.getElementById("operations-policy-status");
+          const policyList = document.getElementById("operations-policy-list");
           const historyPanel = document.getElementById("operations-history");
           const historyStatus = document.getElementById("operations-history-status");
           const historyTable = document.getElementById("operations-history-table");
@@ -306,6 +336,7 @@ public static partial class ReaderHtml
           let historyCursor = null;
           let collectionLoading = false;
           let packageLoading = false;
+          let policyLoading = false;
           const packageIds = [];
           const packageValues = new Map();
 
@@ -331,6 +362,7 @@ public static partial class ReaderHtml
           const runStageLabel = (stage) => ({ bookinfo: "书籍信息", toc: "目录", content: "正文" }[String(stage).toLowerCase()] || text(stage, "未知阶段"));
           const packageStatusLabel = (status) => ({ queued: "排队中", running: "打包中", completed: "已完成", failed: "失败", expired: "已过期" }[String(status).toLowerCase()] || text(status, "未知"));
           const controlLabel = (action) => ({ pause: "暂停", resume: "恢复", stop: "停止", cancel: "取消" }[String(action).toLowerCase()] || "执行");
+          const policyActionLabel = (action) => ({ takedown: "下架", restore: "恢复" }[String(action).toLowerCase()] || "执行");
           const statusTone = (value) => {
             const normalized = String(value || "").toLowerCase();
             if (["ready", "healthy", "replayed", "resolved", "completed"].includes(normalized)) return "ready";
@@ -686,6 +718,99 @@ public static partial class ReaderHtml
               packageList?.append(card);
             }
           };
+          const renderPolicyRestricted = (message = "内容政策管理仅管理员可用。") => {
+            policyList?.replaceChildren();
+            setPanelStatus(policyStatus, message, "danger");
+            if (policyBookId) policyBookId.disabled = true;
+            if (policySubmit) policySubmit.disabled = true;
+          };
+          const renderPolicy = (values) => {
+            if (policyBookId) policyBookId.disabled = false;
+            if (policySubmit) policySubmit.disabled = false;
+            policyList?.replaceChildren();
+            if (!Array.isArray(values) || values.length === 0) {
+              setPanelStatus(policyStatus, "当前没有下架书籍。", "ready");
+              return;
+            }
+            setPanelStatus(policyStatus, "已加载 " + values.length + " 条下架记录。", "ready");
+            for (const value of values) {
+              const bookId = asGuid(value?.canonicalBookId);
+              if (!bookId || value?.isTakedown !== true) continue;
+              const decision = value?.latestDecision;
+              const card = node("li", "operations-policy-card");
+              const header = node("div", "operations-policy-card__header");
+              const titleWrap = node("div");
+              titleWrap.append(node("p", "operations-policy-card__title", "正典书 " + bookId));
+              titleWrap.append(node(
+                "p",
+                "operations-policy-card__meta",
+                "下架于 " + dateLabel(decision?.createdAt)));
+              header.append(titleWrap, badge("disabled", "已下架"));
+              card.append(header);
+              card.append(node(
+                "p",
+                "operations-policy-card__reason",
+                "理由：" + text(decision?.reason, "未提供理由")));
+              const actions = node("div", "operations-policy-card__actions");
+              const restoreButton = node("button", "button", "恢复内容");
+              restoreButton.type = "button";
+              restoreButton.addEventListener("click", () => openActionDialog({
+                action: "content-policy",
+                policyAction: "restore",
+                bookId,
+                title: "恢复内容 · " + bookId,
+                detail: "该命令会追加一条恢复决定并写入审计，不会删除历史下架记录。"
+              }));
+              actions.append(restoreButton);
+              card.append(actions);
+              policyList?.append(card);
+            }
+          };
+          const loadPolicy = async () => {
+            if (policyLoading || currentRole !== "Administrator" || !client?.isSignedIn()) return;
+            policyLoading = true;
+            setPanelStatus(policyStatus, "正在加载下架内容…");
+            const response = await client.apiFetch("/api/v1/admin/content/takedowns?limit=50");
+            if (response === null) {
+              setPanelStatus(policyStatus, "下架记录暂时不可用，请稍后刷新。", "danger");
+              policyLoading = false;
+              return;
+            }
+            if (response.status === 401) {
+              client.clearSession();
+              showLogin("会话已失效，请重新登录后访问运维中心。");
+              policyLoading = false;
+              return;
+            }
+            if (response.status === 403) {
+              renderPolicyRestricted("当前账户没有内容政策管理权限。");
+              policyLoading = false;
+              return;
+            }
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+              setPanelStatus(policyStatus, "下架记录请求失败，请刷新后重试。", "danger");
+              policyLoading = false;
+              return;
+            }
+            renderPolicy(payload);
+            policyLoading = false;
+          };
+          const startPolicyTakedown = () => {
+            const bookId = asGuid(String(policyBookId?.value || "").trim());
+            if (!bookId) {
+              setPanelStatus(policyStatus, "请输入有效的正典书 ID。", "danger");
+              policyBookId?.focus();
+              return;
+            }
+            openActionDialog({
+              action: "content-policy",
+              policyAction: "takedown",
+              bookId,
+              title: "下架内容 · " + bookId,
+              detail: "该命令会使书目、目录、正文、Web Reader、公共搜索和 Legado 暂时不可见，并追加审计记录。"
+            });
+          };
           const loadPackages = async () => {
             if (packageLoading || !client?.isSignedIn() || !operationRoles.has(currentRole) || !packageIds.length) return;
             packageLoading = true;
@@ -948,8 +1073,11 @@ public static partial class ReaderHtml
                 historyRefresh.disabled = false;
               }
               setHistoryStatus("管理员可查看平台告警历史。", "neutral");
+              if (policyBookId) policyBookId.disabled = false;
+              if (policySubmit) policySubmit.disabled = false;
             } else {
               renderHistoryRestricted();
+              renderPolicyRestricted();
             }
             if (refreshButton) refreshButton.disabled = false;
             setNotice(authStatus, "已验证 " + roleLabel(currentRole) + " 身份，可以读取运维快照。", "ready");
@@ -1013,6 +1141,7 @@ public static partial class ReaderHtml
             setNotice(authStatus, "已更新 · " + dateLabel(payload?.generatedAt) + " · " + roleLabel(currentRole), "ready");
             void loadCollectionRuns();
             void loadPackages();
+            void loadPolicy();
             void loadHistory(true);
             loading = false;
             if (refreshButton) refreshButton.disabled = false;
@@ -1029,6 +1158,8 @@ public static partial class ReaderHtml
               ? "确认重放"
               : action.action === "run-control"
                 ? "确认" + controlLabel(action.controlAction)
+                : action.action === "content-policy"
+                  ? "确认" + policyActionLabel(action.policyAction)
                 : (action.action === "disable" ? "确认停用" : "确认恢复");
             actionSubmit.disabled = false;
             actionDialog.showModal();
@@ -1055,11 +1186,17 @@ public static partial class ReaderHtml
               path = "/api/v1/admin/crawler/dead-letters/" + encodeURIComponent(pendingAction.deadLetterId) + "/replay";
             } else if (pendingAction.action === "run-control") {
               path = "/api/v1/admin/collection-runs/" + encodeURIComponent(pendingAction.runId) + "/control";
+            } else if (pendingAction.action === "content-policy") {
+              path = pendingAction.policyAction === "takedown"
+                ? "/api/v1/admin/content/takedowns"
+                : "/api/v1/admin/content/takedowns/" + encodeURIComponent(pendingAction.bookId) + "/restore";
             } else {
               path = "/api/v1/admin/sources/" + encodeURIComponent(pendingAction.sourceId) + "/health/" + encodeURIComponent(pendingAction.capability) + "/" + pendingAction.action;
             }
             const requestBody = pendingAction.action === "run-control"
               ? { action: pendingAction.controlAction, reason }
+              : pendingAction.action === "content-policy" && pendingAction.policyAction === "takedown"
+                ? { bookId: pendingAction.bookId, reason }
               : { reason };
             const response = await client.apiFetch(path, {
               method: "POST",
@@ -1072,6 +1209,8 @@ public static partial class ReaderHtml
                 ? (payload?.status === "AlreadyReplayed" ? "该死信已经重放过。" : "重放任务已创建。") + (taskId ? " 新任务：" + taskId : "")
                 : pendingAction.action === "run-control"
                   ? "采集运行控制命令已提交。"
+                  : pendingAction.action === "content-policy"
+                    ? "内容政策已" + policyActionLabel(pendingAction.policyAction) + "，并已记录审计。"
                   : (pendingAction.action === "disable" ? "能力已停用。" : "能力已恢复，等待真实探针确认。");
               actionStatus.className = "operations-dialog__status operations-dialog__status--ready";
               actionSubmit.disabled = true;
@@ -1101,6 +1240,10 @@ public static partial class ReaderHtml
           packageForm?.addEventListener("submit", (event) => {
             event.preventDefault();
             void startPackage();
+          });
+          policyForm?.addEventListener("submit", (event) => {
+            event.preventDefault();
+            startPolicyTakedown();
           });
           historyRefresh?.addEventListener("click", () => { void loadHistory(true); });
           historyMore?.addEventListener("click", () => { void loadHistory(false); });
@@ -1187,6 +1330,22 @@ public static partial class ReaderHtml
                   </form>
                   <div id="operations-package-status" class="operations-panel__status" role="status" aria-live="polite"></div>
                   <ul id="operations-package-list" class="operations-package-list" aria-label="书籍打包任务列表"></ul>
+                </section>
+                <section class="operations-panel" aria-labelledby="operations-policy-title">
+                  <header class="operations-panel__header">
+                    <h2 id="operations-policy-title">内容政策</h2>
+                    <span class="muted">管理员下架 / 恢复</span>
+                  </header>
+                  <form id="operations-policy-form" class="operations-form">
+                    <div class="operations-form__field">
+                      <label for="operations-policy-book-id">正典书 ID</label>
+                      <input id="operations-policy-book-id" type="text" maxlength="36" required placeholder="输入需要下架的正典书 ID" autocomplete="off">
+                    </div>
+                    <div class="operations-form__actions"><button id="operations-policy-submit" class="button button--primary" type="submit">发起下架</button></div>
+                    <p class="operations-form__hint">下架是追加式政策决定；不会删除历史数据，恢复操作需要再次填写理由。</p>
+                  </form>
+                  <div id="operations-policy-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                  <ul id="operations-policy-list" class="operations-policy-list" aria-label="当前下架书籍列表"></ul>
                 </section>
                 <section class="operations-panel" aria-labelledby="operations-sources-title">
                   <header class="operations-panel__header">

@@ -282,6 +282,12 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "renderHistoryRestricted");
         StringAssert.Contains(html, "URLSearchParams");
         StringAssert.Contains(html, "仅管理员可查看平台级历史");
+        StringAssert.Contains(html, "operations-policy-form");
+        StringAssert.Contains(html, "operations-policy-book-id");
+        StringAssert.Contains(html, "当前下架书籍列表");
+        StringAssert.Contains(html, "/api/v1/admin/content/takedowns?limit=50");
+        StringAssert.Contains(html, "policyAction");
+        StringAssert.Contains(html, "bookId: pendingAction.bookId");
         StringAssert.Contains(html, "已恢复");
         StringAssert.Contains(html, "/api/v1/admin/crawler/dead-letters/");
         StringAssert.Contains(html, "/api/v1/admin/sources/");
