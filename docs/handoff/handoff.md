@@ -1298,6 +1298,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端门禁：文档提交 `7e7f242` 的 [CI 33477390879](https://github.com/nekohands/InkFlow/actions/runs/33477390879)、[Docker 33477390849](https://github.com/nekohands/InkFlow/actions/runs/33477390849)、[Security 33477390880](https://github.com/nekohands/InkFlow/actions/runs/33477390880) 均 GREEN 且 head SHA 一致。
 - 后续：真实凭据/人工视觉、Reading 3.0/MuMu/ADB、PWA 安装跨设备、真实来源/生产治理仍不在本轮执行范围，整体保持 `1.0 Release Candidate`。
 
+### 5.32 CollectionRun 取消终态领域回归补强交接（本轮，2026-09-01）
+
+- 工作包：补齐采集运行取消语义的领域回归证据；覆盖运行中取消、重复取消幂等、取消后不可恢复/继续调度。
+- 实现：`tests/InkFlow.UnitTests/CollectionRunTests.cs` 新增 `Cancelled_Run_Is_Terminal_And_Idempotent`，无生产代码、API 或 Migration 变更；候选 `3aab3e8` 已推送到 `dev`。
+- 本机：Release Build 0 warnings / 0 errors，Unit `542/542`、Architecture `1/1`、Contract `10/10`，采集定向测试 `9/9`，`git diff --check` PASS。
+- 运行边界：因无业务行为变更，本轮不重复执行 VM Compose、浏览器或真实来源；5.31 的 VM/Smoke/浏览器证据仍有效。本机 Windows Docker Engine named pipe 不可用，Testcontainers 仍 BLOCKED。
+- 后续：Reading 3.0/MuMu/ADB、真实来源/账户、PWA 跨设备、人工视觉和生产治理继续按第 6 节待定，整体保持 `1.0 Release Candidate`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

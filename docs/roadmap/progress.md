@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环已同步；最新行为候选为 `5bdb4ea`（管理员下架/恢复、列表回显和操作员禁用边界），文档提交 `7e7f242` 的 CI `33477390879`、Docker `33477390849`、Security `33477390880` 均 GREEN 且 head SHA 一致。
+- 文档状态：5.32 的 CollectionRun 取消终态/幂等领域回归补强已同步；最新候选为 `3aab3e8`（仅测试补强，业务行为不变），此前文档提交 `7e7f242` 的 CI `33477390879`、Docker `33477390849`、Security `33477390880` 均 GREEN 且 head SHA 一致。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1491,6 +1491,14 @@ Phase 1A 自动化工作包状态：
 - GPT 内置浏览器证据：临时管理员实际完成下架→列表回显→公开书目隐藏→恢复→公开书目恢复；新签发 Operator 会话可进入运维中心，内容政策输入框和按钮均 disabled，并显示“仅管理员可用”。临时账号随后禁用，隔离 Compose 资源、卷、转发和 worktree 已清理，VM 原工作树的既有用户改动保持不变。
 - 远端门禁：文档提交 `7e7f242` 的 [CI 33477390879](https://github.com/nekohands/InkFlow/actions/runs/33477390879)、[Docker 33477390849](https://github.com/nekohands/InkFlow/actions/runs/33477390849)、[Security 33477390880](https://github.com/nekohands/InkFlow/actions/runs/33477390880) 均 success 且 head SHA 一致。
 - 边界：不启动 ADB、MuMu/阅读 3.0；不使用真实账户/生产凭据，不访问第三方 live source。Content Policy 真实凭据/人工视觉操作、PWA 安装跨设备、真实来源/追更/切源和生产治理仍按第 6 节待定；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.32 CollectionRun 取消终态领域回归补强（本轮，2026-09-01）
+
+- 缺口：采集运行的取消行为已有运行时 Smoke 覆盖，但领域层缺少对“运行中取消、重复取消幂等、取消后不可继续”的专门回归断言。
+- 实现：在 `CollectionRunTests` 增加 `Cancelled_Run_Is_Terminal_And_Idempotent`；只补测试，不改变 CollectionRun、API、Migration 或运行时行为。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit `542/542`、Architecture `1/1`、Contract `10/10`；采集领域定向测试 `9/9`，`git diff --check` PASS。
+- 运行边界：本轮无产品行为变更，不重复启动 VM Compose、浏览器或真实来源；5.31 的 VM 源码 Compose、业务 Smoke 和浏览器证据继续有效。本机 Testcontainers 仍受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用限制。
+- 边界：不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
