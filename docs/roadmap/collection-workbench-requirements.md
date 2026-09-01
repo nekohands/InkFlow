@@ -1,6 +1,6 @@
 # 采集工作台 v1 需求对齐草案
 
-状态：需求已对齐，代码已落地；当前采集/打包工作包代码候选为 `c85975f`，并补齐 CollectionRun 启动输入的 `400/422` 语义映射：空/非法 URL 返回 `400`，来源地址无法解析返回 `422`。已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 测试、Migration 检查和采集/打包非阅读 App 自动化验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理。
+状态：需求已对齐，代码已落地；当前采集/打包工作包代码候选为 `bc119e5`，并补齐 CollectionRun 启动输入的 `400/422` 语义映射与成功进度语义：空/非法 URL 返回 `400`，来源地址无法解析返回 `422`，失败/取消任务不计入成功百分比。已在 Ubuntu VM 以源码构建 Compose 完成真实 PostgreSQL 测试、Migration 检查和采集/打包非阅读 App 自动化验收；真实 Official Source pair、真实凭据 Operations 验收和阅读 3.0 真机链路仍按待定事项处理。
 日期：2026-09-01
 范围：采集运行控制、进度可视化、书籍地址采集、已入库书籍打包
 
@@ -106,7 +106,7 @@
 - `totalTaskCount`、`completedTaskCount`：BookInfo、Toc 和 Content 子任务的数据库汇总；
 - `inFlightTaskCount`、`pendingTaskCount`、`cancelledTaskCount`、`failedTaskCount`：租约中、待领取、已取消和死信数；
 - `remainingTaskCount`：尚未完成、死信或取消的子任务数；
-- `progressPercent`：BookInfo/Toc 阶段为 `null`，进入 Content 阶段后按整体子任务完成比例计算；
+- `progressPercent`：BookInfo/Toc 阶段为 `null`，进入 Content 阶段后仅按 `completedTaskCount / totalTaskCount` 计算成功完成比例；`failedTaskCount`、`cancelledTaskCount` 不计入成功百分比；
 - `updatedAt`、`lastError`、`canonicalBookId`（若已建立）。
 
 重试不会增加总量或完成量。失败数单独展示，不能把失败章节伪装成成功进度；运行出现不可恢复失败时，状态为 `Failed`，即使页面曾显示过部分百分比。

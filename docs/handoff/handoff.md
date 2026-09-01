@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`5157924`；在 `e96bd2f` 的书籍打包租约清理回归基础上，补齐包下载时缺失 artifact 根目录的 404 错误映射与回归覆盖，详见 5.24。`5157924` 的 [CI 33454092316](https://github.com/nekohands/InkFlow/actions/runs/33454092316)、[Docker 33454092239](https://github.com/nekohands/InkFlow/actions/runs/33454092239)、[Security 33454092192](https://github.com/nekohands/InkFlow/actions/runs/33454092192) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22。
+- 最新代码候选 Commit：`bc119e5`；修复采集运行成功进度把失败/取消任务计入百分比的问题，并补充回归覆盖，详见 5.25。`bc119e5` 的 [CI 33456258013](https://github.com/nekohands/InkFlow/actions/runs/33456258013)、[Docker 33456258124](https://github.com/nekohands/InkFlow/actions/runs/33456258124)、[Security 33456257931](https://github.com/nekohands/InkFlow/actions/runs/33456257931) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1239,6 +1239,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；定向书籍打包测试 `5/5`、Unit `539/539`、Architecture `1/1`、Contract `10/10`、`git diff --check` PASS。
 - 远端门禁：`5157924` 的 [CI 33454092316](https://github.com/nekohands/InkFlow/actions/runs/33454092316)、[Docker 33454092239](https://github.com/nekohands/InkFlow/actions/runs/33454092239)、[Security 33454092192](https://github.com/nekohands/InkFlow/actions/runs/33454092192) 均 GREEN；CI 完成全量测试、源码 Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤。
 - 当前状态：本工作包的下载错误映射已通过自动化门禁；整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/Provider、账户/PWA 跨设备、受保护页面人工操作和生产治理仍按第 6 节待定；本轮不启动 ADB、阅读 App 或 live source。
+
+### 5.25 采集运行成功进度与失败/取消计数语义修复交接（本轮，2026-09-01）
+
+- 工作包：采集运行视图的 `progressPercent` 只表示成功完成比例，失败和取消任务由独立计数与终态表达，不再被计入成功进度。
+- TDD 与实现：新增 `Progress_Percent_Does_Not_Count_Failed_Or_Cancelled_Tasks_As_Completed`，旧实现红态为预期 `25`、实际 `100`；修复后只计算 `CompletedTaskCount / TotalTaskCount`。
+- 本机证据：Restore PASS；Release Build `0 warnings / 0 errors`；Unit `540/540`、Architecture `1/1`、Contract `10/10`、定向采集端点测试 `4/4`、`git diff --check` PASS。Windows 本机 Integration 因 Docker Engine npipe 不可用，`106` 项中 `8` 通过、`3` 跳过、`95` BLOCKED。
+- VM 证据：Ubuntu 隔离 worktree 源码构建 Compose 健康；Linux SDK Unit `540/540`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；11 个 migration contexts PASS；Legado/Admin/Operations/collection-package smoke PASS，collection-package 覆盖直接地址、暂停/恢复/停止/取消幂等、ZIP/EPUB/TXT、完整性和审计。验证后已清理隔离 worktree、Compose 与资源，未触碰 VM 原工作树改动。
+- 当前状态：`bc119e5` 的三条远端门禁均 GREEN；本工作包已完成自动化验证，但整体仍为 `1.0 Release Candidate`。阅读 3.0/MuMu/ADB、真实来源/追更/第二来源、真实凭据/Provider、账户/PWA 跨设备、受保护页面人工操作和生产治理仍按第 6 节待定；本轮不启动阅读 App 或 live source。
 
 ## 5. 关键架构不变量
 

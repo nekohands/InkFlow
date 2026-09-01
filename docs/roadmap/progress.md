@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新候选提交：`5157924`（书籍包下载缺失 artifact 根目录时的 404 错误映射与回归覆盖）；其 CI `33454092316`、Docker `33454092239`、Security `33454092192` 均 GREEN 且指向同一 head SHA。
+- 最新候选提交：`bc119e5`（采集运行成功进度不再计入失败/取消任务，并补充回归覆盖）；其 CI `33456258013`、Docker `33456258124`、Security `33456257931` 均 GREEN 且指向同一 head SHA。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1428,6 +1428,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选 `5157924` 的 [CI 33454092316](https://github.com/nekohands/InkFlow/actions/runs/33454092316)、[Docker 33454092239](https://github.com/nekohands/InkFlow/actions/runs/33454092239)、[Security 33454092192](https://github.com/nekohands/InkFlow/actions/runs/33454092192) 均 GREEN 且 head SHA 一致；CI 全量 Test、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。
 - 结论与边界：本轮关闭了包下载缺失目录的自动化错误映射缺口；不启动 ADB、阅读 3.0、真实来源或真实凭据验收，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.25 采集运行成功进度与失败/取消计数语义修复（本轮，2026-09-01）
+
+- 缺口：`CollectionRunView.ProgressPercent` 原先将 `FailedTaskCount`、`CancelledTaskCount` 与 `CompletedTaskCount` 相加，会把失败/取消任务显示为成功进度；例如 1 个成功、2 个失败、1 个取消会显示 `100%`，违反“失败数单独展示、不能伪装成功进度”的需求。
+- TDD 与实现：新增 `Progress_Percent_Does_Not_Count_Failed_Or_Cancelled_Tasks_As_Completed`，先以旧实现得到 `25/100` 红态，再改为仅以 `CompletedTaskCount / TotalTaskCount` 计算百分比；失败/取消仍由独立字段和终态表达。
+- 本机证据：`dotnet restore InkFlow.sln` PASS；Release Build `0 warnings / 0 errors`；Unit `540/540`、Architecture `1/1`、Contract `10/10`、定向 `CollectionRunEndpointTests 4/4`、`git diff --check` PASS。完整本机 Integration `106` 项中 `8` 通过、`3` 跳过、`95` 项因 Windows `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- Ubuntu VM 证据：候选 `bc119e5` 使用隔离 worktree 源码构建 Compose；Migration/packages-init 与 PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康；Linux SDK 测试 Unit `540/540`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`，11 个 migration contexts PASS；Legado/Admin/Operations/collection-package runtime smoke PASS，后者覆盖直接地址、暂停/恢复/停止/取消幂等、ZIP/EPUB/TXT、完整性和审计。验证后隔离资源已清理，VM 原工作树用户改动未触碰。
+- 远端门禁：候选 `bc119e5` 的 [CI 33456258013](https://github.com/nekohands/InkFlow/actions/runs/33456258013)、[Docker 33456258124](https://github.com/nekohands/InkFlow/actions/runs/33456258124)、[Security 33456257931](https://github.com/nekohands/InkFlow/actions/runs/33456257931) 均 GREEN 且 head SHA 一致。
+- 结论与边界：关闭自动化进度语义缺口；不启动 ADB、阅读 3.0、真实来源或真实凭据验收，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1562,7 +1571,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：代码候选 `c85975f` 的直接地址采集状态语义、`3ac8110` 的 `ReadingProgress.Update` 领域回归、`26e5d82` 的源码 Dockerfile NuGet 缓存、`e7f4414` 的 acceptance fixture 缓存、`e96bd2f` 的书籍打包租约丢失清理回归以及最新 `5157924` 的包下载缺失 artifact 根目录错误映射均已推送。当前本机 Release Build 0 warnings / 0 errors、Unit `539/539`、Architecture `1/1`、Contract `10/10`；`5157924` 的 CI `33454092316`、Docker `33454092239`、Security `33454092192` 均 GREEN 且 SHA 一致，CI 全量测试、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。Ubuntu VM 的源码构建 Compose、Migration、服务健康和采集/打包 smoke 证据见 5.18、5.21、5.22。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效；本轮未发现新的、非延期范围的 1.0 功能缺口。
+最新状态（2026-09-01）：代码候选 `c85975f` 的直接地址采集状态语义、`3ac8110` 的 `ReadingProgress.Update` 领域回归、`26e5d82` 的源码 Dockerfile NuGet 缓存、`e7f4414` 的 acceptance fixture 缓存、`e96bd2f` 的书籍打包租约丢失清理回归、`5157924` 的包下载缺失 artifact 根目录错误映射以及最新 `bc119e5` 的采集成功进度语义修复均已推送。当前本机 Release Build 0 warnings / 0 errors、Unit `540/540`、Architecture `1/1`、Contract `10/10`；`bc119e5` 的 CI `33456258013`、Docker `33456258124`、Security `33456257931` 均 GREEN 且 SHA 一致，CI 全量测试、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。Ubuntu VM 的源码构建 Compose、Migration、服务健康和采集/打包 smoke 证据见 5.18、5.21、5.22、5.25。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效；本轮未发现新的、非延期范围的 1.0 功能缺口。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
