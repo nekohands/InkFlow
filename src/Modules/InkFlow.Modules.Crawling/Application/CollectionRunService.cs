@@ -25,8 +25,7 @@ public sealed record CollectionRunView(
     public int? ProgressPercent => Stage != CollectionRunStage.Content || TotalTaskCount == 0
         ? null
         : Math.Clamp((int)Math.Round(
-            (double)(CompletedTaskCount + FailedTaskCount + CancelledTaskCount) /
-            TotalTaskCount * 100,
+            (double)CompletedTaskCount / TotalTaskCount * 100,
             MidpointRounding.AwayFromZero), 0, 100);
 }
 

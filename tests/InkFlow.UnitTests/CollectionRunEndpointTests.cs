@@ -37,6 +37,31 @@ public sealed class CollectionRunEndpointTests
     }
 
     [TestMethod]
+    public void Progress_Percent_Does_Not_Count_Failed_Or_Cancelled_Tasks_As_Completed()
+    {
+        var view = new CollectionRunView(
+            Guid.NewGuid(),
+            "fixture",
+            "book-1",
+            "https://fixture.example/book/book-1",
+            null,
+            CollectionRunStatus.Failed,
+            CollectionRunStage.Content,
+            TotalTaskCount: 4,
+            CompletedTaskCount: 1,
+            FailedTaskCount: 2,
+            PendingTaskCount: 0,
+            InFlightTaskCount: 0,
+            CancelledTaskCount: 1,
+            RemainingTaskCount: 0,
+            LastError: "one or more required collection tasks reached the dead-letter state.",
+            CreatedAt: DateTimeOffset.UtcNow,
+            UpdatedAt: DateTimeOffset.UtcNow);
+
+        Assert.AreEqual(25, view.ProgressPercent);
+    }
+
+    [TestMethod]
     public void Start_Status_Uses_Unprocessable_Entity_For_Resolver_Failures()
     {
         var statusCode = CollectionRunEndpoints.GetStartStatusCode(
