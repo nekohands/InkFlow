@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环正在同步；最新行为候选为 `5bdb4ea`（管理员下架/恢复、列表回显和操作员禁用边界），本轮文档提交后的 CI、Docker、Security 门禁待核对。
+- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环已同步；最新行为候选为 `5bdb4ea`（管理员下架/恢复、列表回显和操作员禁用边界），文档提交 `7e7f242` 的 CI `33477390879`、Docker `33477390849`、Security `33477390880` 均 GREEN 且 head SHA 一致。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1489,6 +1489,7 @@ Phase 1A 自动化工作包状态：
 - 本机证据：Release Build 0 warnings / 0 errors；Unit `541/541`、Architecture `1/1`、Contract `10/10`；前端 smoke PASS。整套本机 Testcontainers 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为本机集成通过。
 - Ubuntu VM 证据：候选 `5bdb4ea` 在隔离 worktree 使用 `docker-compose.build.yml` 源码构建；Migration/packages-init、PostgreSQL、Redis、OTel、API、Worker、Scheduler 健康；Linux SDK `Restore → Release Build → Test` 为 Build 0 warnings / 0 errors、Unit `541/541`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；`verify-migrations` 为 11 contexts PASS；`admin-runtime-smoke` 覆盖权限、审计、来源权限/健康、凭据绑定和 Content Policy，结果 PASS；前端 smoke PASS。
 - GPT 内置浏览器证据：临时管理员实际完成下架→列表回显→公开书目隐藏→恢复→公开书目恢复；新签发 Operator 会话可进入运维中心，内容政策输入框和按钮均 disabled，并显示“仅管理员可用”。临时账号随后禁用，隔离 Compose 资源、卷、转发和 worktree 已清理，VM 原工作树的既有用户改动保持不变。
+- 远端门禁：文档提交 `7e7f242` 的 [CI 33477390879](https://github.com/nekohands/InkFlow/actions/runs/33477390879)、[Docker 33477390849](https://github.com/nekohands/InkFlow/actions/runs/33477390849)、[Security 33477390880](https://github.com/nekohands/InkFlow/actions/runs/33477390880) 均 success 且 head SHA 一致。
 - 边界：不启动 ADB、MuMu/阅读 3.0；不使用真实账户/生产凭据，不访问第三方 live source。Content Policy 真实凭据/人工视觉操作、PWA 安装跨设备、真实来源/追更/切源和生产治理仍按第 6 节待定；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
@@ -1626,7 +1627,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：行为候选 `5bdb4ea` 已推送，完成 Operations Center Content Policy 管理 UI、管理员下架/恢复和 Operator 禁用边界；本机 Release Build 0 warnings / 0 errors、Unit `541/541`、Architecture `1/1`、Contract `10/10` 和前端 smoke 通过。Windows Docker Engine named pipe 不可用导致本机 Testcontainers BLOCKED；Ubuntu VM 的源码 Compose、Linux SDK 全量测试、11 contexts migration 检查、业务 smoke 和 GPT 内置浏览器实际下架/恢复链路均通过。本轮文档提交后的三类远端门禁待核对，确认后补录链接。
+最新状态（2026-09-01）：行为候选 `5bdb4ea` 已推送，完成 Operations Center Content Policy 管理 UI、管理员下架/恢复和 Operator 禁用边界；本机 Release Build 0 warnings / 0 errors、Unit `541/541`、Architecture `1/1`、Contract `10/10` 和前端 smoke 通过。Windows Docker Engine named pipe 不可用导致本机 Testcontainers BLOCKED；Ubuntu VM 的源码 Compose、Linux SDK 全量测试、11 contexts migration 检查、业务 smoke 和 GPT 内置浏览器实际下架/恢复链路均通过。文档提交 `7e7f242` 的三类远端门禁均 success 且 SHA 一致。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

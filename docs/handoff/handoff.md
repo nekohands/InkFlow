@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环正在同步；最新行为候选 Commit 为 `5bdb4ea`，本轮文档提交后的 CI、Docker、Security 门禁待核对。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
+- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环已同步；最新行为候选 Commit 为 `5bdb4ea`，文档提交 `7e7f242` 的 CI `33477390879`、Docker `33477390849`、Security `33477390880` 均 GREEN 且 head SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1295,7 +1295,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机：Release Build 0 warnings / 0 errors，Unit `541/541`、Architecture `1/1`、Contract `10/10`、前端 smoke PASS；Windows Docker Engine named pipe 不可用，本机整套 Testcontainers BLOCKED。
 - Ubuntu VM：源码 Compose 启动健康；Linux SDK 全量测试为 Unit `541/541`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；11 个 migration contexts 无漂移，`admin-runtime-smoke` PASS。
 - GPT 内置浏览器：临时管理员完成下架→隐藏→恢复→可见；新签发 Operator 会话显示“运营”，内容政策表单和按钮 disabled。临时账号、Compose 资源、卷、SSH 转发及隔离 worktree 已清理，VM 原工作树用户改动保留。
-- 后续：补录本轮文档提交的 CI/Docker/Security GREEN 链接；真实凭据/人工视觉、Reading 3.0/MuMu/ADB、PWA 安装跨设备、真实来源/生产治理仍不在本轮执行范围，整体保持 `1.0 Release Candidate`。
+- 远端门禁：文档提交 `7e7f242` 的 [CI 33477390879](https://github.com/nekohands/InkFlow/actions/runs/33477390879)、[Docker 33477390849](https://github.com/nekohands/InkFlow/actions/runs/33477390849)、[Security 33477390880](https://github.com/nekohands/InkFlow/actions/runs/33477390880) 均 GREEN 且 head SHA 一致。
+- 后续：真实凭据/人工视觉、Reading 3.0/MuMu/ADB、PWA 安装跨设备、真实来源/生产治理仍不在本轮执行范围，整体保持 `1.0 Release Candidate`。
 
 ## 5. 关键架构不变量
 
