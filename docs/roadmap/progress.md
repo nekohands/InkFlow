@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选：`9a0b7df`（在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航验收）；其 CI `33464240828`、Docker `33464240871`、Security `33464240909` 均 GREEN 且指向同一 head SHA。
+- 最新代码候选：行为候选 `9a0b7df`（在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航验收）；Reader 文档候选为 `992f77b`。两者对应的 CI、Docker、Security 门禁均 GREEN 且各自指向同一 head SHA。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1464,6 +1464,13 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM 证据：候选 `9a0b7df` 使用 `docker-compose.build.yml` 源码构建，Migration/packages-init、API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康；Linux SDK 容器完整测试为 Unit 540/540、Architecture 1/1、Contract 10/10、Integration 103 passed / 3 skipped / 0 failed。`reader-frontend-runtime-smoke`、`reader-content-runtime-smoke`、`reader-navigation-runtime-smoke` 均 PASS；GPT 内置浏览器经临时 SSH 转发实际完成搜索→详情→目录→首章→下一章→上一章，确认正文、进度 100、两端边界和稳定链接。验证后隔离 Compose、卷、转发和 worktree 已清理，VM 原工作树用户改动保持不变。
 - 远端门禁：`9a0b7df` 的 [CI 33464240828](https://github.com/nekohands/InkFlow/actions/runs/33464240828)、[Docker 33464240871](https://github.com/nekohands/InkFlow/actions/runs/33464240871)、[Security 33464240909](https://github.com/nekohands/InkFlow/actions/runs/33464240909) 均 GREEN 且 head SHA 一致。
 - 边界：本轮仍不启动 ADB、MuMu/阅读 3.0，不使用真实账户/凭据或第三方 live source；人工视觉、触控、长时间阅读、PWA 安装/跨设备、真实来源和生产环境事项继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.29 1.0 非延期范围缺口审计（本轮，2026-09-01）
+
+- 审计范围：重新对照 `roadmap.md`、`phase-1-acceptance.md`、架构/不变量/前端规范与第 6 节待定清单，使用 CodeGraph 核对采集控制、书籍打包、Web Reader/PWA、Operations、Content Policy、Source Authorization、CredentialReference、Admin Audit 和三类 Official Source 的实现入口与自动化证据。
+- 审计结论：当前未发现新的、未实现且不属于延期范围的 1.0 功能缺口。采集任务进度与暂停/恢复/停止/取消、直接地址采集、EPUB/TXT/ZIP 打包、Reader 搜索→详情→目录→阅读→上一章/下一章、PWA 离线壳、管理 API、权限/审计、确定性追更与双来源切源均已有测试、Runtime smoke 或 VM 源码 Compose 证据；三类 Official Source 也已进入宿主种子与适配器组合根。
+- 回归证据：本机 Release Build、Unit `540/540`、Architecture `1/1`、Contract `10/10` 和相关 shell 语法/diff 检查通过；本机 Docker Engine named pipe 不可用导致完整 Testcontainers 仍 BLOCKED。上一轮候选 `9a0b7df` 的 Ubuntu VM 源码 Compose、Linux SDK 全量测试和 GPT 内置浏览器双章节实际交互证据见 5.28，远端三类门禁均 GREEN。
+- 明确边界：阅读 3.0/MuMu 真机、真实账户/PWA 安装跨设备、真实 Official Source/追更/第二来源故障切换、真实 Provider/生产凭据、受保护页面登录后浏览器输入、生产 OTLP/SLO/告警/备份治理仍是第 6 节待定；本轮不启动 ADB、不输入账户密码、不访问第三方 live source，整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 

@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`9a0b7df`；在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航的运行时与内置浏览器证据，详见 5.28。`9a0b7df` 的 [CI 33464240828](https://github.com/nekohands/InkFlow/actions/runs/33464240828)、[Docker 33464240871](https://github.com/nekohands/InkFlow/actions/runs/33464240871)、[Security 33464240909](https://github.com/nekohands/InkFlow/actions/runs/33464240909) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
+- 最新代码候选 Commit：行为候选 `9a0b7df`；Reader 文档候选为 `992f77b`。`9a0b7df` 在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航的运行时与内置浏览器证据，详见 5.28；两者对应的 CI、Docker、Security 门禁均 GREEN 且各自 SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1271,6 +1271,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM 证据：候选 `9a0b7df` 以 `docker-compose.build.yml` 源码构建并健康启动；Linux SDK 完整测试为 Unit 540/540、Architecture 1/1、Contract 10/10、Integration 103 passed / 3 skipped / 0 failed。前端、已发布正文和导航 smoke 均 PASS；GPT 内置浏览器经临时 SSH 转发实际完成搜索→详情→目录→首章→下一章→上一章，确认正文、进度 100、首章无上一章、末章无下一章。验证后隔离 Compose/卷、转发和 worktree 已清理，VM 原工作树用户改动保持不变。
 - 远端门禁：候选 `9a0b7df` 的 [CI 33464240828](https://github.com/nekohands/InkFlow/actions/runs/33464240828)、[Docker 33464240871](https://github.com/nekohands/InkFlow/actions/runs/33464240871)、[Security 33464240909](https://github.com/nekohands/InkFlow/actions/runs/33464240909) 均 GREEN 且 head SHA 一致。
 - 边界：本轮不启动 ADB、MuMu/阅读 3.0，不输入真实账户/凭据，不触发第三方 live source；人工视觉/触控、长时间阅读、PWA 安装/跨设备、真实来源和生产治理仍列在待定事项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.29 1.0 非延期范围缺口审计交接（本轮，2026-09-01）
+
+- 审计：重新核对路线图、Phase 1 验收、架构不变量、前端规范和待定清单，并用 CodeGraph 检查采集控制/直接地址/书籍打包、Reader/PWA、Operations、Content Policy、Source Authorization、CredentialReference、Admin Audit 及三类 Official Source 的代码入口和自动化证据。
+- 结论：未发现新的、未实现且不属于延期范围的 1.0 功能缺口。上述非延期能力已有 Unit/Contract/Runtime smoke、确定性夹具或 VM 源码 Compose 证据；Reader 连续阅读的最新真实交互证据见 5.28。
+- 当前回归：本机 Release Build、Unit `540/540`、Architecture `1/1`、Contract `10/10` 和相关脚本语法/diff 检查通过；Windows Docker Engine named pipe 不可用，完整 Testcontainers 仍 BLOCKED。`9a0b7df` 的 Ubuntu VM 全量测试、源码 Compose、业务 smoke、内置浏览器交互和远端三类 GREEN 门禁继续有效。
+- 待定边界：不启动 ADB/MuMu/阅读 3.0，不输入账户密码，不访问第三方 live source；真实来源/追更/切源、真实账户/PWA 安装跨设备、真实 Provider/生产凭据、受保护页面登录后的浏览器输入和生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
