@@ -1254,6 +1254,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM：Migration/packages-init 正常退出，PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康；通过 SSH 本地转发访问 API，未覆盖 VM 原工作树，验证后已清理 Compose、网络、卷、转发和临时 worktree。
 - 浏览器：实际操作 `/reader` 搜索空结果、`/reader/account` 空表单校验、未登录书架/历史保护提示、离线回退页和匿名 Operations 页面；未输入或提交密码、Token、真实账户或其他敏感数据。`375×812`、`1440×900` 两个视口均无横向溢出，搜索区/导航可见。
 - Runtime：`reader-frontend-runtime-smoke.sh` 返回 `PASS (Reader/PWA/Operations frontend contracts)`；浏览器临时页与视口覆盖已恢复默认状态。该证据增强自动化页面交互覆盖，不替代人工视觉、PWA 安装/跨设备、真实账户、阅读 3.0、真实来源或生产验收。
+- 远端门禁：文档提交 `198dd61` 的 [CI 33459414177](https://github.com/nekohands/InkFlow/actions/runs/33459414177)、[Docker 33459414175](https://github.com/nekohands/InkFlow/actions/runs/33459414175) 和 [Security 33459414095](https://github.com/nekohands/InkFlow/actions/runs/33459414095) 均 GREEN 且 head SHA 一致；CI 全量测试、源码 Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤通过。
 - 当前状态：本轮无产品代码变更；整体继续为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。VM 原工作树原有用户改动保持不变。
 
 ## 5. 关键架构不变量

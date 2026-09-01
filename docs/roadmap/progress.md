@@ -1444,6 +1444,7 @@ Phase 1A 自动化工作包状态：
 - 浏览器交互：实际打开 `/reader` 并通过搜索框/按钮完成空结果搜索；打开 `/reader/account` 验证登录/注册表单和空输入原生校验；打开未登录 `/reader/shelf`、`/reader/history` 验证保护提示和登录入口；打开 `/reader/offline` 验证离线回退文案；打开 `/admin/operations` 验证匿名提示和禁用刷新态。未提交账号、密码或其他敏感数据。
 - 响应式证据：在 `375×812` 和 `1440×900` 视口读取 DOM/布局指标，`documentElement.scrollWidth == innerWidth`，搜索区和导航均存在；浏览器默认视口已恢复。随后执行 `reader-frontend-runtime-smoke.sh`，结果为 `PASS (Reader/PWA/Operations frontend contracts)`。
 - 清理与边界：浏览器临时页、SSH 转发、Compose 容器/网络/卷和隔离 worktree 均已清理；VM 原工作树中的用户改动保持不变。本轮只新增浏览器自动化证据，不替代人工视觉、真实账户/PWA 安装与跨设备、阅读 3.0、真实来源和生产环境验收。
+- 远端门禁：文档提交 `198dd61` 的 [CI 33459414177](https://github.com/nekohands/InkFlow/actions/runs/33459414177)、[Docker 33459414175](https://github.com/nekohands/InkFlow/actions/runs/33459414175) 和 [Security 33459414095](https://github.com/nekohands/InkFlow/actions/runs/33459414095) 均 GREEN 且指向同一 head SHA；CI 的全量测试、源码 Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过，Security 保留既有 Node.js 20 弃用提示但未影响门禁。
 - 当前状态：前端自动化证据进一步取得实际页面交互和 VM 源码构建支撑；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
