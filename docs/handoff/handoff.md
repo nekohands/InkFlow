@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`e96bd2f`；在 `e7f4414` 的 acceptance fixture 缓存基础上补齐书籍打包在发布后丢失租约时的 artifact 清理回归覆盖，详见 5.23。`e96bd2f` 的 [CI 33451781181](https://github.com/nekohands/InkFlow/actions/runs/33451781181)、[Docker 33451781556](https://github.com/nekohands/InkFlow/actions/runs/33451781556)、[Security 33451781201](https://github.com/nekohands/InkFlow/actions/runs/33451781201) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22。
+- 最新代码候选 Commit：`5157924`；在 `e96bd2f` 的书籍打包租约清理回归基础上，补齐包下载时缺失 artifact 根目录的 404 错误映射与回归覆盖，详见 5.24。`5157924` 的 [CI 33454092316](https://github.com/nekohands/InkFlow/actions/runs/33454092316)、[Docker 33454092239](https://github.com/nekohands/InkFlow/actions/runs/33454092239)、[Security 33454092192](https://github.com/nekohands/InkFlow/actions/runs/33454092192) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1231,6 +1231,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机：Release Build 0 warnings / 0 errors；Unit `538/538`、Architecture `1/1`、Contract `10/10`、`git diff --check` 均 PASS。
 - 远端：候选 `e96bd2f` 的 [CI 33451781181](https://github.com/nekohands/InkFlow/actions/runs/33451781181)、[Docker 33451781556](https://github.com/nekohands/InkFlow/actions/runs/33451781556)、[Security 33451781201](https://github.com/nekohands/InkFlow/actions/runs/33451781201) 均 GREEN；CI 全量 Test、Compose、Runtime、SLO、Redis、备份恢复和诊断步骤通过。
 - 边界：本轮不启动 ADB、阅读 3.0、真实来源或真实凭据验收；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.24 书籍包下载缺失 artifact 根目录的错误映射修复交接（本轮，2026-09-01）
+
+- 工作包：包文件已从数据库记录中标记完成、但文件根目录或挂载点暂时缺失时，下载服务应与“文件不存在”保持一致，返回 artifact not found，而不是把 Linux `DirectoryNotFoundException` 传播为 500。
+- TDD 与实现：新增 `OpenCompleted_Returns_Null_When_Artifact_Root_Is_Missing`，先复现缺失目录异常，再在 `BookPackageService.OpenCompletedAsync` 增加仅匹配 `FileNotFoundException`/`DirectoryNotFoundException` 的异常过滤；权限错误、其他 I/O 错误和取消不被吞掉。
+- 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；定向书籍打包测试 `5/5`、Unit `539/539`、Architecture `1/1`、Contract `10/10`、`git diff --check` PASS。
+- 远端门禁：`5157924` 的 [CI 33454092316](https://github.com/nekohands/InkFlow/actions/runs/33454092316)、[Docker 33454092239](https://github.com/nekohands/InkFlow/actions/runs/33454092239)、[Security 33454092192](https://github.com/nekohands/InkFlow/actions/runs/33454092192) 均 GREEN；CI 完成全量测试、源码 Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤。
+- 当前状态：本工作包的下载错误映射已通过自动化门禁；整体继续保持 `1.0 Release Candidate`，不等同于 `Accepted/Completed`。阅读 3.0/MuMu、真实来源/追更/第二来源、真实凭据/Provider、账户/PWA 跨设备、受保护页面人工操作和生产治理仍按第 6 节待定；本轮不启动 ADB、阅读 App 或 live source。
 
 ## 5. 关键架构不变量
 
