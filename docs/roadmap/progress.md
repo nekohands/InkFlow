@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.32 的 CollectionRun 取消终态/幂等领域回归补强已同步；最新候选为 `3aab3e8`（仅测试补强，业务行为不变），此前文档提交 `7e7f242` 的 CI `33477390879`、Docker `33477390849`、Security `33477390880` 均 GREEN 且 head SHA 一致。
+- 文档状态：5.32 的 CollectionRun 取消终态/幂等领域回归补强已同步；当前 HEAD 为 `7d60235`（测试提交 `3aab3e8`、文档同步提交 `7d60235`，业务行为不变），其 CI `33479935777`、Docker `33479935816`、Security `33479935776` 均 GREEN 且 head SHA 一致。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1635,7 +1635,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：行为候选 `5bdb4ea` 已推送，完成 Operations Center Content Policy 管理 UI、管理员下架/恢复和 Operator 禁用边界；本机 Release Build 0 warnings / 0 errors、Unit `541/541`、Architecture `1/1`、Contract `10/10` 和前端 smoke 通过。Windows Docker Engine named pipe 不可用导致本机 Testcontainers BLOCKED；Ubuntu VM 的源码 Compose、Linux SDK 全量测试、11 contexts migration 检查、业务 smoke 和 GPT 内置浏览器实际下架/恢复链路均通过。文档提交 `7e7f242` 的三类远端门禁均 success 且 SHA 一致。
+最新状态（2026-09-01）：行为候选 `5bdb4ea` 已推送，完成 Operations Center Content Policy 管理 UI、管理员下架/恢复和 Operator 禁用边界；随后 `3aab3e8` 补齐 CollectionRun 取消终态/幂等领域回归，`7d60235` 同步本进度与交接文档，当前 `dev` HEAD 为 `7d60235`。本机 Release Build 0 warnings / 0 errors、Unit `542/542`、Architecture `1/1`、Contract `10/10`、CollectionRun 定向测试 `9/9` 和前端 smoke 通过。Windows Docker Engine named pipe 不可用导致本机 Testcontainers BLOCKED；Ubuntu VM 的源码 Compose、Linux SDK 全量测试、11 contexts migration 检查、业务 smoke 和 GPT 内置浏览器实际下架/恢复链路均通过。当前 HEAD 的 [CI 33479935777](https://github.com/nekohands/InkFlow/actions/runs/33479935777)、[Docker 33479935816](https://github.com/nekohands/InkFlow/actions/runs/33479935816)、[Security 33479935776](https://github.com/nekohands/InkFlow/actions/runs/33479935776) 均 success 且 SHA 一致。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

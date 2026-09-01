@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环已同步；最新行为候选 Commit 为 `5bdb4ea`，文档提交 `7e7f242` 的 CI `33477390879`、Docker `33477390849`、Security `33477390880` 均 GREEN 且 head SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
+- 文档状态：5.32 的 CollectionRun 取消终态/幂等领域回归补强已同步；行为候选为 `5bdb4ea`，测试提交为 `3aab3e8`，当前 HEAD/文档同步提交为 `7d60235`。当前 HEAD 的 CI `33479935777`、Docker `33479935816`、Security `33479935776` 均 GREEN 且 head SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25；最新取消终态回归交接见 5.32。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
