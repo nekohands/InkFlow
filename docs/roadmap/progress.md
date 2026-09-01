@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选：`2162ac1`（在 `bc119e5` 之后的文档/验收证据基线）；其 CI `33460167644`、Docker `33460167700`、Security `33460167715` 均 GREEN 且指向同一 head SHA。
+- 最新代码候选：`9a0b7df`（在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航验收）；其 CI `33464240828`、Docker `33464240871`、Security `33464240909` 均 GREEN 且指向同一 head SHA。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1456,6 +1456,15 @@ Phase 1A 自动化工作包状态：
 - 清理与边界：浏览器临时页、SSH 转发、隔离 Compose 容器/网络/卷和 worktree 均已清理；VM 原工作树的用户改动保持不变。未读取 Cookie/Storage/密码材料，未输入或提交账户凭据，未创建真实账户；本轮证据不替代人工视觉/触控、真实账户/PWA 安装与跨设备、真实来源、生产环境和 MuMu/阅读 3.0 验收。
 - 远端门禁：`2162ac1` 的 CI `33460167644`、Docker `33460167700`、Security `33460167715` 均 GREEN；本轮无产品代码变更，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.28 Web Reader 上一章/下一章自动化验收闭环（本轮，2026-09-01）
+
+- 缺口：5.27 的实际浏览器证据只包含单章夹具，尚不能证明 Web Reader 章节连续阅读、首章/末章边界和稳定 ChapterId 导航。
+- 实现：`InkFlow.AcceptanceFixtures ensure-reader-catalog` 现在幂等准备同一本书的首章与下一章，并通过正式 `ContentPublishingService` 发布两份 Canonical Content；新增 `scripts/reader-navigation-runtime-smoke.sh`，检查两章正文、进度元素、`rel="next"`/`rel="prev"` 和首末边界；新增 fixture 回归并接入 CI。
+- TDD/本机证据：新增脚本测试先红后绿；脚本 `bash -n`、fixture 回归、相关 Reader smoke 和 `git diff --check` 通过；Release Build 0 warnings / 0 errors；Windows Docker Engine 不可用，本机全量 `dotnet test` 为 Unit/Architecture/Contract 通过、IntegrationTests 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为本机集成通过。
+- Ubuntu VM 证据：候选 `9a0b7df` 使用 `docker-compose.build.yml` 源码构建，Migration/packages-init、API/Worker/Scheduler/PostgreSQL/Redis/OTel 健康；Linux SDK 容器完整测试为 Unit 540/540、Architecture 1/1、Contract 10/10、Integration 103 passed / 3 skipped / 0 failed。`reader-frontend-runtime-smoke`、`reader-content-runtime-smoke`、`reader-navigation-runtime-smoke` 均 PASS；GPT 内置浏览器经临时 SSH 转发实际完成搜索→详情→目录→首章→下一章→上一章，确认正文、进度 100、两端边界和稳定链接。验证后隔离 Compose、卷、转发和 worktree 已清理，VM 原工作树用户改动保持不变。
+- 远端门禁：`9a0b7df` 的 [CI 33464240828](https://github.com/nekohands/InkFlow/actions/runs/33464240828)、[Docker 33464240871](https://github.com/nekohands/InkFlow/actions/runs/33464240871)、[Security 33464240909](https://github.com/nekohands/InkFlow/actions/runs/33464240909) 均 GREEN 且 head SHA 一致。
+- 边界：本轮仍不启动 ADB、MuMu/阅读 3.0，不使用真实账户/凭据或第三方 live source；人工视觉、触控、长时间阅读、PWA 安装/跨设备、真实来源和生产环境事项继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1590,7 +1599,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：代码候选 `c85975f` 的直接地址采集状态语义、`3ac8110` 的 `ReadingProgress.Update` 领域回归、`26e5d82` 的源码 Dockerfile NuGet 缓存、`e7f4414` 的 acceptance fixture 缓存、`e96bd2f` 的书籍打包租约丢失清理回归、`5157924` 的包下载缺失 artifact 根目录错误映射以及最新 `bc119e5` 的采集成功进度语义修复均已推送。当前本机 Release Build 0 warnings / 0 errors、Unit `540/540`、Architecture `1/1`、Contract `10/10`；`bc119e5` 的 CI `33456258013`、Docker `33456258124`、Security `33456257931` 均 GREEN 且 SHA 一致，CI 全量测试、Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤均通过。基于代码候选 `2162ac1` 的 VM 源码 Compose 与匿名 Web Reader 夹具搜索→详情→目录→正文实际浏览器交互、前端 smoke 和已发布正文 smoke 见 5.27；其 CI `33460167644`、Docker `33460167700`、Security `33460167715` 均 GREEN。Ubuntu VM 的源码构建 Compose、Migration、服务健康和采集/打包 smoke 证据见 5.18、5.21、5.22、5.25。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效；本轮未发现新的、非延期范围的 1.0 功能缺口。
+最新状态（2026-09-01）：代码候选 `c85975f` 的直接地址采集状态语义、`3ac8110` 的 `ReadingProgress.Update` 领域回归、`26e5d82` 的源码 Dockerfile NuGet 缓存、`e7f4414` 的 acceptance fixture 缓存、`e96bd2f` 的书籍打包租约丢失清理回归、`5157924` 的包下载缺失 artifact 根目录错误映射、`bc119e5` 的采集成功进度语义修复以及最新 `9a0b7df` 的 Reader 双章节导航自动化验收均已推送。当前本机 Release Build 0 warnings / 0 errors、Unit `540/540`、Architecture `1/1`、Contract `10/10`；`9a0b7df` 的 [CI 33464240828](https://github.com/nekohands/InkFlow/actions/runs/33464240828)、[Docker 33464240871](https://github.com/nekohands/InkFlow/actions/runs/33464240871)、[Security 33464240909](https://github.com/nekohands/InkFlow/actions/runs/33464240909) 均 GREEN 且 SHA 一致，CI 全量测试、Compose、前端/业务 Runtime、Reader 双章节导航、SLO、Redis、备份恢复和诊断步骤均通过。基于代码候选 `9a0b7df` 的 Ubuntu VM 源码 Compose、Linux SDK 全量测试、Reader 前端/正文/导航 smoke 和 GPT 内置浏览器搜索→详情→目录→首章→下一章→上一章实际交互见 5.28；此前匿名 Web Reader 单章正文证据见 5.27，采集/打包 smoke 证据见 5.18、5.21、5.22、5.25。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效；本轮未发现新的、非延期范围的 1.0 功能缺口。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

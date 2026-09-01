@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`2162ac1`；在 `bc119e5` 之后补充匿名 Web Reader 夹具书目实际搜索→详情→目录→正文浏览器证据，详见 5.27。`2162ac1` 的 [CI 33460167644](https://github.com/nekohands/InkFlow/actions/runs/33460167644)、[Docker 33460167700](https://github.com/nekohands/InkFlow/actions/runs/33460167700)、[Security 33460167715](https://github.com/nekohands/InkFlow/actions/runs/33460167715) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
+- 最新代码候选 Commit：`9a0b7df`；在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航的运行时与内置浏览器证据，详见 5.28。`9a0b7df` 的 [CI 33464240828](https://github.com/nekohands/InkFlow/actions/runs/33464240828)、[Docker 33464240871](https://github.com/nekohands/InkFlow/actions/runs/33464240871)、[Security 33464240909](https://github.com/nekohands/InkFlow/actions/runs/33464240909) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1263,6 +1263,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM：Migration/packages-init 退出码为 0，API、Worker、Scheduler、PostgreSQL、Redis 健康；`ensure-reader-catalog` 返回稳定书目/章节 ID `3a9c9f4b-4975-4b64-949a-63c56bc5df19` / `20503455-be9e-4aa9-aaab-2e057b14757b`。`reader-frontend-runtime-smoke.sh` 与 `reader-content-runtime-smoke.sh` 均 PASS。
 - 浏览器：经临时 SSH 转发，GPT 内置浏览器实际完成 `/reader` 搜索 `InkFlow Runtime Acceptance Fixture`、点击书目结果、打开详情目录、点击“开始阅读”进入正文；读取章节标题、已发布 Canonical Content、进度条 `aria-valuenow=100`，并打开阅读设置检查主题/字号/行高控件。未读取 Cookie/Storage/密码材料，未输入或提交账户凭据，未使用真实账户。
 - 清理与边界：验证后浏览器临时页、转发、隔离 Compose 容器/网络/卷和 worktree 均清理；VM 原工作树原有用户改动保持不变。该证据不替代人工视觉/触控、真实账户/PWA 安装与跨设备、真实来源、生产环境或 MuMu/阅读 3.0 验收；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.28 Web Reader 上一章/下一章自动化验收闭环交接（本轮，2026-09-01）
+
+- 工作包：针对 5.27 单章夹具无法证明连续阅读的问题，扩展 `ensure-reader-catalog` 为同一本书的两章已发布 Canonical Content，并新增 `scripts/reader-navigation-runtime-smoke.sh` 及 fixture 回归；CI 已接入脚本回归和 Runtime 步骤。
+- 本机证据：脚本 `bash -n`、fixture/Reader smoke、Release Build（0 warnings / 0 errors）通过；Unit/Architecture/Contract 通过。Windows Docker Engine 的 `npipe://./pipe/docker_engine` 不可用，Windows 全量 IntegrationTests 仍 BLOCKED，不作为本机集成证据。
+- Ubuntu VM 证据：候选 `9a0b7df` 以 `docker-compose.build.yml` 源码构建并健康启动；Linux SDK 完整测试为 Unit 540/540、Architecture 1/1、Contract 10/10、Integration 103 passed / 3 skipped / 0 failed。前端、已发布正文和导航 smoke 均 PASS；GPT 内置浏览器经临时 SSH 转发实际完成搜索→详情→目录→首章→下一章→上一章，确认正文、进度 100、首章无上一章、末章无下一章。验证后隔离 Compose/卷、转发和 worktree 已清理，VM 原工作树用户改动保持不变。
+- 远端门禁：候选 `9a0b7df` 的 [CI 33464240828](https://github.com/nekohands/InkFlow/actions/runs/33464240828)、[Docker 33464240871](https://github.com/nekohands/InkFlow/actions/runs/33464240871)、[Security 33464240909](https://github.com/nekohands/InkFlow/actions/runs/33464240909) 均 GREEN 且 head SHA 一致。
+- 边界：本轮不启动 ADB、MuMu/阅读 3.0，不输入真实账户/凭据，不触发第三方 live source；人工视觉/触控、长时间阅读、PWA 安装/跨设备、真实来源和生产治理仍列在待定事项，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

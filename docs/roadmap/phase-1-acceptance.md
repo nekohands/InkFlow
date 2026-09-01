@@ -49,7 +49,7 @@ Search
 
 Acceptance evidence:
 
-### Automated evidence (2026-08-31)
+### Automated evidence (2026-09-01)
 
 The following automated evidence is complete and is separate from the human/visual
 checklist below:
@@ -72,11 +72,17 @@ checklist below:
   gaining a new chapter, TOC resync, stable chapter mapping, incremental Content task
   creation, ContentVersion publication and repeat-scan idempotency in
   `EndToEndDataFlowTests.Automated_Scheduler_Discovers_New_Chapter_And_Publishes_Content`.
+- [x] Source-built Compose Reader acceptance uses a two-chapter fixture to exercise
+  the real Web Reader `Next / Previous Chapter` links, first/last chapter boundaries,
+  stable ChapterIds and published content through both runtime smoke and in-app
+  browser interaction.
 
 Evidence is recorded in `docs/roadmap/progress.md` sections 4.75, 4.82–4.86,
-4.97–4.99, 5.8, 5.10 and 5.26, with repository entrypoints
+4.97–4.99, 5.8, 5.10 and 5.26–5.28, with repository entrypoints
 `scripts/reader-frontend-runtime-smoke.sh`,
 `scripts/reader-account-runtime-smoke.sh`,
+`scripts/reader-content-runtime-smoke.sh`,
+`scripts/reader-navigation-runtime-smoke.sh`,
 `scripts/collection-package-runtime-smoke.sh` and their regressions under
 `scripts/tests/`. These checks do not claim real PWA installation, long-duration
 reading, real-account behavior or Reading 3.0/MuMu acceptance.
