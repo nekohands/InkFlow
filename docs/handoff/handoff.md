@@ -1285,6 +1285,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 本机：AcceptanceFixtures Release Build 0 warnings / 0 errors；ReaderHtml `22/22`；新增脚本语法/fixture 回归和 `git diff --check` 通过。
 - Ubuntu VM：候选 `5dc59ab` 隔离 worktree 使用 `docker-compose.build.yml` 源码构建；Linux SDK Integration `103 passed / 3 skipped / 0 failed`，Build 0 warnings / 0 errors，11 个 migration context 无漂移；Migration/packages-init、PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，前端、导航和边界 smoke 均 PASS。
 - GPT 内置浏览器：经临时 SSH 转发实际打开最大长度边界详情页；当前 `1280×720` 视口下页面文档/主体宽度均为 `1265px`，无横向溢出，标题/作者/目录计算样式为 `overflow-wrap:anywhere`，无封面没有详情图片，开始阅读入口可见。未输入账户、密码或 Token，未读取 Cookie/Storage。
+- 远端门禁：文档同步提交 `067b21d` 的 [CI 33471120031](https://github.com/nekohands/InkFlow/actions/runs/33471120031)、[Docker 33471120041](https://github.com/nekohands/InkFlow/actions/runs/33471120041)、[Security 33471120007](https://github.com/nekohands/InkFlow/actions/runs/33471120007) 均 GREEN 且 head SHA 一致；CI 已包含新增 Reader edge metadata 脚本回归和源码 Compose Runtime smoke。
 - 清理与边界：隔离 Compose、网络、转发和 worktree 已清理，VM 原工作树改动保留；本轮不启动 ADB、MuMu/阅读 3.0，不触发第三方 live source。375×812 等移动端人工视觉/触控、长时间阅读、真实账户/PWA 安装跨设备、真实来源/生产环境仍待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
