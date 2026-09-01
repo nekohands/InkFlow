@@ -220,6 +220,63 @@ public sealed class BookPackageServiceTests
         }
     }
 
+    [TestMethod]
+    public async Task OpenCompleted_Returns_Null_When_Artifact_Root_Is_Missing()
+    {
+        var book = CanonicalBook.Create("缺失目录书", "作者", T0);
+        var jobs = new InMemoryPackageJobRepository();
+        var root = Path.Combine(
+            Path.GetTempPath(),
+            $"inkflow-package-missing-root-test-{Guid.NewGuid():N}");
+        Assert.IsFalse(Directory.Exists(root));
+
+        var options = new BookPackageOptions(
+            root,
+            MaxChapters: 100,
+            MaxPackageBytes: 1_000_000,
+            Retention: TimeSpan.FromDays(7),
+            LeaseDuration: TimeSpan.FromMinutes(10));
+        var artifacts = new FileBookPackageArtifactStore(options);
+        var jobId = Guid.CreateVersion7();
+        var artifactFileName = artifacts.GetArtifactFileName(
+            jobId,
+            leaseAttempt: 1,
+            BookPackageFormat.Txt);
+        jobs.Items.Add(BookPackageJob.Rehydrate(
+            jobId,
+            book.Id,
+            BookPackageFormat.Txt,
+            BookPackageJobStatus.Completed,
+            attemptCount: 1,
+            maxAttempts: 3,
+            scheduledAt: null,
+            leaseOwner: null,
+            leaseExpiresAt: null,
+            totalChapterCount: 1,
+            completedChapterCount: 1,
+            artifactFileName,
+            artifactSha256: "hash",
+            artifactLength: 1,
+            failureReason: null,
+            createdAt: T0,
+            updatedAt: T0,
+            expiresAt: T0.AddDays(1)));
+
+        var service = new BookPackageService(
+            jobs,
+            new InMemoryBookRepository(book),
+            new SnapshotVersionRepository(),
+            new AllowAllPolicy(),
+            new CapturingBuilder(),
+            artifacts,
+            options,
+            new FixedClock(T0));
+
+        var stream = await service.OpenCompletedAsync(jobId);
+
+        Assert.IsNull(stream);
+    }
+
     private static ContentVersion NewVersion(Guid bookId, Guid chapterId, string text) =>
         ContentVersion.Create(
             bookId,

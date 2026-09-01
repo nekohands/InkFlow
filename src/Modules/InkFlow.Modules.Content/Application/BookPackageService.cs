@@ -122,7 +122,8 @@ public sealed class BookPackageService(
                 .OpenReadAsync(job.ArtifactFileName, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (FileNotFoundException)
+        catch (Exception exception)
+            when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             return null;
         }
