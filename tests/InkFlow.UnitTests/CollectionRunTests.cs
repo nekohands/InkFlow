@@ -46,6 +46,21 @@ public sealed class CollectionRunTests
     }
 
     [TestMethod]
+    public void Cancelled_Run_Is_Terminal_And_Idempotent()
+    {
+        var run = CreateRun();
+        run.MarkWorkStarted(T0.AddSeconds(1));
+
+        run.Cancel(T0.AddSeconds(2));
+        run.Cancel(T0.AddSeconds(3));
+
+        Assert.AreEqual(CollectionRunStatus.Cancelled, run.Status);
+        Assert.IsFalse(run.CanScheduleFollowUp);
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => run.Resume(T0.AddSeconds(4)));
+    }
+
+    [TestMethod]
     public void Reconcile_Completes_Only_After_Content_Children_Are_All_Complete()
     {
         var run = CreateRun();
