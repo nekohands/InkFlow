@@ -1248,6 +1248,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM 证据：Ubuntu 隔离 worktree 源码构建 Compose 健康；Linux SDK Unit `540/540`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；11 个 migration contexts PASS；Legado/Admin/Operations/collection-package smoke PASS，collection-package 覆盖直接地址、暂停/恢复/停止/取消幂等、ZIP/EPUB/TXT、完整性和审计。验证后已清理隔离 worktree、Compose 与资源，未触碰 VM 原工作树改动。
 - 当前状态：`bc119e5` 的三条远端门禁均 GREEN；本工作包已完成自动化验证，但整体仍为 `1.0 Release Candidate`。阅读 3.0/MuMu/ADB、真实来源/追更/第二来源、真实凭据/Provider、账户/PWA 跨设备、受保护页面人工操作和生产治理仍按第 6 节待定；本轮不启动阅读 App 或 live source。
 
+### 5.26 GPT 内置浏览器 VM 本地转发真实交互复验交接（本轮，2026-09-01）
+
+- 工作包：补强 1.0 前端自动化证据；在不启动 MuMu/阅读 3.0、不使用真实账户凭据、不触发第三方 live source 的前提下，使用 `bc119e5` 隔离 worktree 和源码构建 Compose。
+- VM：Migration/packages-init 正常退出，PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 健康；通过 SSH 本地转发访问 API，未覆盖 VM 原工作树，验证后已清理 Compose、网络、卷、转发和临时 worktree。
+- 浏览器：实际操作 `/reader` 搜索空结果、`/reader/account` 空表单校验、未登录书架/历史保护提示、离线回退页和匿名 Operations 页面；未输入或提交密码、Token、真实账户或其他敏感数据。`375×812`、`1440×900` 两个视口均无横向溢出，搜索区/导航可见。
+- Runtime：`reader-frontend-runtime-smoke.sh` 返回 `PASS (Reader/PWA/Operations frontend contracts)`；浏览器临时页与视口覆盖已恢复默认状态。该证据增强自动化页面交互覆盖，不替代人工视觉、PWA 安装/跨设备、真实账户、阅读 3.0、真实来源或生产验收。
+- 当前状态：本轮无产品代码变更；整体继续为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。VM 原工作树原有用户改动保持不变。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

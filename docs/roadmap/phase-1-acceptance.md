@@ -74,12 +74,18 @@ checklist below:
   `EndToEndDataFlowTests.Automated_Scheduler_Discovers_New_Chapter_And_Publishes_Content`.
 
 Evidence is recorded in `docs/roadmap/progress.md` sections 4.75, 4.82–4.86,
-4.97–4.99, 5.8 and 5.10, with repository entrypoints
+4.97–4.99, 5.8, 5.10 and 5.26, with repository entrypoints
 `scripts/reader-frontend-runtime-smoke.sh`,
 `scripts/reader-account-runtime-smoke.sh`,
 `scripts/collection-package-runtime-smoke.sh` and their regressions under
 `scripts/tests/`. These checks do not claim real PWA installation, long-duration
 reading, real-account behavior or Reading 3.0/MuMu acceptance.
+
+The 2026-09-01 browser recheck also used a source-built Ubuntu VM stack through a
+temporary SSH local forward. The in-app browser performed real public-page
+search, empty-state, account-form, anonymous shelf/history, offline fallback and
+anonymous Operations checks, plus 375×812 and 1440×900 overflow measurements.
+No password, token or real account was entered.
 
 ### Human / visual acceptance evidence
 

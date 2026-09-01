@@ -1437,6 +1437,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选 `bc119e5` 的 [CI 33456258013](https://github.com/nekohands/InkFlow/actions/runs/33456258013)、[Docker 33456258124](https://github.com/nekohands/InkFlow/actions/runs/33456258124)、[Security 33456257931](https://github.com/nekohands/InkFlow/actions/runs/33456257931) 均 GREEN 且 head SHA 一致。
 - 结论与边界：关闭自动化进度语义缺口；不启动 ADB、阅读 3.0、真实来源或真实凭据验收，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.26 GPT 内置浏览器 VM 本地转发真实交互复验（本轮，2026-09-01）
+
+- 目标：在不启动 MuMu/阅读 3.0、不给真实账户输入凭据、也不触发第三方 live source 的前提下，补强 1.0 前端自动化证据，验证源码构建 Compose 栈能被 GPT 内置浏览器实际操作。
+- VM 证据：以 `bc119e5` 建立隔离 worktree，按日常策略使用 `docker-compose.build.yml` 源码构建；Migration/packages-init 正常退出，PostgreSQL、Redis、OTel Collector、API、Worker、Scheduler 均健康。通过 SSH 本地端口转发将 VM API 映射到本机临时地址，未修改 VM 原工作树。
+- 浏览器交互：实际打开 `/reader` 并通过搜索框/按钮完成空结果搜索；打开 `/reader/account` 验证登录/注册表单和空输入原生校验；打开未登录 `/reader/shelf`、`/reader/history` 验证保护提示和登录入口；打开 `/reader/offline` 验证离线回退文案；打开 `/admin/operations` 验证匿名提示和禁用刷新态。未提交账号、密码或其他敏感数据。
+- 响应式证据：在 `375×812` 和 `1440×900` 视口读取 DOM/布局指标，`documentElement.scrollWidth == innerWidth`，搜索区和导航均存在；浏览器默认视口已恢复。随后执行 `reader-frontend-runtime-smoke.sh`，结果为 `PASS (Reader/PWA/Operations frontend contracts)`。
+- 清理与边界：浏览器临时页、SSH 转发、Compose 容器/网络/卷和隔离 worktree 均已清理；VM 原工作树中的用户改动保持不变。本轮只新增浏览器自动化证据，不替代人工视觉、真实账户/PWA 安装与跨设备、阅读 3.0、真实来源和生产环境验收。
+- 当前状态：前端自动化证据进一步取得实际页面交互和 VM 源码构建支撑；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
