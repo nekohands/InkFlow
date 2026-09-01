@@ -67,6 +67,13 @@ jobs:
           bash -n scripts/tests/reader-content-runtime-smoke.test.sh
           bash scripts/tests/reader-content-runtime-smoke.test.sh
 
+      - name: Reader navigation smoke script regression
+        run: |
+          bash -n scripts/reader-navigation-runtime-smoke.sh
+          bash -n scripts/tests/reader-navigation-runtime-smoke.fixture-curl.sh
+          bash -n scripts/tests/reader-navigation-runtime-smoke.test.sh
+          bash scripts/tests/reader-navigation-runtime-smoke.test.sh
+
       - name: Legado runtime smoke script regression
         run: |
           bash -n scripts/legado-runtime-smoke.sh
@@ -254,6 +261,7 @@ jobs:
           fixture_json="$("${fixture_cmd[@]}" ensure-reader-catalog | tail -n 1)"
           book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
           chapter_id="$(printf '%s' "$fixture_json" | jq -er '.chapterId')"
+          next_chapter_id="$(printf '%s' "$fixture_json" | jq -er '.nextChapterId')"
 
           env \
             "INKFLOW_READER_ACCOUNT_SMOKE_EMAIL=$reader_email" \
@@ -265,6 +273,11 @@ jobs:
           env \
             "INKFLOW_READER_CONTENT_SMOKE_CHAPTER_ID=$chapter_id" \
             bash scripts/reader-content-runtime-smoke.sh http://localhost:8080
+
+          env \
+            "INKFLOW_READER_NAVIGATION_SMOKE_FIRST_CHAPTER_ID=$chapter_id" \
+            "INKFLOW_READER_NAVIGATION_SMOKE_SECOND_CHAPTER_ID=$next_chapter_id" \
+            bash scripts/reader-navigation-runtime-smoke.sh http://localhost:8080
 
       - name: Legado contract runtime smoke
         run: |

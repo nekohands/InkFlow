@@ -18,11 +18,17 @@ const string FixtureSourceId = "inkflow-acceptance";
 const string FixtureBookTitle = "InkFlow Runtime Acceptance Fixture";
 const string FixtureBookAuthor = "InkFlow Automation";
 const string FixtureChapterTitle = "Automated Acceptance Chapter";
+const string FixtureNextChapterTitle = "Automated Acceptance Follow-up";
 const string FixtureSourceBaseUrl = "https://inkflow-acceptance.invalid";
 const string FixtureReaderContent = """
     <p>这一章用于 InkFlow 的非阅读 App 自动化验收。</p>
     <p>正文来自已发布的 Canonical Content，阅读页应展示已落库内容。</p>
     <p>滚动、阅读进度和历史记录由浏览器自动化链路验证。</p>
+    """;
+const string FixtureNextReaderContent = """
+    <p>这一章用于验证 InkFlow Web Reader 的章节连续阅读路径。</p>
+    <p>下一章正文来自同一正典书目，上一章和下一章链接必须保持稳定的 ChapterId。</p>
+    <p>浏览器自动化会从首章进入本章，再返回首章。</p>
     """;
 const string FailoverSourceAId = "inkflow-failover-a";
 const string FailoverSourceBId = "inkflow-failover-b";
@@ -166,27 +172,30 @@ static async Task<int> EnsureCatalogAsync(string connectionString, bool publishR
         FixtureSourceBaseUrl,
         now);
 
-    var (bookId, chapterId) = await EnsureCanonicalBookAsync(
+    var (bookId, chapterId, nextChapterId) = await EnsureReaderCanonicalBookAsync(
         connectionString,
         FixtureBookTitle,
         FixtureBookAuthor,
         FixtureChapterTitle,
+        FixtureNextChapterTitle,
         now);
 
     if (publishReaderContent)
     {
         await using var contentDb = new ContentDbContext(Options<ContentDbContext>(connectionString));
         var publisher = new ContentPublishingService(new EfContentVersionRepository(contentDb));
-        var outcome = await publisher.PublishAsync(
+        await PublishReaderChapterAsync(
+            publisher,
             bookId,
             chapterId,
             FixtureSourceId,
             FixtureReaderContent);
-        if (!outcome.IsSuccess || outcome.Version is null)
-        {
-            throw new InvalidOperationException(
-                $"acceptance reader content could not be published: {string.Join("; ", outcome.Errors)}");
-        }
+        await PublishReaderChapterAsync(
+            publisher,
+            bookId,
+            nextChapterId,
+            FixtureSourceId,
+            FixtureNextReaderContent);
     }
 
     Console.WriteLine(JsonSerializer.Serialize(new
@@ -194,6 +203,7 @@ static async Task<int> EnsureCatalogAsync(string connectionString, bool publishR
         sourceId = FixtureSourceId,
         bookId,
         chapterId,
+        nextChapterId,
     }));
     return 0;
 }
@@ -409,6 +419,67 @@ static async Task<(Guid BookId, Guid ChapterId)> EnsureCanonicalBookAsync(
     }
 
     return (book.Id, existingChapter.Id);
+}
+
+static async Task<(Guid BookId, Guid ChapterId, Guid NextChapterId)> EnsureReaderCanonicalBookAsync(
+    string connectionString,
+    string title,
+    string author,
+    string firstChapterTitle,
+    string nextChapterTitle,
+    DateTimeOffset now)
+{
+    await using var libraryDb = new LibraryDbContext(Options<LibraryDbContext>(connectionString));
+    var books = new EfCanonicalBookRepository(libraryDb);
+    var book = await books.FindByTitleAuthorAsync(title, author);
+    if (book is null)
+    {
+        book = CanonicalBook.Create(title, author, now);
+        var firstChapter = book.AddChapter(0, firstChapterTitle, now);
+        var nextChapter = book.AddChapter(1, nextChapterTitle, now);
+        await books.AddAsync(book);
+        return (book.Id, firstChapter.Id, nextChapter.Id);
+    }
+
+    book = await books.GetAsync(book.Id)
+        ?? throw new InvalidOperationException("acceptance reader fixture book disappeared while loading.");
+    var existingFirstChapter = book.Chapters.FirstOrDefault();
+    var changed = false;
+    if (existingFirstChapter is null)
+    {
+        existingFirstChapter = book.AddChapter(0, firstChapterTitle, now);
+        changed = true;
+    }
+
+    var existingNextChapter = book.Chapters.FirstOrDefault(chapter => chapter.Index == 1);
+    if (existingNextChapter is null)
+    {
+        existingNextChapter = book.AddChapter(book.Chapters.Count, nextChapterTitle, now);
+        changed = true;
+    }
+
+    if (changed)
+    {
+        await books.SaveAsync(book);
+    }
+
+    return (book.Id, existingFirstChapter.Id, existingNextChapter.Id);
+}
+
+static async Task PublishReaderChapterAsync(
+    ContentPublishingService publisher,
+    Guid bookId,
+    Guid chapterId,
+    string sourceId,
+    string content)
+{
+    var outcome = await publisher.PublishAsync(bookId, chapterId, sourceId, content);
+    if (!outcome.IsSuccess || outcome.Version is null)
+    {
+        throw new InvalidOperationException(
+            $"acceptance reader content for chapter '{chapterId}' could not be published: " +
+            string.Join("; ", outcome.Errors));
+    }
 }
 
 static async Task<int> EnsureCollectionControlRunsAsync(string connectionString)
