@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选 Commit：`bc119e5`；修复采集运行成功进度把失败/取消任务计入百分比的问题，并补充回归覆盖，详见 5.25。`bc119e5` 的 [CI 33456258013](https://github.com/nekohands/InkFlow/actions/runs/33456258013)、[Docker 33456258124](https://github.com/nekohands/InkFlow/actions/runs/33456258124)、[Security 33456257931](https://github.com/nekohands/InkFlow/actions/runs/33456257931) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
+- 最新代码候选 Commit：`2162ac1`；在 `bc119e5` 之后补充匿名 Web Reader 夹具书目实际搜索→详情→目录→正文浏览器证据，详见 5.27。`2162ac1` 的 [CI 33460167644](https://github.com/nekohands/InkFlow/actions/runs/33460167644)、[Docker 33460167700](https://github.com/nekohands/InkFlow/actions/runs/33460167700)、[Security 33460167715](https://github.com/nekohands/InkFlow/actions/runs/33460167715) 均 GREEN 且 SHA 一致；采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1256,6 +1256,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Runtime：`reader-frontend-runtime-smoke.sh` 返回 `PASS (Reader/PWA/Operations frontend contracts)`；浏览器临时页与视口覆盖已恢复默认状态。该证据增强自动化页面交互覆盖，不替代人工视觉、PWA 安装/跨设备、真实账户、阅读 3.0、真实来源或生产验收。
 - 远端门禁：文档提交 `198dd61` 的 [CI 33459414177](https://github.com/nekohands/InkFlow/actions/runs/33459414177)、[Docker 33459414175](https://github.com/nekohands/InkFlow/actions/runs/33459414175) 和 [Security 33459414095](https://github.com/nekohands/InkFlow/actions/runs/33459414095) 均 GREEN 且 head SHA 一致；CI 全量测试、源码 Compose、前端/业务 Runtime、SLO、Redis、备份恢复和诊断步骤通过。
 - 当前状态：本轮无产品代码变更；整体继续为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。VM 原工作树原有用户改动保持不变。
+
+### 5.27 GPT 内置浏览器匿名夹具书目实际阅读链路复验交接（本轮，2026-09-01）
+
+- 工作包：在不启动 ADB、MuMu/阅读 3.0、不输入真实凭据且不访问第三方 live source 的前提下，补强 Web Reader 有数据路径的自动化证据；使用 `2162ac1` 独立 worktree 和 `docker-compose.build.yml` 源码构建。
+- VM：Migration/packages-init 退出码为 0，API、Worker、Scheduler、PostgreSQL、Redis 健康；`ensure-reader-catalog` 返回稳定书目/章节 ID `3a9c9f4b-4975-4b64-949a-63c56bc5df19` / `20503455-be9e-4aa9-aaab-2e057b14757b`。`reader-frontend-runtime-smoke.sh` 与 `reader-content-runtime-smoke.sh` 均 PASS。
+- 浏览器：经临时 SSH 转发，GPT 内置浏览器实际完成 `/reader` 搜索 `InkFlow Runtime Acceptance Fixture`、点击书目结果、打开详情目录、点击“开始阅读”进入正文；读取章节标题、已发布 Canonical Content、进度条 `aria-valuenow=100`，并打开阅读设置检查主题/字号/行高控件。未读取 Cookie/Storage/密码材料，未输入或提交账户凭据，未使用真实账户。
+- 清理与边界：验证后浏览器临时页、转发、隔离 Compose 容器/网络/卷和 worktree 均清理；VM 原工作树原有用户改动保持不变。该证据不替代人工视觉/触控、真实账户/PWA 安装与跨设备、真实来源、生产环境或 MuMu/阅读 3.0 验收；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
