@@ -368,6 +368,7 @@ public static partial class ReaderHtml
               list-style: none;
             }
             .book-card {
+              min-width: 0;
               min-height: 9rem;
               border: 1px solid var(--reader-border);
               border-radius: var(--reader-radius);
@@ -378,6 +379,7 @@ public static partial class ReaderHtml
             .book-card:hover { transform: translateY(-2px); border-color: var(--reader-accent); box-shadow: var(--reader-shadow); }
             .book-card__link {
               display: flex;
+              min-width: 0;
               min-height: 9rem;
               flex-direction: column;
               justify-content: space-between;
@@ -420,6 +422,12 @@ public static partial class ReaderHtml
             .toc li { min-width: 0; border-bottom: 1px solid var(--reader-border); }
             .toc a { display: block; padding: 0.75rem 0.2rem; text-decoration: none; }
             .toc a:hover { padding-left: 0.45rem; }
+            .book-card__title,
+            .book-card__author,
+            .book-author,
+            .book-hero h1,
+            .toc a,
+            .breadcrumbs > * { overflow-wrap: anywhere; }
 
             .reader-page { background: var(--reader-bg); }
             .reader-shell {

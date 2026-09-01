@@ -19,6 +19,9 @@ const string FixtureBookTitle = "InkFlow Runtime Acceptance Fixture";
 const string FixtureBookAuthor = "InkFlow Automation";
 const string FixtureChapterTitle = "Automated Acceptance Chapter";
 const string FixtureNextChapterTitle = "Automated Acceptance Follow-up";
+const string EdgeBookTitlePrefix = "InkFlow Edge <Metadata> ";
+const string EdgeBookAuthorPrefix = "InkFlow Edge & Author ";
+const string EdgeChapterTitle = "Edge Metadata Acceptance Chapter";
 const string FixtureSourceBaseUrl = "https://inkflow-acceptance.invalid";
 const string FixtureReaderContent = """
     <p>这一章用于 InkFlow 的非阅读 App 自动化验收。</p>
@@ -68,7 +71,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 if (args.Length == 0)
 {
-    return Fail("usage: ensure-catalog | ensure-reader-catalog | ensure-failover-catalog | ensure-quality-failure-catalog | ensure-collection-control-runs | set-role <email> <operator|administrator> | disable-user <email>");
+    return Fail("usage: ensure-catalog | ensure-reader-catalog | ensure-reader-edge-catalog | ensure-failover-catalog | ensure-quality-failure-catalog | ensure-collection-control-runs | set-role <email> <operator|administrator> | disable-user <email>");
 }
 
 try
@@ -79,6 +82,8 @@ try
             await EnsureCatalogAsync(connectionString, publishReaderContent: false),
         "ensure-reader-catalog" when args.Length == 1 =>
             await EnsureCatalogAsync(connectionString, publishReaderContent: true),
+        "ensure-reader-edge-catalog" when args.Length == 1 =>
+            await EnsureReaderEdgeCatalogAsync(connectionString),
         "ensure-failover-catalog" when args.Length == 1 =>
             await EnsureFailoverCatalogAsync(connectionString),
         "ensure-quality-failure-catalog" when args.Length == 1 =>
@@ -204,6 +209,29 @@ static async Task<int> EnsureCatalogAsync(string connectionString, bool publishR
         bookId,
         chapterId,
         nextChapterId,
+    }));
+    return 0;
+}
+
+static async Task<int> EnsureReaderEdgeCatalogAsync(string connectionString)
+{
+    var now = DateTimeOffset.UtcNow;
+    var title = EdgeBookTitlePrefix + new string('T', 512 - EdgeBookTitlePrefix.Length);
+    var author = EdgeBookAuthorPrefix + new string('A', 256 - EdgeBookAuthorPrefix.Length);
+    var (bookId, chapterId) = await EnsureCanonicalBookAsync(
+        connectionString,
+        title,
+        author,
+        EdgeChapterTitle,
+        now);
+
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        bookId,
+        chapterId,
+        title,
+        author,
+        coverUrl = (string?)null,
     }));
     return 0;
 }

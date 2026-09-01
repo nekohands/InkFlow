@@ -54,6 +54,13 @@ jobs:
           bash -n scripts/tests/reader-frontend-runtime-smoke.test.sh
           bash scripts/tests/reader-frontend-runtime-smoke.test.sh
 
+      - name: Reader edge metadata smoke script regression
+        run: |
+          bash -n scripts/reader-edge-metadata-runtime-smoke.sh
+          bash -n scripts/tests/reader-edge-metadata-runtime-smoke.fixture-curl.sh
+          bash -n scripts/tests/reader-edge-metadata-runtime-smoke.test.sh
+          bash scripts/tests/reader-edge-metadata-runtime-smoke.test.sh
+
       - name: Reader account smoke script regression
         run: |
           bash -n scripts/reader-account-runtime-smoke.sh
@@ -243,6 +250,16 @@ jobs:
         run: |
           chmod +x scripts/reader-frontend-runtime-smoke.sh
           scripts/reader-frontend-runtime-smoke.sh http://localhost:8080
+
+      - name: Reader edge metadata runtime smoke
+        run: |
+          set -euo pipefail
+          fixture_cmd=(docker compose -f docker-compose.build.yml --profile acceptance run --rm --no-deps acceptance-fixtures)
+          fixture_json="$("${fixture_cmd[@]}" ensure-reader-edge-catalog | tail -n 1)"
+          book_id="$(printf '%s' "$fixture_json" | jq -er '.bookId')"
+          env \
+            "INKFLOW_READER_EDGE_SMOKE_BOOK_ID=$book_id" \
+            bash scripts/reader-edge-metadata-runtime-smoke.sh http://localhost:8080
 
       - name: Reader account runtime smoke
         run: |

@@ -84,6 +84,25 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Book_Detail_Wraps_Long_Metadata_And_Escapes_Special_Characters()
+    {
+        var title = "InkFlow Edge <Metadata> " + new string('T', 480);
+        var author = "InkFlow Edge & Author " + new string('A', 230);
+        var detail = new BookDetail(
+            Guid.NewGuid(),
+            title,
+            author,
+            [new ChapterListItem(Guid.NewGuid(), 0, "Edge chapter")]);
+
+        var html = ReaderHtml.BookDetailPage(detail);
+
+        StringAssert.Contains(html, "InkFlow Edge &lt;Metadata&gt;");
+        StringAssert.Contains(html, "InkFlow Edge &amp; Author");
+        StringAssert.Contains(html, "overflow-wrap: anywhere;");
+        Assert.IsFalse(html.Contains("InkFlow Edge <Metadata>"));
+    }
+
+    [TestMethod]
     public void Book_Detail_Offers_Authenticated_Shelf_Action_Without_Exposing_Tokens()
     {
         var html = ReaderHtml.BookDetailPage(Detail);
