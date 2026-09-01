@@ -8,6 +8,12 @@
 - 页面性质：只读运维快照 + 告警历史 + 受控修复入口。当前基线 API 为 `GET /api/v1/admin/operations/overview` 与 `GET /api/v1/admin/operations/alerts/history`，查询结果有界且按区块隔离故障。
 - 非目标：自动修复、直接改数据库、把凭据/任务变量/正文载荷放入仪表盘。
 
+## 本轮增量（2026-09-01）
+
+- Content Policy 已纳入 Center：Administrator 可在页面发起正典书下架/恢复，查看当前活动下架记录；Operator 可进入 Center，但管理控件只读/禁用。
+- 下架与恢复均要求理由，复用受保护 API、明确确认对话框和 append-only 审计；UI 不提供删除历史的路径，公开书目/详情/阅读可见性由服务端政策状态决定。
+- 验收边界：临时夹具账号的 VM 源码 Compose 与 GPT 内置浏览器自动化已通过；真实凭据、生产截图和人工视觉/触控仍是第 6 节待定事项，不改变本基准的非目标。
+
 ## 本次增量参考
 
 - Grafana Alert State History：用独立历史视图呈现告警状态转折，并允许继续缩小范围查看事件；InkFlow 采用更小的表格和不透明游标，只提供管理员需要的稳定事件字段。

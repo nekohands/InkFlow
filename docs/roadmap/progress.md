@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.29 的 1.0 非延期范围缺口审计已同步，文档变更不改变行为代码；最新行为候选为 `9a0b7df`（在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航验收），Reader 文档候选为 `992f77b`。各候选对应的 CI、Docker、Security 门禁均 GREEN 且各自指向同一 head SHA。
+- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环正在同步；最新行为候选为 `5bdb4ea`（管理员下架/恢复、列表回显和操作员禁用边界），本轮文档提交后的 CI、Docker、Security 门禁待核对。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1482,6 +1482,15 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：文档同步提交 `067b21d` 的 [CI 33471120031](https://github.com/nekohands/InkFlow/actions/runs/33471120031)、[Docker 33471120041](https://github.com/nekohands/InkFlow/actions/runs/33471120041)、[Security 33471120007](https://github.com/nekohands/InkFlow/actions/runs/33471120007) 均 GREEN 且 head SHA 一致；CI 已包含新增 Reader edge metadata 脚本回归和源码 Compose Runtime smoke。
 - 清理与边界：Compose、网络、转发和隔离 worktree 已清理，VM 原工作树用户改动保持不变；本轮不启动 ADB、MuMu/阅读 3.0，不访问第三方 live source。375×812 等移动端人工视觉/触控、真实账户/PWA 安装跨设备、真实来源和生产环境事项仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.31 Operations Center 内容政策管理 UI 与权限自动化闭环（本轮，2026-09-01）
+
+- 工作包：将 Content Policy 纳入 Operations Center 前端，提供管理员下架/恢复、当前下架列表和追加式理由确认；Operator 可访问运维中心但不能使用内容政策管理控件。
+- 实现：前端只读取受保护的 `GET /api/v1/admin/content/takedowns?limit=50`，列表和结果使用安全 DOM 构建；下架/恢复复用已有理由校验、确认对话框和审计动作壳，不删除历史。新增 `ReaderHtml` 回归断言、前端 runtime smoke 标记和 curl fixture 标记。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit `541/541`、Architecture `1/1`、Contract `10/10`；前端 smoke PASS。整套本机 Testcontainers 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED，不记为本机集成通过。
+- Ubuntu VM 证据：候选 `5bdb4ea` 在隔离 worktree 使用 `docker-compose.build.yml` 源码构建；Migration/packages-init、PostgreSQL、Redis、OTel、API、Worker、Scheduler 健康；Linux SDK `Restore → Release Build → Test` 为 Build 0 warnings / 0 errors、Unit `541/541`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；`verify-migrations` 为 11 contexts PASS；`admin-runtime-smoke` 覆盖权限、审计、来源权限/健康、凭据绑定和 Content Policy，结果 PASS；前端 smoke PASS。
+- GPT 内置浏览器证据：临时管理员实际完成下架→列表回显→公开书目隐藏→恢复→公开书目恢复；新签发 Operator 会话可进入运维中心，内容政策输入框和按钮均 disabled，并显示“仅管理员可用”。临时账号随后禁用，隔离 Compose 资源、卷、转发和 worktree 已清理，VM 原工作树的既有用户改动保持不变。
+- 边界：不启动 ADB、MuMu/阅读 3.0；不使用真实账户/生产凭据，不访问第三方 live source。Content Policy 真实凭据/人工视觉操作、PWA 安装跨设备、真实来源/追更/切源和生产治理仍按第 6 节待定；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1572,6 +1581,7 @@ Official Source
 - [ ] **真实第二来源与故障切换**：4.99 已用确定性双来源夹具完成源码 Compose 下 Web/Legado 的 A→B→A、稳定 BookId/ChapterId 和恢复验证；仍需从已接入 Official Source 中选择可稳定访问的真实第二来源，确认真实来源故障、真实响应和恢复不产生重复正典身份。
 - [ ] **Content Policy 管理人工验收**：使用 Administrator 凭证验证下架/恢复与理由校验；确认 Operator/匿名不能执行管理命令，并逐一确认目录、详情、正文、Web Reader、公共搜索和 Legado 在下架期间不可见、恢复后可读，同时核对命令审计记录。
 - [x] **Content Policy 非阅读 App 自动化验收**：4.83 已用临时管理员和 CanonicalBook fixture 验证下架/恢复、公共详情可见性、权限拒绝和审计过滤。
+- [x] **Content Policy Operations UI 非阅读 App 自动化验收**：5.31 使用临时管理员/Operator 夹具和 GPT 内置浏览器验证下架/恢复 UI、公开书目隐藏/恢复、列表回显及 Operator 禁用边界；真实凭据和人工视觉验收仍待定。
 - [x] **Operations Center 浏览器自动验收（1.0 必选）**：匿名角色拒绝、页面结构、状态提示、刷新按钮禁用态、桌面/移动布局、焦点/无横向溢出和浏览器错误日志已由 4.75 自动化；受保护命令的 API/集成基线已自动化。
 - [ ] **Operations Center 真实凭据补充验收**：Operator/Administrator 真实登录后的命令执行、告警/来源/死信操作和生产截图仍需可用测试账户与部署环境。
 - [x] **Operations Center 受保护 API 自动化验收**：4.83 已验证概览、告警和告警历史响应结构及管理员/Operator 运行时路径；真实凭据和生产通知仍待补充。
@@ -1616,7 +1626,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-01）：代码候选 `5dc59ab` 的 Web Reader 长元数据边界收口与文档同步提交 `067b21d` 均已推送；当前本机 Release Build 0 warnings / 0 errors、Unit `541/541`、Architecture `1/1`、Contract `10/10`。`067b21d` 的 [CI 33471120031](https://github.com/nekohands/InkFlow/actions/runs/33471120031)、[Docker 33471120041](https://github.com/nekohands/InkFlow/actions/runs/33471120041)、[Security 33471120007](https://github.com/nekohands/InkFlow/actions/runs/33471120007) 均 GREEN 且 SHA 一致；CI 全量测试、Compose、前端/业务 Runtime、Reader 边界 smoke、SLO、Redis、备份恢复和诊断步骤均通过。5.28 的 Reader 双章节实际交互、5.30 的最大长度元数据 VM 源码 Compose 与 GPT 内置浏览器实际详情页证据均有效；此前匿名 Web Reader 单章正文证据见 5.27，采集/打包 smoke 证据见 5.18、5.21、5.22、5.25。未设置 `INKFLOW_LIVE_TESTS=1`，真实 linovelib 适配器链路按用户决定 NOT RUN；5.14 的上游 Cloudflare 空响应结论仍有效；本轮未发现新的、非延期范围的 1.0 功能缺口。
+最新状态（2026-09-01）：行为候选 `5bdb4ea` 已推送，完成 Operations Center Content Policy 管理 UI、管理员下架/恢复和 Operator 禁用边界；本机 Release Build 0 warnings / 0 errors、Unit `541/541`、Architecture `1/1`、Contract `10/10` 和前端 smoke 通过。Windows Docker Engine named pipe 不可用导致本机 Testcontainers BLOCKED；Ubuntu VM 的源码 Compose、Linux SDK 全量测试、11 contexts migration 检查、业务 smoke 和 GPT 内置浏览器实际下架/恢复链路均通过。本轮文档提交后的三类远端门禁待核对，确认后补录链接。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；阅读 3.0/MuMu、Personal Legado Token、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理均按用户决定或环境边界保留在第 6 节。当前审计没有发现新的、未实现且不属于上述延期范围的 1.0 功能缺口；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

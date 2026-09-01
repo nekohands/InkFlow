@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.29 的 1.0 非延期范围缺口审计已同步，文档变更不改变行为代码；最新行为候选 Commit 为 `9a0b7df`，Reader 文档候选为 `992f77b`。`9a0b7df` 在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读的运行时与内置浏览器证据，详见 5.28；各候选对应的 CI、Docker、Security 门禁均 GREEN 且各自 SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
+- 文档状态：5.31 的 Operations Center 内容政策管理 UI 与权限自动化闭环正在同步；最新行为候选 Commit 为 `5bdb4ea`，本轮文档提交后的 CI、Docker、Security 门禁待核对。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1287,6 +1287,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - GPT 内置浏览器：经临时 SSH 转发实际打开最大长度边界详情页；当前 `1280×720` 视口下页面文档/主体宽度均为 `1265px`，无横向溢出，标题/作者/目录计算样式为 `overflow-wrap:anywhere`，无封面没有详情图片，开始阅读入口可见。未输入账户、密码或 Token，未读取 Cookie/Storage。
 - 远端门禁：文档同步提交 `067b21d` 的 [CI 33471120031](https://github.com/nekohands/InkFlow/actions/runs/33471120031)、[Docker 33471120041](https://github.com/nekohands/InkFlow/actions/runs/33471120041)、[Security 33471120007](https://github.com/nekohands/InkFlow/actions/runs/33471120007) 均 GREEN 且 head SHA 一致；CI 已包含新增 Reader edge metadata 脚本回归和源码 Compose Runtime smoke。
 - 清理与边界：隔离 Compose、网络、转发和 worktree 已清理，VM 原工作树改动保留；本轮不启动 ADB、MuMu/阅读 3.0，不触发第三方 live source。375×812 等移动端人工视觉/触控、长时间阅读、真实账户/PWA 安装跨设备、真实来源/生产环境仍待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.31 Operations Center 内容政策管理 UI 与权限自动化闭环交接（本轮，2026-09-01）
+
+- 工作包：运维中心新增 Administrator-only Content Policy 区块，支持下架/恢复、当前活动下架列表、理由确认和审计；Operator 继续可查看运维中心，但内容政策输入和按钮禁用。
+- 代码：候选 `5bdb4ea` 已推送到 `dev`。UI 通过受保护 takedown 列表接口读取状态，动作复用已有 append-only 审计确认壳；新增 ReaderHtml、前端 runtime smoke 和 fixture 回归，无新数据模型或 migration。
+- 本机：Release Build 0 warnings / 0 errors，Unit `541/541`、Architecture `1/1`、Contract `10/10`、前端 smoke PASS；Windows Docker Engine named pipe 不可用，本机整套 Testcontainers BLOCKED。
+- Ubuntu VM：源码 Compose 启动健康；Linux SDK 全量测试为 Unit `541/541`、Architecture `1/1`、Contract `10/10`、Integration `103 passed / 3 skipped / 0 failed`；11 个 migration contexts 无漂移，`admin-runtime-smoke` PASS。
+- GPT 内置浏览器：临时管理员完成下架→隐藏→恢复→可见；新签发 Operator 会话显示“运营”，内容政策表单和按钮 disabled。临时账号、Compose 资源、卷、SSH 转发及隔离 worktree 已清理，VM 原工作树用户改动保留。
+- 后续：补录本轮文档提交的 CI/Docker/Security GREEN 链接；真实凭据/人工视觉、Reading 3.0/MuMu/ADB、PWA 安装跨设备、真实来源/生产治理仍不在本轮执行范围，整体保持 `1.0 Release Candidate`。
 
 ## 5. 关键架构不变量
 
