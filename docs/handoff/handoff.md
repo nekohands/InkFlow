@@ -1279,6 +1279,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 当前回归：本机 Release Build、Unit `540/540`、Architecture `1/1`、Contract `10/10` 和相关脚本语法/diff 检查通过；Windows Docker Engine named pipe 不可用，完整 Testcontainers 仍 BLOCKED。`9a0b7df` 的 Ubuntu VM 全量测试、源码 Compose、业务 smoke、内置浏览器交互和远端三类 GREEN 门禁继续有效。
 - 待定边界：不启动 ADB/MuMu/阅读 3.0，不输入账户密码，不访问第三方 live source；真实来源/追更/切源、真实账户/PWA 安装跨设备、真实 Provider/生产凭据、受保护页面登录后的浏览器输入和生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.30 Web Reader 长元数据边界自动化收口交接（本轮，2026-09-01）
+
+- 工作包：补齐 Reader 详情页最大长度标题/作者、特殊字符和无封面书目的自动化边界；详情/书目卡片/目录/面包屑文本增加可断词样式，网格卡片和链接增加 `min-width: 0`，并新增 `ReaderHtml` 回归、`ensure-reader-edge-catalog` fixture、runtime smoke 与 CI 脚本回归。
+- 本机：AcceptanceFixtures Release Build 0 warnings / 0 errors；ReaderHtml `22/22`；新增脚本语法/fixture 回归和 `git diff --check` 通过。
+- Ubuntu VM：候选 `5dc59ab` 隔离 worktree 使用 `docker-compose.build.yml` 源码构建；Linux SDK Integration `103 passed / 3 skipped / 0 failed`，Build 0 warnings / 0 errors，11 个 migration context 无漂移；Migration/packages-init、PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康，前端、导航和边界 smoke 均 PASS。
+- GPT 内置浏览器：经临时 SSH 转发实际打开最大长度边界详情页；当前 `1280×720` 视口下页面文档/主体宽度均为 `1265px`，无横向溢出，标题/作者/目录计算样式为 `overflow-wrap:anywhere`，无封面没有详情图片，开始阅读入口可见。未输入账户、密码或 Token，未读取 Cookie/Storage。
+- 清理与边界：隔离 Compose、网络、转发和 worktree 已清理，VM 原工作树改动保留；本轮不启动 ADB、MuMu/阅读 3.0，不触发第三方 live source。375×812 等移动端人工视觉/触控、长时间阅读、真实账户/PWA 安装跨设备、真实来源/生产环境仍待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

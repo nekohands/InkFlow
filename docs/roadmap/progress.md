@@ -1472,6 +1472,15 @@ Phase 1A 自动化工作包状态：
 - 回归证据：本机 Release Build、Unit `540/540`、Architecture `1/1`、Contract `10/10` 和相关 shell 语法/diff 检查通过；本机 Docker Engine named pipe 不可用导致完整 Testcontainers 仍 BLOCKED。上一轮候选 `9a0b7df` 的 Ubuntu VM 源码 Compose、Linux SDK 全量测试和 GPT 内置浏览器双章节实际交互证据见 5.28，远端三类门禁均 GREEN。
 - 明确边界：阅读 3.0/MuMu 真机、真实账户/PWA 安装跨设备、真实 Official Source/追更/第二来源故障切换、真实 Provider/生产凭据、受保护页面登录后浏览器输入、生产 OTLP/SLO/告警/备份治理仍是第 6 节待定；本轮不启动 ADB、不输入账户密码、不访问第三方 live source，整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.30 Web Reader 长元数据边界自动化收口（本轮，2026-09-01）
+
+- 缺口：原有 Reader 详情页回归覆盖了普通书目和安全转义，但没有用最大长度标题/作者、特殊字符和无封面书目锁定移动端长文本不撑破布局的边界。
+- 实现：详情/书目卡片/目录/面包屑相关元素补充 `overflow-wrap: anywhere`，网格卡片和链接补充 `min-width: 0`；新增 `ReaderHtml` 长元数据转义与样式回归；`InkFlow.AcceptanceFixtures ensure-reader-edge-catalog` 生成 512 字符标题、256 字符作者、特殊字符和 `coverUrl=null` 的无封面 fixture；新增 `scripts/reader-edge-metadata-runtime-smoke.sh` 及 fixture 回归并接入 CI。
+- 本机证据：AcceptanceFixtures Release Build 0 warnings / 0 errors；ReaderHtml 定向测试 `22/22`；新增 smoke `bash -n` 与 fixture 回归通过，`git diff --check` 通过。
+- Ubuntu VM 证据：候选 `5dc59ab` 在隔离 worktree 使用 `docker-compose.build.yml` 源码构建；Linux SDK 完整测试为 Build 0 warnings / 0 errors、Unit/Architecture/Contract 通过、Integration `103 passed / 3 skipped / 0 failed`，11 个 migration context 无漂移；Migration/packages-init 正常退出，PostgreSQL/Redis/OTel/API/Worker/Scheduler 健康。`reader-frontend-runtime-smoke`、`reader-navigation-runtime-smoke`、`reader-edge-metadata-runtime-smoke` 均 PASS。
+- GPT 内置浏览器证据：经临时 SSH 转发实际打开边界详情页，标题/作者可见且按行折返；在当前可用 `1280×720` 视口下 `document/body` 宽度均为 `1265px`，无横向溢出，计算样式确认标题/作者/目录使用 `overflow-wrap:anywhere`，无封面时没有详情图片，开始阅读入口存在。没有输入或读取账户、Token、密码或浏览器存储。
+- 清理与边界：Compose、网络、转发和隔离 worktree 已清理，VM 原工作树用户改动保持不变；本轮不启动 ADB、MuMu/阅读 3.0，不访问第三方 live source。375×812 等移动端人工视觉/触控、真实账户/PWA 安装跨设备、真实来源和生产环境事项仍按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1549,7 +1558,7 @@ Official Source
 - [x] **1.0 前端自动化验收（GPT 内置浏览器）**：Web Reader、Reader/PWA 和 Operations Center 的可自动化页面/交互/响应式/可访问性检查已在 4.75 完成；真实账户、PWA 安装/断网和长时间体验保留为补充验收。
 - [ ] **阅读 3.0 真机导入与阅读**：在 MuMu 中导入 `/legado/book-source.json`，验证 Search → BookInfo → TOC → Content；记录截图、请求结果和异常。
 - [ ] **Personal Legado Token 人工验收**：在阅读 3.0 导入签发响应中的 Personal 书源，验证个人 Search → BookInfo → TOC → Content、令牌 header 传递，以及撤销后请求失效；本轮按用户决定不执行。
-- [x] **Web Reader 浏览器自动验收（1.0 必选）**：已在移动端、平板、桌面端、宽屏检查页面路由、空/错状态、搜索点击、正文壳宽度、焦点和无横向溢出；长标题/长作者真实内容与长时间阅读仍未执行。
+- [x] **Web Reader 浏览器自动验收（1.0 必选）**：已在移动端、平板、桌面端、宽屏检查页面路由、空/错状态、搜索点击、正文壳宽度、焦点和无横向溢出；5.30 新增最大长度标题/作者、特殊字符、无封面详情的自动化与 VM 实际页面证据，375×812 等人工视觉/触控与长时间阅读仍未执行。
 - [x] **Reader/PWA Service Worker 与离线壳非阅读 App 自动化验收（1.0 必选）**：4.82 在 localhost 安全上下文中自动验证 Manifest、激活/接管、壳缓存、API 不可用时的离线回退、恢复后在线页面及浏览器日志；VM IP 明文 HTTP 的 Service Worker 不可用也已记录为部署边界。
 - [ ] **Reader/PWA 真实账户与安装/跨设备补充验收（1.0 必选）**：真实账户会话、安装提示/独立窗口启动、生产 HTTPS、跨设备同步和长期体验仍需可用测试账户与部署环境；按本轮范围不执行阅读 3.0。
 - [x] **Reader/PWA 账户与阅读状态 API 非阅读 App 自动化运行验收**：4.84 已在 Ubuntu VM 源码构建 Compose 中验证注册/登录/刷新/登出、偏好、书架、进度、历史及非法请求边界；PWA 页面内真实凭据输入仍待人工或真实环境。
