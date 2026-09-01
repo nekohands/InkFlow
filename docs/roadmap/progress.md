@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.32 的 CollectionRun 取消终态/幂等领域回归补强已同步；当前 HEAD 为 `7d60235`（测试提交 `3aab3e8`、文档同步提交 `7d60235`，业务行为不变），其 CI `33479935777`、Docker `33479935816`、Security `33479935776` 均 GREEN 且 head SHA 一致。
+- 文档状态：5.33 的书籍打包 EPUB 多章节边界回归补强已同步；最新已验证测试候选为 `e2087fe`（仅测试补强，业务行为不变），文档随当前候选提交同步。上一个候选 `2072f61` 的 CI `33481140727`、Docker `33481140613`、Security `33481140622` 均 GREEN 且 head SHA 一致。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
@@ -1498,6 +1498,14 @@ Phase 1A 自动化工作包状态：
 - 实现：在 `CollectionRunTests` 增加 `Cancelled_Run_Is_Terminal_And_Idempotent`；只补测试，不改变 CollectionRun、API、Migration 或运行时行为。
 - 本机证据：Release Build 0 warnings / 0 errors；Unit `542/542`、Architecture `1/1`、Contract `10/10`；采集领域定向测试 `9/9`，`git diff --check` PASS。
 - 运行边界：本轮无产品行为变更，不重复启动 VM Compose、浏览器或真实来源；5.31 的 VM 源码 Compose、业务 Smoke 和浏览器证据继续有效。本机 Testcontainers 仍受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用限制。
+- 边界：不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.33 书籍打包 EPUB 多章节边界回归补强（本轮，2026-09-01）
+
+- 缺口：书籍打包器已有 ZIP、EPUB、TXT 基础回归，但 EPUB 还缺少多章节顺序、特殊字符 XML 转义和逐章进度序列的直接断言。
+- 实现：在 `BookPackageBuilderTests` 增加 `Builds_MultiChapter_Epub_With_Escaped_Metadata_And_Ordered_Progress`；解析生成的 `nav.xhtml`、`content.opf` 和章节 XHTML，验证元数据/标题转义后仍可读、章节顺序稳定且进度为 `[1,2]`。无生产代码、API 或 Migration 变更。
+- 本机证据：定向打包测试 `4/4`、Unit `543/543`、Architecture `1/1`、Contract `10/10`、Release Build 0 warnings / 0 errors、`git diff --check` 均 PASS。
+- 运行边界：本轮仅补测试，不重复执行 VM Compose、浏览器或真实来源；既有采集/打包 VM 源码 Compose 与 Runtime smoke 证据继续有效。本机 Testcontainers 仍受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用限制。
 - 边界：不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路

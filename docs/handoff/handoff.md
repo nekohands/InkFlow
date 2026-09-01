@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.32 的 CollectionRun 取消终态/幂等领域回归补强已同步；行为候选为 `5bdb4ea`，测试提交为 `3aab3e8`，当前 HEAD/文档同步提交为 `7d60235`。当前 HEAD 的 CI `33479935777`、Docker `33479935816`、Security `33479935776` 均 GREEN 且 head SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25；最新取消终态回归交接见 5.32。
+- 文档状态：5.33 的书籍打包 EPUB 多章节边界回归补强已同步；最新已验证测试候选为 `e2087fe`（仅测试补强，业务行为不变），文档随当前候选提交同步。上一个候选 `2072f61` 的 CI `33481140727`、Docker `33481140613`、Security `33481140622` 均 GREEN 且 head SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25；最新打包构建器回归交接见 5.33。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
 
@@ -1304,6 +1304,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 实现：`tests/InkFlow.UnitTests/CollectionRunTests.cs` 新增 `Cancelled_Run_Is_Terminal_And_Idempotent`，无生产代码、API 或 Migration 变更；候选 `3aab3e8` 已推送到 `dev`。
 - 本机：Release Build 0 warnings / 0 errors，Unit `542/542`、Architecture `1/1`、Contract `10/10`，采集定向测试 `9/9`，`git diff --check` PASS。
 - 运行边界：因无业务行为变更，本轮不重复执行 VM Compose、浏览器或真实来源；5.31 的 VM/Smoke/浏览器证据仍有效。本机 Windows Docker Engine named pipe 不可用，Testcontainers 仍 BLOCKED。
+
+### 5.33 书籍打包 EPUB 多章节边界回归补强交接（本轮，2026-09-01）
+
+- 工作包：补充 `BookPackageBuilder` 多章节 EPUB 的顺序、特殊字符 XML 转义和逐章进度回归；生产代码、API、Migration 和运行时行为均未改变。
+- 测试：`Builds_MultiChapter_Epub_With_Escaped_Metadata_And_Ordered_Progress` 解析实际 ZIP 内的 `nav.xhtml`、`content.opf` 和章节 XHTML，验证两个章节及进度 `[1,2]`；定向打包测试 `4/4`、Unit `543/543`、Architecture `1/1`、Contract `10/10`、Release Build 0 warnings / 0 errors 通过。
+- 边界：本轮不重复 VM Compose、浏览器、真实来源或阅读 3.0/MuMu；既有采集/打包运行证据继续有效。本机 Docker Engine named pipe 不可用，Testcontainers 仍 BLOCKED；整体保持 `1.0 Release Candidate`。
 - 后续：Reading 3.0/MuMu/ADB、真实来源/账户、PWA 跨设备、人工视觉和生产治理继续按第 6 节待定，整体保持 `1.0 Release Candidate`。
 
 ## 5. 关键架构不变量
