@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 最新代码候选：行为候选 `9a0b7df`（在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航验收）；Reader 文档候选为 `992f77b`。两者对应的 CI、Docker、Security 门禁均 GREEN 且各自指向同一 head SHA。
+- 当前分支 HEAD：文档审计 `ce3f256`（仅同步 5.29 缺口审计，不改变行为代码）；最新行为候选为 `9a0b7df`（在 `2162ac1` 之后补齐 Web Reader 双章节连续阅读导航验收），Reader 文档候选为 `992f77b`。各候选对应的 CI、Docker、Security 门禁均 GREEN 且各自指向同一 head SHA。
 - 最后更新日期：2026-09-01
 
 ## 1. 总体状态
