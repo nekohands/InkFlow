@@ -1369,6 +1369,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 账户边界：核对登录控件的 email/password/required/autocomplete 属性和可用态；一次非敏感合成填充未被浏览器桥接层保留，未据此判定产品失败，也未提交真实凭据或触发账户写入。
 - 当前状态：本轮无产品代码变更；真实账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装跨设备和其他第 6 节事项继续待专用环境或人工验收。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.41 Web Reader 独立登录/注册与匿名访问门禁交接（本轮，2026-09-02）
+
+- 产品契约：`/reader/account` 只提供登录，`/reader/account/register` 只提供注册；两页保持单卡片布局和互相跳转，成功后回跳地址经过同源白名单限制。
+- 路由门禁：无会话访问 Reader、详情、章节、书架、历史、离线和 Operations 页面时，浏览器在显示页面前跳转到登录页并保留安全 `returnTo`；登录/注册页是唯一公开 HTML 页面，Manifest、Service Worker 和图标是公共静态壳资源。API 认证与授权仍由服务端独立执行。
+- 证据：VM 源码 Compose 健康；内置浏览器实际复验匿名路由跳转、独立登录/注册表单、回跳编码和无横向溢出，控制台错误日志为 0；本机 Unit 547/547、Architecture 1/1、Contract 10/10、Release Build 0/0 和前端 smoke 均通过。
+- 安全边界：本轮没有创建账户，也没有提交真实密码、Access/Refresh Token 或 Personal Legado Token；真实账户成功登录/注册、PWA 安装跨设备、阅读 3.0/MuMu/ADB 和其他第 6 节人工事项继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

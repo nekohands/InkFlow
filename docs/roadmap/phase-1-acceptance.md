@@ -88,10 +88,19 @@ Evidence is recorded in `docs/roadmap/progress.md` sections 4.75, 4.82–4.86,
 reading, real-account behavior or Reading 3.0/MuMu acceptance.
 
 The 2026-09-01 browser recheck also used a source-built Ubuntu VM stack through a
-temporary SSH local forward. The in-app browser performed real public-page
+temporary SSH local forward. The in-app browser performed real Reader-page
 search, empty-state, account-form, anonymous shelf/history, offline fallback and
 anonymous Operations checks, plus 375×812 and 1440×900 overflow measurements.
-No password, token or real account was entered.
+The current route contract is stricter: Reader content and operations HTML pages
+must pass the browser session gate, while the login/register pages and static PWA
+shell resources remain public. No password, token or real account was entered.
+
+The 2026-09-02 authenticated-access recheck verified that `/reader/account` and
+`/reader/account/register` are separate single-form pages. Without a session,
+`/reader`, Book Detail, Chapter Reader, shelf, history, offline and Operations
+redirect to `/reader/account?returnTo=...` before the page is revealed. The API
+continues to enforce Bearer authentication independently. The return target is
+limited to same-origin application paths.
 
 ### Human / visual acceptance evidence
 
@@ -120,7 +129,7 @@ All user-visible frontend surfaces already shipped in this repository are part o
 - Reader/PWA: account, shelf, history, offline fallback, manifest, service worker and install enhancement.
 - Operations Center: protected `/admin/operations` workbench for Operator/Administrator users.
 
-The automated frontend gate must run against the current source-built Compose stack and cover the public HTML shell, responsive/accessibility markers, account/shelf/history/offline pages, Manifest, Service Worker, icons, Operations UI contracts and sensitive-data exclusions. The repository entrypoints are scripts/reader-frontend-runtime-smoke.sh for frontend contracts and scripts/reader-account-runtime-smoke.sh for authenticated Reader state runtime; their fixture/structure regressions live under scripts/tests/.
+The automated frontend gate must run against the current source-built Compose stack and cover the HTML shell plus its authenticated route gate, responsive/accessibility markers, account/shelf/history/offline pages, Manifest, Service Worker, icons, Operations UI contracts and sensitive-data exclusions. The repository entrypoints are scripts/reader-frontend-runtime-smoke.sh for frontend contracts and scripts/reader-account-runtime-smoke.sh for authenticated Reader state runtime; their fixture/structure regressions live under scripts/tests/.
 
 The automated gate does not replace human acceptance. Before 1.0 is accepted, the frontend still needs Mobile, Tablet, Desktop and Wide Desktop checks, primary-flow UX checks, keyboard/focus/contrast/touch checks, long-reading and chapter-navigation checks, plus real PWA install/offline and authenticated account-flow checks where applicable. Deferred real-device or manual checks remain explicitly `NOT RUN` until executed.
 The authenticated Reader state runtime entrypoint is scripts/reader-account-runtime-smoke.sh; its structure regression is scripts/tests/reader-account-runtime-smoke.test.sh. It runs against the same source-built Compose stack and does not replace the remaining PWA page, install, cross-device or real-device acceptance.

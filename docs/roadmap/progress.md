@@ -1565,6 +1565,14 @@ Phase 1A 自动化工作包状态：
 - 账户边界：账户控件的 `email/password/required/autocomplete` 属性和可用态已核对；本轮一次非敏感合成填充未被浏览器桥接层保留，未据此判定产品失败，也未提交真实凭据或触发账户写入。
 - 当前边界：本轮无产品代码变更；真实账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装/跨设备及其他第 6 节事项仍需专用环境或人工验收，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.41 Web Reader 独立登录/注册与匿名访问门禁（本轮，2026-09-02）
+
+- 页面行为：`/reader/account` 只显示登录表单；`/reader/account/register` 只显示注册表单。两页均使用单卡片布局并提供互相跳转入口，登录或注册成功后只允许回到同源白名单路径。
+- 匿名门禁：内置浏览器在无会话访问 `/reader`、书籍详情、章节、书架、历史、离线页和 `/admin/operations` 时，均在页面显示前跳转到 `/reader/account?returnTo=...`，并保留原始安全回跳地址；登录页和注册页不再平铺两套表单。服务端 API 仍独立执行 Bearer 认证与授权，Manifest、Service Worker 和图标仅作为公共静态壳资源例外。
+- 实际证据：VM 源码构建 Compose 保持健康；浏览器逐项复验上述匿名路由跳转、登录/注册独立表单、`returnTo` 编码和横向溢出，浏览器错误日志为 0；`reader-frontend-runtime-smoke: PASS`。
+- 自动化证据：本机 Release Build 0 warnings / 0 errors；Unit 547/547、Architecture 1/1、Contract 10/10；前端 smoke fixture/结构回归 PASS。未创建账户、未提交真实密码或令牌。
+- 当前边界：真实账户登录成功路径、Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装/跨设备及其他第 6 节事项继续待专用环境或人工验收；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
