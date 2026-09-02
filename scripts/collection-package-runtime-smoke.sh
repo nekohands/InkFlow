@@ -343,6 +343,14 @@ for format in zip epub txt; do
   package_ids["$format"]="$($jq_bin -er '.package.id' "$work_dir/package-$format-create.json")"
 done
 
+expect_status GET '/api/v1/admin/packages?limit=100' "$operator_token" '' 200 \
+  "$work_dir/package-list.json"
+for format in zip epub txt; do
+  assert_json_arg package "${package_ids[$format]}" \
+    'any(.data[]; .id == $package)' "$work_dir/package-list.json" \
+    "$format package is missing from the durable package list"
+done
+
 for format in zip epub txt; do
   poll_package "$format" "${package_ids[$format]}"
   download_package "$format" "${package_ids[$format]}"

@@ -13,6 +13,7 @@ for required in \
   'stop' \
   'cancel' \
   '/api/v1/admin/books/' \
+  '/api/v1/admin/packages?limit=' \
   '/api/v1/admin/packages/' \
   'mimetype' \
   'formatVersion' \

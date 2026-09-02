@@ -145,6 +145,39 @@ public sealed class BookPackageJobRepositoryTests
         Assert.AreEqual(0, persisted.TotalChapterCount);
     }
 
+    [TestMethod]
+    public async Task List_Returns_Updated_Jobs_In_Bounded_Descending_Order()
+    {
+        await using var db = CreateDb();
+        await db.Database.MigrateAsync().ConfigureAwait(false);
+        var repository = new EfBookPackageJobRepository(db);
+        var oldest = BookPackageJob.Create(
+            Guid.CreateVersion7(),
+            BookPackageFormat.Txt,
+            T0.AddDays(100),
+            T0.AddDays(101));
+        var middle = BookPackageJob.Create(
+            Guid.CreateVersion7(),
+            BookPackageFormat.Epub,
+            T0.AddDays(101),
+            T0.AddDays(102));
+        var newest = BookPackageJob.Create(
+            Guid.CreateVersion7(),
+            BookPackageFormat.Zip,
+            T0.AddDays(102),
+            T0.AddDays(103));
+
+        await repository.AddAsync(oldest).ConfigureAwait(false);
+        await repository.AddAsync(middle).ConfigureAwait(false);
+        await repository.AddAsync(newest).ConfigureAwait(false);
+
+        var result = await repository.ListAsync(2).ConfigureAwait(false);
+
+        CollectionAssert.AreEqual(
+            new[] { newest.Id, middle.Id },
+            result.Select(job => job.Id).ToArray());
+    }
+
     private static ContentDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<ContentDbContext>()

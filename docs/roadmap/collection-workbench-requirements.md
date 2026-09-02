@@ -180,6 +180,7 @@ EPUB 3 结构至少包含 `mimetype`、`META-INF/container.xml`、`OEBPS/content
 - 打包开始时固定章节与当前版本快照；生成期间版本变化不能造成同一包内的隐式混用。
 - 缺少任一必要当前正文、读取超限、压缩失败或下架状态变化时，PackageJob 失败且不暴露下载链接。
 - 下载使用受保护 API，记录操作者、书籍、包 ID、结果和理由；包文件不进入 Git，不通过日志输出正文。
+- 运维页必须能从持久化任务列表恢复历史打包任务，并在轮询中展示打包进度、文件大小、有效期和可用下载入口；过期任务明确不可下载。
 - v1 不承诺图片/音频、多语言排版或向普通阅读用户公开下载；这些格式和权限作为后续扩展项。
 
 ### 8.3 API 草案
@@ -189,6 +190,7 @@ POST /api/v1/admin/books/{bookId}/packages
 Body: { "format": "zip | epub | txt" }
 Response: 202 { "status": "accepted", "package": { "id": "...", "status": "queued" } }
 
+GET  /api/v1/admin/packages?limit=...       # 按更新时间倒序的有界任务列表
 GET  /api/v1/admin/packages/{packageId}
 GET  /api/v1/admin/packages/{packageId}/download   # 仅 Completed
 ```

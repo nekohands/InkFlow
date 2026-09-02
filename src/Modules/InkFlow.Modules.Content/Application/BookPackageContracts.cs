@@ -24,6 +24,11 @@ public interface IBookPackageJobRepository
 
     Task<BookPackageJob?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>按更新时间倒序读取有界任务列表，供受保护的运维查询使用。</summary>
+    Task<IReadOnlyList<BookPackageJob>> ListAsync(
+        int limit,
+        CancellationToken cancellationToken = default);
+
     Task<BookPackageJob?> TryLeaseAsync(
         DateTimeOffset now,
         string owner,

@@ -14,6 +14,38 @@ public sealed class BookPackageServiceTests
         new(2026, 8, 31, 10, 0, 0, TimeSpan.Zero);
 
     [TestMethod]
+    public async Task ListViews_Returns_Bounded_Jobs_In_Updated_Order()
+    {
+        var jobs = new InMemoryPackageJobRepository();
+        var oldest = BookPackageJob.Create(
+            Guid.NewGuid(),
+            BookPackageFormat.Txt,
+            T0,
+            T0.AddDays(7));
+        var newest = BookPackageJob.Create(
+            Guid.NewGuid(),
+            BookPackageFormat.Epub,
+            T0.AddMinutes(2),
+            T0.AddDays(7));
+        jobs.Items.Add(oldest);
+        jobs.Items.Add(newest);
+        var service = new BookPackageService(
+            jobs,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            BookPackageOptions.Default,
+            new FixedClock(T0));
+
+        var result = await service.ListViewsAsync(1);
+
+        Assert.AreEqual(1, result.Count);
+        Assert.AreEqual(newest.Id, result[0].Id);
+    }
+
+    [TestMethod]
     public async Task Package_Snapshot_Uses_One_Consistent_Current_Version_Read()
     {
         var book = CanonicalBook.Create("测试书", "作者", T0);
@@ -548,6 +580,15 @@ public sealed class BookPackageServiceTests
             Guid id,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<BookPackageJob?>(Items.SingleOrDefault(job => job.Id == id));
+
+        public Task<IReadOnlyList<BookPackageJob>> ListAsync(
+            int limit,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<BookPackageJob>>(Items
+                .OrderByDescending(job => job.UpdatedAt)
+                .ThenByDescending(job => job.Id)
+                .Take(limit)
+                .ToList());
 
         public Task<BookPackageJob?> TryLeaseAsync(
             DateTimeOffset now,

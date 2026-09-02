@@ -24,6 +24,22 @@ public sealed class EfBookPackageJobRepository(ContentDbContext db) : IBookPacka
         return entity is null ? null : BookPackageJobMapper.ToDomain(entity);
     }
 
+    public async Task<IReadOnlyList<BookPackageJob>> ListAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 200);
+        var entities = await db.PackageJobs
+            .AsNoTracking()
+            .OrderByDescending(job => job.UpdatedAt)
+            .ThenByDescending(job => job.Id)
+            .Take(safeLimit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities.Select(BookPackageJobMapper.ToDomain).ToList();
+    }
+
     public async Task<BookPackageJob?> TryLeaseAsync(
         DateTimeOffset now,
         string owner,

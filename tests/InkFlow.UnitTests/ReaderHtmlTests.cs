@@ -359,6 +359,17 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "aria-live=\"polite\"");
         StringAssert.Contains(html, "hasMoreDeadLetters");
         StringAssert.Contains(html, "isReplayed");
+        StringAssert.Contains(html, "/api/v1/admin/packages?limit=50");
+        StringAssert.Contains(html, "remainingTaskCount");
+        StringAssert.Contains(html, "inFlightTaskCount");
+        StringAssert.Contains(html, "cancelledTaskCount");
+        StringAssert.Contains(html, "artifactLength");
+        StringAssert.Contains(html, "expiresAt");
+        StringAssert.Contains(html, "operations-package-card__progress");
+        StringAssert.Contains(html, "打包进度");
+        StringAssert.Contains(html, "taskPollTimer");
+        StringAssert.Contains(html, "collectionHasActive");
+        Assert.IsFalse(html.Contains("window.setInterval("), "无活动任务时不应固定高频轮询");
     }
 
     [TestMethod]

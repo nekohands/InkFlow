@@ -16,6 +16,16 @@ public static class BookPackageEndpoints
     {
         var read = api.MapGroup("/admin/packages")
             .RequireAuthorization(IdentityPolicies.OperationsRead);
+        read.MapGet("", async (
+            int? limit,
+            BookPackageService packages,
+            CancellationToken ct) =>
+        {
+            var values = await packages
+                .ListViewsAsync(Math.Clamp(limit ?? 50, 1, 100), ct)
+                .ConfigureAwait(false);
+            return Results.Ok(new { data = values.Select(ToResponse) });
+        });
         read.MapGet("/{packageId:guid}", async (
             Guid packageId,
             BookPackageService packages,

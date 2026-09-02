@@ -109,8 +109,10 @@ public static partial class ReaderHtml
           .operations-run-card__meta,
           .operations-package-card__meta { margin: 0; color: var(--reader-muted); font-size: 0.82rem; overflow-wrap: anywhere; }
           .operations-run-card__url { margin: 0; color: var(--reader-muted); font-size: 0.78rem; overflow-wrap: anywhere; }
-          .operations-run-card__progress { display: grid; gap: 0.35rem; }
-          .operations-run-card__progress progress { width: 100%; height: 0.55rem; accent-color: var(--reader-accent); }
+          .operations-run-card__progress,
+          .operations-package-card__progress { display: grid; gap: 0.35rem; }
+          .operations-run-card__progress progress,
+          .operations-package-card__progress progress { width: 100%; height: 0.55rem; accent-color: var(--reader-accent); }
           .operations-run-card__actions,
           .operations-package-card__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
           .operations-run-card__actions .button,
@@ -337,7 +339,9 @@ public static partial class ReaderHtml
           let collectionLoading = false;
           let packageLoading = false;
           let policyLoading = false;
-          const packageIds = [];
+          let collectionHasActive = false;
+          let packageHasActive = false;
+          let taskPollTimer = null;
           const packageValues = new Map();
 
           const text = (value, fallback = "") => {
@@ -354,6 +358,12 @@ public static partial class ReaderHtml
           const dateLabel = (value) => {
             const parsed = new Date(value);
             return Number.isNaN(parsed.valueOf()) ? "时间未知" : parsed.toLocaleString();
+          };
+          const sizeLabel = (value) => {
+            const bytes = Math.max(0, Math.trunc(asNumber(value)));
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KiB";
+            return (bytes / (1024 * 1024)).toFixed(1) + " MiB";
           };
           const roleLabel = (role) => ({ Operator: "运营", Administrator: "管理员", Reader: "读者" }[role] || "未知角色");
           const sectionLabel = (status) => ({ ready: "正常", partial: "部分可用", unavailable: "不可用" }[String(status).toLowerCase()] || "未知");
@@ -563,6 +573,16 @@ public static partial class ReaderHtml
             element.replaceChildren();
             if (message) element.append(node("p", "operations-state operations-state--" + tone, message));
           };
+          const scheduleTaskPoll = () => {
+            if (taskPollTimer !== null) return;
+            if (!collectionHasActive && !packageHasActive) return;
+            if (!operationRoles.has(currentRole) || !client?.isSignedIn()) return;
+            taskPollTimer = window.setTimeout(async () => {
+              taskPollTimer = null;
+              await Promise.all([loadCollectionRuns(), loadPackages()]);
+              scheduleTaskPoll();
+            }, 4000);
+          };
           const openPackageForBook = (bookId) => {
             if (!packageBookId || !asGuid(bookId)) return;
             packageBookId.value = bookId;
@@ -589,13 +609,15 @@ public static partial class ReaderHtml
             return button;
           };
           const renderCollectionRuns = (values) => {
+            const runs = Array.isArray(values) ? values : [];
+            collectionHasActive = runs.some((run) => ["pending", "running", "stopping"].includes(String(run?.status || "").toLowerCase()));
             collectionList?.replaceChildren();
-            if (!Array.isArray(values) || values.length === 0) {
+            if (runs.length === 0) {
               setPanelStatus(collectionStatus, "暂无采集运行。请输入一本已登记公共来源的书籍地址开始。", "ready");
               return;
             }
-            setPanelStatus(collectionStatus, "已加载 " + values.length + " 个最近采集运行。", "ready");
-            for (const run of values) {
+            setPanelStatus(collectionStatus, "已加载 " + runs.length + " 个最近采集运行。", "ready");
+            for (const run of runs) {
               const runId = asGuid(run?.id);
               if (!runId) continue;
               const card = node("li", "operations-run-card");
@@ -626,6 +648,14 @@ public static partial class ReaderHtml
                 ? Math.max(0, Math.min(100, Math.trunc(asNumber(run?.progressPercent)))) + "%"
                 : "正在发现总量";
               progressWrap.append(node("p", "operations-run-card__meta", runStatusLabel(run?.status) + " · " + progressLabel + " · 已完成 " + Math.max(0, Math.trunc(asNumber(run?.completedTaskCount))) + " / " + Math.max(0, Math.trunc(asNumber(run?.totalTaskCount))) + " 个任务"));
+              progressWrap.append(node(
+                "p",
+                "operations-run-card__meta",
+                "进行中 " + Math.max(0, Math.trunc(asNumber(run?.inFlightTaskCount))) +
+                " · 待处理 " + Math.max(0, Math.trunc(asNumber(run?.pendingTaskCount))) +
+                " · 失败 " + Math.max(0, Math.trunc(asNumber(run?.failedTaskCount))) +
+                " · 取消 " + Math.max(0, Math.trunc(asNumber(run?.cancelledTaskCount))) +
+                " · 剩余 " + Math.max(0, Math.trunc(asNumber(run?.remainingTaskCount)))));
               card.append(progressWrap);
               if (run?.lastError) card.append(node("p", "operations-run-card__error", "最近错误：" + text(run.lastError)));
               const canonicalId = asGuid(run?.canonicalBookId);
@@ -687,8 +717,10 @@ public static partial class ReaderHtml
             }
             renderCollectionRuns(payload?.data);
             collectionLoading = false;
+            scheduleTaskPoll();
           };
           const renderPackages = () => {
+            packageHasActive = Array.from(packageValues.values()).some((value) => ["queued", "running"].includes(String(value?.status || "").toLowerCase()));
             packageList?.replaceChildren();
             if (!packageValues.size) {
               setPanelStatus(packageStatus, "暂无打包任务。可填写采集运行卡片中的正典书 ID。", "ready");
@@ -705,18 +737,44 @@ public static partial class ReaderHtml
               titleWrap.append(node("p", "operations-package-card__meta", "任务 " + packageId + " · 书籍 " + (asGuid(packageValue?.canonicalBookId) || "无效 ID")));
               header.append(titleWrap, badge(packageValue?.status, packageStatusLabel(packageValue?.status)));
               card.append(header);
-              card.append(node("p", "operations-package-card__meta", Math.max(0, Math.trunc(asNumber(packageValue?.progressPercent))) + "% · 已完成 " + Math.max(0, Math.trunc(asNumber(packageValue?.completedChapterCount))) + " / " + Math.max(0, Math.trunc(asNumber(packageValue?.totalChapterCount))) + " 章"));
+              const status = String(packageValue?.status || "").toLowerCase();
+              const totalChapters = Math.max(0, Math.trunc(asNumber(packageValue?.totalChapterCount)));
+              const progressKnown = totalChapters > 0;
+              const progressLabel = progressKnown
+                ? Math.max(0, Math.min(100, Math.trunc(asNumber(packageValue?.progressPercent)))) + "%"
+                : "正在读取章节总量";
+              const progressWrap = node("div", "operations-package-card__progress");
+              const progress = document.createElement("progress");
+              progress.max = 100;
+              progress.setAttribute("aria-valuemin", "0");
+              progress.setAttribute("aria-valuemax", "100");
+              if (progressKnown) {
+                const percent = Math.max(0, Math.min(100, Math.trunc(asNumber(packageValue?.progressPercent))));
+                progress.value = percent;
+                progress.setAttribute("aria-valuenow", String(percent));
+              } else {
+                progress.removeAttribute("value");
+                progress.removeAttribute("aria-valuenow");
+              }
+              progress.setAttribute("aria-label", "打包进度");
+              progressWrap.append(progress);
+              progressWrap.append(node("p", "operations-package-card__meta", progressLabel + " · 已完成 " + Math.max(0, Math.trunc(asNumber(packageValue?.completedChapterCount))) + " / " + totalChapters + " 章"));
+              card.append(progressWrap);
               if (packageValue?.failureReason) card.append(node("p", "operations-package-card__error", "最近错误：" + text(packageValue.failureReason)));
               const actions = node("div", "operations-package-card__actions");
-              if (String(packageValue?.status || "").toLowerCase() === "completed") {
+              if (status === "completed") {
+                card.append(node("p", "operations-package-card__meta", "文件 " + text(packageValue?.artifactFileName, "未记录") + " · " + sizeLabel(packageValue?.artifactLength) + " · 有效至 " + dateLabel(packageValue?.expiresAt)));
                 const link = node("a", "button", "下载 " + text(packageValue?.format, "书籍包").toUpperCase());
                 link.href = "/api/v1/admin/packages/" + packageId + "/download";
                 link.setAttribute("download", "");
                 actions.append(link);
+              } else if (status === "expired") {
+                card.append(node("p", "operations-package-card__meta", "下载文件已过期，无法继续下载。"));
               }
               card.append(actions);
               packageList?.append(card);
             }
+            scheduleTaskPoll();
           };
           const renderPolicyRestricted = (message = "内容政策管理仅管理员可用。") => {
             policyList?.replaceChildren();
@@ -812,25 +870,35 @@ public static partial class ReaderHtml
             });
           };
           const loadPackages = async () => {
-            if (packageLoading || !client?.isSignedIn() || !operationRoles.has(currentRole) || !packageIds.length) return;
+            if (packageLoading || !client?.isSignedIn() || !operationRoles.has(currentRole)) return;
             packageLoading = true;
-            for (const packageId of packageIds.slice()) {
-              const response = await client.apiFetch("/api/v1/admin/packages/" + encodeURIComponent(packageId));
-              if (response?.status === 401) {
-                client.clearSession();
-                showLogin("会话已失效，请重新登录后访问运维中心。");
-                packageLoading = false;
-                return;
-              }
-              if (response?.status === 404) {
-                packageValues.delete(packageId);
-                const index = packageIds.indexOf(packageId);
-                if (index >= 0) packageIds.splice(index, 1);
-                continue;
-              }
-              if (!response?.ok) continue;
-              const value = await response.json().catch(() => null);
-              if (value?.id) packageValues.set(packageId, value);
+            const response = await client.apiFetch("/api/v1/admin/packages?limit=50");
+            if (response === null) {
+              setPanelStatus(packageStatus, "打包任务暂时不可用，请稍后刷新。", "danger");
+              packageLoading = false;
+              return;
+            }
+            if (response.status === 401) {
+              client.clearSession();
+              showLogin("会话已失效，请重新登录后访问运维中心。");
+              packageLoading = false;
+              return;
+            }
+            if (response.status === 403) {
+              setPanelStatus(packageStatus, "当前账户没有读取打包任务的权限。", "danger");
+              packageLoading = false;
+              return;
+            }
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+              setPanelStatus(packageStatus, "打包任务请求失败，请刷新后重试。", "danger");
+              packageLoading = false;
+              return;
+            }
+            packageValues.clear();
+            for (const value of Array.isArray(payload?.data) ? payload.data : []) {
+              const packageId = asGuid(value?.id);
+              if (packageId) packageValues.set(packageId, value);
             }
             renderPackages();
             packageLoading = false;
@@ -878,7 +946,6 @@ public static partial class ReaderHtml
             const payload = response ? await response.json().catch(() => null) : null;
             const packageId = asGuid(payload?.package?.id);
             if (response?.ok && packageId) {
-              if (!packageIds.includes(packageId)) packageIds.unshift(packageId);
               packageValues.set(packageId, payload.package);
               if (packageBookId) packageBookId.value = "";
               renderPackages();
@@ -1255,12 +1322,6 @@ public static partial class ReaderHtml
           });
           actionDialog?.addEventListener("close", () => { pendingAction = null; });
           void loadSnapshot();
-          window.setInterval(() => {
-            if (operationRoles.has(currentRole) && client?.isSignedIn()) {
-              void loadCollectionRuns();
-              void loadPackages();
-            }
-          }, 4000);
         })();
         </script>
         """;

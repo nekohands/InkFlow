@@ -99,6 +99,23 @@ public sealed class BookPackageService(
         return ToView(job);
     }
 
+    public async Task<IReadOnlyList<BookPackageView>> ListViewsAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var values = await jobs
+            .ListAsync(Math.Clamp(limit, 1, 100), cancellationToken)
+            .ConfigureAwait(false);
+        var views = new List<BookPackageView>(values.Count);
+        foreach (var job in values)
+        {
+            await ExpireIfNeededAsync(job, cancellationToken).ConfigureAwait(false);
+            views.Add(ToView(job));
+        }
+
+        return views;
+    }
+
     public async Task<Stream?> OpenCompletedAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
