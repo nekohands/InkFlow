@@ -1389,7 +1389,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 - 需求对齐：首个成功注册并持久化的账号获得 `Administrator`，后续公开注册账号获得 `Reader`；客户端不能提交角色，Administrator 复用现有全部应用管理员权限和来源级授权绕过规则。
 - 实现：`IdentityService.RegisterAsync` 使用 `IUserRepository.AddRegistrationAsync`；EF 仓储在 PostgreSQL 事务内取得固定键 advisory lock，在锁内重查重复邮箱和已有用户后决定角色并提交。既有账号不追溯提权，测试/直接写入继续走普通 `AddAsync`。
-- 验证：本机 Release Build 0 warnings / 0 errors、Unit 549/549、Architecture 1/1、Contract 10/10、shell 回归均通过；Ubuntu VM 源码 Compose 重建和健康检查通过，VM 完整 Restore → Build → Test 为 Build 0/0、Unit 549/549、Architecture 1/1、Contract 10/10、Integration 107 项 104 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。
+- 验证：本机 Release Build 0 warnings / 0 errors、Unit 549/549、Architecture 1/1、Contract 10/10、shell 回归均通过；Ubuntu VM 源码 Compose 重建和健康检查通过，VM 完整 Restore → Build → Test 为 Build 0/0、Unit 549/549、Architecture 1/1、Contract 10/10、Integration 107 项 104 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。候选 `515bc04` 的 [CI 33621755689](https://github.com/nekohands/InkFlow/actions/runs/33621755689)、[Docker 33621755629](https://github.com/nekohands/InkFlow/actions/runs/33621755629)、[Security 33621755496](https://github.com/nekohands/InkFlow/actions/runs/33621755496) 均 success 且 head SHA 一致。
 - 安全/边界：并发注册集成测试使用两个独立 DbContext 验证恰好一个管理员；未提交密码、Access/Refresh Token 或其他 secret。首个账号属于高影响部署引导身份，受控注册开放、强密码、限流和恢复治理仍是生产要求。详见 [ADR 0024](../adr/0024-first-registration-administrator-bootstrap.md)。整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量

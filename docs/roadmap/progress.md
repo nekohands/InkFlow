@@ -1588,6 +1588,7 @@ Phase 1A 自动化工作包状态：
 - 实现：公开注册改走 `IUserRepository.AddRegistrationAsync`；PostgreSQL 在事务内取得固定键 advisory lock，锁内重查重复邮箱和已有用户后再决定角色并提交，跨 API 实例只允许一个首个管理员。既有账号不追溯提权，直接写入/测试夹具仍使用普通仓储入口。
 - 自动化证据：本机 Release Build 0 warnings / 0 errors；Unit 549/549、Architecture 1/1、Contract 10/10；shell 回归 PASS。新增 PostgreSQL 集成测试验证两个独立 DbContext 并发注册后恰好一个 Administrator、一个 Reader。
 - VM 证据：Ubuntu VM 使用源码构建 Compose，PostgreSQL/Redis/API/Worker/Scheduler 健康；VM SDK 容器内完整 Restore → Build → Test 为 Build 0/0、Unit 549/549、Architecture 1/1、Contract 10/10、Integration 107 项 104 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。
+- 远端门禁：候选提交 `515bc04` 的 [CI 33621755689](https://github.com/nekohands/InkFlow/actions/runs/33621755689)、[Docker 33621755629](https://github.com/nekohands/InkFlow/actions/runs/33621755629)、[Security 33621755496](https://github.com/nekohands/InkFlow/actions/runs/33621755496) 均 success，三者 head SHA 一致；CI 同时通过完整 Test、Compose、Runtime/SLO、Redis、备份恢复和诊断。
 - 决策记录：详见 [ADR 0024](../adr/0024-first-registration-administrator-bootstrap.md)、`docs/architecture/domain-model.md` 和 `docs/architecture/security-model.md`。首个账号是高影响引导身份，生产环境仍需受控注册开放、强密码、限流和恢复治理；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
@@ -1725,9 +1726,9 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-02）：代码候选 `c0af4af` 已修复来源搜索超时隔离，并通过本机 Restore/Build/Test、Ubuntu VM 源码 Compose 重建和 GPT 内置浏览器两轮真实页面复验；5.39 浏览器复验交接已推送。浏览器已通过 Web Reader 书库、详情/目录、两章阅读、章节往返、阅读设置、匿名书架/历史保护、账户表单、离线兜底、匿名 Operations 页面、空/错搜索、未知书/章节兜底、375×812 与 1440×900 布局，以及来源超时时的搜索降级结果。Ubuntu VM 当前源码构建 Compose 服务保持健康；代码候选 [CI 33597279466](https://github.com/nekohands/InkFlow/actions/runs/33597279466)、[Docker 33597279497](https://github.com/nekohands/InkFlow/actions/runs/33597279497)、[Security 33597279676](https://github.com/nekohands/InkFlow/actions/runs/33597279676) 均 success。
+最新状态（2026-09-02）：代码候选 `515bc04` 已实现首个注册账号 Administrator、后续注册账号 Reader 的并发安全引导规则，并通过本机定向验证、Ubuntu VM 源码 Compose 完整测试、Web Reader 内置浏览器认证链路复验和远端三条门禁。既有浏览器证据覆盖 Web Reader 书库、详情/目录、章节、阅读设置、书架/历史、独立登录/注册、登出及匿名回跳；VM 当前源码构建 Compose 服务保持健康；[CI 33621755689](https://github.com/nekohands/InkFlow/actions/runs/33621755689)、[Docker 33621755629](https://github.com/nekohands/InkFlow/actions/runs/33621755629)、[Security 33621755496](https://github.com/nekohands/InkFlow/actions/runs/33621755496) 均 success 且 head SHA 一致。
 
-当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器读取 VM 的 JSON API、Manifest、Service Worker 资源被 `ERR_BLOCKED_BY_CLIENT` 拦截；本地与 VM `.env` 没有应用真实账户、密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。搜索超时降级已修复，整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。首个管理员规则已实现并通过自动化门禁，整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 以下为历史复验记录，仅用于追溯，不代表当前最新测试数字：
 
