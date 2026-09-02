@@ -100,16 +100,34 @@ contains "$work_dir/reader.html" 'id="reader-install"'
 contains "$work_dir/reader.html" 'beforeinstallprompt'
 contains "$work_dir/reader.html" 'event.preventDefault()'
 contains "$work_dir/reader.html" 'appinstalled'
+contains "$work_dir/reader.html" 'reader-auth-pending'
+contains "$work_dir/reader.html" 'location.replace'
+contains "$work_dir/reader.html" 'returnTo'
+not_contains "$work_dir/reader.html" '不登录也可以继续阅读'
 not_contains "$work_dir/reader.html" 'X-InkFlow-Legado-Token'
 
 fetch_route /reader/account account.html
 contains "$work_dir/account.html" 'id="reader-login-form"'
-contains "$work_dir/account.html" 'id="reader-register-form"'
+contains "$work_dir/account.html" '/reader/account/register'
 contains "$work_dir/account.html" 'autocomplete="current-password"'
-contains "$work_dir/account.html" 'autocomplete="new-password"'
+not_contains "$work_dir/account.html" 'id="reader-register-form"'
+not_contains "$work_dir/account.html" 'autocomplete="new-password"'
+contains "$work_dir/account.html" 'reader-auth-pending'
 contains "$work_dir/account.html" 'sessionStorage'
 not_contains "$work_dir/account.html" 'localStorage'
 not_contains "$work_dir/account.html" 'X-InkFlow-Legado-Token'
+
+fetch_route /reader/account/register register.html
+contains "$work_dir/register.html" 'id="reader-register-form"'
+contains "$work_dir/register.html" 'autocomplete="new-password"'
+contains "$work_dir/register.html" 'minlength="12"'
+contains "$work_dir/register.html" '/reader/account'
+not_contains "$work_dir/register.html" 'id="reader-login-form"'
+not_contains "$work_dir/register.html" 'autocomplete="current-password"'
+contains "$work_dir/register.html" 'reader-auth-pending'
+contains "$work_dir/register.html" 'sessionStorage'
+not_contains "$work_dir/register.html" 'localStorage'
+not_contains "$work_dir/register.html" 'X-InkFlow-Legado-Token'
 
 fetch_route /reader/shelf shelf.html
 contains "$work_dir/shelf.html" 'data-reader-dashboard="shelf"'
@@ -125,7 +143,7 @@ fetch_route /reader/offline offline.html
 contains "$work_dir/offline.html" '当前处于离线状态'
 contains "$work_dir/offline.html" '返回书库'
 
-for page in account.html shelf.html history.html offline.html; do
+for page in account.html register.html shelf.html history.html offline.html; do
   contains "$work_dir/$page" 'rel="manifest"'
   contains "$work_dir/$page" '/reader/sw.js'
   not_contains "$work_dir/$page" 'X-InkFlow-Legado-Token'
@@ -173,6 +191,7 @@ contains "$work_dir/operations.html" '/api/v1/admin/operations/alerts/history?'
 contains "$work_dir/operations.html" 'operations-history-more'
 contains "$work_dir/operations.html" 'operations-action-reason'
 contains "$work_dir/operations.html" 'aria-live="polite"'
+contains "$work_dir/operations.html" 'reader-auth-pending'
 not_contains "$work_dir/operations.html" 'innerHTML'
 not_contains "$work_dir/operations.html" 'CredentialReferenceId'
 not_contains "$work_dir/operations.html" 'Variables'

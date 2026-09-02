@@ -27,10 +27,13 @@ fi
 body=""
 case "$url" in
   */reader)
-    body='lang="zh-CN" id="main-content" role="search" class="search-bar" class="skip-link" :focus-visible @media (max-width: 640px) @media (prefers-reduced-motion: reduce) /reader/manifest.webmanifest id="reader-install" beforeinstallprompt event.preventDefault() appinstalled'
+    body='lang="zh-CN" id="main-content" role="search" class="search-bar" class="skip-link" :focus-visible @media (max-width: 640px) @media (prefers-reduced-motion: reduce) /reader/manifest.webmanifest id="reader-install" beforeinstallprompt event.preventDefault() appinstalled reader-auth-pending location.replace returnTo'
     ;;
   */reader/account)
-    body='id="reader-login-form" id="reader-register-form" autocomplete="current-password" autocomplete="new-password" sessionStorage rel="manifest" /reader/sw.js aria-live="polite"'
+    body='id="reader-login-form" /reader/account/register autocomplete="current-password" reader-auth-pending sessionStorage rel="manifest" /reader/sw.js aria-live="polite"'
+    ;;
+  */reader/account/register)
+    body='id="reader-register-form" autocomplete="new-password" minlength="12" /reader/account reader-auth-pending sessionStorage rel="manifest" /reader/sw.js aria-live="polite"'
     ;;
   */reader/shelf)
     body='data-reader-dashboard="shelf" reader-dashboard-list aria-live="polite" rel="manifest" /reader/sw.js'
@@ -59,7 +62,7 @@ case "$url" in
     body='<svg viewBox="0 0 512 512"></svg>'
     ;;
   */admin/operations)
-    body='id="operations-content" id="operations-collection-form" id="operations-collection-url" /api/v1/admin/operations/overview /api/v1/admin/collection-runs /api/v1/admin/books/ id="operations-package-form" EPUB 3 单文件 TXT id="operations-policy-form" id="operations-policy-book-id" 当前下架书籍列表 /api/v1/admin/content/takedowns?limit=50 bookId: pendingAction.bookId /api/v1/admin/operations/alerts/history? operations-history-more operations-action-reason aria-live="polite"'
+    body='id="operations-content" id="operations-collection-form" id="operations-collection-url" /api/v1/admin/operations/overview /api/v1/admin/collection-runs /api/v1/admin/books/ id="operations-package-form" EPUB 3 单文件 TXT id="operations-policy-form" id="operations-policy-book-id" 当前下架书籍列表 /api/v1/admin/content/takedowns?limit=50 bookId: pendingAction.bookId /api/v1/admin/operations/alerts/history? operations-history-more operations-action-reason aria-live="polite" reader-auth-pending'
     ;;
   *)
     exit 1
