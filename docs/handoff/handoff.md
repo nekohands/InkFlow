@@ -1413,6 +1413,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端门禁：候选提交 `f3b98e4` 的 [CI 33657280159](https://github.com/nekohands/InkFlow/actions/runs/33657280159)、[Docker 33657280184](https://github.com/nekohands/InkFlow/actions/runs/33657280184)、[Security 33657280222](https://github.com/nekohands/InkFlow/actions/runs/33657280222) 均 success，三者 head SHA 一致；CI 同时通过完整 Test、Compose、Runtime/SLO、Redis、备份恢复和诊断。
 - 当前状态：本工作包已实现并完成自动化门禁；阅读 3.0/MuMu 真机与头像裁剪/审核继续按待定范围处理，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.46 采集任务与打包下载任务工作面完善交接（本轮，2026-09-03）
+
+- 实现：`IBookPackageJobRepository`、`BookPackageService` 和既有 `OperationsRead` API 增加有界的 `GET /api/v1/admin/packages?limit=N` 列表；列表按 `UpdatedAt`/`Id` 倒序，运维页刷新后从 PostgreSQL 恢复打包任务。
+- 运维页：采集任务卡片补充总量/完成/进行中/待处理/失败/取消/剩余数量；打包任务卡片补充进度条、文件名、大小、完成/过期态和下载入口；仍使用既有轮询，但只有活动采集/打包任务才每 4 秒调度，终态自动停止。
+- 不变量与权限：列表仅挂在现有 `OperationsRead` 权限组，响应不含租约/凭据/正文；不改变采集控制状态机、EPUB/TXT/ZIP 格式或 Worker 自动重试，不新增 Migration、队列或推送依赖。
+- 本机验证：Restore PASS；Release Build 0 warnings / 0 errors；Unit 558/558、Architecture 1/1、Contract 11/11 PASS；脚本回归与 `git diff --check` PASS。Windows 本机 Integration 被 Docker Engine named pipe `npipe://./pipe/docker_engine` 阻断：8 项通过、3 项跳过、98 项在类初始化阶段受阻，保持 BLOCKED 记录。
+- Ubuntu VM 验证：隔离工作树 `638743c` 使用 `docker-compose.build.yml` 源码构建 API/Worker/Scheduler/Migrations；迁移成功，PostgreSQL/Redis/API/Worker/Scheduler 健康；管理/采集/打包 runtime smoke PASS，实际覆盖持久化列表、暂停/恢复/停止/取消、书籍地址采集、ZIP/EPUB/TXT 生成下载和哈希/长度完整性；Reader 前端 smoke PASS。验证栈和临时卷已清理，原手工栈保持运行。
+- 远端门禁：候选提交 `638743c` 的 [CI 33662030216](https://github.com/nekohands/InkFlow/actions/runs/33662030216)、[Docker 33662030126](https://github.com/nekohands/InkFlow/actions/runs/33662030126)、[Security 33662030112](https://github.com/nekohands/InkFlow/actions/runs/33662030112) 均 success，head SHA 一致。
+- 环境备注：源码首次构建成功；一次冗余的 `--build` 迁移启动因 Dockerfile frontend 外网元数据超时，随后复用已成功构建的本地源码镜像完成迁移/运行，未改用 GHCR。内置浏览器无法访问仅为本轮隔离验证开放的端口，候选视觉会话不记为通过；未读取 Cookie/Storage/真实凭据。
+- 下一步：保留第 6 节阅读 3.0/MuMu 真机、真实上游追更/故障切换和其他人工验收；如需候选视觉验收，应在不替换手工栈的前提下提供浏览器可达的候选入口。整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

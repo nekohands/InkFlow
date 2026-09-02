@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮账户中心、令牌生命周期与头像上传的本机/VM 自动化及候选提交 CI/Docker/Security 均已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.45 用户头像上传与私有存储已记录；提交 `f3b98e4` 已推送至 `dev`，本机、Ubuntu VM 源码 Compose 和内置浏览器自动化证据已通过，候选提交 CI/Docker/Security 均 GREEN。
+- 文档状态：5.46 采集任务与打包下载任务工作面已记录；候选提交 `638743c` 已推送至 `dev`，本机测试/构建、Ubuntu VM 源码 Compose、运行冒烟和 CI/Docker/Security 门禁均有证据；本轮候选视觉浏览器因验证端口隔离未执行。
 - 最后更新日期：2026-09-03
 
 ## 1. 总体状态
@@ -1612,6 +1612,17 @@ Phase 1A 自动化工作包状态：
 - 问题与修复：首次 VM 运行烟测暴露数据库镜像未执行新增迁移并返回 500；已通过源码构建的迁移镜像执行 `AddUserAvatars`，复测通过，未修改业务错误处理来掩盖缺表。
 - 远端门禁：候选提交 `f3b98e4` 的 [CI 33657280159](https://github.com/nekohands/InkFlow/actions/runs/33657280159)、[Docker 33657280184](https://github.com/nekohands/InkFlow/actions/runs/33657280184)、[Security 33657280222](https://github.com/nekohands/InkFlow/actions/runs/33657280222) 均 success，三者 head SHA 一致；CI 同时通过完整 Test、Compose、Runtime/SLO、Redis、备份恢复和诊断。
 - 状态：已实现并完成自动化门禁；阅读 3.0/MuMu 真机和头像裁剪/审核等人工或后续范围仍不标记 `Accepted/Completed`。
+
+### 5.46 采集任务与打包下载任务工作面完善（本轮，2026-09-03）
+
+- 实现：为受保护的 `GET /api/v1/admin/packages?limit=N` 增加 PostgreSQL 有界列表读取，按 `UpdatedAt`/`Id` 倒序返回既有打包任务；运维中心刷新后从持久化列表恢复历史任务，不再只依赖当前页面创建的任务 ID。
+- 前端任务面：采集卡片展示总量、已完成、进行中、待处理、失败、取消和剩余数量；打包卡片展示可访问进度、文件名、大小、完成/过期态与下载入口。复用现有 4 秒轮询，仅在采集或打包任务处于活动态时调度，终态后停止。
+- 边界：列表继续使用既有 `OperationsRead` 权限和最小响应模型；不引入 WebSocket/新队列/重试语义，不新增 Migration；不在页面输出租约、凭据或正文。
+- 本机证据：`dotnet restore InkFlow.sln` PASS；Release Build 0 warnings / 0 errors；Unit 558/558、Architecture 1/1、Contract 11/11 PASS；Collection/Frontend 脚本回归 PASS；`git diff --check` PASS。Windows 本机 PostgreSQL Testcontainers 因 Docker Engine named pipe `npipe://./pipe/docker_engine` 不可用而 BLOCKED（98 项在类初始化阶段受阻，8 项通过、3 项跳过），不记为本机 Integration PASS。
+- VM 证据：Ubuntu VM 使用 `docker-compose.build.yml` 从 `638743c` 源码构建 API、Worker、Scheduler、Migrations 镜像；Migration、API、Worker、Scheduler、PostgreSQL、Redis 均 healthy；管理/采集/打包 runtime smoke PASS，覆盖受保护列表、采集暂停/恢复/停止/取消、直接书籍地址采集、ZIP/EPUB/TXT 打包、下载完整性和审计；`reader-frontend-runtime-smoke: PASS`。验证栈已停止并删除，原有手工栈未触碰。
+- CI 门禁：候选提交 `638743c` 的 [CI 33662030216](https://github.com/nekohands/InkFlow/actions/runs/33662030216)、[Docker 33662030126](https://github.com/nekohands/InkFlow/actions/runs/33662030126)、[Security 33662030112](https://github.com/nekohands/InkFlow/actions/runs/33662030112) 均 success，三者 head SHA 一致。
+- 运行备注：首次源码 `docker compose build` 成功；后续一次带 `--build` 的迁移启动因 Dockerfile frontend 外网元数据请求超时，复用了已成功构建的本地源码镜像完成迁移与运行，未改用 GHCR 镜像。
+- 验收边界：本轮未使用真实外部账户、生产令牌、Cookie 或提交敏感配置；候选验证端口未接入内置浏览器的视觉会话，因此仅记录脚本/HTTP/契约证据。阅读 3.0/MuMu 真机、真实上游追更和其他第 6 节人工验收继续待定；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
