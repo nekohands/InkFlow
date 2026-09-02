@@ -3,9 +3,9 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（本轮账户中心、令牌生命周期与头像上传的本机/VM 自动化已通过，候选提交 CI 待触发，真实来源与外部验收待定）
+- 当前阶段：1.0 Release Candidate（本轮账户中心、令牌生命周期与头像上传的本机/VM 自动化及候选提交 CI/Docker/Security 均已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.45 用户头像上传与私有存储已记录；当前工作树包含待提交改动，本机回归、Ubuntu VM 源码 Compose 运行验收及内置浏览器账户中心复验均通过，候选提交 CI/Docker/Security 待触发；最新交接见 5.45。
+- 文档状态：5.45 用户头像上传与私有存储已记录；提交 `f3b98e4` 已推送至 `dev`，本机回归、Ubuntu VM 源码 Compose 运行验收及内置浏览器账户中心复验均通过，候选提交 CI/Docker/Security 均 GREEN；最新交接见 5.45。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-03；dev 骨架重建更新：2026-08-25
 
@@ -1410,7 +1410,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM 证据：Ubuntu VM 源码构建 Compose 健康；SDK 容器完整测试为 Unit 557/557、Architecture 1/1、Contract 10/10、Integration 108（105 passed / 3 skipped / 0 failed）；前端 runtime smoke PASS；账户 runtime smoke 覆盖未认证头像拒绝、头像上传/读取和既有账户/阅读状态/令牌撤销即删除链路 PASS。
 - 浏览器证据：内置浏览器一次性 `.invalid` 测试账号已登录，真实选择本机 JPG、提交上传，页面显示“头像已更新”并呈现头像图片；未读取 Cookie/Storage/密码材料。
 - 故障记录：首次 VM 头像烟测因数据库缺少 `identity.user_avatars` 返回 500；通过源码构建迁移镜像执行新增迁移后复测通过，业务代码未用兜底表创建掩盖问题。
-- 当前状态：本工作包已实现，候选 commit/远端 CI、Docker、Security 尚待本轮提交后执行；阅读 3.0/MuMu 真机与头像裁剪/审核继续按待定范围处理，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 远端门禁：候选提交 `f3b98e4` 的 [CI 33657280159](https://github.com/nekohands/InkFlow/actions/runs/33657280159)、[Docker 33657280184](https://github.com/nekohands/InkFlow/actions/runs/33657280184)、[Security 33657280222](https://github.com/nekohands/InkFlow/actions/runs/33657280222) 均 success，三者 head SHA 一致；CI 同时通过完整 Test、Compose、Runtime/SLO、Redis、备份恢复和诊断。
+- 当前状态：本工作包已实现并完成自动化门禁；阅读 3.0/MuMu 真机与头像裁剪/审核继续按待定范围处理，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

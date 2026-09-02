@@ -3,9 +3,9 @@
 > 持续进度账本。状态只以真实代码、测试、Runtime 和 CI 结果为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（本轮账户中心、令牌生命周期与头像上传的本机/VM 自动化已通过，候选提交 CI 待触发，人工及其他真实环境验收待定）
+- 当前阶段：1.0 Release Candidate（本轮账户中心、令牌生命周期与头像上传的本机/VM 自动化及候选提交 CI/Docker/Security 均已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.45 用户头像上传与私有存储已记录；当前工作树包含待提交改动，本机、Ubuntu VM 源码 Compose 和内置浏览器自动化证据已通过，候选提交 CI/Docker/Security 待触发。
+- 文档状态：5.45 用户头像上传与私有存储已记录；提交 `f3b98e4` 已推送至 `dev`，本机、Ubuntu VM 源码 Compose 和内置浏览器自动化证据已通过，候选提交 CI/Docker/Security 均 GREEN。
 - 最后更新日期：2026-09-03
 
 ## 1. 总体状态
@@ -1610,7 +1610,8 @@ Phase 1A 自动化工作包状态：
 - VM 证据：Ubuntu VM 按源码构建 Compose，Migration、API、Worker、Scheduler、PostgreSQL、Redis 健康；VM SDK 容器完整 Restore → Build → Test 为 Unit 557/557、Architecture 1/1、Contract 10/10、Integration 108 项 105 passed / 3 skipped / 0 failed；前端 smoke PASS；账户 runtime smoke 的未认证拒绝、注册/登录/刷新/登出、头像上传/读取、阅读状态和令牌撤销即删除链路 PASS。
 - 浏览器证据：内置浏览器已登录一次性 `.invalid` 测试账号，看到头像上传控件，选择本机 JPG 后提交，页面显示“头像已更新”并呈现头像图片；未读取 Cookie/Storage/密码材料。
 - 问题与修复：首次 VM 运行烟测暴露数据库镜像未执行新增迁移并返回 500；已通过源码构建的迁移镜像执行 `AddUserAvatars`，复测通过，未修改业务错误处理来掩盖缺表。
-- 状态：已实现，等待候选提交及远端 CI/Docker/Security 门禁；阅读 3.0/MuMu 真机和头像裁剪/审核等人工或后续范围仍不标记 `Accepted/Completed`。
+- 远端门禁：候选提交 `f3b98e4` 的 [CI 33657280159](https://github.com/nekohands/InkFlow/actions/runs/33657280159)、[Docker 33657280184](https://github.com/nekohands/InkFlow/actions/runs/33657280184)、[Security 33657280222](https://github.com/nekohands/InkFlow/actions/runs/33657280222) 均 success，三者 head SHA 一致；CI 同时通过完整 Test、Compose、Runtime/SLO、Redis、备份恢复和诊断。
+- 状态：已实现并完成自动化门禁；阅读 3.0/MuMu 真机和头像裁剪/审核等人工或后续范围仍不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -1747,7 +1748,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-02）：当前工作树已实现账户中心设置页、改密流程和 Personal Legado 令牌撤销即删除规则；本机、Ubuntu VM 源码 Compose、账户 runtime smoke 和内置浏览器账户中心自动化检查均通过，候选提交尚待创建并触发远端门禁。
+最新状态（2026-09-03）：当前工作树已实现账户中心设置页、改密流程、Personal Legado 令牌撤销即删除规则和用户头像上传；本机、Ubuntu VM 源码 Compose、账户 runtime smoke 和内置浏览器账户中心自动化检查均通过。候选提交 `f3b98e4` 的 CI、Docker、Security 门禁均 GREEN。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
