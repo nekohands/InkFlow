@@ -80,6 +80,24 @@ public sealed class BookDiscoveryServiceTests
     }
 
     [TestMethod]
+    public async Task Source_Timeout_Is_Isolated_As_Safe_Warning()
+    {
+        var sourceBooks = new InMemorySourceBooks();
+        var harness = CreateHarness(
+            sourceBooks, new InMemoryCanonicalRepo(), new InMemoryCandidates(),
+            new SourceSpec("timeout-source", SearchThrows: new TaskCanceledException()),
+            new SourceSpec("good-source", [new SourceSearchResult("g-1", "玉簟秋", "灵希")]));
+
+        var outcome = await harness.Service.DiscoverAsync("玉簟秋");
+
+        Assert.AreEqual(1, outcome.Books.Count, "来源超时不得影响其他来源的命中");
+        Assert.AreEqual(1, outcome.Warnings.Count);
+        StringAssert.Contains(outcome.Warnings[0],
+            "search: source 'timeout-source' failed; retry later.");
+        Assert.AreEqual(1, sourceBooks.Store.Count, "超时来源不应留下半成品导入");
+    }
+
+    [TestMethod]
     public async Task Discovery_Exception_After_Search_Is_Isolated_As_Warning()
     {
         var sourceBooks = new ThrowingSourceBooks("broken-source");

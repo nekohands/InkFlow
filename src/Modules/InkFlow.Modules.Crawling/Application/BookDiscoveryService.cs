@@ -78,6 +78,11 @@ public sealed class BookDiscoveryService(
                 {
                     hits = await adapter.SearchAsync(keyword, cancellationToken).ConfigureAwait(false);
                 }
+                catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    warnings.Add(CreateFailureWarning("search", source.Id));
+                    continue;
+                }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     warnings.Add(CreateFailureWarning("search", source.Id));
@@ -133,6 +138,10 @@ public sealed class BookDiscoveryService(
                             AlreadyInLibrary: !newlyCreated.Contains(match.Book.Id));
                     }
                 }
+            }
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                warnings.Add(CreateFailureWarning("discovery", source.Id));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
