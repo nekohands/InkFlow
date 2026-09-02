@@ -192,21 +192,30 @@ jobs:
           test "$rotated_refresh_token" != "$refresh_token"
           curl --fail --silent \
             -H "Authorization: Bearer $rotated_access_token" \
-            http://localhost:8080/api/v1/auth/me | jq -e '.role == "Reader"'
+            http://localhost:8080/api/v1/auth/me | jq -e '.role == "Administrator"'
+          reader_registration=$(curl --fail --silent \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"ci-reader@example.com","password":"another correct password"}' \
+            http://localhost:8080/api/v1/auth/register)
+          reader_access_token=$(printf '%s' "$reader_registration" | jq -er '.access_token')
+          test -n "$reader_access_token"
+          curl --fail --silent \
+            -H "Authorization: Bearer $reader_access_token" \
+            http://localhost:8080/api/v1/auth/me | jq -e '.email == "ci-reader@example.com" and .role == "Reader"'
           reader_operations_alerts_status=$(curl --silent --output /tmp/reader-operations-alerts.json --write-out '%{http_code}' \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             http://localhost:8080/api/v1/admin/operations/alerts)
           test "$reader_operations_alerts_status" = "403"
           curl --fail --silent \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             http://localhost:8080/api/v1/me/reading/preferences | jq -e '.theme == "System" and .fontSizePercent == 100'
           curl --fail --silent --request PUT \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             -H 'Content-Type: application/json' \
             -d '{"fontSizePercent":110,"theme":"Sepia"}' \
             http://localhost:8080/api/v1/me/reading/preferences | jq -e '.theme == "Sepia" and .fontSizePercent == 110'
           legado_issue=$(curl --fail --silent --request POST \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             -H 'Content-Type: application/json' \
             -d '{"name":"CI Reading 3.0"}' \
             http://localhost:8080/api/v1/me/legado/tokens)
@@ -222,21 +231,21 @@ jobs:
           test "$personal_search_status" = "200"
           jq -e '.data | type == "array"' /tmp/personal-legado-search.json
           curl --fail --silent \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             http://localhost:8080/api/v1/me/legado/tokens | \
             jq -e --arg token_id "$legado_token_id" 'map(select(.id == $token_id)) | length == 1 and (.[0] | has("token") | not)'
           curl --fail --silent --request DELETE \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             "http://localhost:8080/api/v1/me/legado/tokens/$legado_token_id"
           revoked_legado_status=$(curl --silent --output /tmp/personal-legado-revoked.json --write-out '%{http_code}' \
             -H "X-InkFlow-Legado-Token: $legado_token" \
             'http://localhost:8080/api/legado/v1/personal/search?q=')
           test "$revoked_legado_status" = "401"
           curl --fail --silent --request POST \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             http://localhost:8080/api/v1/auth/logout
           logged_out_status=$(curl --silent --output /tmp/auth-me-after-logout.json --write-out '%{http_code}' \
-            -H "Authorization: Bearer $rotated_access_token" \
+            -H "Authorization: Bearer $reader_access_token" \
             http://localhost:8080/api/v1/auth/me)
           test "$logged_out_status" = "401"
           echo "--- GET /legado/book-source.json ---"
