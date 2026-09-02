@@ -286,6 +286,16 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Missing_Chapter_Page_Uses_The_Reader_Authentication_Gate()
+    {
+        var html = ReaderHtml.MissingChapterPage();
+
+        StringAssert.Contains(html, "reader-auth-pending");
+        StringAssert.Contains(html, "该章节尚未发布内容");
+        StringAssert.Contains(html, "location.replace");
+    }
+
+    [TestMethod]
     public void Operations_Page_Exposes_Protected_Snapshot_And_Audited_Action_Shell()
     {
         var html = ReaderHtml.OperationsPage();

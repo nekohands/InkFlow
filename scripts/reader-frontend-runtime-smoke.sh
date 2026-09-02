@@ -72,6 +72,23 @@ fetch_route() {
   fi
 }
 
+fetch_missing_chapter() {
+  local output="$work_dir/missing-chapter.html"
+  local status
+
+  if ! "$curl_bin" \
+    --silent --show-error \
+    --max-time "$max_time" \
+    --output "$output" \
+    --write-out '%{http_code}' \
+    "$base_url/reader/read/22222222-2222-4222-8222-222222222222" > "$output.status"; then
+    fail 'GET /reader/read/{missing-chapter-id} failed'
+  fi
+
+  status="$(<"$output.status")"
+  [[ "$status" == "404" ]] || fail "GET /reader/read/{missing-chapter-id} returned HTTP $status"
+}
+
 contains() {
   local file="$1"
   local value="$2"
@@ -142,6 +159,11 @@ contains "$work_dir/history.html" 'aria-live="polite"'
 fetch_route /reader/offline offline.html
 contains "$work_dir/offline.html" '当前处于离线状态'
 contains "$work_dir/offline.html" '返回书库'
+
+fetch_missing_chapter
+contains "$work_dir/missing-chapter.html" '该章节尚未发布内容'
+contains "$work_dir/missing-chapter.html" 'reader-auth-pending'
+contains "$work_dir/missing-chapter.html" 'location.replace'
 
 for page in account.html register.html shelf.html history.html offline.html; do
   contains "$work_dir/$page" 'rel="manifest"'

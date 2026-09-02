@@ -25,6 +25,7 @@ if [[ -z "$output" || -z "$url" ]]; then
 fi
 
 body=""
+status=200
 case "$url" in
   */reader)
     body='lang="zh-CN" id="main-content" role="search" class="search-bar" class="skip-link" :focus-visible @media (max-width: 640px) @media (prefers-reduced-motion: reduce) /reader/manifest.webmanifest id="reader-install" beforeinstallprompt event.preventDefault() appinstalled reader-auth-pending location.replace returnTo'
@@ -43,6 +44,10 @@ case "$url" in
     ;;
   */reader/offline)
     body='当前处于离线状态 返回书库 rel="manifest" /reader/sw.js'
+    ;;
+  */reader/read/22222222-2222-4222-8222-222222222222)
+    body='该章节尚未发布内容 reader-auth-pending location.replace'
+    status=404
     ;;
   */reader/manifest.webmanifest)
     body='{
@@ -70,4 +75,4 @@ case "$url" in
 esac
 
 printf '%s' "$body" > "$output"
-printf '200'
+printf '%s' "$status"

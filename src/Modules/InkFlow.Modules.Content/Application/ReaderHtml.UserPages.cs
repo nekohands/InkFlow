@@ -409,6 +409,21 @@ public static partial class ReaderHtml
         return sb.ToString();
     }
 
+    public static string MissingChapterPage()
+    {
+        var sb = new StringBuilder(Head.Replace("<title>墨流 · InkFlow</title>", "<title>未找到</title>"));
+        sb.Append(ReaderHeader);
+        sb.Append(
+            """
+            <main id="main-content" class="page-shell">
+              <p class="notice" role="status">该章节尚未发布内容。</p>
+              <p><a href="/reader">返回书目</a></p>
+            </main>
+            """);
+        sb.Append(Tail);
+        return sb.ToString();
+    }
+
     public static string AccountPage(bool registration = false)
     {
         var pageTitle = registration ? "创建账户" : "登录";

@@ -1505,7 +1505,7 @@ app.MapGet("/reader/read/{chapterId:guid}",
     if (content is null)
     {
         return Results.Content(
-            "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>未找到</title></head><body><main><p role=\"status\">该章节尚未发布内容。</p><p><a href=\"/reader\">返回书目</a></p></main></body></html>",
+            ReaderHtml.MissingChapterPage(),
             "text/html; charset=utf-8",
             statusCode: 404);
     }
