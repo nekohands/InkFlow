@@ -1557,6 +1557,14 @@ Phase 1A 自动化工作包状态：
 - PWA 边界：页面正确声明 `/reader/manifest.webmanifest`；直接在 VM 明文 HTTP 读取 Manifest 仍受内置浏览器 `ERR_BLOCKED_BY_CLIENT` 拦截，而服务端该请求实际返回 200。Service Worker/安装/独立窗口/跨设备仍沿用 localhost 安全上下文证据和待定人工项，不伪造 VM 明文 HTTP 证据。
 - 当前边界：真实应用账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 真实安装与跨设备及其他明确延期项仍不是本轮失败，而是待专用环境/凭据后人工验收；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.40 Web Reader 第三轮可访问性与视觉复验（本轮，2026-09-02）
+
+- 页面覆盖：在 VM 源码构建 Compose 上对书库、账户、离线、书架、历史、Operations、书籍详情和正文 8 个实际路由逐页复验；每页均有唯一 `main`，关键标题层级存在，无未命名按钮/链接、非法负 `tabindex` 或横向溢出。
+- 键盘/视觉：首页连续 Tab 可到达跳过链接、品牌返回、读者导航、搜索框和搜索按钮；实际捕获书库、匿名 Operations 和正文截图，未发现遮挡、裁切或正文布局异常。既有 `375×812`、`1440×900` 响应式证据继续有效。
+- 运行质量：回到 `/reader` 后主内容可见，浏览器 error/warning 数量为 0；VM API、Worker、Scheduler、PostgreSQL、Redis 容器保持 healthy，最近 20 分钟 API 日志未出现 `unhandled`、异常、500 或 Reader 路由错误。
+- 账户边界：账户控件的 `email/password/required/autocomplete` 属性和可用态已核对；本轮一次非敏感合成填充未被浏览器桥接层保留，未据此判定产品失败，也未提交真实凭据或触发账户写入。
+- 当前边界：本轮无产品代码变更；真实账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装/跨设备及其他第 6 节事项仍需专用环境或人工验收，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

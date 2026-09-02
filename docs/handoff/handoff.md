@@ -1361,6 +1361,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - PWA 边界：页面 manifest 标记存在；VM 明文 HTTP 的 Manifest 直接读取仍被浏览器 `ERR_BLOCKED_BY_CLIENT` 拦截，但服务端返回 200。Service Worker/安装/跨设备继续使用既有 localhost 证据和待定人工项。
 - 下一步：真实账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装跨设备和其他第 6 节待定事项仍需专用环境或人工操作；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.40 Web Reader 第三轮可访问性与视觉复验交接（本轮，2026-09-02）
+
+- 页面覆盖：在 VM 源码构建 Compose 上逐页复验书库、账户、离线、书架、历史、Operations、书籍详情和正文 8 个路由；均有唯一 `main`，关键标题层级存在，无未命名按钮/链接、非法负 `tabindex` 或横向溢出。
+- 键盘/视觉：首页 Tab 顺序可到达跳过链接、品牌返回、读者导航、搜索框和搜索按钮；实际捕获书库、匿名 Operations 和正文截图，未发现遮挡、裁切或正文布局异常。`375×812`、`1440×900` 的既有响应式证据保持有效。
+- Runtime：返回 `/reader` 后主内容可见，浏览器 error/warning 为 0；API、Worker、Scheduler、PostgreSQL、Redis 均 healthy，最近 20 分钟 API 日志未出现 `unhandled`、异常、500 或 Reader 路由错误。
+- 账户边界：核对登录控件的 email/password/required/autocomplete 属性和可用态；一次非敏感合成填充未被浏览器桥接层保留，未据此判定产品失败，也未提交真实凭据或触发账户写入。
+- 当前状态：本轮无产品代码变更；真实账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装跨设备和其他第 6 节事项继续待专用环境或人工验收。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
