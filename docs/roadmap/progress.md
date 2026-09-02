@@ -5,8 +5,8 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.33 的书籍打包 EPUB 多章节边界回归补强已同步；最新已验证测试候选为 `e2087fe`（仅测试补强，业务行为不变），文档随当前候选提交同步。上一个候选 `2072f61` 的 CI `33481140727`、Docker `33481140613`、Security `33481140622` 均 GREEN 且 head SHA 一致。
-- 最后更新日期：2026-09-01
+- 文档状态：5.34 的书籍包 artifact 文件名边界收紧已同步；行为候选为 `c614a26`，本轮本机回归、Ubuntu VM 源码 Compose 运行验收及其代码候选的 CI/Docker/Security 均已通过。
+- 最后更新日期：2026-09-02
 
 ## 1. 总体状态
 
@@ -1507,6 +1507,15 @@ Phase 1A 自动化工作包状态：
 - 本机证据：定向打包测试 `4/4`、Unit `543/543`、Architecture `1/1`、Contract `10/10`、Release Build 0 warnings / 0 errors、`git diff --check` 均 PASS。
 - 运行边界：本轮仅补测试，不重复执行 VM Compose、浏览器或真实来源；既有采集/打包 VM 源码 Compose 与 Runtime smoke 证据继续有效。本机 Testcontainers 仍受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用限制。
 - 边界：不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.34 书籍包 artifact 文件名边界收紧（本轮，2026-09-02）
+
+- 缺口：`FileBookPackageArtifactStore` 原先只校验扩展名和路径形态，同一包根目录下的任意 `.zip`/`.epub`/`.txt` 文件名都可能被当作 artifact 读取，未锁定“文件名必须由任务生成”的边界。
+- 实现：存储层现在只接受 legacy `{guid:N}.{ext}` 和租约发布 `{guid:N}-{positive-attempt}.{ext}` 两种生成名；拒绝非 N 格式 GUID、空 GUID、非正整数/前导零/额外连字符 attempt、路径穿越和错误扩展名。未改变 API、Migration 或包格式。
+- 回归：新增 `Artifact_Store_Only_Allows_Generated_Artifact_Names`，覆盖合法 legacy/租约名称的根目录映射及上述非法输入；定向书籍包测试 `6/6`、Unit `544/544`、Architecture `1/1`、Contract `10/10`、Restore/Release Build（0 warnings / 0 errors）和 `git diff --check` 均 PASS。
+- Ubuntu VM：候选 `c614a26` 使用 `docker-compose.build.yml` 从源码构建并启动；Migration/packages-init、PostgreSQL、Redis、OTel、API、Worker、Scheduler 健康，随后 `collection-package-runtime-smoke` PASS，覆盖直接地址、暂停/恢复/停止/取消、ZIP/EPUB/TXT、完整性和审计。由于 VM 无法访问 Dockerfile frontend/NuGet audit 服务，临时 staging 去除了 syntax frontend 依赖、关闭 NuGet audit；夹具使用同一提交本机发布产物直接运行，仓库源码与正式 CI 未改动。
+- 清理与远端：临时账号、Compose 服务/网络/卷、fixture 容器和 staging 均已清理；代码候选 `c614a26` 的 [CI 33579529730](https://github.com/nekohands/InkFlow/actions/runs/33579529730)、[Docker 33579529717](https://github.com/nekohands/InkFlow/actions/runs/33579529717)、[Security 33579529779](https://github.com/nekohands/InkFlow/actions/runs/33579529779) 均 success 且 head SHA 一致。
+- 边界：Windows Docker Engine `npipe://./pipe/docker_engine` 仍使本机 Testcontainers 集成验证 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source。人工视觉、真实来源/追更/故障切换、PWA 跨设备、生产治理和阅读 3.0 继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 

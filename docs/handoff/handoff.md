@@ -5,9 +5,9 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.33 的书籍打包 EPUB 多章节边界回归补强已同步；最新已验证测试候选为 `e2087fe`（仅测试补强，业务行为不变），文档随当前候选提交同步。上一个候选 `2072f61` 的 CI `33481140727`、Docker `33481140613`、Security `33481140622` 均 GREEN 且 head SHA 一致。采集/打包 VM 与 Compose 证据见 5.18、5.21、5.22、5.25；最新打包构建器回归交接见 5.33。
+- 文档状态：5.34 的书籍包 artifact 文件名边界收紧已同步；行为候选为 `c614a26`，本机回归、Ubuntu VM 源码 Compose 运行验收及代码候选 CI/Docker/Security 均通过；最新交接见 5.34。
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-09-01；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-09-02；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -1311,6 +1311,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 测试：`Builds_MultiChapter_Epub_With_Escaped_Metadata_And_Ordered_Progress` 解析实际 ZIP 内的 `nav.xhtml`、`content.opf` 和章节 XHTML，验证两个章节及进度 `[1,2]`；定向打包测试 `4/4`、Unit `543/543`、Architecture `1/1`、Contract `10/10`、Release Build 0 warnings / 0 errors 通过。
 - 边界：本轮不重复 VM Compose、浏览器、真实来源或阅读 3.0/MuMu；既有采集/打包运行证据继续有效。本机 Docker Engine named pipe 不可用，Testcontainers 仍 BLOCKED；整体保持 `1.0 Release Candidate`。
 - 后续：Reading 3.0/MuMu/ADB、真实来源/账户、PWA 跨设备、人工视觉和生产治理继续按第 6 节待定，整体保持 `1.0 Release Candidate`。
+
+### 5.34 书籍包 artifact 文件名边界收紧交接（本轮，2026-09-02）
+
+- 工作包：收紧 `FileBookPackageArtifactStore` 的文件名信任边界，避免同一包根目录下任意支持扩展名文件被误当作任务 artifact。
+- 实现：仅允许 legacy `{guid:N}.{ext}` 与租约发布 `{guid:N}-{positive-attempt}.{ext}`；路径穿越、非 N 格式 GUID、空 GUID、非法 attempt、额外连字符和错误扩展名均拒绝。未改变 API、Migration 或 ZIP/EPUB/TXT 格式。
+- 测试：新增 `Artifact_Store_Only_Allows_Generated_Artifact_Names`；定向书籍包测试 `6/6`、Unit `544/544`、Architecture `1/1`、Contract `10/10`、Restore/Release Build 0 warnings / 0 errors、`git diff --check` 均通过。
+- Ubuntu VM：`c614a26` 的 `docker-compose.build.yml` 源码构建、Migration/packages-init、PostgreSQL、Redis、OTel、API、Worker、Scheduler 健康；`collection-package-runtime-smoke` PASS，覆盖直接地址、四类持久控制、ZIP/EPUB/TXT、完整性和审计。VM 外网无法访问 Dockerfile frontend/NuGet audit，因此仅在 staging 使用 syntax frontend 兼容处理、`NuGetAudit=false` 和同提交本机发布的 fixture 产物；仓库源码与正式 CI 未改动。
+- 远端门禁：代码候选 `c614a26` 的 [CI 33579529730](https://github.com/nekohands/InkFlow/actions/runs/33579529730)、[Docker 33579529717](https://github.com/nekohands/InkFlow/actions/runs/33579529717)、[Security 33579529779](https://github.com/nekohands/InkFlow/actions/runs/33579529779) 均 success 且 head SHA 一致；临时账号、Compose 资源、fixture 容器和 staging 已清理。
+- 交接边界：Windows 本机 Testcontainers 仍因 Docker Engine named pipe 不可用而 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source。真实来源/追更/故障切换、PWA 跨设备、人工视觉和生产治理继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
