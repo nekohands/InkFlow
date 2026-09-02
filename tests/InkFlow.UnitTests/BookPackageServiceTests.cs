@@ -332,6 +332,89 @@ public sealed class BookPackageServiceTests
         }
     }
 
+    [TestMethod]
+    public async Task Artifact_Store_Only_Publishes_Generated_Temporary_Names()
+    {
+        var root = Path.Combine(
+            Path.GetTempPath(),
+            $"inkflow-package-temporary-name-test-{Guid.NewGuid():N}");
+        var artifacts = new FileBookPackageArtifactStore(new BookPackageOptions(
+            root,
+            MaxChapters: 100,
+            MaxPackageBytes: 1_000_000,
+            Retention: TimeSpan.FromDays(7),
+            LeaseDuration: TimeSpan.FromMinutes(10)));
+        var jobId = Guid.CreateVersion7();
+
+        try
+        {
+            var legacyTemporaryPath = artifacts.GetTemporaryPath(jobId);
+            var legacyArtifactName = artifacts.GetArtifactFileName(jobId, BookPackageFormat.Txt);
+            await using (var stream = await artifacts.CreateTemporaryAsync(jobId))
+            {
+                await stream.WriteAsync("legacy"u8.ToArray());
+            }
+
+            await artifacts.PublishAsync(legacyTemporaryPath, legacyArtifactName);
+            Assert.IsTrue(File.Exists(artifacts.GetArtifactPath(legacyArtifactName)));
+
+            var leasedTemporaryPath = artifacts.GetTemporaryPath(jobId, leaseAttempt: 2);
+            var leasedArtifactName = artifacts.GetArtifactFileName(
+                jobId,
+                leaseAttempt: 2,
+                BookPackageFormat.Epub);
+            await using (var stream = await artifacts.CreateTemporaryAsync(jobId, leaseAttempt: 2))
+            {
+                await stream.WriteAsync("leased"u8.ToArray());
+            }
+
+            await artifacts.PublishAsync(leasedTemporaryPath, leasedArtifactName);
+            Assert.IsTrue(File.Exists(artifacts.GetArtifactPath(leasedArtifactName)));
+
+            await artifacts.DeleteIfExistsAsync(artifacts.GetArtifactPath(legacyArtifactName));
+            Assert.IsFalse(File.Exists(artifacts.GetArtifactPath(legacyArtifactName)));
+
+            foreach (var invalidPath in new[]
+                     {
+                         Path.Combine(root, ".not-a-job.tmp"),
+                         Path.Combine(root, $".{Guid.Empty:N}.tmp"),
+                         Path.Combine(root, $".{jobId:N}.0.tmp"),
+                         Path.Combine(root, $".{jobId:N}.01.tmp"),
+                         Path.Combine(root, $".{jobId:N}.text.tmp"),
+                         Path.Combine(root, $".{jobId:N}.1.2.tmp"),
+                         Path.Combine(root, "nested", $".{jobId:N}.tmp"),
+                         Path.Combine(root, "..", "outside", $".{jobId:N}.tmp"),
+                     })
+            {
+                Assert.ThrowsExactly<InvalidOperationException>(
+                    () => artifacts.PublishAsync(invalidPath, legacyArtifactName),
+                    invalidPath);
+                Assert.ThrowsExactly<InvalidOperationException>(
+                    () => artifacts.DeleteIfExistsAsync(invalidPath),
+                    invalidPath);
+            }
+
+            foreach (var invalidArtifactPath in new[]
+                     {
+                         Path.Combine(root, "not-a-job.zip"),
+                         Path.Combine(root, "nested", $"{jobId:N}.zip"),
+                         Path.Combine(root, "..", "outside", $"{jobId:N}.zip"),
+                     })
+            {
+                Assert.ThrowsExactly<InvalidOperationException>(
+                    () => artifacts.DeleteIfExistsAsync(invalidArtifactPath),
+                    invalidArtifactPath);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static ContentVersion NewVersion(Guid bookId, Guid chapterId, string text) =>
         ContentVersion.Create(
             bookId,

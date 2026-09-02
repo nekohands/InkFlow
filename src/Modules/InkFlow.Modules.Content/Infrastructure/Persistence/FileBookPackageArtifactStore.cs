@@ -132,9 +132,26 @@ public sealed class FileBookPackageArtifactStore(BookPackageOptions options) : I
     {
         cancellationToken.ThrowIfCancellationRequested();
         var fullPath = Path.GetFullPath(filePath);
-        if (!IsWithinRoot(fullPath))
+        if (!IsDirectChild(fullPath))
         {
             throw new InvalidOperationException("package artifact path is outside the configured root.");
+        }
+
+        var fileName = Path.GetFileName(fullPath);
+        if (fileName.StartsWith(".", StringComparison.Ordinal))
+        {
+            _ = GetTemporaryPathFromPath(fullPath);
+        }
+        else
+        {
+            try
+            {
+                ValidateArtifactFileName(fileName);
+            }
+            catch (ArgumentException)
+            {
+                throw new InvalidOperationException("package artifact path is invalid.");
+            }
         }
 
         File.Delete(fullPath);
@@ -160,21 +177,46 @@ public sealed class FileBookPackageArtifactStore(BookPackageOptions options) : I
     private string GetTemporaryPathFromPath(string temporaryPath)
     {
         var fullPath = Path.GetFullPath(temporaryPath);
-        if (!IsWithinRoot(fullPath) ||
-            !Path.GetFileName(fullPath).StartsWith(".", StringComparison.Ordinal) ||
-            !fullPath.EndsWith(".tmp", StringComparison.Ordinal))
+        var fileName = Path.GetFileName(fullPath);
+        if (!IsDirectChild(fullPath) ||
+            !fileName.StartsWith(".", StringComparison.Ordinal) ||
+            !fileName.EndsWith(".tmp", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("package temporary artifact path is invalid.");
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var separator = stem.IndexOf('.', 1);
+        var jobIdText = separator < 0 ? stem[1..] : stem[1..separator];
+        if (!Guid.TryParseExact(jobIdText, "N", out var jobId) || jobId == Guid.Empty)
+        {
+            throw new InvalidOperationException("package temporary artifact path is invalid.");
+        }
+
+        if (separator >= 0)
+        {
+            var attemptText = stem[(separator + 1)..];
+            if (!int.TryParse(
+                    attemptText,
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var attempt) ||
+                attempt < 1 ||
+                (attemptText.Length > 1 && attemptText[0] == '0'))
+            {
+                throw new InvalidOperationException("package temporary artifact path is invalid.");
+            }
         }
 
         return fullPath;
     }
 
-    private bool IsWithinRoot(string fullPath)
+    private bool IsDirectChild(string fullPath)
     {
-        var root = _rootDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
-                   Path.DirectorySeparatorChar;
-        return fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(
+            Path.GetDirectoryName(fullPath),
+            _rootDirectory,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static void ValidateArtifactFileName(string artifactFileName)
