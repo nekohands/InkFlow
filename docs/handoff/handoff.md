@@ -3,9 +3,9 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
+- 当前阶段：1.0 Release Candidate（本轮账户中心与令牌生命周期的本机/VM 自动化已通过，候选提交 CI 待触发，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.39 Web Reader 第二轮真实页面复验已记录；代码候选为 `c0af4af`，本机回归、Ubuntu VM 源码 Compose 运行验收及浏览器页面/边界/响应式复验均通过，代码候选 CI/Docker/Security 均通过；最新交接见 5.39。
+- 文档状态：5.44 账户中心与 Personal Legado 令牌生命周期已记录；当前工作树包含待提交改动，本机回归、Ubuntu VM 源码 Compose 运行验收及内置浏览器账户中心复验均通过，候选提交 CI/Docker/Security 待触发；最新交接见 5.44。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-02；dev 骨架重建更新：2026-08-25
 
@@ -1392,6 +1392,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 验证：本机 Release Build 0 warnings / 0 errors、Unit 549/549、Architecture 1/1、Contract 10/10、shell 回归均通过；Ubuntu VM 源码 Compose 重建和健康检查通过，VM 完整 Restore → Build → Test 为 Build 0/0、Unit 549/549、Architecture 1/1、Contract 10/10、Integration 107 项 104 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。候选 `515bc04` 的 [CI 33621755689](https://github.com/nekohands/InkFlow/actions/runs/33621755689)、[Docker 33621755629](https://github.com/nekohands/InkFlow/actions/runs/33621755629)、[Security 33621755496](https://github.com/nekohands/InkFlow/actions/runs/33621755496) 均 success 且 head SHA 一致。
 - 安全/边界：并发注册集成测试使用两个独立 DbContext 验证恰好一个管理员；未提交密码、Access/Refresh Token 或其他 secret。首个账号属于高影响部署引导身份，受控注册开放、强密码、限流和恢复治理仍是生产要求。详见 [ADR 0024](../adr/0024-first-registration-administrator-bootstrap.md)。整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.44 账户中心设置与 Personal Legado 令牌生命周期交接（本轮，2026-09-02）
+
+- 实现：账户中心采用头像右置资料卡和“个人资料 / 账户安全 / 阅读器令牌”页签；已接入显示名称、当前密码校验后改密、Personal Legado 令牌创建、元数据列表和按所有权撤销。
+- 令牌最终规则：撤销命令在所有权和未撤销条件下原子删除记录，立即失效且不可恢复；不提供恢复接口或第二个删除按钮，旧数据中已撤销记录也不在列表展示，需重新创建。
+- 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 553/553、Architecture 1/1、Contract 10/10、迁移模型检查、账户/前端 shell 回归和 `git diff --check` 均 PASS。
+- VM 证据：Ubuntu VM 源码构建 Compose 重建、健康检查和前端 smoke PASS；SDK 容器完整测试为 Unit 553/553、Architecture 1/1、Contract 10/10、Integration 104 passed / 3 skipped / 0 failed；账户 runtime smoke 的注册/登录/刷新/登出/阅读状态与令牌撤销即删除链路 PASS。
+- 浏览器证据：一次性 `.invalid` 测试账号已登录；资料、账户安全、阅读器令牌页签与面板切换、头像右置、无横向溢出和控制台错误检查 PASS。未在未确认情况下点击会删除当前浏览器测试令牌的撤销按钮。
+- 凭据边界：未使用或提交真实外部账户、生产密码、Cookie 或 Personal Legado Token；阅读 3.0/MuMu 真机导入与阅读继续按用户决定后续人工验收。候选 commit 和远端 CI/Docker/Security 尚待本轮提交后执行。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -1514,7 +1523,7 @@ Phase 2 及以后：
 - [x] `dev` 分支远端 CI（含 Runtime Smoke）首跑确认 GREEN（Run `32821162412`），骨架阶段 Completed。
 - [x] Phase 1A 自动化链路与 kanunu8 真实源端到端验证已在 `dev` 上重建并通过相应证据。
 - [ ] Legado 真机导入/阅读与真实追更仍待执行。
-- [x] Personal Legado Token v1 的自动化签发、Hash 持久化、header 认证、Personal API 与撤销审计已完成；阅读 3.0 导入、四步阅读和撤销后失效仍待人工执行。
+- [x] Personal Legado Token v1 的自动化签发、Hash 持久化、header 认证、Personal API、撤销审计及“撤销即删除记录”已完成；阅读 3.0 导入、四步阅读和真机撤销后失效仍待人工执行。
 - [x] Web Reader v1 的服务端渲染、响应式结构、阅读设置与 HTML 安全回归已完成；浏览器四尺寸视觉、焦点、触控和长时间阅读仍待人工执行。
 - [x] Reader/PWA 用户状态 v1 的账户/书架/历史/进度/偏好渐进增强、公开 PWA 壳与 CI Runtime smoke 已完成；Service Worker/壳缓存/离线回退已由 4.82 在 localhost 安全上下文自动验收。
 - [x] Reader/PWA 账户与阅读状态 API 的非阅读 App runtime smoke 已由 4.84 在 Ubuntu VM 源码构建 Compose 中完成；PWA 页面内真实凭据输入仍待人工或真实环境。

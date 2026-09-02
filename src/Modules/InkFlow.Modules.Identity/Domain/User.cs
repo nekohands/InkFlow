@@ -17,9 +17,12 @@ public enum UserStatus
 /// <summary>用户聚合。密码只以经过专用哈希器处理的值进入聚合，不接收明文密码。</summary>
 public sealed class User
 {
+    public const int MaxDisplayNameLength = 64;
+
     public Guid Id { get; private set; }
     public string Email { get; private set; } = null!;
     public string NormalizedEmail { get; private set; } = null!;
+    public string DisplayName { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
     public UserRole Role { get; private set; }
     public UserStatus Status { get; private set; }
@@ -32,7 +35,8 @@ public sealed class User
         string email,
         string passwordHash,
         DateTimeOffset now,
-        UserRole role = UserRole.Reader)
+        UserRole role = UserRole.Reader,
+        string? displayName = null)
     {
         var normalizedEmail = UserEmailAddress.Normalize(email);
         ValidatePasswordHash(passwordHash);
@@ -46,6 +50,7 @@ public sealed class User
             Id = Guid.CreateVersion7(),
             Email = normalizedEmail,
             NormalizedEmail = normalizedEmail,
+            DisplayName = NormalizeDisplayName(displayName, normalizedEmail),
             PasswordHash = passwordHash,
             Role = role,
             Status = UserStatus.Active,
@@ -62,12 +67,14 @@ public sealed class User
         UserRole role,
         UserStatus status,
         DateTimeOffset createdAt,
-        DateTimeOffset updatedAt) =>
+        DateTimeOffset updatedAt,
+        string? displayName = null) =>
         new()
         {
             Id = id,
             Email = email,
             NormalizedEmail = normalizedEmail,
+            DisplayName = NormalizeDisplayName(displayName, email),
             PasswordHash = passwordHash,
             Role = role,
             Status = status,
@@ -76,6 +83,12 @@ public sealed class User
         };
 
     public bool CanAuthenticate => Status == UserStatus.Active;
+
+    public void UpdateDisplayName(string? displayName, DateTimeOffset now)
+    {
+        DisplayName = NormalizeDisplayName(displayName, Email);
+        UpdatedAt = now;
+    }
 
     public void ChangePasswordHash(string passwordHash, DateTimeOffset now)
     {
@@ -110,6 +123,19 @@ public sealed class User
                 "password hash must be non-empty and at most 1024 characters.",
                 nameof(passwordHash));
         }
+    }
+
+    private static string NormalizeDisplayName(string? value, string email)
+    {
+        var fallback = email[..email.IndexOf('@')];
+        var normalized = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        if (normalized.Length > MaxDisplayNameLength || normalized.Any(char.IsControl))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(value), $"display name must be at most {MaxDisplayNameLength} characters.");
+        }
+
+        return normalized;
     }
 }
 

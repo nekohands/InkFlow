@@ -360,6 +360,100 @@ auth.MapPost("/logout", async (
 auth.MapGet("/me", (ClaimsPrincipal principal) =>
     AuthEndpointResults.Current(principal)).RequireAuthorization();
 
+var account = api.MapGroup("/me")
+    .RequireAuthorization();
+
+account.MapGet("/profile", async (
+    ClaimsPrincipal principal,
+    IIdentityService identity,
+    CancellationToken ct) =>
+{
+    if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var profile = await identity.GetProfileAsync(userId, ct).ConfigureAwait(false);
+    return profile is null
+        ? Results.Unauthorized()
+        : Results.Ok(AccountEndpointResults.ToResponse(profile));
+});
+
+account.MapPut("/profile", async (
+    UpdateProfileRequest? request,
+    ClaimsPrincipal principal,
+    IIdentityService identity,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var result = await identity
+        .UpdateProfileAsync(userId, request?.DisplayName, ct)
+        .ConfigureAwait(false);
+    var statusCode = result.Status switch
+    {
+        ProfileResultStatus.Success => StatusCodes.Status200OK,
+        ProfileResultStatus.NotFound => StatusCodes.Status404NotFound,
+        _ => StatusCodes.Status400BadRequest,
+    };
+    await auditSink.AppendAsync(
+        AccountEndpointResults.CreateAudit(
+            "identity.profile.update",
+            principal,
+            httpContext,
+            clock,
+            statusCode,
+            result.IsSuccess ? "success" : "client_error"),
+        ct).ConfigureAwait(false);
+    return AccountEndpointResults.FromProfile(result);
+});
+
+account.MapPost("/password", async (
+    ChangePasswordRequest? request,
+    ClaimsPrincipal principal,
+    IIdentityService identity,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var result = await identity
+        .ChangePasswordAsync(
+            userId,
+            request?.CurrentPassword ?? string.Empty,
+            request?.NewPassword ?? string.Empty,
+            ct)
+        .ConfigureAwait(false);
+    var statusCode = result.Status switch
+    {
+        PasswordChangeResultStatus.Success => StatusCodes.Status204NoContent,
+        PasswordChangeResultStatus.InvalidCredentials or PasswordChangeResultStatus.NotFound =>
+            StatusCodes.Status401Unauthorized,
+        _ => StatusCodes.Status400BadRequest,
+    };
+    await auditSink.AppendAsync(
+        AccountEndpointResults.CreateAudit(
+            "identity.password.change",
+            principal,
+            httpContext,
+            clock,
+            statusCode,
+            result.IsSuccess ? "success" : "client_error"),
+        ct).ConfigureAwait(false);
+    return AccountEndpointResults.FromPasswordChange(result);
+});
+
 // ---- Personal Legado Token 管理(使用 Web Access Token,令牌只签发一次)----
 
 var personalLegadoTokens = api.MapGroup("/me/legado")

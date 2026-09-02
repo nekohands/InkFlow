@@ -235,6 +235,23 @@ assert_json "$work_dir/history-after-progress.json" \
   'length == 1 and .[0].bookId == $book_id and .[0].chapterId == $chapter_id' \
   --arg book_id "$book_id" --arg chapter_id "$chapter_id"
 
+request POST /api/v1/me/legado/tokens "$access_token" \
+  '{"name":"runtime smoke token"}' "$work_dir/legado-token.json" 201
+assert_json "$work_dir/legado-token.json" \
+  '.id != null and (.token | strings | length > 0) and (.bookSource | type == "object")'
+legado_token_id="$($jq_bin -er '.id | strings | select(length > 0)' "$work_dir/legado-token.json")"
+request GET /api/v1/me/legado/tokens "$access_token" '__NO_BODY__' \
+  "$work_dir/legado-token-list.json" 200
+assert_json "$work_dir/legado-token-list.json" \
+  'length == 1 and .[0].id == $token_id and .[0].revokedAt == null' \
+  --arg token_id "$legado_token_id"
+request DELETE "/api/v1/me/legado/tokens/$legado_token_id" "$access_token" \
+  '__NO_BODY__' "$work_dir/legado-token-revoke.json" 204
+request GET /api/v1/me/legado/tokens "$access_token" '__NO_BODY__' \
+  "$work_dir/legado-token-list-after-revoke.json" 200
+assert_json "$work_dir/legado-token-list-after-revoke.json" \
+  'type == "array" and length == 0' || fail '撤销后令牌记录未删除'
+
 request DELETE "/api/v1/me/reading/shelf/$book_id" "$access_token" \
   '__NO_BODY__' "$work_dir/shelf-delete.json" 204
 request GET '/api/v1/me/reading/shelf?limit=100' "$access_token" '__NO_BODY__' "$work_dir/empty-shelf-after-delete.json" 200
@@ -245,4 +262,4 @@ access_token=""
 request GET /api/v1/auth/me '' '__NO_BODY__' "$work_dir/me-after-logout.json" 401
 request GET /api/v1/me/reading/shelf '' '__NO_BODY__' "$work_dir/shelf-after-logout.json" 401
 
-printf 'reader-account-runtime-smoke: PASS (register, login, refresh rotation, logout, preferences, shelf, progress, history)\n'
+printf 'reader-account-runtime-smoke: PASS (register, login, refresh rotation, logout, preferences, shelf, progress, history, Legado token revoke-and-delete)\n'

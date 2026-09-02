@@ -211,11 +211,14 @@ public sealed class IdentityPersistenceTests
         Assert.AreEqual(legado.Id, listed[0].Id);
 
         Assert.IsTrue(await legadoTokens
-            .RevokeAsync(user.Id, legado.Id, T0.AddMinutes(1))
+            .RevokeAsync(user.Id, legado.Id)
             .ConfigureAwait(false));
-        Assert.IsNotNull((await legadoTokens
+        Assert.IsNull(await legadoTokens
             .FindByHashAsync(OpaqueTokenHashing.Hash(rawLegado))
-            .ConfigureAwait(false))!.RevokedAt);
+            .ConfigureAwait(false));
+        Assert.AreEqual(0, (await legadoTokens
+            .ListForUserAsync(user.Id)
+            .ConfigureAwait(false)).Count);
     }
 
     [TestMethod]

@@ -108,6 +108,48 @@ public sealed record AuthSession(
     string RefreshToken,
     DateTimeOffset RefreshTokenExpiresAt);
 
+public sealed record IdentityProfile(
+    Guid Id,
+    string Email,
+    string DisplayName,
+    UserRole Role,
+    UserStatus Status,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public enum ProfileResultStatus
+{
+    Success,
+    InvalidRequest,
+    NotFound,
+}
+
+public sealed record ProfileOperationResult(
+    ProfileResultStatus Status,
+    IdentityProfile? Profile = null)
+{
+    public bool IsSuccess => Status == ProfileResultStatus.Success && Profile is not null;
+
+    public static ProfileOperationResult Success(IdentityProfile profile) =>
+        new(ProfileResultStatus.Success, profile);
+
+    public static ProfileOperationResult Failure(ProfileResultStatus status) =>
+        new(status);
+}
+
+public enum PasswordChangeResultStatus
+{
+    Success,
+    InvalidRequest,
+    InvalidCredentials,
+    NotFound,
+}
+
+public sealed record PasswordChangeOperationResult(PasswordChangeResultStatus Status)
+{
+    public bool IsSuccess => Status == PasswordChangeResultStatus.Success;
+}
+
 public sealed record LegadoTokenInfo(
     Guid Id,
     Guid UserId,
@@ -181,6 +223,14 @@ public interface IUserRepository
     Task AddAsync(User user, CancellationToken cancellationToken = default);
 
     Task SaveAsync(User user, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 在同一数据库事务内保存新密码并撤销该用户的全部 Web 会话。
+    /// </summary>
+    Task ChangePasswordAndRevokeSessionsAsync(
+        User user,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IIdentitySessionRepository
@@ -231,7 +281,6 @@ public interface ILegadoAccessTokenRepository
     Task<bool> RevokeAsync(
         Guid userId,
         Guid tokenId,
-        DateTimeOffset now,
         CancellationToken cancellationToken = default);
 }
 
@@ -267,6 +316,21 @@ public interface IIdentityService
         CancellationToken cancellationToken = default);
 
     Task LogoutAsync(Guid sessionId, CancellationToken cancellationToken = default);
+
+    Task<IdentityProfile?> GetProfileAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<ProfileOperationResult> UpdateProfileAsync(
+        Guid userId,
+        string? displayName,
+        CancellationToken cancellationToken = default);
+
+    Task<PasswordChangeOperationResult> ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ILegadoAccessTokenService

@@ -109,6 +109,24 @@ public sealed class IdentityAuthenticationHandlerTests
 
         public Task LogoutAsync(Guid sessionId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task<IdentityProfile?> GetProfileAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ProfileOperationResult> UpdateProfileAsync(
+            Guid userId,
+            string? displayName,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<PasswordChangeOperationResult> ChangePasswordAsync(
+            Guid userId,
+            string currentPassword,
+            string newPassword,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class TestOptionsMonitor<T>(T value) : IOptionsMonitor<T>

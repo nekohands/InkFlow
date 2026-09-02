@@ -298,6 +298,12 @@ public sealed class ResourcePermissionTests
 
         public Task SaveAsync(User user, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task ChangePasswordAndRevokeSessionsAsync(
+            User user,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class InMemoryResourcePermissionRepository : IResourcePermissionRepository

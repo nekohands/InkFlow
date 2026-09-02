@@ -122,6 +122,63 @@ public sealed class IdentityServiceTests
     }
 
     [TestMethod]
+    public async Task Profile_Can_Update_Display_Name_Without_Changing_Login_Email()
+    {
+        var context = CreateContext();
+        var registered = await context.Service.RegisterAsync(
+            "reader@example.com",
+            "correct horse battery staple");
+
+        var updated = await context.Service.UpdateProfileAsync(
+            registered.Session!.UserId,
+            "墨客");
+
+        Assert.AreEqual(ProfileResultStatus.Success, updated.Status);
+        Assert.AreEqual("墨客", updated.Profile!.DisplayName);
+        Assert.AreEqual("reader@example.com", updated.Profile.Email);
+        Assert.AreEqual(
+            "墨客",
+            (await context.Service.GetProfileAsync(registered.Session.UserId))!.DisplayName);
+    }
+
+    [TestMethod]
+    public async Task ChangePassword_Requires_Current_Password_And_Revokes_All_Sessions()
+    {
+        var context = CreateContext();
+        var initial = await context.Service.RegisterAsync(
+            "reader@example.com",
+            "correct horse battery staple");
+        var second = await context.Service.LoginAsync(
+            "reader@example.com",
+            "correct horse battery staple");
+
+        var invalid = await context.Service.ChangePasswordAsync(
+            initial.Session!.UserId,
+            "wrong current password",
+            "new secure password");
+
+        Assert.AreEqual(PasswordChangeResultStatus.InvalidCredentials, invalid.Status);
+
+        var changed = await context.Service.ChangePasswordAsync(
+            initial.Session.UserId,
+            "correct horse battery staple",
+            "new secure password");
+
+        Assert.AreEqual(PasswordChangeResultStatus.Success, changed.Status);
+        Assert.IsNull(await context.Service.ValidateAccessTokenAsync(initial.Session.AccessToken));
+        Assert.IsNull(await context.Service.ValidateAccessTokenAsync(second.Session!.AccessToken));
+        Assert.AreEqual(
+            IdentityResultStatus.InvalidRefreshToken,
+            (await context.Service.RefreshAsync(initial.Session.RefreshToken)).Status);
+        Assert.AreEqual(
+            IdentityResultStatus.InvalidRefreshToken,
+            (await context.Service.RefreshAsync(second.Session.RefreshToken)).Status);
+        Assert.IsTrue((await context.Service.LoginAsync(
+            "reader@example.com",
+            "new secure password")).IsSuccess);
+    }
+
+    [TestMethod]
     public async Task Expired_Access_Token_Is_Not_Authenticated()
     {
         var context = CreateContext();
@@ -133,8 +190,8 @@ public sealed class IdentityServiceTests
 
     private static TestContext CreateContext()
     {
-        var users = new InMemoryUserRepository();
         var sessions = new InMemorySessionRepository();
+        var users = new InMemoryUserRepository(sessions);
         var clock = new MutableClock(T0);
         var service = new IdentityService(
             users,
@@ -167,8 +224,9 @@ public sealed class IdentityServiceTests
         public string CreateToken() => $"token-{Interlocked.Increment(ref _counter)}";
     }
 
-    private sealed class InMemoryUserRepository : IUserRepository
+    private sealed class InMemoryUserRepository(InMemorySessionRepository? sessions = null) : IUserRepository
     {
+        private readonly InMemorySessionRepository? _sessions = sessions;
         public List<User> Store { get; } = [];
 
         public Task<User?> FindByNormalizedEmailAsync(
@@ -207,6 +265,27 @@ public sealed class IdentityServiceTests
 
         public Task SaveAsync(User user, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task ChangePasswordAndRevokeSessionsAsync(
+            User user,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            if (_sessions is not null)
+            {
+                foreach (var session in _sessions.RefreshSessions.Where(session => session.UserId == user.Id))
+                {
+                    session.Revoke(now);
+                }
+
+                foreach (var token in _sessions.AccessTokens.Where(token => token.UserId == user.Id))
+                {
+                    token.Revoke(now);
+                }
+            }
+
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class InMemorySessionRepository : IIdentitySessionRepository

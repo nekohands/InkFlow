@@ -14,6 +14,8 @@ for required in \
   '/api/v1/me/reading/shelf' \
   '/api/v1/me/reading/progress' \
   '/api/v1/me/reading/history' \
+  '/api/v1/me/legado/tokens' \
+  '撤销后令牌记录未删除' \
   'refresh token rotation did not issue a new refresh token' \
   'reader-account-runtime-smoke: PASS'; do
   grep -Fq -- "$required" "$script"

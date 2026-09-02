@@ -1,3 +1,4 @@
+using InkFlow.Modules.Identity.Domain;
 using InkFlow.BuildingBlocks.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -23,6 +24,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             b.HasKey(user => user.Id);
             b.Property(user => user.Email).HasMaxLength(256).IsRequired();
             b.Property(user => user.NormalizedEmail).HasMaxLength(256).IsRequired();
+            b.Property(user => user.DisplayName).HasMaxLength(User.MaxDisplayNameLength).IsRequired();
             b.Property(user => user.PasswordHash).HasMaxLength(1024).IsRequired();
             b.Property(user => user.Role).IsRequired();
             b.Property(user => user.Status).IsRequired();

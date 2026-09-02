@@ -103,9 +103,171 @@ public static partial class ReaderHtml
           const client = window.InkFlowReader;
           const forms = document.getElementById("reader-account-forms");
           const session = document.getElementById("reader-session");
-          const user = document.getElementById("reader-session-user");
+          const pageTitle = document.getElementById("account-title");
+          const pageDescription = document.getElementById("account-description");
+          const initialPageTitle = pageTitle?.textContent || "登录";
+          const initialPageDescription = pageDescription?.textContent || "";
+          const avatar = document.getElementById("reader-session-avatar");
+          const email = document.getElementById("reader-session-email");
+          const emailValue = document.getElementById("reader-session-email-value");
+          const role = document.getElementById("reader-session-role");
+          const roleValue = document.getElementById("reader-session-role-value");
+          const displayName = document.getElementById("reader-session-display-name");
+          const displayNameValue = document.getElementById("reader-session-display-name-value");
+          const profileForm = document.getElementById("reader-profile-form");
+          const passwordForm = document.getElementById("reader-password-form");
+          const legadoTokenForm = document.getElementById("reader-legado-token-form");
+          const legadoTokenList = document.getElementById("reader-legado-token-list");
+          const legadoTokenReveal = document.getElementById("reader-legado-token-reveal");
+          const legadoTokenSecret = document.getElementById("reader-legado-token-secret");
+          const legadoBookSourceButton = document.getElementById("reader-legado-book-source-copy");
+          const legadoTokenCopyButton = document.getElementById("reader-legado-token-copy");
+          const sessionStatus = document.getElementById("reader-session-status");
+          const adminPanel = document.getElementById("reader-admin-panel");
+          const accountTabs = Array.from(document.querySelectorAll("[data-account-tab]"));
           const status = document.getElementById("reader-account-status");
+          let latestBookSource = null;
           const setStatus = (message) => { if (status) status.textContent = message; };
+          const roleLabel = (value) => {
+            switch (value) {
+              case "Administrator": return "管理员";
+              case "Operator": return "运营人员";
+              case "Reader": return "读者";
+              default: return "读者";
+            }
+          };
+          const hasOperationsAccess = (value) => value === "Administrator" || value === "Operator";
+          const firstCharacter = (value) => Array.from(String(value || "墨").trim() || "墨")[0].toUpperCase();
+          const dateLabel = (value) => {
+            const parsed = new Date(value);
+            return Number.isNaN(parsed.valueOf()) ? "未知时间" : parsed.toLocaleString();
+          };
+          const accountTabFromHash = () => {
+            const candidate = window.location.hash.slice(1);
+            return accountTabs.some(tab => tab.dataset.accountTab === candidate) ? candidate : "profile";
+          };
+          const selectAccountTab = (name, focus = false, updateHash = false) => {
+            const selected = accountTabs.find(tab => tab.dataset.accountTab === name)
+              || accountTabs.find(tab => tab.dataset.accountTab === "profile");
+            if (!selected) return;
+            const selectedName = selected.dataset.accountTab;
+            for (const tab of accountTabs) {
+              const active = tab === selected;
+              tab.setAttribute("aria-selected", active ? "true" : "false");
+              tab.tabIndex = active ? 0 : -1;
+              const panel = document.getElementById(tab.getAttribute("aria-controls") || "");
+              if (panel) panel.hidden = !active;
+            }
+            if (updateHash && window.location.hash !== `#${selectedName}`) {
+              window.history.replaceState(null, "", `#${selectedName}`);
+            }
+            if (focus) selected.focus();
+          };
+          for (const [index, tab] of accountTabs.entries()) {
+            tab.addEventListener("click", () => selectAccountTab(tab.dataset.accountTab, false, true));
+            tab.addEventListener("keydown", (event) => {
+              const offset = event.key === "ArrowRight" || event.key === "ArrowDown"
+                ? 1
+                : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                  ? -1
+                  : event.key === "Home"
+                    ? -index
+                    : event.key === "End"
+                      ? accountTabs.length - 1 - index
+                      : 0;
+              if (!offset || accountTabs.length < 2) return;
+              event.preventDefault();
+              const nextIndex = (index + offset + accountTabs.length) % accountTabs.length;
+              selectAccountTab(accountTabs[nextIndex].dataset.accountTab, true, true);
+            });
+          }
+          window.addEventListener("hashchange", () => selectAccountTab(accountTabFromHash()));
+          selectAccountTab(accountTabFromHash());
+          const renderProfile = (profile, fallbackEmail) => {
+            const value = typeof profile?.displayName === "string" && profile.displayName.trim()
+              ? profile.displayName.trim()
+              : fallbackEmail.split("@")[0].trim() || "墨客";
+            if (displayName) displayName.textContent = value;
+            if (displayNameValue) displayNameValue.textContent = value;
+            const profileInput = document.getElementById("reader-display-name");
+            if (profileInput && document.activeElement !== profileInput) profileInput.value = value;
+            if (avatar) avatar.textContent = firstCharacter(value);
+          };
+          const renderLegadoTokens = (values) => {
+            if (!legadoTokenList) return;
+            legadoTokenList.replaceChildren();
+            const activeValues = Array.isArray(values) ? values.filter(value => !value?.revokedAt) : [];
+            if (activeValues.length === 0) {
+              const empty = document.createElement("li");
+              empty.className = "account-token account-token--empty";
+              empty.textContent = "还没有阅读 3.0 令牌。";
+              legadoTokenList.append(empty);
+              return;
+            }
+
+            for (const value of activeValues) {
+              const row = document.createElement("li");
+              row.className = "account-token";
+              const copy = document.createElement("div");
+              copy.className = "account-token__copy";
+              const name = document.createElement("strong");
+              name.textContent = typeof value?.name === "string" ? value.name : "阅读 3.0";
+              const meta = document.createElement("span");
+              meta.className = "account-token__meta";
+              const expiresAt = new Date(value?.expiresAt);
+              const state = Number.isNaN(expiresAt.valueOf()) || expiresAt <= new Date()
+                ? "已过期"
+                : `有效至 ${dateLabel(value.expiresAt)}`;
+              meta.textContent = `${value?.prefix || "lf_lgd_"} · ${state}`;
+              copy.append(name, meta);
+              row.append(copy);
+              if (typeof value?.id === "string") {
+                const action = document.createElement("button");
+                action.className = "button";
+                action.type = "button";
+                action.textContent = "撤销";
+                action.addEventListener("click", async () => {
+                  const message = "撤销后，阅读 3.0 将无法继续使用这个令牌，令牌记录也会立即删除。确定撤销吗？";
+                  if (!window.confirm(message)) return;
+                  action.disabled = true;
+                  const response = await client.apiFetch(
+                    `/api/v1/me/legado/tokens/${encodeURIComponent(value.id)}`,
+                    { method: "DELETE" });
+                  if (response?.ok) {
+                    setStatus("阅读 3.0 令牌已撤销，记录已删除。");
+                    await loadLegadoTokens();
+                  } else {
+                    action.disabled = false;
+                    setStatus("暂时无法撤销令牌，请稍后重试。");
+                  }
+                });
+                row.append(action);
+              }
+              legadoTokenList.append(row);
+            }
+          };
+          const loadLegadoTokens = async () => {
+            if (!legadoTokenList) return;
+            const response = await client.apiFetch("/api/v1/me/legado/tokens");
+            if (!response?.ok) {
+              renderLegadoTokens([]);
+              const failed = legadoTokenList.querySelector(".account-token--empty");
+              if (failed) failed.textContent = "令牌列表暂时无法加载。";
+              return;
+            }
+            renderLegadoTokens(await response.json().catch(() => []));
+          };
+          const copyText = async (value, button, message, resetLabel = "复制") => {
+            if (!value) return;
+            try {
+              await navigator.clipboard.writeText(value);
+              if (button) button.textContent = "已复制";
+              setStatus(message);
+              window.setTimeout(() => { if (button) button.textContent = resetLabel; }, 1600);
+            } catch {
+              setStatus("浏览器未允许自动复制，请手动复制显示的内容。");
+            }
+          };
           const getSafeReturnTo = () => {
             const candidate = new URLSearchParams(window.location.search).get("returnTo");
             if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) return null;
@@ -174,7 +336,7 @@ public static partial class ReaderHtml
               setStatus("当前会话暂时无法验证，请检查网络后重试。");
               if (forms) forms.hidden = true;
               if (session) session.hidden = false;
-              if (user) user.textContent = "当前会话暂时无法验证，请检查网络后重试。";
+              if (sessionStatus) sessionStatus.textContent = "暂时无法验证当前会话。";
               return;
             }
             if (!response.ok) {
@@ -188,8 +350,26 @@ public static partial class ReaderHtml
             const payload = await response.json().catch(() => null);
             if (forms) forms.hidden = true;
             if (session) session.hidden = false;
+            selectAccountTab(accountTabFromHash());
             setStatus("当前会话已验证。");
-            if (user) user.textContent = payload?.email ? `已登录：${payload.email}` : "已登录";
+            const accountEmail = typeof payload?.email === "string" && payload.email.trim()
+              ? payload.email.trim()
+              : "已登录";
+            const accountRole = typeof payload?.role === "string" ? payload.role : "Reader";
+            const profileResponse = await client.apiFetch("/api/v1/me/profile");
+            const profile = profileResponse?.ok
+              ? await profileResponse.json().catch(() => null)
+              : null;
+            if (pageTitle) pageTitle.textContent = "我的账户";
+            if (pageDescription) pageDescription.textContent = "管理你的个人资料、账户安全和阅读器访问权限。";
+            renderProfile(profile, accountEmail);
+            if (email) email.textContent = accountEmail;
+            if (emailValue) emailValue.textContent = accountEmail;
+            if (role) role.textContent = roleLabel(accountRole);
+            if (roleValue) roleValue.textContent = roleLabel(accountRole);
+            if (adminPanel) adminPanel.hidden = !hasOperationsAccess(accountRole);
+            if (sessionStatus) sessionStatus.textContent = "当前会话有效";
+            await loadLegadoTokens();
           };
 
           loginForm?.addEventListener("submit", (event) => {
@@ -200,6 +380,95 @@ public static partial class ReaderHtml
             event.preventDefault();
             void submit(registerForm, "/api/v1/auth/register", "注册成功，正在返回书库…");
           });
+          profileForm?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const values = new FormData(profileForm);
+            const value = String(values.get("displayName") || "").trim();
+            const button = profileForm.querySelector("button[type=submit]");
+            if (value.length > 64) {
+              setStatus("显示名称不能超过 64 个字符。");
+              return;
+            }
+            if (button) button.disabled = true;
+            const response = await client.apiFetch("/api/v1/me/profile", {
+              method: "PUT",
+              body: JSON.stringify({ displayName: value })
+            });
+            const payload = response?.ok ? await response.json().catch(() => null) : null;
+            if (response?.ok && payload) {
+              renderProfile(payload, emailValue?.textContent || "已登录");
+              setStatus("个人资料已保存。");
+            } else {
+              setStatus("暂时无法保存个人资料，请稍后重试。");
+            }
+            if (button) button.disabled = false;
+          });
+          passwordForm?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const values = new FormData(passwordForm);
+            const currentPassword = String(values.get("currentPassword") || "");
+            const newPassword = String(values.get("newPassword") || "");
+            const confirmPassword = String(values.get("confirmPassword") || "");
+            const button = passwordForm.querySelector("button[type=submit]");
+            if (newPassword.length < 12 || newPassword.length > 256) {
+              setStatus("新密码长度需要在 12 到 256 个字符之间。");
+              return;
+            }
+            if (newPassword !== confirmPassword) {
+              setStatus("两次输入的新密码不一致。");
+              return;
+            }
+            if (button) button.disabled = true;
+            const response = await client.apiFetch("/api/v1/me/password", {
+              method: "POST",
+              body: JSON.stringify({ currentPassword, newPassword })
+            });
+            if (response?.ok) {
+              client.clearSession();
+              passwordForm.reset();
+              if (forms) forms.hidden = false;
+              if (session) session.hidden = true;
+              if (adminPanel) adminPanel.hidden = true;
+              setStatus("密码已修改，请使用新密码重新登录。");
+            } else {
+              setStatus(response?.status === 401
+                ? "当前密码不正确。"
+                : "暂时无法修改密码，请检查信息后重试。");
+            }
+            if (button) button.disabled = false;
+          });
+          legadoTokenForm?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const values = new FormData(legadoTokenForm);
+            const name = String(values.get("name") || "").trim();
+            const button = legadoTokenForm.querySelector("button[type=submit]");
+            if (button) button.disabled = true;
+            setStatus("正在创建阅读 3.0 令牌，请稍候…");
+            const response = await client.apiFetch("/api/v1/me/legado/tokens", {
+              method: "POST",
+              body: JSON.stringify({ name })
+            });
+            const payload = response?.ok ? await response.json().catch(() => null) : null;
+            if (response?.ok && typeof payload?.token === "string") {
+              latestBookSource = payload.bookSource || null;
+              if (legadoTokenSecret) legadoTokenSecret.value = payload.token;
+              if (legadoTokenReveal) legadoTokenReveal.hidden = false;
+              legadoTokenForm.reset();
+              setStatus("令牌已创建。出于安全原因，原始令牌只会显示这一次。");
+              await loadLegadoTokens();
+            } else {
+              setStatus("暂时无法创建令牌，请稍后重试。");
+            }
+            if (button) button.disabled = false;
+          });
+          legadoTokenCopyButton?.addEventListener("click", () =>
+            copyText(legadoTokenSecret?.value, legadoTokenCopyButton, "令牌已复制。"));
+          legadoBookSourceButton?.addEventListener("click", () =>
+            copyText(
+              latestBookSource ? JSON.stringify(latestBookSource, null, 2) : "",
+              legadoBookSourceButton,
+              "阅读 3.0 书源配置已复制。",
+              "复制书源配置"));
           document.getElementById("reader-logout")?.addEventListener("click", async () => {
             const button = document.getElementById("reader-logout");
             if (button) button.disabled = true;
@@ -207,6 +476,12 @@ public static partial class ReaderHtml
             client?.clearSession();
             if (forms) forms.hidden = false;
             if (session) session.hidden = true;
+            if (adminPanel) adminPanel.hidden = true;
+            if (legadoTokenReveal) legadoTokenReveal.hidden = true;
+            if (legadoTokenSecret) legadoTokenSecret.value = "";
+            latestBookSource = null;
+            if (pageTitle) pageTitle.textContent = initialPageTitle;
+            if (pageDescription) pageDescription.textContent = initialPageDescription;
             setStatus("已退出当前会话。");
             if (button) button.disabled = false;
           });
@@ -472,7 +747,7 @@ public static partial class ReaderHtml
               <section class="page-intro" aria-labelledby="account-title">
                 <p class="eyebrow">你的阅读空间</p>
                 <h1 id="account-title">{pageTitle}</h1>
-                <p class="muted">{pageDescription}</p>
+                <p id="account-description" class="muted">{pageDescription}</p>
               </section>
               <p id="reader-account-status" class="notice" role="status" aria-live="polite">{statusMessage}</p>
               <div id="reader-account-forms" class="account-layout">
@@ -492,10 +767,114 @@ public static partial class ReaderHtml
                   <p class="account-switch">{switchText}<a id="reader-account-switch" href="{switchHref}">{switchLabel}</a></p>
                 </section>
               </div>
-              <section id="reader-session" class="form-card account-session" hidden aria-labelledby="session-title">
-                <h2 id="session-title">当前账户</h2>
-                <p id="reader-session-user" class="muted"></p>
-                <button id="reader-logout" class="button" type="button">退出登录</button>
+              <section id="reader-session" class="account-session" hidden aria-labelledby="session-title">
+                <section id="reader-session-profile" class="form-card account-profile-card" aria-labelledby="session-title">
+                  <div class="account-profile__identity">
+                    <div class="account-profile__copy">
+                      <p class="eyebrow">个人中心</p>
+                      <h2 id="session-title">我的账户</h2>
+                      <p id="reader-session-display-name" class="account-profile__name"></p>
+                      <p id="reader-session-email" class="account-profile__email"></p>
+                      <span id="reader-session-role" class="account-role"></span>
+                    </div>
+                    <div id="reader-session-avatar" class="account-avatar" aria-hidden="true">墨</div>
+                  </div>
+                  <p class="account-profile__status" aria-live="polite">
+                    <span class="account-status-dot" aria-hidden="true"></span>
+                    <span id="reader-session-status">当前会话有效</span>
+                  </p>
+                </section>
+                <nav class="account-tabs" aria-label="账户设置" role="tablist">
+                  <button id="account-tab-profile" class="account-tab" type="button" role="tab" aria-selected="true" aria-controls="account-panel-profile" data-account-tab="profile">个人资料</button>
+                  <button id="account-tab-security" class="account-tab" type="button" role="tab" aria-selected="false" aria-controls="account-panel-security" data-account-tab="security" tabindex="-1">账户安全</button>
+                  <button id="account-tab-reader" class="account-tab" type="button" role="tab" aria-selected="false" aria-controls="account-panel-reader" data-account-tab="reader" tabindex="-1">阅读器令牌</button>
+                </nav>
+                <div class="account-tab-panels">
+                  <section id="account-panel-profile" class="account-tab-panel" role="tabpanel" aria-labelledby="account-tab-profile" data-account-panel="profile">
+                    <section class="form-card account-panel" aria-labelledby="account-info-title">
+                      <h2 id="account-info-title">账户信息</h2>
+                      <dl class="account-details">
+                        <div class="account-detail">
+                          <dt>登录邮箱</dt>
+                          <dd id="reader-session-email-value"></dd>
+                        </div>
+                        <div class="account-detail">
+                          <dt>显示名称</dt>
+                          <dd id="reader-session-display-name-value"></dd>
+                        </div>
+                        <div class="account-detail">
+                          <dt>权限角色</dt>
+                          <dd id="reader-session-role-value"></dd>
+                        </div>
+                      </dl>
+                    </section>
+                    <section class="form-card account-panel" aria-labelledby="account-profile-title">
+                      <h2 id="account-profile-title">个人资料</h2>
+                      <p class="muted">设置一个在账户页和后续社区功能中使用的显示名称。</p>
+                      <form id="reader-profile-form" class="form-stack">
+                        <div class="form-field">
+                          <label for="reader-display-name">显示名称</label>
+                          <input id="reader-display-name" name="displayName" type="text" maxlength="64" autocomplete="nickname" placeholder="清空后使用邮箱前缀">
+                        </div>
+                        <div class="form-actions"><button class="button button--primary" type="submit">保存资料</button></div>
+                      </form>
+                    </section>
+                  </section>
+                  <section id="account-panel-security" class="account-tab-panel" role="tabpanel" aria-labelledby="account-tab-security" data-account-panel="security" hidden>
+                    <section class="form-card account-panel" aria-labelledby="account-security-title">
+                      <h2 id="account-security-title">账户安全</h2>
+                      <p class="muted">修改密码后，所有已登录设备都会退出，需要使用新密码重新登录。</p>
+                      <form id="reader-password-form" class="form-stack">
+                        <div class="form-field">
+                          <label for="reader-current-password">当前密码</label>
+                          <input id="reader-current-password" name="currentPassword" type="password" autocomplete="current-password" required>
+                        </div>
+                        <div class="form-field">
+                          <label for="reader-new-password">新密码</label>
+                          <input id="reader-new-password" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required>
+                        </div>
+                        <div class="form-field">
+                          <label for="reader-confirm-password">确认新密码</label>
+                          <input id="reader-confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="256" required>
+                        </div>
+                        <div class="form-actions"><button class="button button--primary" type="submit">修改密码</button></div>
+                      </form>
+                    </section>
+                  </section>
+                  <section id="account-panel-reader" class="account-tab-panel" role="tabpanel" aria-labelledby="account-tab-reader" data-account-panel="reader" hidden>
+                    <section class="form-card account-panel" aria-labelledby="account-legado-title">
+                      <div class="account-panel__heading">
+                        <div>
+                          <h2 id="account-legado-title">阅读器令牌</h2>
+                          <p class="muted">为阅读 3.0 创建独立令牌。令牌只在创建成功时完整显示一次；撤销会立即删除记录，无法恢复，需要重新创建。</p>
+                        </div>
+                        <span class="account-role">阅读 3.0</span>
+                      </div>
+                      <form id="reader-legado-token-form" class="account-token-form">
+                        <div class="form-field">
+                          <label for="reader-legado-token-name">令牌名称（可选）</label>
+                          <input id="reader-legado-token-name" name="name" type="text" maxlength="64" placeholder="我的阅读 3.0" autocomplete="off">
+                        </div>
+                        <button class="button button--primary" type="submit">创建令牌</button>
+                      </form>
+                      <div id="reader-legado-token-reveal" class="account-token-reveal" hidden role="status" aria-live="polite">
+                        <strong>新令牌（仅显示一次）</strong>
+                        <textarea id="reader-legado-token-secret" rows="3" readonly spellcheck="false" aria-label="新创建的阅读器令牌"></textarea>
+                        <div class="form-actions">
+                          <button id="reader-legado-token-copy" class="button" type="button">复制</button>
+                          <button id="reader-legado-book-source-copy" class="button" type="button">复制书源配置</button>
+                        </div>
+                      </div>
+                      <ul id="reader-legado-token-list" class="account-token-list" aria-label="已创建的阅读器令牌"></ul>
+                    </section>
+                  </section>
+                </div>
+                <section id="reader-admin-panel" class="form-card account-panel" hidden aria-labelledby="account-admin-title">
+                  <h2 id="account-admin-title">管理入口</h2>
+                  <p class="muted">你拥有运营管理权限，可以查看采集运行和平台状态。</p>
+                  <a class="button button--primary" href="/admin/operations">进入运营中心</a>
+                </section>
+                <div class="account-actions"><button id="reader-logout" class="button" type="button">退出登录</button></div>
               </section>
             </main>
             """);

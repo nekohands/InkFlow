@@ -11,6 +11,7 @@ public static class IdentityMapper
         Id = user.Id,
         Email = user.Email,
         NormalizedEmail = user.NormalizedEmail,
+        DisplayName = user.DisplayName,
         PasswordHash = user.PasswordHash,
         Role = (int)user.Role,
         Status = (int)user.Status,
@@ -27,7 +28,8 @@ public static class IdentityMapper
             (UserRole)entity.Role,
             (UserStatus)entity.Status,
             entity.CreatedAt,
-            entity.UpdatedAt);
+            entity.UpdatedAt,
+            entity.DisplayName);
 
     public static RefreshSessionEntity ToEntity(RefreshSession session) => new()
     {
@@ -206,11 +208,51 @@ public sealed class EfUserRepository(IdentityDbContext db) : IUserRepository
 
         entity.Email = user.Email;
         entity.NormalizedEmail = user.NormalizedEmail;
+        entity.DisplayName = user.DisplayName;
         entity.PasswordHash = user.PasswordHash;
         entity.Role = (int)user.Role;
         entity.Status = (int)user.Status;
         entity.UpdatedAt = user.UpdatedAt;
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task ChangePasswordAndRevokeSessionsAsync(
+        User user,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var entity = await db.Users
+            .SingleOrDefaultAsync(candidate => candidate.Id == user.Id, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"user {user.Id} does not exist.");
+
+        entity.PasswordHash = user.PasswordHash;
+        entity.UpdatedAt = user.UpdatedAt;
+
+        var sessions = await db.Sessions
+            .Where(session => session.UserId == user.Id && session.RevokedAt == null)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (var session in sessions)
+        {
+            session.RevokedAt ??= now;
+        }
+
+        var accessTokens = await db.AccessTokens
+            .Where(token => token.UserId == user.Id && token.RevokedAt == null)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (var accessToken in accessTokens)
+        {
+            accessToken.RevokedAt ??= now;
+        }
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 }
 
@@ -347,7 +389,7 @@ public sealed class EfLegadoAccessTokenRepository(IdentityDbContext db)
     {
         var entities = await db.LegadoTokens
             .AsNoTracking()
-            .Where(token => token.UserId == userId)
+            .Where(token => token.UserId == userId && token.RevokedAt == null)
             .OrderByDescending(token => token.CreatedAt)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -357,22 +399,15 @@ public sealed class EfLegadoAccessTokenRepository(IdentityDbContext db)
     public async Task<bool> RevokeAsync(
         Guid userId,
         Guid tokenId,
-        DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
-        var entity = await db.LegadoTokens
-            .SingleOrDefaultAsync(
-                token => token.Id == tokenId && token.UserId == userId,
-                cancellationToken)
+        var deleted = await db.LegadoTokens
+            .Where(token => token.Id == tokenId &&
+                token.UserId == userId &&
+                token.RevokedAt == null)
+            .ExecuteDeleteAsync(cancellationToken)
             .ConfigureAwait(false);
-        if (entity is null)
-        {
-            return false;
-        }
-
-        entity.RevokedAt ??= now;
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return true;
+        return deleted == 1;
     }
 }
 

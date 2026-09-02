@@ -69,7 +69,7 @@ public sealed class LegadoAccessTokenServiceTests
     }
 
     [TestMethod]
-    public async Task Revoke_Requires_Owner_And_Is_Idempotent_For_Owner()
+    public async Task Revoke_Requires_Owner_And_Deletes_Own_Record()
     {
         var context = CreateContext();
         var otherUser = User.Create("other@example.com", "$hash$only", T0);
@@ -84,8 +84,9 @@ public sealed class LegadoAccessTokenServiceTests
         Assert.AreEqual(
             LegadoTokenResultStatus.Success,
             await context.Service.RevokeAsync(context.User.Id, issued.Issue.Info.Id));
+        Assert.AreEqual(0, context.Tokens.Store.Count);
         Assert.AreEqual(
-            LegadoTokenResultStatus.Success,
+            LegadoTokenResultStatus.NotFound,
             await context.Service.RevokeAsync(context.User.Id, issued.Issue.Info.Id));
     }
 
@@ -171,6 +172,12 @@ public sealed class LegadoAccessTokenServiceTests
 
         public Task SaveAsync(User user, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task ChangePasswordAndRevokeSessionsAsync(
+            User user,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class InMemoryTokenRepository : ILegadoAccessTokenRepository
@@ -199,7 +206,6 @@ public sealed class LegadoAccessTokenServiceTests
         public Task<bool> RevokeAsync(
             Guid userId,
             Guid tokenId,
-            DateTimeOffset now,
             CancellationToken cancellationToken = default)
         {
             var token = Store.SingleOrDefault(candidate =>
@@ -209,7 +215,7 @@ public sealed class LegadoAccessTokenServiceTests
                 return Task.FromResult(false);
             }
 
-            token.Revoke(now);
+            Store.Remove(token);
             return Task.FromResult(true);
         }
     }

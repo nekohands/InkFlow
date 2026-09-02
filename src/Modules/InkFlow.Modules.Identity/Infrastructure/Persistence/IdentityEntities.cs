@@ -10,6 +10,7 @@ public sealed class UserEntity
     public Guid Id { get; set; }
     public string Email { get; set; } = null!;
     public string NormalizedEmail { get; set; } = null!;
+    public string DisplayName { get; set; } = null!;
     public string PasswordHash { get; set; } = null!;
     public int Role { get; set; }
     public int Status { get; set; }

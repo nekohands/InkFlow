@@ -88,7 +88,7 @@ public sealed class LegadoAccessTokenService(
         }
 
         var revoked = await tokens
-            .RevokeAsync(userId, tokenId, clock.GetUtcNow(), cancellationToken)
+            .RevokeAsync(userId, tokenId, cancellationToken)
             .ConfigureAwait(false);
         return revoked
             ? LegadoTokenResultStatus.Success

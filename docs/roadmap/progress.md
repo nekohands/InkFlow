@@ -3,9 +3,9 @@
 > 持续进度账本。状态只以真实代码、测试、Runtime 和 CI 结果为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
+- 当前阶段：1.0 Release Candidate（本轮账户中心与令牌生命周期的本机/VM 自动化已通过，候选提交 CI 待触发，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.39 Web Reader 第二轮真实页面复验已记录；代码候选为 `c0af4af`，本轮浏览器页面、边界、响应式和运行错误检查均已通过，代码候选及随后文档提交的 CI/Docker/Security 均通过。
+- 文档状态：5.44 账户中心与 Personal Legado 令牌生命周期已记录；当前工作树包含待提交改动，本机、Ubuntu VM 源码 Compose 和内置浏览器自动化证据已通过，候选提交 CI/Docker/Security 待触发。
 - 最后更新日期：2026-09-02
 
 ## 1. 总体状态
@@ -1591,6 +1591,16 @@ Phase 1A 自动化工作包状态：
 - 远端门禁：候选提交 `515bc04` 的 [CI 33621755689](https://github.com/nekohands/InkFlow/actions/runs/33621755689)、[Docker 33621755629](https://github.com/nekohands/InkFlow/actions/runs/33621755629)、[Security 33621755496](https://github.com/nekohands/InkFlow/actions/runs/33621755496) 均 success，三者 head SHA 一致；CI 同时通过完整 Test、Compose、Runtime/SLO、Redis、备份恢复和诊断。
 - 决策记录：详见 [ADR 0024](../adr/0024-first-registration-administrator-bootstrap.md)、`docs/architecture/domain-model.md` 和 `docs/architecture/security-model.md`。首个账号是高影响引导身份，生产环境仍需受控注册开放、强密码、限流和恢复治理；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.44 账户中心设置与 Personal Legado 令牌生命周期（本轮，2026-09-02）
+
+- 实现：账户页改为头像右置的资料卡和“个人资料 / 账户安全 / 阅读器令牌”页签；支持显示名称、当前密码校验后改密，以及 Personal Legado 令牌创建、元数据列表和按所有权撤销。
+- 令牌规则：撤销接口现在以所有权和未撤销条件执行原子删除，撤销即失效并删除记录，不提供恢复或第二个删除入口；旧数据中的已撤销记录不再展示，需重新创建令牌。
+- 本机证据：Restore PASS；Release Build 0 warnings / 0 errors；Unit 553/553、Architecture 1/1、Contract 10/10 PASS；迁移模型无 pending changes；账户/前端 shell 回归和 `git diff --check` PASS。
+- VM 证据：Ubuntu VM 源码构建 Compose 重建并通过 `/health`；前端 smoke PASS；SDK 容器完整测试为 Unit 553/553、Architecture 1/1、Contract 10/10、Integration 104 passed / 3 skipped / 0 failed；账户 runtime smoke 覆盖注册、登录、刷新轮换、登出、偏好、书架、进度、历史及令牌撤销后立即删除记录，PASS。
+- 浏览器证据：内置浏览器已使用一次性 `.invalid` 测试账号登录，资料/安全/令牌页签与面板切换、头像右置、无横向溢出和控制台错误检查均通过；未执行会删除当前浏览器测试令牌的撤销点击。
+- 安全边界：未使用或提交真实外部账户、生产密码、Cookie 或 Personal Legado Token；阅读 3.0/MuMu 真机导入与阅读按用户决定继续列入人工待定事项。
+- 状态：已实现，等待候选提交及远端 CI/Docker/Security 门禁；在 CI 和剩余人工验收完成前不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
@@ -1726,9 +1736,9 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-02）：代码候选 `515bc04` 已实现首个注册账号 Administrator、后续注册账号 Reader 的并发安全引导规则，并通过本机定向验证、Ubuntu VM 源码 Compose 完整测试、Web Reader 内置浏览器认证链路复验和远端三条门禁。既有浏览器证据覆盖 Web Reader 书库、详情/目录、章节、阅读设置、书架/历史、独立登录/注册、登出及匿名回跳；VM 当前源码构建 Compose 服务保持健康；[CI 33621755689](https://github.com/nekohands/InkFlow/actions/runs/33621755689)、[Docker 33621755629](https://github.com/nekohands/InkFlow/actions/runs/33621755629)、[Security 33621755496](https://github.com/nekohands/InkFlow/actions/runs/33621755496) 均 success 且 head SHA 一致。
+最新状态（2026-09-02）：当前工作树已实现账户中心设置页、改密流程和 Personal Legado 令牌撤销即删除规则；本机、Ubuntu VM 源码 Compose、账户 runtime smoke 和内置浏览器账户中心自动化检查均通过，候选提交尚待创建并触发远端门禁。
 
-当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。首个管理员规则已实现并通过自动化门禁，整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 以下为历史复验记录，仅用于追溯，不代表当前最新测试数字：
 

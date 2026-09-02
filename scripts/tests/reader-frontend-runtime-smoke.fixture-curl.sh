@@ -31,7 +31,7 @@ case "$url" in
     body='lang="zh-CN" id="main-content" role="search" class="search-bar" class="skip-link" :focus-visible @media (max-width: 640px) @media (prefers-reduced-motion: reduce) /reader/manifest.webmanifest id="reader-install" beforeinstallprompt event.preventDefault() appinstalled reader-auth-pending location.replace returnTo'
     ;;
   */reader/account)
-    body='id="reader-login-form" /reader/account/register autocomplete="current-password" reader-auth-pending sessionStorage rel="manifest" /reader/sw.js aria-live="polite"'
+    body='id="reader-login-form" /reader/account/register autocomplete="current-password" reader-session-profile reader-session-role account-panel account-tabs role="tablist" data-account-tab="profile" account-panel-profile account-panel-security account-panel-reader reader-admin-panel 进入运营中心 reader-profile-form /api/v1/me/profile reader-password-form /api/v1/me/password reader-legado-token-form /api/v1/me/legado/tokens 记录也会立即删除 撤销会立即删除记录 reader-legado-token-reveal 仅显示一次 reader-auth-pending sessionStorage rel="manifest" /reader/sw.js aria-live="polite"'
     ;;
   */reader/account/register)
     body='id="reader-register-form" autocomplete="new-password" minlength="12" /reader/account reader-auth-pending sessionStorage rel="manifest" /reader/sw.js aria-live="polite"'

@@ -167,6 +167,81 @@ public sealed class IdentityService : IIdentityService
         return _sessions.RevokeSessionAsync(sessionId, _clock.GetUtcNow(), cancellationToken);
     }
 
+    public async Task<IdentityProfile?> GetProfileAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var user = await _users.GetAsync(userId, cancellationToken).ConfigureAwait(false);
+        return user is null ? null : ToProfile(user);
+    }
+
+    public async Task<ProfileOperationResult> UpdateProfileAsync(
+        Guid userId,
+        string? displayName,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return ProfileOperationResult.Failure(ProfileResultStatus.InvalidRequest);
+        }
+
+        var user = await _users.GetAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (user is null)
+        {
+            return ProfileOperationResult.Failure(ProfileResultStatus.NotFound);
+        }
+
+        try
+        {
+            user.UpdateDisplayName(displayName, _clock.GetUtcNow());
+        }
+        catch (ArgumentException)
+        {
+            return ProfileOperationResult.Failure(ProfileResultStatus.InvalidRequest);
+        }
+
+        await _users.SaveAsync(user, cancellationToken).ConfigureAwait(false);
+        return ProfileOperationResult.Success(ToProfile(user));
+    }
+
+    public async Task<PasswordChangeOperationResult> ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(currentPassword) ||
+            currentPassword.Length > MaximumPasswordLength ||
+            !IsValidPassword(newPassword))
+        {
+            return new PasswordChangeOperationResult(PasswordChangeResultStatus.InvalidRequest);
+        }
+
+        var user = await _users.GetAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (user is null || !user.CanAuthenticate)
+        {
+            return new PasswordChangeOperationResult(PasswordChangeResultStatus.NotFound);
+        }
+
+        if (!_passwords.Verify(currentPassword, user.PasswordHash))
+        {
+            return new PasswordChangeOperationResult(PasswordChangeResultStatus.InvalidCredentials);
+        }
+
+        var now = _clock.GetUtcNow();
+        user.ChangePasswordHash(_passwords.Hash(newPassword), now);
+        await _users
+            .ChangePasswordAndRevokeSessionsAsync(user, now, cancellationToken)
+            .ConfigureAwait(false);
+        return new PasswordChangeOperationResult(PasswordChangeResultStatus.Success);
+    }
+
     private async Task<IdentityOperationResult> CreateSessionAsync(
         User user,
         DateTimeOffset now,
@@ -220,6 +295,20 @@ public sealed class IdentityService : IIdentityService
                !string.IsNullOrWhiteSpace(password) &&
                password.Length is >= MinimumPasswordLength and <= MaximumPasswordLength;
     }
+
+    private static bool IsValidPassword(string password) =>
+        !string.IsNullOrWhiteSpace(password) &&
+        password.Length is >= MinimumPasswordLength and <= MaximumPasswordLength;
+
+    private static IdentityProfile ToProfile(User user) =>
+        new(
+            user.Id,
+            user.Email,
+            user.DisplayName,
+            user.Role,
+            user.Status,
+            user.CreatedAt,
+            user.UpdatedAt);
 
     private static bool TryNormalizeEmail(string email, out string normalizedEmail)
     {
