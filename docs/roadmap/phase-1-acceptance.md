@@ -100,7 +100,8 @@ The 2026-09-02 authenticated-access recheck verified that `/reader/account` and
 `/reader`, Book Detail, Chapter Reader, shelf, history, offline and Operations
 redirect to `/reader/account?returnTo=...` before the page is revealed. The API
 continues to enforce Bearer authentication independently. The return target is
-limited to same-origin application paths.
+limited to same-origin application paths, including the no-content 404 chapter
+fallback.
 
 ### Human / visual acceptance evidence
 
