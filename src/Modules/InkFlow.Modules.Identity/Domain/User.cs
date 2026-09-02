@@ -28,10 +28,18 @@ public sealed class User
 
     private User() { }
 
-    public static User Create(string email, string passwordHash, DateTimeOffset now)
+    public static User Create(
+        string email,
+        string passwordHash,
+        DateTimeOffset now,
+        UserRole role = UserRole.Reader)
     {
         var normalizedEmail = UserEmailAddress.Normalize(email);
         ValidatePasswordHash(passwordHash);
+        if (!Enum.IsDefined(role))
+        {
+            throw new ArgumentOutOfRangeException(nameof(role));
+        }
 
         return new User
         {
@@ -39,7 +47,7 @@ public sealed class User
             Email = normalizedEmail,
             NormalizedEmail = normalizedEmail,
             PasswordHash = passwordHash,
-            Role = UserRole.Reader,
+            Role = role,
             Status = UserStatus.Active,
             CreatedAt = now,
             UpdatedAt = now,

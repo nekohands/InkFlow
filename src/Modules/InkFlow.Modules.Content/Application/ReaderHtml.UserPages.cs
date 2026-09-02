@@ -163,6 +163,7 @@ public static partial class ReaderHtml
 
           const showSignedIn = async () => {
             if (!client?.isSignedIn()) {
+              setStatus("请登录后继续使用 InkFlow。");
               if (forms) forms.hidden = false;
               if (session) session.hidden = true;
               return;
@@ -170,6 +171,7 @@ public static partial class ReaderHtml
 
             const response = await client.apiFetch("/api/v1/auth/me");
             if (response === null) {
+              setStatus("当前会话暂时无法验证，请检查网络后重试。");
               if (forms) forms.hidden = true;
               if (session) session.hidden = false;
               if (user) user.textContent = "当前会话暂时无法验证，请检查网络后重试。";
@@ -177,6 +179,7 @@ public static partial class ReaderHtml
             }
             if (!response.ok) {
               client.clearSession();
+              setStatus("会话已失效，请重新登录。");
               if (forms) forms.hidden = false;
               if (session) session.hidden = true;
               return;
@@ -185,6 +188,7 @@ public static partial class ReaderHtml
             const payload = await response.json().catch(() => null);
             if (forms) forms.hidden = true;
             if (session) session.hidden = false;
+            setStatus("当前会话已验证。");
             if (user) user.textContent = payload?.email ? `已登录：${payload.email}` : "已登录";
           };
 

@@ -168,6 +168,16 @@ public interface IUserRepository
 
     Task<User?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Persists a registration atomically; the first persisted user is an Administrator,
+    /// and later registrations are Readers. Returns null for a duplicate email.
+    /// </summary>
+    Task<User?> AddRegistrationAsync(
+        string normalizedEmail,
+        string passwordHash,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(User user, CancellationToken cancellationToken = default);
 
     Task SaveAsync(User user, CancellationToken cancellationToken = default);

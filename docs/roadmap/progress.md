@@ -1570,8 +1570,25 @@ Phase 1A 自动化工作包状态：
 - 页面行为：`/reader/account` 只显示登录表单；`/reader/account/register` 只显示注册表单。两页均使用单卡片布局并提供互相跳转入口，切换页面时保留安全 `returnTo`，登录或注册成功后只允许回到同源白名单路径。
 - 匿名门禁：内置浏览器在无会话访问 `/reader`、书籍详情、章节（含缺失正文的 404 回退页）、书架、历史、离线页和 `/admin/operations` 时，均在页面显示前跳转到 `/reader/account?returnTo=...`，并保留原始安全回跳地址；登录页和注册页不再平铺两套表单。服务端 API 仍独立执行 Bearer 认证与授权，Manifest、Service Worker 和图标仅作为公共静态壳资源例外。
 - 实际证据：VM 源码构建 Compose 保持健康；浏览器逐项复验上述匿名路由跳转、登录/注册独立表单、`returnTo` 编码和横向溢出，浏览器错误日志为 0；`reader-frontend-runtime-smoke: PASS`。
-- 自动化证据：本机 Release Build 0 warnings / 0 errors；Unit 548/548、Architecture 1/1、Contract 10/10；前端 smoke fixture/结构回归 PASS。未创建账户、未提交真实密码或令牌。
-- 当前边界：真实账户登录成功路径、Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装/跨设备及其他第 6 节事项继续待专用环境或人工验收；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 自动化证据：本机 Release Build 0 warnings / 0 errors；Unit 548/548、Architecture 1/1、Contract 10/10；前端 smoke fixture/结构回归 PASS。本条记录对应匿名门禁阶段，认证账户链路见 5.42。
+- 当前边界：Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装/跨设备及其他第 6 节事项继续待专用环境或人工验收；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.42 Web Reader 临时测试账户认证链路（本轮，2026-09-02）
+
+- 账户边界：通过 `/reader/account/register` 创建随机一次性 `.invalid` 测试账号并自动登录；账号、密码和令牌仅在浏览器运行时使用，未写入仓库、`.env` 或交接文档。
+- 浏览器证据：注册后进入书库，完成书库→详情→目录→章节正文；阅读进度显示 100% 且同步状态为“已同步”；阅读设置 dialog 可打开/关闭；书架和历史均能看到对应记录；账户页显示“当前会话已验证”。
+- 回归修复：发现认证账户页仍显示未登录提示，补充 `ReaderHtmlTests` 断言并让账户页按未登录、会话不可验证、会话失效、会话已验证分别更新状态提示；焦点回归 24/24 通过。
+- 登出证据：退出后账户页恢复登录表单；再次访问 `/reader/shelf` 跳转到登录页并保留 `returnTo=/reader/shelf`；浏览器错误日志为 0。
+- VM 证据：Ubuntu VM 源码构建 Compose 重建成功并保持健康；VM SDK 容器内 Release Build 0 warnings / 0 errors，Unit 548/548、Architecture 1/1、Contract 10/10，Integration 106 项为 103 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。
+- 当前边界：测试账号仅证明 Web Reader 的本地认证与用户状态链路，不替代阅读 3.0/MuMu、Personal Legado Token、真实外部身份/Provider、PWA 安装/跨设备及第 6 节人工验收；整体不标记 `Accepted/Completed`。
+
+### 5.43 首个注册账号管理员引导规则（本轮，2026-09-02）
+
+- 需求对齐：确认并落实“第一个成功注册的账号默认是 Administrator，后续注册账号为 Reader”；角色不接受客户端输入，Administrator 沿用现有全部应用管理员权限和来源级授权绕过规则。
+- 实现：公开注册改走 `IUserRepository.AddRegistrationAsync`；PostgreSQL 在事务内取得固定键 advisory lock，锁内重查重复邮箱和已有用户后再决定角色并提交，跨 API 实例只允许一个首个管理员。既有账号不追溯提权，直接写入/测试夹具仍使用普通仓储入口。
+- 自动化证据：本机 Release Build 0 warnings / 0 errors；Unit 549/549、Architecture 1/1、Contract 10/10；shell 回归 PASS。新增 PostgreSQL 集成测试验证两个独立 DbContext 并发注册后恰好一个 Administrator、一个 Reader。
+- VM 证据：Ubuntu VM 使用源码构建 Compose，PostgreSQL/Redis/API/Worker/Scheduler 健康；VM SDK 容器内完整 Restore → Build → Test 为 Build 0/0、Unit 549/549、Architecture 1/1、Contract 10/10、Integration 107 项 104 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。
+- 决策记录：详见 [ADR 0024](../adr/0024-first-registration-administrator-bootstrap.md)、`docs/architecture/domain-model.md` 和 `docs/architecture/security-model.md`。首个账号是高影响引导身份，生产环境仍需受控注册开放、强密码、限流和恢复治理；整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 

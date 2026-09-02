@@ -270,6 +270,26 @@ public sealed class ResourcePermissionTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult(Store.SingleOrDefault(user => user.Id == id));
 
+        public Task<User?> AddRegistrationAsync(
+            string email,
+            string passwordHash,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            if (Store.Any(user => user.NormalizedEmail == email))
+            {
+                return Task.FromResult<User?>(null);
+            }
+
+            var user = User.Create(
+                email,
+                passwordHash,
+                now,
+                Store.Count == 0 ? UserRole.Administrator : UserRole.Reader);
+            Store.Add(user);
+            return Task.FromResult<User?>(user);
+        }
+
         public Task AddAsync(User user, CancellationToken cancellationToken = default)
         {
             Store.Add(user);

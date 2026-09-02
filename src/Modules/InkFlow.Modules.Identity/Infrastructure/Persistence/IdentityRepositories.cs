@@ -120,6 +120,24 @@ public static class IdentityMapper
             entity.RevokedAt);
 }
 
+/// <summary>
+/// Serializes registration role assignment across API instances in the same PostgreSQL database.
+/// The fixed key represents the identity bootstrap decision and contains no user data.
+/// </summary>
+// ponytail: one global lock is sufficient for low-frequency bootstrap; shard only if signup throughput matters.
+internal static class IdentityAdvisoryLock
+{
+    private const int NamespaceKey = 1301;
+    private const int RegistrationKey = 1;
+
+    public static Task AcquireRegistrationAsync(
+        IdentityDbContext db,
+        CancellationToken cancellationToken) =>
+        db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({NamespaceKey}, {RegistrationKey})",
+            cancellationToken);
+}
+
 public sealed class EfUserRepository(IdentityDbContext db) : IUserRepository
 {
     public async Task<User?> FindByNormalizedEmailAsync(
@@ -140,6 +158,37 @@ public sealed class EfUserRepository(IdentityDbContext db) : IUserRepository
             .SingleOrDefaultAsync(user => user.Id == id, cancellationToken)
             .ConfigureAwait(false);
         return entity is null ? null : IdentityMapper.ToDomain(entity);
+    }
+
+    public async Task<User?> AddRegistrationAsync(
+        string normalizedEmail,
+        string passwordHash,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await IdentityAdvisoryLock
+            .AcquireRegistrationAsync(db, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (await db.Users
+                .AnyAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+
+        var role = await db.Users.AnyAsync(cancellationToken).ConfigureAwait(false)
+            ? UserRole.Reader
+            : UserRole.Administrator;
+        var user = User.Create(normalizedEmail, passwordHash, now, role);
+        db.Users.Add(IdentityMapper.ToEntity(user));
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return user;
     }
 
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)

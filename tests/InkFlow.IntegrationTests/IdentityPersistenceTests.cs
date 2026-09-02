@@ -52,6 +52,42 @@ public sealed class IdentityPersistenceTests
     }
 
     [TestMethod]
+    public async Task Concurrent_Registrations_Assign_Administrator_To_Only_First_User()
+    {
+        await using var isolatedContainer = new PostgreSqlBuilder(
+            new DockerImage("postgres:18-alpine")).Build();
+        await isolatedContainer.StartAsync().ConfigureAwait(false);
+
+        await using var firstDb = CreateDb(isolatedContainer);
+        await using var secondDb = CreateDb(isolatedContainer);
+        var firstUsers = new EfUserRepository(firstDb);
+        var secondUsers = new EfUserRepository(secondDb);
+
+        var users = await Task.WhenAll(
+            firstUsers.AddRegistrationAsync("first-registration@example.com", "$hash$first", T0),
+            secondUsers.AddRegistrationAsync("second-registration@example.com", "$hash$second", T0))
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(2, users.Count(user => user is not null));
+        Assert.AreEqual(
+            1,
+            users.Count(user => user?.Role == UserRole.Administrator));
+        Assert.AreEqual(
+            1,
+            users.Count(user => user?.Role == UserRole.Reader));
+
+        await using var verifyDb = CreateDb(isolatedContainer);
+        var persistedRoles = await verifyDb.Users
+            .AsNoTracking()
+            .Select(user => user.Role)
+            .ToListAsync()
+            .ConfigureAwait(false);
+        CollectionAssert.AreEquivalent(
+            new[] { (int)UserRole.Administrator, (int)UserRole.Reader },
+            persistedRoles);
+    }
+
+    [TestMethod]
     public async Task Permission_Grants_Roundtrip_And_Regrant_After_Revocation()
     {
         await using var db = CreateDb();
@@ -242,9 +278,12 @@ public sealed class IdentityPersistenceTests
     }
 
     private static IdentityDbContext CreateDb()
+        => CreateDb(_container!);
+
+    private static IdentityDbContext CreateDb(PostgreSqlContainer container)
     {
         var options = new DbContextOptionsBuilder<IdentityDbContext>()
-            .UseNpgsql(_container!.GetConnectionString())
+            .UseNpgsql(container.GetConnectionString())
             .Options;
         var db = new IdentityDbContext(options);
         db.Database.Migrate();

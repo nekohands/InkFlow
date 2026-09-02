@@ -1374,7 +1374,23 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 产品契约：`/reader/account` 只提供登录，`/reader/account/register` 只提供注册；两页保持单卡片布局和互相跳转，切换页面保留安全 `returnTo`，成功后回跳地址经过同源白名单限制。
 - 路由门禁：无会话访问 Reader、详情、章节（含缺失正文的 404 回退页）、书架、历史、离线和 Operations 页面时，浏览器在显示页面前跳转到登录页并保留安全 `returnTo`；登录/注册页是 Reader/PWA 用户页中唯一公开 HTML 页面，Manifest、Service Worker 和图标是公共静态壳资源。API 认证与授权仍由服务端独立执行。
 - 证据：VM 源码 Compose 健康；内置浏览器实际复验匿名路由跳转、独立登录/注册表单、切换页面保留回跳、回跳编码和无横向溢出，控制台错误日志为 0；本机 Unit 548/548、Architecture 1/1、Contract 10/10、Release Build 0/0 和前端 smoke 均通过。
-- 安全边界：本轮没有创建账户，也没有提交真实密码、Access/Refresh Token 或 Personal Legado Token；真实账户成功登录/注册、PWA 安装跨设备、阅读 3.0/MuMu/ADB 和其他第 6 节人工事项继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 安全边界：本条记录对应匿名门禁阶段；认证账户链路见 5.42。未提交密码、Access/Refresh Token 或 Personal Legado Token。真实外部凭据、PWA 安装跨设备、阅读 3.0/MuMu/ADB 和其他第 6 节人工事项继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.42 Web Reader 临时测试账户认证链路（本轮，2026-09-02）
+
+- 账户边界：通过 `/reader/account/register` 创建随机一次性 `.invalid` 测试账号并自动登录；账号、密码和令牌仅在浏览器运行时使用，未写入仓库、`.env` 或交接文档。
+- 浏览器证据：完成书库→详情→目录→章节正文；阅读进度 100% 且状态为“已同步”；阅读设置 dialog 可打开/关闭；书架、历史和账户会话状态均正确显示。
+- 回归修复：账户页认证成功后显示“当前会话已验证”；未登录、会话不可验证和会话失效分支也更新状态提示。焦点回归 24/24 通过。
+- 登出证据：退出后恢复登录表单；访问 `/reader/shelf` 跳转登录并保留 `returnTo=/reader/shelf`；浏览器错误日志为 0。
+- VM 证据：Ubuntu VM 源码构建 Compose 健康；VM SDK 容器内 Release Build 0 warnings / 0 errors，Unit 548/548、Architecture 1/1、Contract 10/10，Integration 106 项为 103 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。
+- 边界：该账号仅用于本地 Web Reader 认证与用户状态验收，不替代阅读 3.0/MuMu、Personal Legado Token、真实外部身份/Provider、PWA 安装/跨设备和第 6 节人工验收；整体仍不标记 `Accepted/Completed`。
+
+### 5.43 首个注册账号管理员引导规则交接（本轮，2026-09-02）
+
+- 需求对齐：首个成功注册并持久化的账号获得 `Administrator`，后续公开注册账号获得 `Reader`；客户端不能提交角色，Administrator 复用现有全部应用管理员权限和来源级授权绕过规则。
+- 实现：`IdentityService.RegisterAsync` 使用 `IUserRepository.AddRegistrationAsync`；EF 仓储在 PostgreSQL 事务内取得固定键 advisory lock，在锁内重查重复邮箱和已有用户后决定角色并提交。既有账号不追溯提权，测试/直接写入继续走普通 `AddAsync`。
+- 验证：本机 Release Build 0 warnings / 0 errors、Unit 549/549、Architecture 1/1、Contract 10/10、shell 回归均通过；Ubuntu VM 源码 Compose 重建和健康检查通过，VM 完整 Restore → Build → Test 为 Build 0/0、Unit 549/549、Architecture 1/1、Contract 10/10、Integration 107 项 104 passed / 3 skipped / 0 failed；`reader-frontend-runtime-smoke: PASS`。
+- 安全/边界：并发注册集成测试使用两个独立 DbContext 验证恰好一个管理员；未提交密码、Access/Refresh Token 或其他 secret。首个账号属于高影响部署引导身份，受控注册开放、强密码、限流和恢复治理仍是生产要求。详见 [ADR 0024](../adr/0024-first-registration-administrator-bootstrap.md)。整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

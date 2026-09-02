@@ -21,6 +21,11 @@ Identity v1 的 `User` 以邮箱规范化值保持唯一，账号状态控制是
 `AccessToken` 分离保存，客户端只持有 opaque 原始 token，数据库只保存不可逆摘要。Refresh
 轮换在存储层以事务行锁保证一次性成功，登出可撤销会话及其访问令牌。
 
+注册引导规则是 Identity 的显式业务不变量：第一条成功持久化的 `User` 获得 `Administrator` 角色，
+之后通过公开注册创建的账号均为 `Reader`。角色不是客户端输入；注册仓储在 PostgreSQL 事务中使用
+事务级 advisory lock，并在锁内重新检查重复邮箱和已有用户，保证多 API 实例并发注册时只有一个首个管理员。
+既有账号不会因该规则被追溯提权；Administrator 沿用现有角色授权并绕过来源级授权 grant。
+
 ## Developers & Commercial
 
 `DeveloperApplication` 是用户拥有的生产环境外部集成注册；它与 `User`、API Key 和公共目录身份分离。`DeveloperApiKey` 绑定应用，使用 opaque 原文、Prefix、不可逆摘要、单一 `catalog.read` scope、创建/过期/最后使用/撤销元数据；原文只在签发或轮换响应中出现一次。撤销应用会使其密钥失效，API Key 认证不会接受 URL 或 Query 中的密钥。

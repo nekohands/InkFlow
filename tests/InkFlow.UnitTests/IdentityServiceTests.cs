@@ -18,6 +18,7 @@ public sealed class IdentityServiceTests
         Assert.IsTrue(result.IsSuccess);
         Assert.IsNotNull(result.Session);
         Assert.AreEqual("user@example.com", result.Session!.Email);
+        Assert.AreEqual(UserRole.Administrator, result.Session.Role);
         Assert.AreNotEqual(result.Session.AccessToken, result.Session.RefreshToken);
         Assert.IsFalse(context.Users.Store.Single().PasswordHash.Contains("correct horse", StringComparison.Ordinal));
         Assert.AreEqual(1, context.Sessions.RefreshSessions.Count);
@@ -25,6 +26,28 @@ public sealed class IdentityServiceTests
         Assert.AreEqual(
             OpaqueTokenHashing.Hash(result.Session.RefreshToken),
             context.Sessions.RefreshSessions.Single().RefreshTokenHash);
+    }
+
+    [TestMethod]
+    public async Task Register_Assigns_Reader_To_Accounts_After_The_First()
+    {
+        var context = CreateContext();
+
+        var first = await context.Service.RegisterAsync(
+            "first@example.com",
+            "correct horse battery staple");
+        var second = await context.Service.RegisterAsync(
+            "second@example.com",
+            "another correct password");
+
+        Assert.AreEqual(UserRole.Administrator, first.Session!.Role);
+        Assert.AreEqual(UserRole.Reader, second.Session!.Role);
+        Assert.AreEqual(
+            UserRole.Administrator,
+            context.Users.Store.Single(user => user.Email == "first@example.com").Role);
+        Assert.AreEqual(
+            UserRole.Reader,
+            context.Users.Store.Single(user => user.Email == "second@example.com").Role);
     }
 
     [TestMethod]
@@ -80,7 +103,7 @@ public sealed class IdentityServiceTests
         Assert.IsNotNull(validated);
         Assert.AreEqual(rotated.Session.UserId, validated!.UserId);
         Assert.AreEqual(rotated.Session.SessionId, validated.SessionId);
-        Assert.AreEqual(UserRole.Reader, validated.Role);
+        Assert.AreEqual(UserRole.Administrator, validated.Role);
     }
 
     [TestMethod]
@@ -155,6 +178,26 @@ public sealed class IdentityServiceTests
 
         public Task<User?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult(Store.SingleOrDefault(user => user.Id == id));
+
+        public Task<User?> AddRegistrationAsync(
+            string email,
+            string passwordHash,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default)
+        {
+            if (Store.Any(candidate => candidate.NormalizedEmail == email))
+            {
+                return Task.FromResult<User?>(null);
+            }
+
+            var user = User.Create(
+                email,
+                passwordHash,
+                now,
+                Store.Count == 0 ? UserRole.Administrator : UserRole.Reader);
+            Store.Add(user);
+            return Task.FromResult<User?>(user);
+        }
 
         public Task AddAsync(User user, CancellationToken cancellationToken = default)
         {

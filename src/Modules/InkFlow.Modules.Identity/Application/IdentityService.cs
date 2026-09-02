@@ -54,8 +54,18 @@ public sealed class IdentityService : IIdentityService
         }
 
         var now = _clock.GetUtcNow();
-        var user = User.Create(normalizedEmail, _passwords.Hash(password), now);
-        await _users.AddAsync(user, cancellationToken).ConfigureAwait(false);
+        var user = await _users
+            .AddRegistrationAsync(
+                normalizedEmail,
+                _passwords.Hash(password),
+                now,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (user is null)
+        {
+            return IdentityOperationResult.Failure(IdentityResultStatus.EmailAlreadyRegistered);
+        }
+
         return await CreateSessionAsync(user, now, cancellationToken).ConfigureAwait(false);
     }
 
