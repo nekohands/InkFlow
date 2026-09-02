@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.38 Web Reader 搜索来源超时隔离修复与回归已记录；代码候选为 `c0af4af`，本机回归、Ubuntu VM 源码 Compose 运行验收及浏览器搜索→详情→章节复验均通过，代码候选 CI 待远端完成；最新交接见 5.38。
+- 文档状态：5.38 Web Reader 搜索来源超时隔离修复与回归已记录；代码候选为 `c0af4af`，本机回归、Ubuntu VM 源码 Compose 运行验收及浏览器搜索→详情→章节复验均通过，代码候选 CI/Docker/Security 均通过；最新交接见 5.38。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-02；dev 骨架重建更新：2026-08-25
 
@@ -1351,7 +1351,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 修复：`BookDiscoveryService` 在搜索和发现两层专门捕获未由调用方主动取消触发的 `TaskCanceledException`，转为来源级安全告警并继续其他来源；调用方取消仍传播，公共 API Contract 不变。
 - 本地证据：先以超时来源 + 正常来源建立红灯回归，再修复为绿灯；Restore PASS，Release Build 0 warnings / 0 errors，Unit 546/546、Architecture 1/1、Contract 10/10、`git diff --check` PASS。
 - VM/浏览器证据：源码 Compose 重建后 API、Worker、Scheduler、PostgreSQL、Redis 健康；浏览器搜索得到 1 条 fixture 并显示线上来源暂时不可访问的降级提示，继续进入详情和章节页通过；API 最新搜索请求 HTTP 200。
-- 下一步：检查 `c0af4af` 对应 CI；保留 Windows Testcontainers named pipe、浏览器原始 JSON/PWA 资源限制、真实账户/Personal Token、阅读 3.0/MuMu/ADB 和其他第 6 节待定事项。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 远端证据：`c0af4af` 的 [CI 33597279466](https://github.com/nekohands/InkFlow/actions/runs/33597279466)、[Docker 33597279497](https://github.com/nekohands/InkFlow/actions/runs/33597279497)、[Security 33597279676](https://github.com/nekohands/InkFlow/actions/runs/33597279676) 均 success 且 head SHA 一致。
+- 下一步：保留 Windows Testcontainers named pipe、浏览器原始 JSON/PWA 资源限制、真实账户/Personal Token、阅读 3.0/MuMu/ADB 和其他第 6 节待定事项。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

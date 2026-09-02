@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.38 Web Reader 搜索来源超时隔离修复与回归已记录；代码候选为 `c0af4af`，本轮本机自动化回归、Ubuntu VM 源码 Compose 运行验收及浏览器搜索→详情→章节复验均已通过，代码候选 CI 待远端完成。
+- 文档状态：5.38 Web Reader 搜索来源超时隔离修复与回归已记录；代码候选为 `c0af4af`，本轮本机自动化回归、Ubuntu VM 源码 Compose 运行验收及浏览器搜索→详情→章节复验均已通过，代码候选及随后文档提交的 CI/Docker/Security 均通过。
 - 最后更新日期：2026-09-02
 
 ## 1. 总体状态
@@ -1547,7 +1547,7 @@ Phase 1A 自动化工作包状态：
 - 修复：在 `BookDiscoveryService` 的搜索和发现两层增加专门的 `TaskCanceledException` 降级处理，仅在调用方取消令牌未取消时生效；调用方主动取消仍正常传播，不改变公共 API Contract。
 - 回归：先以超时来源 + 正常来源建立红灯回归，再修复为绿灯；`dotnet restore InkFlow.sln`、Release Build（0 warnings / 0 errors）、Unit 546/546、Architecture 1/1、Contract 10/10 和 `git diff --check` 均 PASS。
 - VM/浏览器：Ubuntu VM 源码 Compose 重建后 API、Worker、Scheduler、PostgreSQL、Redis 健康；浏览器真实点击搜索得到 1 条 `InkFlow Runtime Acceptance Fixture`，显示“部分线上来源暂时无法访问”的降级提示，继续进入详情和章节页通过；API 最新搜索请求 HTTP 200。
-- 边界：本机 Windows Testcontainers 仍因 Docker Engine named pipe 不可用而 BLOCKED；内置浏览器直接读取 JSON API、Manifest、Service Worker 仍被 `ERR_BLOCKED_BY_CLIENT` 拦截；真实应用账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB 及其他明确延期项仍待后续人工验收。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 边界：本机 Windows Testcontainers 仍因 Docker Engine named pipe 不可用而 BLOCKED；内置浏览器直接读取 JSON API、Manifest、Service Worker 仍被 `ERR_BLOCKED_BY_CLIENT` 拦截；真实应用账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB 及其他明确延期项仍待后续人工验收。代码候选 [CI 33597279466](https://github.com/nekohands/InkFlow/actions/runs/33597279466)、[Docker 33597279497](https://github.com/nekohands/InkFlow/actions/runs/33597279497)、[Security 33597279676](https://github.com/nekohands/InkFlow/actions/runs/33597279676) 均 success；随后文档提交的三类门禁也均 success。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -1684,7 +1684,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-02）：代码候选 `c0af4af` 已修复来源搜索超时隔离，并通过本机 Restore/Build/Test、Ubuntu VM 源码 Compose 重建和 GPT 内置浏览器搜索→详情→章节回归；文档交接更新待本轮提交。浏览器已通过 Web Reader 书库、详情/目录、两章阅读、章节往返、阅读设置、匿名书架/历史保护、账户表单、离线兜底、匿名 Operations 页面，以及来源超时时的搜索降级结果。Ubuntu VM 当前源码构建 Compose 服务保持健康；代码候选远端 CI 待检查。
+最新状态（2026-09-02）：代码候选 `c0af4af` 已修复来源搜索超时隔离，并通过本机 Restore/Build/Test、Ubuntu VM 源码 Compose 重建和 GPT 内置浏览器搜索→详情→章节回归；文档交接已由 `dfa628c` 推送。浏览器已通过 Web Reader 书库、详情/目录、两章阅读、章节往返、阅读设置、匿名书架/历史保护、账户表单、离线兜底、匿名 Operations 页面，以及来源超时时的搜索降级结果。Ubuntu VM 当前源码构建 Compose 服务保持健康；代码候选 [CI 33597279466](https://github.com/nekohands/InkFlow/actions/runs/33597279466)、[Docker 33597279497](https://github.com/nekohands/InkFlow/actions/runs/33597279497)、[Security 33597279676](https://github.com/nekohands/InkFlow/actions/runs/33597279676) 均 success。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器读取 VM 的 JSON API、Manifest、Service Worker 资源被 `ERR_BLOCKED_BY_CLIENT` 拦截；本地与 VM `.env` 没有应用真实账户、密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。搜索超时降级已修复，整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
