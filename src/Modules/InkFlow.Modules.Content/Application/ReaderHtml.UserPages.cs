@@ -106,6 +106,13 @@ public static partial class ReaderHtml
           const user = document.getElementById("reader-session-user");
           const status = document.getElementById("reader-account-status");
           const setStatus = (message) => { if (status) status.textContent = message; };
+          const safeReturnTo = () => {
+            const candidate = new URLSearchParams(window.location.search).get("returnTo");
+            if (candidate === "/reader" || candidate?.startsWith("/reader/") || candidate === "/admin/operations" || candidate?.startsWith("/admin/operations?")) {
+              return candidate;
+            }
+            return "/reader";
+          };
 
           const submit = async (form, path, successMessage) => {
             const values = new FormData(form);
@@ -126,7 +133,7 @@ public static partial class ReaderHtml
             const payload = response ? await response.json().catch(() => null) : null;
             if (response?.ok && client?.saveSession(payload)) {
               setStatus(successMessage);
-              window.location.assign("/reader");
+              window.location.assign(safeReturnTo());
               return;
             }
 
@@ -402,47 +409,50 @@ public static partial class ReaderHtml
         return sb.ToString();
     }
 
-    public static string AccountPage()
+    public static string AccountPage(bool registration = false)
     {
+        var pageTitle = registration ? "创建账户" : "登录";
+        var pageDescription = registration
+            ? "创建账户后即可同步书架、阅读历史、阅读进度和阅读偏好。"
+            : "登录后同步书架、阅读历史、阅读进度和阅读偏好。";
+        var statusMessage = registration
+            ? "创建账户后即可开始使用 InkFlow。"
+            : "请登录后继续使用 InkFlow。";
+        var formTitle = registration ? "注册" : "登录";
+        var formId = registration ? "reader-register-form" : "reader-login-form";
+        var passwordAutocomplete = registration ? "new-password" : "current-password";
+        var passwordLength = registration ? " minlength=\"12\"" : "";
+        var submitLabel = registration ? "注册并登录" : "登录";
+        var switchText = registration ? "已有账户？" : "没有账户？";
+        var switchHref = registration ? "/reader/account" : "/reader/account/register";
+        var switchLabel = registration ? "返回登录" : "创建账户";
+
         var sb = new StringBuilder(Head);
         sb.Append(ReaderHeader);
         sb.Append(
-            """
-            <main id="main-content" class="page-shell">
+            $"""
+            <main id="main-content" class="page-shell account-page">
               <section class="page-intro" aria-labelledby="account-title">
                 <p class="eyebrow">你的阅读空间</p>
-                <h1 id="account-title">账户</h1>
-                <p class="muted">登录后同步书架、阅读历史、阅读进度和阅读偏好；不登录也可以继续阅读。</p>
+                <h1 id="account-title">{pageTitle}</h1>
+                <p class="muted">{pageDescription}</p>
               </section>
-              <p id="reader-account-status" class="notice" role="status" aria-live="polite">可以登录或注册一个账户。</p>
-              <div id="reader-account-forms">
-                <section class="form-card" aria-labelledby="login-title">
-                  <h2 id="login-title">登录</h2>
-                  <form id="reader-login-form" class="form-stack">
+              <p id="reader-account-status" class="notice" role="status" aria-live="polite">{statusMessage}</p>
+              <div id="reader-account-forms" class="account-layout">
+                <section class="form-card account-form-card" aria-labelledby="account-form-title">
+                  <h2 id="account-form-title">{formTitle}</h2>
+                  <form id="{formId}" class="form-stack">
                     <div class="form-field">
-                      <label for="reader-login-email">邮箱</label>
-                      <input id="reader-login-email" name="email" type="email" autocomplete="email" required>
+                      <label for="{formId}-email">邮箱</label>
+                      <input id="{formId}-email" name="email" type="email" autocomplete="email" required>
                     </div>
                     <div class="form-field">
-                      <label for="reader-login-password">密码</label>
-                      <input id="reader-login-password" name="password" type="password" autocomplete="current-password" required>
+                      <label for="{formId}-password">密码</label>
+                      <input id="{formId}-password" name="password" type="password" autocomplete="{passwordAutocomplete}"{passwordLength} required>
                     </div>
-                    <div class="form-actions"><button class="button button--primary" type="submit">登录</button></div>
+                    <div class="form-actions"><button class="button button--primary" type="submit">{submitLabel}</button></div>
                   </form>
-                </section>
-                <section class="form-card" aria-labelledby="register-title">
-                  <h2 id="register-title">注册</h2>
-                  <form id="reader-register-form" class="form-stack">
-                    <div class="form-field">
-                      <label for="reader-register-email">邮箱</label>
-                      <input id="reader-register-email" name="email" type="email" autocomplete="email" required>
-                    </div>
-                    <div class="form-field">
-                      <label for="reader-register-password">密码</label>
-                      <input id="reader-register-password" name="password" type="password" autocomplete="new-password" minlength="12" required>
-                    </div>
-                    <div class="form-actions"><button class="button" type="submit">注册并登录</button></div>
-                  </form>
+                  <p class="account-switch">{switchText}<a href="{switchHref}">{switchLabel}</a></p>
                 </section>
               </div>
               <section id="reader-session" class="form-card account-session" hidden aria-labelledby="session-title">

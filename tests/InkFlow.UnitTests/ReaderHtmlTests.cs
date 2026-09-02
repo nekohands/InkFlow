@@ -248,12 +248,17 @@ public sealed class ReaderHtmlTests
     public void Account_Shelf_And_History_Pages_Expose_Progressive_Reader_Shell()
     {
         var account = ReaderHtml.AccountPage();
+        var register = ReaderHtml.AccountPage(registration: true);
         var shelf = ReaderHtml.ShelfPage();
         var history = ReaderHtml.HistoryPage();
         var offline = ReaderHtml.OfflinePage();
 
         StringAssert.Contains(account, "reader-login-form");
-        StringAssert.Contains(account, "reader-register-form");
+        Assert.IsFalse(account.Contains("id=\"reader-register-form\""), "登录页不得平铺注册表单");
+        StringAssert.Contains(account, "/reader/account/register");
+        StringAssert.Contains(register, "id=\"reader-register-form\"");
+        Assert.IsFalse(register.Contains("id=\"reader-login-form\""), "注册页不得平铺登录表单");
+        StringAssert.Contains(register, "/reader/account");
         StringAssert.Contains(account, "sessionStorage");
         StringAssert.Contains(shelf, "data-reader-dashboard=\"shelf\"");
         StringAssert.Contains(shelf, "reader-dashboard-list");
@@ -267,6 +272,17 @@ public sealed class ReaderHtmlTests
             StringAssert.Contains(page, "/reader/shelf");
             StringAssert.Contains(page, "/reader/history");
         }
+    }
+
+    [TestMethod]
+    public void Anonymous_Reader_Pages_Require_Authentication()
+    {
+        var html = ReaderHtml.BookListPage([ListItem], query: null);
+
+        StringAssert.Contains(html, "reader-auth-pending");
+        StringAssert.Contains(html, "/reader/account");
+        StringAssert.Contains(html, "location.replace");
+        Assert.IsFalse(html.Contains("不登录也可以继续阅读"));
     }
 
     [TestMethod]

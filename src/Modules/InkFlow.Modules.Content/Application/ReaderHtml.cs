@@ -13,8 +13,8 @@ public static partial class ReaderHtml
 {
     /// <summary>
     /// 浏览器会话客户端：只处理同源认证 API，令牌保留在当前 tab 的 sessionStorage，
-    /// 不把凭据写入 URL、HTML 或长期 localStorage。未登录时调用方得到 null，
-    /// 使书库与正文继续保持匿名可读的渐进增强路径。
+    /// 不把凭据写入 URL、HTML 或长期 localStorage。除登录/注册页外，读者页面必须
+    /// 先有可验证的会话；服务端 API 仍独立执行认证与授权。
     /// </summary>
     private const string ReaderClientScript =
         """
@@ -124,6 +124,36 @@ public static partial class ReaderHtml
             }
           };
 
+          const isAccountPage = () => ["/reader/account", "/reader/account/register"].includes(window.location.pathname);
+          const redirectToLogin = () => {
+            const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            const query = new URLSearchParams({ returnTo });
+            window.location.replace(`/reader/account?${query.toString()}`);
+          };
+          const revealPage = () => document.documentElement.classList.remove("reader-auth-pending");
+          const requireAuthentication = async () => {
+            if (isAccountPage()) {
+              revealPage();
+              return;
+            }
+
+            document.documentElement.classList.add("reader-auth-pending");
+            if (!readSession()?.accessToken) {
+              redirectToLogin();
+              return;
+            }
+
+            const response = await apiFetch("/api/v1/auth/me");
+            if (response && !response.ok) {
+              clearSession();
+              redirectToLogin();
+              return;
+            }
+
+            // 网络暂不可用时保留已有会话，让离线壳仍可展示；受保护 API 自己继续校验。
+            revealPage();
+          };
+
           window.InkFlowReader = Object.freeze({
             isSignedIn: () => Boolean(readSession()?.accessToken),
             saveSession,
@@ -131,6 +161,7 @@ public static partial class ReaderHtml
             authFetch,
             apiFetch
           });
+          void requireAuthentication();
         })();
         </script>
         """;
@@ -253,6 +284,7 @@ public static partial class ReaderHtml
               text-decoration: none;
             }
             .skip-link:focus { top: 1rem; }
+            html.reader-auth-pending body > :not(.skip-link):not(script) { visibility: hidden; }
 
             .site-header {
               border-bottom: 1px solid var(--reader-border);
@@ -511,11 +543,17 @@ public static partial class ReaderHtml
             .form-card { max-width: 32rem; padding: clamp(1.1rem, 3vw, 1.6rem); border: 1px solid var(--reader-border); border-radius: var(--reader-radius); background: var(--reader-surface); box-shadow: var(--reader-shadow); }
             .form-card + .form-card { margin-top: 1rem; }
             .form-card h2 { margin-bottom: 1rem; }
+            .account-page { max-width: 42rem; }
+            .account-page .page-intro { margin-inline: auto; text-align: center; }
+            .account-layout { display: grid; justify-items: center; }
+            .account-form-card { width: min(100%, 32rem); }
+            .account-switch { margin: 1rem 0 0; color: var(--reader-muted); text-align: center; }
+            .account-switch a { color: var(--reader-accent-strong); font-weight: 700; }
             .form-field { display: grid; gap: 0.4rem; margin: 1rem 0; }
             .form-field label { font-weight: 650; }
             .form-field input { min-height: 2.8rem; padding: 0.65rem 0.75rem; border: 1px solid var(--reader-border); border-radius: 0.65rem; background: var(--reader-bg); color: var(--reader-text); }
             .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; flex-wrap: wrap; }
-            .account-session { max-width: 32rem; }
+            .account-session { width: min(100%, 32rem); margin-inline: auto; }
             [hidden] { display: none !important; }
 
             dialog {

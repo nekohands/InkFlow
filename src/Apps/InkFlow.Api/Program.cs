@@ -1435,6 +1435,12 @@ app.MapGet("/reader/account", () =>
         contentType: "text/html; charset=utf-8"))
     .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
 
+app.MapGet("/reader/account/register", () =>
+    Results.Content(
+        ReaderHtml.AccountPage(registration: true),
+        contentType: "text/html; charset=utf-8"))
+    .RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+
 app.MapGet("/reader/shelf", () =>
     Results.Content(
         ReaderHtml.ShelfPage(),
