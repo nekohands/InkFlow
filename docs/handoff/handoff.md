@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.38 Web Reader 搜索来源超时隔离修复与回归已记录；代码候选为 `c0af4af`，本机回归、Ubuntu VM 源码 Compose 运行验收及浏览器搜索→详情→章节复验均通过，代码候选 CI/Docker/Security 均通过；最新交接见 5.38。
+- 文档状态：5.39 Web Reader 第二轮真实页面复验已记录；代码候选为 `c0af4af`，本机回归、Ubuntu VM 源码 Compose 运行验收及浏览器页面/边界/响应式复验均通过，代码候选 CI/Docker/Security 均通过；最新交接见 5.39。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-02；dev 骨架重建更新：2026-08-25
 
@@ -1353,6 +1353,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - VM/浏览器证据：源码 Compose 重建后 API、Worker、Scheduler、PostgreSQL、Redis 健康；浏览器搜索得到 1 条 fixture 并显示线上来源暂时不可访问的降级提示，继续进入详情和章节页通过；API 最新搜索请求 HTTP 200。
 - 远端证据：`c0af4af` 的 [CI 33597279466](https://github.com/nekohands/InkFlow/actions/runs/33597279466)、[Docker 33597279497](https://github.com/nekohands/InkFlow/actions/runs/33597279497)、[Security 33597279676](https://github.com/nekohands/InkFlow/actions/runs/33597279676) 均 success 且 head SHA 一致。
 - 下一步：保留 Windows Testcontainers named pipe、浏览器原始 JSON/PWA 资源限制、真实账户/Personal Token、阅读 3.0/MuMu/ADB 和其他第 6 节待定事项。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.39 Web Reader 第二轮真实页面复验交接（本轮，2026-09-02）
+
+- 页面复验：浏览器在 VM 上通过账户表单边界、离线页、匿名书架/历史、匿名 Operations、空搜索、fixture 搜索降级、详情/目录/两章正文/章节往返、阅读设置、未知书/章节兜底；未重新创建账户或输入真实凭据。
+- 响应式与质量：`375×812`、`1440×900` 关键页面均有主要内容且无横向溢出；浏览器控制台没有 error/warning。服务端 Reader 路由正常返回 200，搜索无未处理异常；17K 上游证书失败被来源隔离并呈现降级提示。
+- PWA 边界：页面 manifest 标记存在；VM 明文 HTTP 的 Manifest 直接读取仍被浏览器 `ERR_BLOCKED_BY_CLIENT` 拦截，但服务端返回 200。Service Worker/安装/跨设备继续使用既有 localhost 证据和待定人工项。
+- 下一步：真实账户/密码/Personal Legado Token、阅读 3.0/MuMu/ADB、PWA 安装跨设备和其他第 6 节待定事项仍需专用环境或人工操作；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
