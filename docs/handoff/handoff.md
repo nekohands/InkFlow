@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.34 的书籍包 artifact 文件名边界收紧已同步；行为候选为 `c614a26`，本机回归、Ubuntu VM 源码 Compose 运行验收及代码候选 CI/Docker/Security 均通过；最新交接见 5.34。
+- 文档状态：5.35 的书籍包临时路径边界收紧已同步；行为候选为 `b1a2327`，本机回归、Ubuntu VM 源码 Compose 运行验收及代码候选 CI/Docker/Security 均通过；最新交接见 5.35。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-02；dev 骨架重建更新：2026-08-25
 
@@ -1320,6 +1320,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - Ubuntu VM：`c614a26` 的 `docker-compose.build.yml` 源码构建、Migration/packages-init、PostgreSQL、Redis、OTel、API、Worker、Scheduler 健康；`collection-package-runtime-smoke` PASS，覆盖直接地址、四类持久控制、ZIP/EPUB/TXT、完整性和审计。VM 外网无法访问 Dockerfile frontend/NuGet audit，因此仅在 staging 使用 syntax frontend 兼容处理、`NuGetAudit=false` 和同提交本机发布的 fixture 产物；仓库源码与正式 CI 未改动。
 - 远端门禁：代码候选 `c614a26` 的 [CI 33579529730](https://github.com/nekohands/InkFlow/actions/runs/33579529730)、[Docker 33579529717](https://github.com/nekohands/InkFlow/actions/runs/33579529717)、[Security 33579529779](https://github.com/nekohands/InkFlow/actions/runs/33579529779) 均 success 且 head SHA 一致；临时账号、Compose 资源、fixture 容器和 staging 已清理。
 - 交接边界：Windows 本机 Testcontainers 仍因 Docker Engine named pipe 不可用而 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source。真实来源/追更/故障切换、PWA 跨设备、人工视觉和生产治理继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.35 书籍包临时路径边界收紧交接（本轮，2026-09-02）
+
+- 工作包：补齐 `FileBookPackageArtifactStore` 临时文件发布与失败清理的路径/文件名信任边界，防止同根目录任意隐藏 `.tmp` 或自定义 artifact 被操作。
+- 实现：发布和删除仅接受包根目录直接子项；临时文件限定为 `.{guid:N}.tmp` 或 `.{guid:N}.{positive-attempt}.tmp`，最终文件复用 `{guid:N}.{ext}` / `{guid:N}-{positive-attempt}.{ext}` 校验。无 API、Migration 或包格式变化。
+- 本机：新增 `Artifact_Store_Only_Publishes_Generated_Temporary_Names`；定向书籍包测试 `7/7`、Unit `545/545`、Architecture `1/1`、Contract `10/10`、Restore/Release Build 0 warnings / 0 errors、`git diff --check` 均 PASS。
+- Ubuntu VM：候选 `b1a2327` 源码 Compose 构建通过，API `/health`、PostgreSQL/Redis 健康，Migration/packages-init 正常退出，Worker/Scheduler 参与运行；`collection-package-runtime-smoke` PASS，覆盖直接地址、四类持久控制、ZIP/EPUB/TXT、完整性和审计。VM 外网无法访问 Dockerfile frontend/NuGet audit，staging 仅做 syntax frontend 兼容处理、`NuGetAudit=false`，fixture 使用同提交本机发布产物；仓库源码和正式 CI 未改动。
+- 远端门禁：代码候选 `b1a2327` 的 [CI 33587045209](https://github.com/nekohands/InkFlow/actions/runs/33587045209)、[Docker 33587045235](https://github.com/nekohands/InkFlow/actions/runs/33587045235)、[Security 33587045275](https://github.com/nekohands/InkFlow/actions/runs/33587045275) 均 success 且 head SHA 一致；临时身份、Compose 资源、fixture 容器和 staging 已清理。
+- 后续：Windows 本机 Testcontainers 仍因 Docker Engine named pipe 不可用而 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实生产凭据，不访问第三方 live source。真实来源/追更/故障切换、PWA 跨设备、人工视觉和生产治理继续按待定清单，整体保持 `1.0 Release Candidate`。
 
 ## 5. 关键架构不变量
 

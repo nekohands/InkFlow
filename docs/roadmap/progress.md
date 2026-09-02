@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.34 的书籍包 artifact 文件名边界收紧已同步；行为候选为 `c614a26`，本轮本机回归、Ubuntu VM 源码 Compose 运行验收及其代码候选的 CI/Docker/Security 均已通过。
+- 文档状态：5.35 的书籍包临时路径边界收紧已同步；行为候选为 `b1a2327`，本轮本机回归、Ubuntu VM 源码 Compose 运行验收及其代码候选的 CI/Docker/Security 均已通过。
 - 最后更新日期：2026-09-02
 
 ## 1. 总体状态
@@ -1516,6 +1516,15 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM：候选 `c614a26` 使用 `docker-compose.build.yml` 从源码构建并启动；Migration/packages-init、PostgreSQL、Redis、OTel、API、Worker、Scheduler 健康，随后 `collection-package-runtime-smoke` PASS，覆盖直接地址、暂停/恢复/停止/取消、ZIP/EPUB/TXT、完整性和审计。由于 VM 无法访问 Dockerfile frontend/NuGet audit 服务，临时 staging 去除了 syntax frontend 依赖、关闭 NuGet audit；夹具使用同一提交本机发布产物直接运行，仓库源码与正式 CI 未改动。
 - 清理与远端：临时账号、Compose 服务/网络/卷、fixture 容器和 staging 均已清理；代码候选 `c614a26` 的 [CI 33579529730](https://github.com/nekohands/InkFlow/actions/runs/33579529730)、[Docker 33579529717](https://github.com/nekohands/InkFlow/actions/runs/33579529717)、[Security 33579529779](https://github.com/nekohands/InkFlow/actions/runs/33579529779) 均 success 且 head SHA 一致。
 - 边界：Windows Docker Engine `npipe://./pipe/docker_engine` 仍使本机 Testcontainers 集成验证 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实账户/生产凭据，不访问第三方 live source。人工视觉、真实来源/追更/故障切换、PWA 跨设备、生产治理和阅读 3.0 继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.35 书籍包临时路径边界收紧（本轮，2026-09-02）
+
+- 缺口：`PublishAsync` 与失败清理此前只限制临时路径位于包根目录，任意同根目录隐藏 `.tmp` 文件仍可能进入发布或删除路径；artifact 删除也未统一复用生成名校验。
+- 实现：`FileBookPackageArtifactStore` 现在只接受根目录直接子项，并严格校验 legacy `.{guid:N}.tmp`、租约 `.{guid:N}.{positive-attempt}.tmp` 以及已生成的 artifact 文件名；嵌套路径、路径穿越、空/非 N 格式 GUID、非法 attempt 和任意自定义文件均拒绝。无 API、Migration 或 EPUB/TXT/ZIP 格式变化。
+- 回归：新增 `Artifact_Store_Only_Publishes_Generated_Temporary_Names`，覆盖 legacy/租约临时文件发布、artifact 删除及非法临时/最终路径；定向书籍包测试 `7/7`、Unit `545/545`、Architecture `1/1`、Contract `10/10`、Restore/Release Build（0 warnings / 0 errors）和 `git diff --check` 均 PASS。
+- Ubuntu VM：候选 `b1a2327` 使用 `docker-compose.build.yml` 从源码构建并启动；API `/health`、PostgreSQL/Redis 健康，Migration/packages-init 正常退出，Worker/Scheduler 参与运行；`collection-package-runtime-smoke` PASS，覆盖直接地址、暂停/恢复/停止/取消、ZIP/EPUB/TXT、完整性和审计。VM 无法访问 Dockerfile frontend/NuGet audit，临时 staging 去除 syntax frontend 依赖并关闭 NuGet audit；验收 fixture 使用同一提交本机发布产物直接运行，仓库源码与正式 CI 未改动。
+- 清理与远端：临时 Operator/Administrator 身份、Compose 服务/网络/卷、fixture 容器和 staging 均已清理；代码候选 `b1a2327` 的 [CI 33587045209](https://github.com/nekohands/InkFlow/actions/runs/33587045209)、[Docker 33587045235](https://github.com/nekohands/InkFlow/actions/runs/33587045235)、[Security 33587045275](https://github.com/nekohands/InkFlow/actions/runs/33587045275) 均 success 且 head SHA 一致。
+- 边界：Windows Docker Engine `npipe://./pipe/docker_engine` 仍使本机 Testcontainers 集成验证 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实生产凭据，不访问第三方 live source。真实来源/追更/故障切换、PWA 跨设备、人工视觉和生产治理继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
