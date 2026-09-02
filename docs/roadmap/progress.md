@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（含前端的自动化 Release Gate 已通过，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.35 的书籍包临时路径边界收紧已同步；行为候选为 `b1a2327`，本轮本机回归、Ubuntu VM 源码 Compose 运行验收及其代码候选的 CI/Docker/Security 均已通过。
+- 文档状态：5.36 Web Reader 人工验收已启动并记录；行为候选为 `b1a2327`，本轮本机回归、Ubuntu VM 源码 Compose 运行验收及其代码候选的 CI/Docker/Security 均已通过。
 - 最后更新日期：2026-09-02
 
 ## 1. 总体状态
@@ -1525,6 +1525,13 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM：候选 `b1a2327` 使用 `docker-compose.build.yml` 从源码构建并启动；API `/health`、PostgreSQL/Redis 健康，Migration/packages-init 正常退出，Worker/Scheduler 参与运行；`collection-package-runtime-smoke` PASS，覆盖直接地址、暂停/恢复/停止/取消、ZIP/EPUB/TXT、完整性和审计。VM 无法访问 Dockerfile frontend/NuGet audit，临时 staging 去除 syntax frontend 依赖并关闭 NuGet audit；验收 fixture 使用同一提交本机发布产物直接运行，仓库源码与正式 CI 未改动。
 - 清理与远端：临时 Operator/Administrator 身份、Compose 服务/网络/卷、fixture 容器和 staging 均已清理；代码候选 `b1a2327` 的 [CI 33587045209](https://github.com/nekohands/InkFlow/actions/runs/33587045209)、[Docker 33587045235](https://github.com/nekohands/InkFlow/actions/runs/33587045235)、[Security 33587045275](https://github.com/nekohands/InkFlow/actions/runs/33587045275) 均 success 且 head SHA 一致。
 - 边界：Windows Docker Engine `npipe://./pipe/docker_engine` 仍使本机 Testcontainers 集成验证 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实生产凭据，不访问第三方 live source。真实来源/追更/故障切换、PWA 跨设备、人工视觉和生产治理继续按第 6 节待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.36 Web Reader 人工验收启动（本轮，2026-09-02）
+
+- 环境：Ubuntu VM `172.19.31.153` 上保留源码构建的 Compose 服务，GPT 内置浏览器打开 `http://172.19.31.153:8080/reader`；未输入真实账户、密码或令牌。
+- 通过：书库 fixture、书籍详情与目录、首章进入、首章→第二章连续阅读、上一章/下一章稳定链接、阅读设置对话框、匿名书架/历史保护提示、账户页登录/注册表单和离线兜底页均已人工复核。
+- 未形成通过证据：搜索按钮本轮一次点击触发内置浏览器 CDP 超时，随后刷新页面恢复；当前不能据此宣称搜索人工验收通过，也未确认是产品缺陷。
+- 边界：阅读 3.0/MuMu/ADB、真实账户、PWA 安装/跨设备、真实来源与其他既有待定项仍不在本轮；容器和浏览器页面按用户要求继续保留，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
