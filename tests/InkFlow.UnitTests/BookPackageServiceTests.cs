@@ -277,6 +277,61 @@ public sealed class BookPackageServiceTests
         Assert.IsNull(stream);
     }
 
+    [TestMethod]
+    public void Artifact_Store_Only_Allows_Generated_Artifact_Names()
+    {
+        var root = Path.Combine(
+            Path.GetTempPath(),
+            $"inkflow-package-artifact-name-test-{Guid.NewGuid():N}");
+        var artifacts = new FileBookPackageArtifactStore(new BookPackageOptions(
+            root,
+            MaxChapters: 100,
+            MaxPackageBytes: 1_000_000,
+            Retention: TimeSpan.FromDays(7),
+            LeaseDuration: TimeSpan.FromMinutes(10)));
+        var jobId = Guid.CreateVersion7();
+
+        try
+        {
+            var legacyName = artifacts.GetArtifactFileName(jobId, BookPackageFormat.Txt);
+            var leasedName = artifacts.GetArtifactFileName(
+                jobId,
+                leaseAttempt: 2,
+                BookPackageFormat.Epub);
+
+            Assert.AreEqual(
+                Path.Combine(Path.GetFullPath(root), legacyName),
+                artifacts.GetArtifactPath(legacyName));
+            Assert.AreEqual(
+                Path.Combine(Path.GetFullPath(root), leasedName),
+                artifacts.GetArtifactPath(leasedName));
+
+            foreach (var invalidName in new[]
+                     {
+                         "../outside.zip",
+                         "not-a-job.zip",
+                         $"{Guid.Empty:N}.zip",
+                         $"{jobId:N}-0.zip",
+                         $"{jobId:N}-01.zip",
+                         $"{jobId:N}-text.zip",
+                         $"{jobId:N}-1-2.zip",
+                         $"{jobId:N}.json",
+                     })
+            {
+                Assert.ThrowsExactly<ArgumentException>(
+                    () => artifacts.GetArtifactPath(invalidName),
+                    invalidName);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static ContentVersion NewVersion(Guid bookId, Guid chapterId, string text) =>
         ContentVersion.Create(
             bookId,

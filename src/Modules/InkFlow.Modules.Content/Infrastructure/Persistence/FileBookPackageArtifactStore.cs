@@ -191,6 +191,29 @@ public sealed class FileBookPackageArtifactStore(BookPackageOptions options) : I
         {
             throw new ArgumentException("artifact file extension is invalid.", nameof(artifactFileName));
         }
+
+        var stem = Path.GetFileNameWithoutExtension(artifactFileName);
+        var separator = stem.IndexOf('-');
+        var jobIdText = separator < 0 ? stem : stem[..separator];
+        if (!Guid.TryParseExact(jobIdText, "N", out var jobId) || jobId == Guid.Empty)
+        {
+            throw new ArgumentException("artifact file name is invalid.", nameof(artifactFileName));
+        }
+
+        if (separator >= 0)
+        {
+            var attemptText = stem[(separator + 1)..];
+            if (!int.TryParse(
+                    attemptText,
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var attempt) ||
+                attempt < 1 ||
+                (attemptText.Length > 1 && attemptText[0] == '0'))
+            {
+                throw new ArgumentException("artifact file name is invalid.", nameof(artifactFileName));
+            }
+        }
     }
 
     private static void ValidateLeaseAttempt(int leaseAttempt)
