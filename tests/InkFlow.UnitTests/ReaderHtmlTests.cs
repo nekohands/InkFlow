@@ -256,9 +256,13 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(account, "reader-login-form");
         Assert.IsFalse(account.Contains("id=\"reader-register-form\""), "登录页不得平铺注册表单");
         StringAssert.Contains(account, "/reader/account/register");
+        StringAssert.Contains(account, "reader-account-switch");
+        StringAssert.Contains(account, "getSafeReturnTo");
+        StringAssert.Contains(account, "switchLink.href");
         StringAssert.Contains(register, "id=\"reader-register-form\"");
         Assert.IsFalse(register.Contains("id=\"reader-login-form\""), "注册页不得平铺登录表单");
         StringAssert.Contains(register, "/reader/account");
+        StringAssert.Contains(register, "reader-account-switch");
         StringAssert.Contains(account, "sessionStorage");
         StringAssert.Contains(shelf, "data-reader-dashboard=\"shelf\"");
         StringAssert.Contains(shelf, "reader-dashboard-list");

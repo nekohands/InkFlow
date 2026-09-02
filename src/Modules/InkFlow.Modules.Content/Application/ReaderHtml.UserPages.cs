@@ -106,13 +106,31 @@ public static partial class ReaderHtml
           const user = document.getElementById("reader-session-user");
           const status = document.getElementById("reader-account-status");
           const setStatus = (message) => { if (status) status.textContent = message; };
-          const safeReturnTo = () => {
+          const getSafeReturnTo = () => {
             const candidate = new URLSearchParams(window.location.search).get("returnTo");
-            if (candidate === "/reader" || candidate?.startsWith("/reader/") || candidate === "/admin/operations" || candidate?.startsWith("/admin/operations?")) {
-              return candidate;
+            if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) return null;
+
+            let target;
+            try {
+              target = new URL(candidate, window.location.origin);
+            } catch {
+              return null;
             }
-            return "/reader";
+            const allowedPath = target.pathname === "/reader"
+              || target.pathname.startsWith("/reader/")
+              || target.pathname === "/admin/operations";
+            return target.origin === window.location.origin && allowedPath
+              ? `${target.pathname}${target.search}${target.hash}`
+              : null;
           };
+          const safeReturnTo = () => getSafeReturnTo() || "/reader";
+          const switchLink = document.getElementById("reader-account-switch");
+          const returnTo = getSafeReturnTo();
+          if (switchLink && returnTo) {
+            const target = new URL(switchLink.getAttribute("href") || "/reader/account", window.location.origin);
+            target.searchParams.set("returnTo", returnTo);
+            switchLink.href = `${target.pathname}${target.search}`;
+          }
 
           const submit = async (form, path, successMessage) => {
             const values = new FormData(form);
@@ -467,7 +485,7 @@ public static partial class ReaderHtml
                     </div>
                     <div class="form-actions"><button class="button button--primary" type="submit">{submitLabel}</button></div>
                   </form>
-                  <p class="account-switch">{switchText}<a href="{switchHref}">{switchLabel}</a></p>
+                  <p class="account-switch">{switchText}<a id="reader-account-switch" href="{switchHref}">{switchLabel}</a></p>
                 </section>
               </div>
               <section id="reader-session" class="form-card account-session" hidden aria-labelledby="session-title">
