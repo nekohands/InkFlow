@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（Phase 1B 确定性运行时/商业基础/前端自动化门禁已通过，真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.37 一次性账户注册登录模拟验收已记录；行为候选为 `b1a2327`，本机回归、Ubuntu VM 源码 Compose 运行验收及代码候选 CI/Docker/Security 均通过，Web Reader 搜索来源超时阻塞仍待修复；最新交接见 5.37。
+- 文档状态：5.38 Web Reader 搜索来源超时隔离修复与回归已记录；代码候选为 `c0af4af`，本机回归、Ubuntu VM 源码 Compose 运行验收及浏览器搜索→详情→章节复验均通过，代码候选 CI 待远端完成；最新交接见 5.38。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-02；dev 骨架重建更新：2026-08-25
 
@@ -1330,11 +1330,11 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 远端门禁：代码候选 `b1a2327` 的 [CI 33587045209](https://github.com/nekohands/InkFlow/actions/runs/33587045209)、[Docker 33587045235](https://github.com/nekohands/InkFlow/actions/runs/33587045235)、[Security 33587045275](https://github.com/nekohands/InkFlow/actions/runs/33587045275) 均 success 且 head SHA 一致；临时身份、Compose 资源、fixture 容器和 staging 已清理。
 - 后续：Windows 本机 Testcontainers 仍因 Docker Engine named pipe 不可用而 BLOCKED；本轮不启动 ADB、MuMu/阅读 3.0，不使用真实生产凭据，不访问第三方 live source。真实来源/追更/故障切换、PWA 跨设备、人工视觉和生产治理继续按待定清单，整体保持 `1.0 Release Candidate`。
 
-### 5.36 Web Reader 人工验收与来源超时阻塞交接（本轮，2026-09-02）
+### 5.36 Web Reader 人工验收与来源超时定位交接（本轮，2026-09-02）
 
 - 工作包：启动 1.0 Web Reader 人工验收，保留 Ubuntu VM 源码构建 Compose 与浏览器验收页面。
 - 通过：书库 fixture、详情/目录、两章连续阅读、章节往返链接、阅读设置、匿名书架/历史保护、账户表单和离线兜底页均已复核。
-- 阻塞：搜索按钮和直接 URL 均失败；API 日志确认 17K 请求超过 20 秒后抛出 `TaskCanceledException`，`/reader` 来源发现异常未降级，搜索请求失败。尚未修复，不能标记搜索通过。
+- 问题定位：搜索按钮和直接 URL 当时失败；API 日志确认 17K 请求超过 20 秒后抛出 `TaskCanceledException`，`/reader` 来源发现异常未降级。问题已在 5.38 修复并回归。
 - 浏览器边界：独立标签读取 JSON API、Manifest、Service Worker 被本地网络策略以 `ERR_BLOCKED_BY_CLIENT` 拦截；HTML 页面验收不受影响，但未形成这些原始资源的浏览器证据。
 - 凭据边界：本地与 VM `.env` 没有应用真实账户、密码或 Personal Legado Token；待提供专用测试凭据后再做登录、账户状态和 Personal Legado 验收。未输入真实凭据，未启动 ADB、MuMu/阅读 3.0；其他真实来源/追更/故障切换及生产治理继续按待定清单。整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
@@ -1344,6 +1344,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 通过：注册自动登录、账户状态、退出、错误密码拒绝、重新登录、加入/移出书架、两章正文阅读、进度/历史/偏好同步和普通读者 Operations 权限拒绝均通过。
 - 清理：测试书架关系已移除，最后已退出；应用无账户删除页面，因此一次性测试账户本身仍留在 VM 数据库中，未写入仓库或文档。
 - 令牌边界：账户页没有 Personal Legado Token 管理控件，本地/VM 也没有真实 Token；Personal Legado Token 的签发/导入/撤销/失效继续待专用测试凭据和可操作入口。
+
+### 5.38 Web Reader 搜索超时降级修复与回归交接（本轮，2026-09-02）
+
+- 根因：来源搜索超时表现为 `TaskCanceledException`，原有来源隔离 catch 排除了该异常，单个 17K 来源超时因此升级为 `/reader` 请求失败。
+- 修复：`BookDiscoveryService` 在搜索和发现两层专门捕获未由调用方主动取消触发的 `TaskCanceledException`，转为来源级安全告警并继续其他来源；调用方取消仍传播，公共 API Contract 不变。
+- 本地证据：先以超时来源 + 正常来源建立红灯回归，再修复为绿灯；Restore PASS，Release Build 0 warnings / 0 errors，Unit 546/546、Architecture 1/1、Contract 10/10、`git diff --check` PASS。
+- VM/浏览器证据：源码 Compose 重建后 API、Worker、Scheduler、PostgreSQL、Redis 健康；浏览器搜索得到 1 条 fixture 并显示线上来源暂时不可访问的降级提示，继续进入详情和章节页通过；API 最新搜索请求 HTTP 200。
+- 下一步：检查 `c0af4af` 对应 CI；保留 Windows Testcontainers named pipe、浏览器原始 JSON/PWA 资源限制、真实账户/Personal Token、阅读 3.0/MuMu/ADB 和其他第 6 节待定事项。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
