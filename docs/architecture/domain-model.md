@@ -26,6 +26,8 @@ Identity v1 的 `User` 以邮箱规范化值保持唯一，账号状态控制是
 事务级 advisory lock，并在锁内重新检查重复邮箱和已有用户，保证多 API 实例并发注册时只有一个首个管理员。
 既有账号不会因该规则被追溯提权；Administrator 沿用现有角色授权并绕过来源级授权 grant。
 
+`IdentityAvatar` 是用户拥有的单一当前头像，按 `UserId` 保存在 Identity 的 `user_avatars` 中；内容字节和服务端确认的 MIME 类型分开保存，读取与替换都以认证主体为范围，不作为公共 CDN 内容。替换使用同一行 upsert，用户删除时级联删除；头像不存在时继续使用显示名称首字符占位。
+
 ## Developers & Commercial
 
 `DeveloperApplication` 是用户拥有的生产环境外部集成注册；它与 `User`、API Key 和公共目录身份分离。`DeveloperApiKey` 绑定应用，使用 opaque 原文、Prefix、不可逆摘要、单一 `catalog.read` scope、创建/过期/最后使用/撤销元数据；原文只在签发或轮换响应中出现一次。撤销应用会使其密钥失效，API Key 认证不会接受 URL 或 Query 中的密钥。

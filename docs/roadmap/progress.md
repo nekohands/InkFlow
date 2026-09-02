@@ -3,10 +3,10 @@
 > 持续进度账本。状态只以真实代码、测试、Runtime 和 CI 结果为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（本轮账户中心与令牌生命周期的本机/VM 自动化已通过，候选提交 CI 待触发，人工及其他真实环境验收待定）
+- 当前阶段：1.0 Release Candidate（本轮账户中心、令牌生命周期与头像上传的本机/VM 自动化已通过，候选提交 CI 待触发，人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.44 账户中心与 Personal Legado 令牌生命周期已记录；当前工作树包含待提交改动，本机、Ubuntu VM 源码 Compose 和内置浏览器自动化证据已通过，候选提交 CI/Docker/Security 待触发。
-- 最后更新日期：2026-09-02
+- 文档状态：5.45 用户头像上传与私有存储已记录；当前工作树包含待提交改动，本机、Ubuntu VM 源码 Compose 和内置浏览器自动化证据已通过，候选提交 CI/Docker/Security 待触发。
+- 最后更新日期：2026-09-03
 
 ## 1. 总体状态
 
@@ -1600,6 +1600,17 @@ Phase 1A 自动化工作包状态：
 - 浏览器证据：内置浏览器已使用一次性 `.invalid` 测试账号登录，资料/安全/令牌页签与面板切换、头像右置、无横向溢出和控制台错误检查均通过；未执行会删除当前浏览器测试令牌的撤销点击。
 - 安全边界：未使用或提交真实外部账户、生产密码、Cookie 或 Personal Legado Token；阅读 3.0/MuMu 真机导入与阅读按用户决定继续列入人工待定事项。
 - 状态：已实现，等待候选提交及远端 CI/Docker/Security 门禁；在 CI 和剩余人工验收完成前不标记 `Accepted/Completed`。
+
+### 5.45 用户头像上传与私有存储（本轮，2026-09-03）
+
+- 实现：账户中心个人资料页新增头像选择与上传入口；支持 JPG、PNG、WebP，客户端展示文件名并在成功后刷新头像，未上传时保留显示名称首字母占位图。
+- API/存储：新增认证用户自有的 `GET/PUT /api/v1/me/profile/avatar`；Identity 新增 `user_avatars` 单行当前头像表和迁移，按用户主键原子替换，读取使用 `private, no-store` 与 `nosniff`，不返回给匿名请求。
+- 安全边界：服务端不信任文件名或客户端 MIME，按 PNG/JPEG/WebP 文件签名判定，上传上限 2 MiB，并限制 multipart 请求体；不接受 SVG，不实现裁剪、历史版本、审核或对象存储。
+- 本机证据：定向头像测试先红后绿；Restore PASS；Release Build 0 warnings / 0 errors；Unit 557/557、Architecture 1/1、Contract 10/10 PASS；11 个迁移上下文等价检查 PASS；头像/账户与前端 shell 回归、`bash -n` 和 `git diff --check` PASS。Windows WSL 包装脚本因 WSL 内未提供 dotnet 未作为迁移证据。
+- VM 证据：Ubuntu VM 按源码构建 Compose，Migration、API、Worker、Scheduler、PostgreSQL、Redis 健康；VM SDK 容器完整 Restore → Build → Test 为 Unit 557/557、Architecture 1/1、Contract 10/10、Integration 108 项 105 passed / 3 skipped / 0 failed；前端 smoke PASS；账户 runtime smoke 的未认证拒绝、注册/登录/刷新/登出、头像上传/读取、阅读状态和令牌撤销即删除链路 PASS。
+- 浏览器证据：内置浏览器已登录一次性 `.invalid` 测试账号，看到头像上传控件，选择本机 JPG 后提交，页面显示“头像已更新”并呈现头像图片；未读取 Cookie/Storage/密码材料。
+- 问题与修复：首次 VM 运行烟测暴露数据库镜像未执行新增迁移并返回 500；已通过源码构建的迁移镜像执行 `AddUserAvatars`，复测通过，未修改业务错误处理来掩盖缺表。
+- 状态：已实现，等待候选提交及远端 CI/Docker/Security 门禁；阅读 3.0/MuMu 真机和头像裁剪/审核等人工或后续范围仍不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 

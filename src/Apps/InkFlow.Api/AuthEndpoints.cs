@@ -124,6 +124,13 @@ public static class AccountEndpointResults
         _ => Results.BadRequest(new { error = "invalid_request" }),
     };
 
+    public static IResult FromAvatarUpload(AvatarOperationResult result) => result.Status switch
+    {
+        AvatarResultStatus.Success => Results.NoContent(),
+        AvatarResultStatus.NotFound => Results.NotFound(new { error = "not_found" }),
+        _ => Results.BadRequest(new { error = "invalid_image" }),
+    };
+
     public static AuditEvent CreateAudit(
         string action,
         ClaimsPrincipal principal,

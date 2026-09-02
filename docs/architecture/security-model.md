@@ -138,7 +138,7 @@ Third-party HTML is untrusted.
 
 Pipeline must extract/sanitize into Canonical Content AST or tightly controlled safe markup. Web rendering does not directly execute upstream script/iframe/object/form/unsafe styles.
 
-Media ingestion validates content before storage/CDN delivery; remote source URLs are not trusted as permanent client media endpoints.
+Media ingestion validates content before storage/CDN delivery; remote source URLs are not trusted as permanent client media endpoints. Profile avatar upload is an authenticated owner-scoped exception: the API caps the file at 2 MiB, detects only PNG/JPEG/WebP from magic bytes, ignores the client filename and MIME as security decisions, stores the current image in the private Identity boundary, and serves it with `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`.
 
 ## 10. Public vs Private Content
 

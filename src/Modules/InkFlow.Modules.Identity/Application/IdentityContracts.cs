@@ -150,6 +150,24 @@ public sealed record PasswordChangeOperationResult(PasswordChangeResultStatus St
     public bool IsSuccess => Status == PasswordChangeResultStatus.Success;
 }
 
+public sealed record IdentityAvatar(
+    Guid UserId,
+    string ContentType,
+    byte[] Content,
+    DateTimeOffset UpdatedAt);
+
+public enum AvatarResultStatus
+{
+    Success,
+    InvalidRequest,
+    NotFound,
+}
+
+public sealed record AvatarOperationResult(AvatarResultStatus Status)
+{
+    public bool IsSuccess => Status == AvatarResultStatus.Success;
+}
+
 public sealed record LegadoTokenInfo(
     Guid Id,
     Guid UserId,
@@ -230,6 +248,17 @@ public interface IUserRepository
     Task ChangePasswordAndRevokeSessionsAsync(
         User user,
         DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IUserAvatarRepository
+{
+    Task<IdentityAvatar?> GetAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task SaveAsync(
+        IdentityAvatar avatar,
         CancellationToken cancellationToken = default);
 }
 
@@ -330,6 +359,15 @@ public interface IIdentityService
         Guid userId,
         string currentPassword,
         string newPassword,
+        CancellationToken cancellationToken = default);
+
+    Task<AvatarOperationResult> UploadAvatarAsync(
+        Guid userId,
+        Stream content,
+        CancellationToken cancellationToken = default);
+
+    Task<IdentityAvatar?> GetAvatarAsync(
+        Guid userId,
         CancellationToken cancellationToken = default);
 }
 

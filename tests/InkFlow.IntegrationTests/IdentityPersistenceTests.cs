@@ -47,7 +47,7 @@ public sealed class IdentityPersistenceTests
             .ToListAsync()
             .ConfigureAwait(false);
         CollectionAssert.AreEquivalent(
-            new[] { "users", "sessions", "access_tokens", "legado_tokens", "permission_grants" },
+            new[] { "users", "user_avatars", "sessions", "access_tokens", "legado_tokens", "permission_grants" },
             tables.ToList());
     }
 
@@ -219,6 +219,33 @@ public sealed class IdentityPersistenceTests
         Assert.AreEqual(0, (await legadoTokens
             .ListForUserAsync(user.Id)
             .ConfigureAwait(false)).Count);
+    }
+
+    [TestMethod]
+    public async Task User_Avatar_Roundtrips_And_Replaces()
+    {
+        await using var db = CreateDb();
+        var users = new EfUserRepository(db);
+        var avatars = new EfUserAvatarRepository(db);
+        var user = User.Create("avatar@example.com", "$hash$only", T0);
+        await users.AddAsync(user).ConfigureAwait(false);
+
+        var original = new IdentityAvatar(user.Id, "image/png", [0x89, 0x50, 0x4E, 0x47], T0);
+        await avatars.SaveAsync(original).ConfigureAwait(false);
+
+        var loaded = await avatars.GetAsync(user.Id).ConfigureAwait(false);
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual("image/png", loaded!.ContentType);
+        CollectionAssert.AreEqual(original.Content, loaded.Content);
+
+        var replacement = new IdentityAvatar(user.Id, "image/jpeg", [0xFF, 0xD8, 0xFF], T0.AddMinutes(1));
+        await avatars.SaveAsync(replacement).ConfigureAwait(false);
+
+        loaded = await avatars.GetAsync(user.Id).ConfigureAwait(false);
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual("image/jpeg", loaded!.ContentType);
+        CollectionAssert.AreEqual(replacement.Content, loaded.Content);
+        Assert.AreEqual(replacement.UpdatedAt, loaded.UpdatedAt);
     }
 
     [TestMethod]

@@ -9,6 +9,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     : ModuleDbContext(options, IdentitySchema.Name)
 {
     public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<UserAvatarEntity> UserAvatars => Set<UserAvatarEntity>();
     public DbSet<RefreshSessionEntity> Sessions => Set<RefreshSessionEntity>();
     public DbSet<AccessTokenEntity> AccessTokens => Set<AccessTokenEntity>();
     public DbSet<LegadoAccessTokenEntity> LegadoTokens => Set<LegadoAccessTokenEntity>();
@@ -29,6 +30,19 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             b.Property(user => user.Role).IsRequired();
             b.Property(user => user.Status).IsRequired();
             b.HasIndex(user => user.NormalizedEmail).IsUnique();
+        });
+
+        modelBuilder.Entity<UserAvatarEntity>(b =>
+        {
+            b.ToTable("user_avatars");
+            b.HasKey(avatar => avatar.UserId);
+            b.Property(avatar => avatar.ContentType).HasMaxLength(32).IsRequired();
+            b.Property(avatar => avatar.Content).IsRequired();
+            b.Property(avatar => avatar.UpdatedAt).IsRequired();
+            b.HasOne<UserEntity>()
+                .WithMany()
+                .HasForeignKey(avatar => avatar.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<RefreshSessionEntity>(b =>

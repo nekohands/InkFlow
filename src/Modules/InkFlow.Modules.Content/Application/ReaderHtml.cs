@@ -57,7 +57,7 @@ public static partial class ReaderHtml
             if (typeof path !== "string" || !path.startsWith("/api/v1/auth/")) return null;
             const headers = new Headers(options.headers || {});
             headers.set("Accept", "application/json");
-            if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+            if (options.body && !headers.has("Content-Type") && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
             try {
               return await fetch(path, { ...options, headers, credentials: "same-origin", cache: "no-store" });
             } catch {
@@ -101,7 +101,7 @@ public static partial class ReaderHtml
               const headers = new Headers(options.headers || {});
               headers.set("Accept", "application/json");
               headers.set("Authorization", `Bearer ${accessToken}`);
-              if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+              if (options.body && !headers.has("Content-Type") && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
               return fetch(path, { ...options, headers, credentials: "same-origin", cache: "no-store" });
             };
 
@@ -556,7 +556,9 @@ public static partial class ReaderHtml
             .account-session { display: grid; gap: 1rem; width: 100%; margin-inline: auto; }
             .account-profile-card { display: block; max-width: none; padding: clamp(1.25rem, 4vw, 2rem); }
             .account-profile__identity { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; min-width: 0; }
-            .account-avatar { display: grid; flex: 0 0 4rem; width: 4rem; height: 4rem; place-items: center; border-radius: 50%; background: var(--reader-accent); color: var(--reader-accent-contrast); font-size: 1.65rem; font-weight: 800; }
+            .account-avatar-wrap { position: relative; flex: 0 0 4rem; width: 4rem; height: 4rem; }
+            .account-avatar { display: grid; width: 100%; height: 100%; place-items: center; border-radius: 50%; background: var(--reader-accent); color: var(--reader-accent-contrast); font-size: 1.65rem; font-weight: 800; }
+            .account-avatar--image { position: absolute; inset: 0; object-fit: cover; }
             .account-profile__copy { min-width: 0; }
             .account-profile__copy .eyebrow { margin-bottom: 0.25rem; }
             .account-profile__copy h2 { margin: 0 0 0.35rem; }
@@ -574,6 +576,9 @@ public static partial class ReaderHtml
             .account-tab-panel:focus { outline: 2px solid var(--reader-accent); outline-offset: 0.25rem; }
             .account-panel { max-width: none; }
             .account-panel h2 { margin-bottom: 1rem; }
+            .account-avatar-settings { margin: 1.25rem 0 1.5rem; padding-top: 1.1rem; border-top: 1px solid var(--reader-border); }
+            .account-avatar-settings h3 { margin: 0 0 0.45rem; }
+            .account-avatar-settings p { margin-bottom: 0.8rem; }
             .account-details { display: grid; gap: 0.8rem; margin: 0; }
             .account-detail { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--reader-border); }
             .account-detail:last-child { padding-bottom: 0; border-bottom: 0; }

@@ -127,6 +127,17 @@ public sealed class IdentityAuthenticationHandlerTests
             string newPassword,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<AvatarOperationResult> UploadAvatarAsync(
+            Guid userId,
+            Stream content,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IdentityAvatar?> GetAvatarAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class TestOptionsMonitor<T>(T value) : IOptionsMonitor<T>

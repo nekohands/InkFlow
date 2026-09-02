@@ -18,6 +18,14 @@ public sealed class UserEntity
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+public sealed class UserAvatarEntity
+{
+    public Guid UserId { get; set; }
+    public string ContentType { get; set; } = null!;
+    public byte[] Content { get; set; } = null!;
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 public sealed class RefreshSessionEntity
 {
     public Guid Id { get; set; }

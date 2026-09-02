@@ -20,7 +20,7 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 
 目标模块：
 
-- Identity：账号、Session、短期 AccessToken、RefreshToken、凭证、Role/Permission；公开注册的首个成功持久化账号为 Administrator，后续账号为 Reader，跨实例引导规则见 ADR 0024。
+- Identity：账号、Session、短期 AccessToken、RefreshToken、凭证、Role/Permission 和用户头像；公开注册的首个成功持久化账号为 Administrator，后续账号为 Reader，跨实例引导规则见 ADR 0024。
 - Library：Canonical Book、Author、Chapter metadata、Private Book、Alias、Matching/Alignment。
 - Sources：Source 定义、Rule、Rule Version、Credential Reference、Capability、Health Policy。
 - Crawling：Task、Lease、Retry、Dead Letter、Scheduler、Fetch Artifact、执行治理。
@@ -33,6 +33,8 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 - Organizations / Operations：继续按后续商业与运维工作包渐进实现。
 
 公共 Building Blocks 只包含稳定横切能力：强类型 ID、Result/Error、Messaging、Persistence primitives、Security primitives、Observability。
+
+用户头像是 Identity 的单用户当前资料数据，落在 `identity.user_avatars` 的受限 `bytea` 列，服务端限制为 2 MiB 并按 PNG/JPEG/WebP 文件签名校验。它不进入公开内容或 CDN；只有在规模和运维证据要求下才评估迁移到 Object Storage。
 
 ## 3. Canonical Library
 

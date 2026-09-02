@@ -108,6 +108,7 @@ public static partial class ReaderHtml
           const initialPageTitle = pageTitle?.textContent || "登录";
           const initialPageDescription = pageDescription?.textContent || "";
           const avatar = document.getElementById("reader-session-avatar");
+          const avatarImage = document.getElementById("reader-session-avatar-image");
           const email = document.getElementById("reader-session-email");
           const emailValue = document.getElementById("reader-session-email-value");
           const role = document.getElementById("reader-session-role");
@@ -115,6 +116,9 @@ public static partial class ReaderHtml
           const displayName = document.getElementById("reader-session-display-name");
           const displayNameValue = document.getElementById("reader-session-display-name-value");
           const profileForm = document.getElementById("reader-profile-form");
+          const avatarForm = document.getElementById("reader-avatar-form");
+          const avatarFileInput = document.getElementById("reader-avatar-file");
+          const avatarFileName = document.getElementById("reader-avatar-file-name");
           const passwordForm = document.getElementById("reader-password-form");
           const legadoTokenForm = document.getElementById("reader-legado-token-form");
           const legadoTokenList = document.getElementById("reader-legado-token-list");
@@ -127,6 +131,7 @@ public static partial class ReaderHtml
           const accountTabs = Array.from(document.querySelectorAll("[data-account-tab]"));
           const status = document.getElementById("reader-account-status");
           let latestBookSource = null;
+          let avatarObjectUrl = null;
           const setStatus = (message) => { if (status) status.textContent = message; };
           const roleLabel = (value) => {
             switch (value) {
@@ -138,6 +143,38 @@ public static partial class ReaderHtml
           };
           const hasOperationsAccess = (value) => value === "Administrator" || value === "Operator";
           const firstCharacter = (value) => Array.from(String(value || "墨").trim() || "墨")[0].toUpperCase();
+          const showAvatarFallback = () => {
+            if (avatarObjectUrl) {
+              URL.revokeObjectURL(avatarObjectUrl);
+              avatarObjectUrl = null;
+            }
+            if (avatarImage) {
+              avatarImage.hidden = true;
+              avatarImage.removeAttribute("src");
+            }
+            if (avatar) avatar.hidden = false;
+          };
+          const loadAvatar = async () => {
+            if (!avatarImage) return;
+            const response = await client.apiFetch("/api/v1/me/profile/avatar");
+            if (!response?.ok) {
+              showAvatarFallback();
+              return;
+            }
+            try {
+              const blob = await response.blob();
+              if (!blob.size) throw new Error("empty avatar");
+              const objectUrl = URL.createObjectURL(blob);
+              if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
+              avatarObjectUrl = objectUrl;
+              avatarImage.src = objectUrl;
+              avatarImage.hidden = false;
+              if (avatar) avatar.hidden = true;
+            } catch {
+              showAvatarFallback();
+            }
+          };
+          avatarImage?.addEventListener("error", showAvatarFallback);
           const dateLabel = (value) => {
             const parsed = new Date(value);
             return Number.isNaN(parsed.valueOf()) ? "未知时间" : parsed.toLocaleString();
@@ -192,6 +229,7 @@ public static partial class ReaderHtml
             const profileInput = document.getElementById("reader-display-name");
             if (profileInput && document.activeElement !== profileInput) profileInput.value = value;
             if (avatar) avatar.textContent = firstCharacter(value);
+            if (avatarImage) avatarImage.alt = `${value}的头像`;
           };
           const renderLegadoTokens = (values) => {
             if (!legadoTokenList) return;
@@ -369,6 +407,7 @@ public static partial class ReaderHtml
             if (roleValue) roleValue.textContent = roleLabel(accountRole);
             if (adminPanel) adminPanel.hidden = !hasOperationsAccess(accountRole);
             if (sessionStatus) sessionStatus.textContent = "当前会话有效";
+            await loadAvatar();
             await loadLegadoTokens();
           };
 
@@ -403,6 +442,47 @@ public static partial class ReaderHtml
             }
             if (button) button.disabled = false;
           });
+          avatarFileInput?.addEventListener("change", () => {
+            const file = avatarFileInput.files?.[0];
+            if (avatarFileName) avatarFileName.textContent = file?.name || "尚未选择图片";
+          });
+          avatarForm?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const file = avatarFileInput?.files?.[0];
+            const button = avatarForm.querySelector("button[type=submit]");
+            if (!file) {
+              setStatus("请选择一张头像图片。");
+              return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+              setStatus("头像图片不能超过 2 MiB。");
+              return;
+            }
+            const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+            if (file.type && !allowedTypes.has(file.type)) {
+              setStatus("头像只支持 JPG、PNG 或 WebP 图片。");
+              return;
+            }
+            if (button) button.disabled = true;
+            setStatus("正在上传头像，请稍候…");
+            const body = new FormData();
+            body.append("file", file);
+            const response = await client.apiFetch("/api/v1/me/profile/avatar", {
+              method: "PUT",
+              body
+            });
+            if (response?.ok) {
+              await loadAvatar();
+              avatarForm.reset();
+              if (avatarFileName) avatarFileName.textContent = "尚未选择图片";
+              setStatus("头像已更新。");
+            } else {
+              setStatus(response?.status === 413
+                ? "头像图片不能超过 2 MiB。"
+                : "暂时无法上传头像，请检查图片格式后重试。");
+            }
+            if (button) button.disabled = false;
+          });
           passwordForm?.addEventListener("submit", async (event) => {
             event.preventDefault();
             const values = new FormData(passwordForm);
@@ -429,6 +509,7 @@ public static partial class ReaderHtml
               if (forms) forms.hidden = false;
               if (session) session.hidden = true;
               if (adminPanel) adminPanel.hidden = true;
+              showAvatarFallback();
               setStatus("密码已修改，请使用新密码重新登录。");
             } else {
               setStatus(response?.status === 401
@@ -477,6 +558,7 @@ public static partial class ReaderHtml
             if (forms) forms.hidden = false;
             if (session) session.hidden = true;
             if (adminPanel) adminPanel.hidden = true;
+            showAvatarFallback();
             if (legadoTokenReveal) legadoTokenReveal.hidden = true;
             if (legadoTokenSecret) legadoTokenSecret.value = "";
             latestBookSource = null;
@@ -777,7 +859,10 @@ public static partial class ReaderHtml
                       <p id="reader-session-email" class="account-profile__email"></p>
                       <span id="reader-session-role" class="account-role"></span>
                     </div>
-                    <div id="reader-session-avatar" class="account-avatar" aria-hidden="true">墨</div>
+                    <div class="account-avatar-wrap">
+                      <div id="reader-session-avatar" class="account-avatar" aria-hidden="true">墨</div>
+                      <img id="reader-session-avatar-image" class="account-avatar account-avatar--image" alt="" hidden>
+                    </div>
                   </div>
                   <p class="account-profile__status" aria-live="polite">
                     <span class="account-status-dot" aria-hidden="true"></span>
@@ -811,6 +896,18 @@ public static partial class ReaderHtml
                     <section class="form-card account-panel" aria-labelledby="account-profile-title">
                       <h2 id="account-profile-title">个人资料</h2>
                       <p class="muted">设置一个在账户页和后续社区功能中使用的显示名称。</p>
+                      <section class="account-avatar-settings" aria-labelledby="account-avatar-title">
+                        <h3 id="account-avatar-title">头像</h3>
+                        <p class="muted">上传 JPG、PNG 或 WebP 图片，大小不超过 2 MiB。</p>
+                        <form id="reader-avatar-form" class="form-stack" enctype="multipart/form-data">
+                          <div class="form-field">
+                            <label for="reader-avatar-file">选择头像</label>
+                            <input id="reader-avatar-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required>
+                            <span id="reader-avatar-file-name" class="muted" role="status">尚未选择图片</span>
+                          </div>
+                          <div class="form-actions"><button class="button button--primary" type="submit">上传头像</button></div>
+                        </form>
+                      </section>
                       <form id="reader-profile-form" class="form-stack">
                         <div class="form-field">
                           <label for="reader-display-name">显示名称</label>

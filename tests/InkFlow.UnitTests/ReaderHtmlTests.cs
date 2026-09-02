@@ -262,6 +262,7 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(account, "当前会话已验证");
         StringAssert.Contains(account, "reader-session-profile");
         StringAssert.Contains(account, "reader-session-avatar");
+        StringAssert.Contains(account, "reader-session-avatar-image");
         StringAssert.Contains(account, "reader-session-email");
         StringAssert.Contains(account, "reader-session-role");
         StringAssert.Contains(account, "account-panel");
@@ -277,6 +278,11 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(account, "进入运营中心");
         StringAssert.Contains(account, "reader-profile-form");
         StringAssert.Contains(account, "/api/v1/me/profile");
+        StringAssert.Contains(account, "reader-avatar-form");
+        StringAssert.Contains(account, "reader-avatar-file");
+        StringAssert.Contains(account, "accept=\"image/jpeg,image/png,image/webp\"");
+        StringAssert.Contains(account, "/api/v1/me/profile/avatar");
+        StringAssert.Contains(account, "2 MiB");
         StringAssert.Contains(account, "reader-password-form");
         StringAssert.Contains(account, "/api/v1/me/password");
         StringAssert.Contains(account, "reader-legado-token-form");

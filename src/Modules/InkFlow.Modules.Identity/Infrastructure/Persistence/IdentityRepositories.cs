@@ -98,6 +98,17 @@ public static class IdentityMapper
             entity.ExpiresAt,
             entity.RevokedAt);
 
+    public static UserAvatarEntity ToEntity(IdentityAvatar avatar) => new()
+    {
+        UserId = avatar.UserId,
+        ContentType = avatar.ContentType,
+        Content = avatar.Content,
+        UpdatedAt = avatar.UpdatedAt,
+    };
+
+    public static IdentityAvatar ToDomain(UserAvatarEntity entity) =>
+        new(entity.UserId, entity.ContentType, entity.Content, entity.UpdatedAt);
+
     public static PermissionGrantEntity ToEntity(PermissionGrant grant) => new()
     {
         Id = grant.Id,
@@ -253,6 +264,37 @@ public sealed class EfUserRepository(IdentityDbContext db) : IUserRepository
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+}
+
+public sealed class EfUserAvatarRepository(IdentityDbContext db) : IUserAvatarRepository
+{
+    public async Task<IdentityAvatar?> GetAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.UserAvatars
+            .AsNoTracking()
+            .SingleOrDefaultAsync(avatar => avatar.UserId == userId, cancellationToken)
+            .ConfigureAwait(false);
+        return entity is null ? null : IdentityMapper.ToDomain(entity);
+    }
+
+    public async Task SaveAsync(
+        IdentityAvatar avatar,
+        CancellationToken cancellationToken = default)
+    {
+        await db.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO "identity"."user_avatars" ("UserId", "ContentType", "Content", "UpdatedAt")
+                VALUES ({avatar.UserId}, {avatar.ContentType}, {avatar.Content}, {avatar.UpdatedAt})
+                ON CONFLICT ("UserId") DO UPDATE SET
+                    "ContentType" = EXCLUDED."ContentType",
+                    "Content" = EXCLUDED."Content",
+                    "UpdatedAt" = EXCLUDED."UpdatedAt"
+                """,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 }
 

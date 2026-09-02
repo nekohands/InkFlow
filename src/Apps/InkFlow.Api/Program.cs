@@ -38,6 +38,7 @@ using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,6 +78,7 @@ builder.Services.AddScoped<IInboxDeadLetterReader>(sp =>
     sp.GetRequiredService<EfMessagingMessageStore>());
 
 builder.Services.AddScoped<IUserRepository, EfUserRepository>();
+builder.Services.AddScoped<IUserAvatarRepository, EfUserAvatarRepository>();
 builder.Services.AddScoped<IIdentitySessionRepository, EfIdentitySessionRepository>();
 builder.Services.AddScoped<ILegadoAccessTokenRepository, EfLegadoAccessTokenRepository>();
 builder.Services.AddScoped<IResourcePermissionRepository, EfResourcePermissionRepository>();
@@ -412,6 +414,103 @@ account.MapPut("/profile", async (
             result.IsSuccess ? "success" : "client_error"),
         ct).ConfigureAwait(false);
     return AccountEndpointResults.FromProfile(result);
+});
+
+account.MapGet("/profile/avatar", async (
+    ClaimsPrincipal principal,
+    IIdentityService identity,
+    HttpContext httpContext,
+    CancellationToken ct) =>
+{
+    if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    var avatar = await identity.GetAvatarAsync(userId, ct).ConfigureAwait(false);
+    if (avatar is null)
+    {
+        return Results.NotFound(new { error = "avatar_not_found" });
+    }
+
+    httpContext.Response.Headers.CacheControl = "private, no-store";
+    httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    return Results.File(
+        avatar.Content,
+        avatar.ContentType,
+        enableRangeProcessing: false);
+});
+
+account.MapPut("/profile/avatar", async (
+    HttpRequest request,
+    ClaimsPrincipal principal,
+    IIdentityService identity,
+    HttpContext httpContext,
+    IAuditEventSink auditSink,
+    TimeProvider clock,
+    CancellationToken ct) =>
+{
+    if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+    {
+        return (IResult)Results.Unauthorized();
+    }
+
+    if (request.ContentLength is > AvatarImage.MaxMultipartRequestBytes)
+    {
+        return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+    }
+
+    var bodySize = request.HttpContext.Features
+        .Get<IHttpMaxRequestBodySizeFeature>();
+    if (bodySize is { IsReadOnly: false })
+    {
+        bodySize.MaxRequestBodySize = AvatarImage.MaxMultipartRequestBytes;
+    }
+
+    if (!request.HasFormContentType)
+    {
+        return Results.BadRequest(new { error = "multipart_file_required" });
+    }
+
+    IFormCollection form;
+    try
+    {
+        form = await request.ReadFormAsync(ct).ConfigureAwait(false);
+    }
+    catch (InvalidDataException)
+    {
+        return Results.BadRequest(new { error = "invalid_image" });
+    }
+
+    if (form.Files.Count != 1)
+    {
+        return Results.BadRequest(new { error = "one_file_required" });
+    }
+
+    var file = form.Files[0];
+    if (file.Length > AvatarImage.MaxUploadBytes)
+    {
+        return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+    }
+
+    await using var stream = file.OpenReadStream();
+    var result = await identity.UploadAvatarAsync(userId, stream, ct).ConfigureAwait(false);
+    var statusCode = result.Status switch
+    {
+        AvatarResultStatus.Success => StatusCodes.Status204NoContent,
+        AvatarResultStatus.NotFound => StatusCodes.Status404NotFound,
+        _ => StatusCodes.Status400BadRequest,
+    };
+    await auditSink.AppendAsync(
+        AccountEndpointResults.CreateAudit(
+            "identity.avatar.update",
+            principal,
+            httpContext,
+            clock,
+            statusCode,
+            result.IsSuccess ? "success" : "client_error"),
+        ct).ConfigureAwait(false);
+    return AccountEndpointResults.FromAvatarUpload(result);
 });
 
 account.MapPost("/password", async (

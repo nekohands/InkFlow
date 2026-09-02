@@ -47,4 +47,13 @@ public sealed class AuthEndpointsTests
         Assert.AreEqual(StatusCodes.Status401Unauthorized, ((IStatusCodeHttpResult)result).StatusCode);
         Assert.IsFalse(result.ToString()!.Contains("password", StringComparison.OrdinalIgnoreCase));
     }
+
+    [TestMethod]
+    public void Avatar_Upload_Result_Maps_Invalid_Image_To_A_Client_Error()
+    {
+        var result = AccountEndpointResults.FromAvatarUpload(
+            new AvatarOperationResult(AvatarResultStatus.InvalidRequest));
+
+        Assert.AreEqual(StatusCodes.Status400BadRequest, ((IStatusCodeHttpResult)result).StatusCode);
+    }
 }

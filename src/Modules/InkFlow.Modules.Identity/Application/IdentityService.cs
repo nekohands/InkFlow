@@ -14,6 +14,7 @@ public sealed class IdentityService : IIdentityService
     public const int MaximumPasswordLength = 256;
 
     private readonly IUserRepository _users;
+    private readonly IUserAvatarRepository _avatars;
     private readonly IIdentitySessionRepository _sessions;
     private readonly IPasswordHasher _passwords;
     private readonly IOpaqueTokenGenerator _tokens;
@@ -22,6 +23,7 @@ public sealed class IdentityService : IIdentityService
 
     public IdentityService(
         IUserRepository users,
+        IUserAvatarRepository avatars,
         IIdentitySessionRepository sessions,
         IPasswordHasher passwords,
         IOpaqueTokenGenerator tokens,
@@ -29,6 +31,7 @@ public sealed class IdentityService : IIdentityService
         IdentityOptions options)
     {
         _users = users;
+        _avatars = avatars;
         _sessions = sessions;
         _passwords = passwords;
         _tokens = tokens;
@@ -241,6 +244,41 @@ public sealed class IdentityService : IIdentityService
             .ConfigureAwait(false);
         return new PasswordChangeOperationResult(PasswordChangeResultStatus.Success);
     }
+
+    public async Task<AvatarOperationResult> UploadAvatarAsync(
+        Guid userId,
+        Stream content,
+        CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return new AvatarOperationResult(AvatarResultStatus.InvalidRequest);
+        }
+
+        var user = await _users.GetAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (user is null || !user.CanAuthenticate)
+        {
+            return new AvatarOperationResult(AvatarResultStatus.NotFound);
+        }
+
+        var image = await AvatarImage.ReadAsync(content, cancellationToken).ConfigureAwait(false);
+        if (image is null)
+        {
+            return new AvatarOperationResult(AvatarResultStatus.InvalidRequest);
+        }
+
+        await _avatars.SaveAsync(
+            new IdentityAvatar(userId, image.ContentType, image.Content, _clock.GetUtcNow()),
+            cancellationToken).ConfigureAwait(false);
+        return new AvatarOperationResult(AvatarResultStatus.Success);
+    }
+
+    public Task<IdentityAvatar?> GetAvatarAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default) =>
+        userId == Guid.Empty
+            ? Task.FromResult<IdentityAvatar?>(null)
+            : _avatars.GetAsync(userId, cancellationToken);
 
     private async Task<IdentityOperationResult> CreateSessionAsync(
         User user,

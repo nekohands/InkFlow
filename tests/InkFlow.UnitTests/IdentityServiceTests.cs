@@ -179,6 +179,36 @@ public sealed class IdentityServiceTests
     }
 
     [TestMethod]
+    public async Task Avatar_Can_Be_Uploaded_And_Replaced_Only_For_The_Authenticated_User()
+    {
+        var context = CreateContext();
+        var registered = await context.Service.RegisterAsync(
+            "reader@example.com",
+            "correct horse battery staple");
+        var png = new byte[]
+        {
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x01,
+        };
+
+        var uploaded = await context.Service.UploadAvatarAsync(
+            registered.Session!.UserId,
+            new MemoryStream(png));
+        var stored = await context.Service.GetAvatarAsync(registered.Session.UserId);
+
+        Assert.AreEqual(AvatarResultStatus.Success, uploaded.Status);
+        Assert.IsNotNull(stored);
+        Assert.AreEqual("image/png", stored!.ContentType);
+        CollectionAssert.AreEqual(png, stored.Content);
+
+        var invalid = await context.Service.UploadAvatarAsync(
+            Guid.NewGuid(),
+            new MemoryStream(png));
+
+        Assert.AreEqual(AvatarResultStatus.NotFound, invalid.Status);
+    }
+
+    [TestMethod]
     public async Task Expired_Access_Token_Is_Not_Authenticated()
     {
         var context = CreateContext();
@@ -192,21 +222,24 @@ public sealed class IdentityServiceTests
     {
         var sessions = new InMemorySessionRepository();
         var users = new InMemoryUserRepository(sessions);
+        var avatars = new InMemoryUserAvatarRepository();
         var clock = new MutableClock(T0);
         var service = new IdentityService(
             users,
+            avatars,
             sessions,
             new FakePasswordHasher(),
             new SequentialTokenGenerator(),
             clock,
             new IdentityOptions());
-        return new TestContext(service, users, sessions, clock);
+        return new TestContext(service, users, sessions, avatars, clock);
     }
 
     private sealed record TestContext(
         IdentityService Service,
         InMemoryUserRepository Users,
         InMemorySessionRepository Sessions,
+        InMemoryUserAvatarRepository Avatars,
         MutableClock Clock);
 
     private sealed class FakePasswordHasher : IPasswordHasher
@@ -345,6 +378,24 @@ public sealed class IdentityServiceTests
                 token.Revoke(now);
             }
 
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class InMemoryUserAvatarRepository : IUserAvatarRepository
+    {
+        private readonly Dictionary<Guid, IdentityAvatar> _store = [];
+
+        public Task<IdentityAvatar?> GetAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_store.GetValueOrDefault(userId));
+
+        public Task SaveAsync(
+            IdentityAvatar avatar,
+            CancellationToken cancellationToken = default)
+        {
+            _store[avatar.UserId] = avatar;
             return Task.CompletedTask;
         }
     }

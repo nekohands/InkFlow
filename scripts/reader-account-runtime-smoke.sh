@@ -142,6 +142,7 @@ registration_payload="$("$jq_bin" -nc \
 
 request GET /api/v1/auth/me '' '__NO_BODY__' "$work_dir/unauthenticated-me.json" 401
 request GET /api/v1/me/reading/shelf '' '__NO_BODY__' "$work_dir/unauthenticated-shelf.json" 401
+request GET /api/v1/me/profile/avatar '' '__NO_BODY__' "$work_dir/unauthenticated-avatar.json" 401
 
 request POST /api/v1/auth/register '' "$registration_payload" "$work_dir/register.json" 200
 assert_json "$work_dir/register.json" '.user.email == $email and .user.role == "Reader" and (.user.id | strings | length > 0)' --arg email "$email"
@@ -176,6 +177,46 @@ request POST /api/v1/auth/refresh '' \
 access_token="$rotated_access_token"
 request GET /api/v1/auth/me "$access_token" '__NO_BODY__' "$work_dir/me.json" 200
 assert_json "$work_dir/me.json" '.email == $email and .role == "Reader"' --arg email "$email"
+
+printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' \
+  | base64 --decode > "$work_dir/avatar.png"
+request_file() {
+  local method="$1"
+  local route="$2"
+  local token="$3"
+  local file="$4"
+  local output="$5"
+  local expected="$6"
+  local status
+  local -a args=(
+    --silent
+    --show-error
+    --max-time "$max_time"
+    --request "$method"
+  )
+
+  if [[ -n "$token" ]]; then
+    args+=(-H "Authorization: Bearer $token")
+  fi
+  args+=(--form "file=@$file")
+
+  if ! status="$($curl_bin "${args[@]}" \
+    --output "$output" \
+    --write-out '%{http_code}' \
+    "$base_url$route")"; then
+    fail "request $method $route could not be completed"
+  fi
+
+  if [[ "$status" != "$expected" ]]; then
+    fail "request $method $route returned HTTP $status; expected $expected"
+  fi
+}
+
+request_file PUT /api/v1/me/profile/avatar "$access_token" "$work_dir/avatar.png" \
+  "$work_dir/avatar-upload.json" 204
+request GET /api/v1/me/profile/avatar "$access_token" '__NO_BODY__' \
+  "$work_dir/avatar-response.bin" 200
+[[ -s "$work_dir/avatar-response.bin" ]] || fail 'uploaded avatar response was empty'
 
 request GET /api/v1/me/reading/preferences "$access_token" '__NO_BODY__' "$work_dir/default-preferences.json" 200
 assert_json "$work_dir/default-preferences.json" \
