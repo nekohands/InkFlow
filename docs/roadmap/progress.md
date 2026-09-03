@@ -1662,6 +1662,15 @@ Phase 1A 自动化工作包状态：
 - CI：`5d64dd2` 的首次 CI 因前端 smoke 夹具漏记新合同字符串失败，已在 `4b896fb` 补齐；`4b896fb` 的 [CI 33734431190](https://github.com/nekohands/InkFlow/actions/runs/33734431190)、[Docker 33734431170](https://github.com/nekohands/InkFlow/actions/runs/33734431170)、[Security 33734431235](https://github.com/nekohands/InkFlow/actions/runs/33734431235) 均已 success。
 - 验收边界：Windows Integration 仍因本机 Docker Engine named pipe 不可用而 BLOCKED；未使用真实上游账号、生产令牌、Cookie，阅读 3.0/MuMu 真机及其他明确人工验收继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.51 运维操作理由候选与自定义输入（本轮，2026-09-03）
+
+- 实现：复用现有操作确认弹窗，按重放、暂停/恢复/停止/取消、失败/已取消清理、来源、能力和内容政策操作展示 3 个常用理由；默认填入第一项，点击候选可替换理由，文本框仍可直接编辑或自行填写。
+- 安全与可访问性：候选项使用键盘可操作的按钮，位于带“常用理由”图例的 fieldset 中；原有 1–512 字符校验、二次确认、权限和审计链路不变，不把理由改为不可编辑的枚举。
+- 测试：ReaderHtml 单元回归先红后绿（24/24），前端 smoke 合同回归 PASS；完整本地 Build PASS、Unit `570/570`、Architecture `1/1`、Contract `12/12`，Windows Integration 因 Docker named pipe 不可用 BLOCKED。
+- VM/运行时：Ubuntu VM 隔离栈已用 `4600d2b` 重建，API/Worker/Scheduler/PostgreSQL/Redis healthy；`reader-frontend-runtime-smoke` PASS。浏览器已实际打开“取消”理由弹窗，确认 3 个候选、默认理由、候选替换和自定义文本输入，未提交破坏性操作。
+- CI：代码提交 `4600d2b` 的远端门禁待本轮推送后完成；文档同步后需以最新 head 的 CI、Docker、Security 结果为准。
+- 验收边界：真实上游、真实凭据、阅读 3.0/MuMu 真机及其他明确人工项目继续待定；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
