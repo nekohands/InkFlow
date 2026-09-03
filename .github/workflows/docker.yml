@@ -18,13 +18,12 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Pull pinned OTLP Collector image
-        run: docker pull otel/opentelemetry-collector:0.159.0
+        run: docker pull otel/opentelemetry-collector:0.160.0
 
       - name: Scan OTLP Collector before publishing application images
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: otel/opentelemetry-collector:0.159.0
-          trivyignores: ${{ github.workspace }}/.trivyignore-collector
+          image-ref: otel/opentelemetry-collector:0.160.0
           scanners: vuln
           vuln-type: os,library
           severity: HIGH,CRITICAL

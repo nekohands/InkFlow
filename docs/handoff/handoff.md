@@ -1424,6 +1424,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 环境备注：源码首次构建成功；一次冗余的 `--build` 迁移启动因 Dockerfile frontend 外网元数据超时，随后复用已成功构建的本地源码镜像完成迁移/运行，未改用 GHCR。内置浏览器无法访问仅为本轮隔离验证开放的端口，候选视觉会话不记为通过；未读取 Cookie/Storage/真实凭据。
 - 下一步：保留第 6 节阅读 3.0/MuMu 真机、真实上游追更/故障切换和其他人工验收；如需候选视觉验收，应在不替换手工栈的前提下提供浏览器可达的候选入口。整体继续保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.47 采集运行全量展示、状态分组与来源生命周期交接（本轮，2026-09-03）
+
+- 代码范围：失败运行删除 API/审计/事务清理、稳定游标分页、运维页全量加载与状态分组、Source 整体启停 API/持久化/运行时门控及对应回归测试。
+- 删除语义：仅允许删除 `failed` 运行；锁定运行与其任务后删除采集任务和死信，保留 Canonical/Source 数据、正文、审计和 Outbox；理由 1–512 字符，权限沿用 `CrawlerRepair` 与现有运维资源授权。
+- 列表语义：服务端每页最多 100 条，游标由 `UpdatedAt` 与 `Id` 组成；前端跟随全部 `nextCursor`，在一个刷新快照中按终态/活动态分组展示。活动运行继续按既有 4 秒轮询，终态不再轮询。
+- 来源语义：`Source.IsEnabled` 的迁移默认值为 true；停用来源会阻止地址解析、搜索、追更调度、适配器执行和健康探测，恢复只切换资格，不清除能力健康或历史数据。
+- 验证证据：本机 Release Build 0 warnings / 0 errors；Unit 567/567、Architecture 1/1、Contract 12/12；迁移无 pending model changes。Windows Integration 因 `npipe://./pipe/docker_engine` 不可用阻塞（8 passed / 3 skipped，其余初始化阶段阻塞）。Ubuntu VM 隔离源码 Compose healthy，Integration 109 passed / 3 skipped / 0 failed；管理员、打包、前端 smoke 全部 PASS。
+- 浏览器证据：内置浏览器登录一次性测试管理员，在候选 `18080` 页面确认 4 个任务按状态分组、来源停用/恢复对话框、失败删除确认；通过隔离接口删除一条失败运行后刷新，列表从 7 条变为 6 条且失败分组移除。未读取 Cookie/Storage/真实凭据。
+- CI 状态：`bfbad59` 的 CI/Security 通过，Docker 因 OTEL `0.159.0` 的 CVE-2026-84304 失败；当前交接同时包含 `0.160.0` 固定版本安全补丁和例外删除，推送后必须以新的 CI、Docker、Security 结果作为最终门禁证据。
+- 人工待定：按用户要求不执行阅读 3.0/MuMu 真机；真实上游账号/追更、人工视觉和其他第 6 节项目继续待后续处理。当前状态保持 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：

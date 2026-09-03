@@ -182,7 +182,7 @@ Core SLO v1 通过 OpenTelemetry 记录 `public_api`、`legado_api`、`developer
 
 ### Compose OTLP Collector 监控基线
 
-两份 Compose 编排均包含固定版本的官方 `otel/opentelemetry-collector:0.159.0`。API、Worker、Scheduler 默认通过 Compose 内部网络把 traces/metrics 发送到 `otel-collector:4317`；OTLP 接收端口不发布到宿主机，Collector 健康端口 `13133` 仅绑定 loopback。CI Runtime smoke 会实际请求该健康端点，验证 Collector 已启动并可提供健康响应。
+两份 Compose 编排均包含固定版本的官方 `otel/opentelemetry-collector:0.160.0`。API、Worker、Scheduler 默认通过 Compose 内部网络把 traces/metrics 发送到 `otel-collector:4317`；OTLP 接收端口不发布到宿主机，Collector 健康端口 `13133` 仅绑定 loopback。CI Runtime smoke 会实际请求该健康端点，验证 Collector 已启动并可提供健康响应。
 
 当前 Collector 使用 `deploy/observability/otel-collector-config.yaml` 的 `debug` exporter，仅作为本地/CI 接收与诊断基线，不提供持久化、查询、告警或长期保留。生产环境必须通过 `OTEL_EXPORTER_OTLP_ENDPOINT` 或替换 Collector 配置接入受治理的后端，并另行取得窗口证据、错误预算告警、访问控制和保留策略验收；Collector 健康通过不等同于 Core SLO 月度达标。决策见 [ADR 0012](docs/adr/0012-compose-otel-collector-baseline.md)。
 

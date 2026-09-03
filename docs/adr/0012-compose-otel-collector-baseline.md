@@ -9,7 +9,7 @@ Core SLO v1 已由 API、Worker、Scheduler 和 Reader 相关宿主产生低基�
 
 ## 决策
 
-- 在生产镜像 Compose 和源码构建 Compose 中加入官方 core `otel/opentelemetry-collector:0.159.0`，使用仓库内只读配置文件，不使用浮动的 `latest` 标签。
+- 在生产镜像 Compose 和源码构建 Compose 中加入官方 core `otel/opentelemetry-collector:0.160.0`，使用仓库内只读配置文件，不使用浮动的 `latest` 标签。
 - Collector 只在 Compose 内部网络监听 OTLP gRPC `4317` 和 HTTP `4318`；不把这两个接收端口发布到宿主机。健康检查扩展监听 `13133`，只绑定宿主机 loopback，供本机/CI smoke 使用。
 - API、Worker、Scheduler 的 Compose 默认 `OTEL_EXPORTER_OTLP_ENDPOINT` 指向 `http://otel-collector:4317`，仍允许部署环境通过同名环境变量覆盖到受管的外部 OTLP 端点。应用依赖 Collector 已启动，但不把 Collector 当作业务事实源或数据库依赖。
 - Collector 使用 `read_only`、`tmpfs`、`no-new-privileges` 和 `cap_drop: ALL`；配置以只读 bind mount 注入。CI Runtime smoke 显式请求 loopback 健康端点，验证接收服务真实启动。
@@ -29,3 +29,7 @@ Compose 与远端 Runtime smoke 现在具备可回归的 Collector 启动/健康
 ## 维护更新（2026-09-01）
 
 Docker 发布门禁扫描 `0.159.0` 时发现其内置 `golang.org/x/crypto` 存在已修复的高危漏洞（CVE-2026-56854）。截至本次验证，官方稳定 `0.160.0` 标签尚未发布，已发布的 `0.160.0` nightly 仍包含相同依赖版本；当前 Compose 仅启用 OTLP、debug 和 health_check，不启用 SSH receiver/exporter 或 SSH 认证回调，因此该 CVE 不影响本部署的可执行路径。Docker 工作流通过仅用于 Collector 扫描的 `.trivyignore-collector`，以到期日期记录这一临时 VEX 例外；官方修复镜像可用后必须立即移除例外、更新固定镜像并重新经过 Docker Trivy、Compose Runtime 和 Ubuntu VM 源码构建验证。其余网络暴露和运行时加固边界不变。
+
+## 维护更新（2026-09-03）
+
+官方稳定 `otel/opentelemetry-collector:0.160.0` 已发布，包含对上一固定版本扫描到的高危依赖漏洞的修复。两份 Compose 与 Docker 发布扫描均升级到 `0.160.0`，并删除仅服务于旧版本的 `.trivyignore-collector` 临时例外；版本仍固定，不改动 Collector 的网络暴露、权限或配置边界。

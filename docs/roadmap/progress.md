@@ -1624,6 +1624,16 @@ Phase 1A 自动化工作包状态：
 - 运行备注：首次源码 `docker compose build` 成功；后续一次带 `--build` 的迁移启动因 Dockerfile frontend 外网元数据请求超时，复用了已成功构建的本地源码镜像完成迁移与运行，未改用 GHCR 镜像。
 - 验收边界：本轮未使用真实外部账户、生产令牌、Cookie 或提交敏感配置；候选验证端口未接入内置浏览器的视觉会话，因此仅记录脚本/HTTP/契约证据。阅读 3.0/MuMu 真机、真实上游追更和其他第 6 节人工验收继续待定；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.47 采集运行全量展示、状态分组与来源生命周期（本轮，2026-09-03）
+
+- 实现：失败采集运行增加受保护的事务删除接口；删除前校验失败状态、理由和权限，锁定运行及其子任务，原子删除采集子任务/死信，保留书籍、正文、审计和 Outbox 事实。删除结果写入审计，前端只对 `failed` 状态显示不可恢复的删除入口。
+- 全量任务面：`GET /api/v1/admin/collection-runs` 使用有界 `limit` 与 `UpdatedAt`/`Id` 稳定游标分页；运维页自动消费所有游标页后按 pending/running/paused/stopping/completed/failed/stopped/cancelled 分组，显示每组数量和每个运行的进度明细，避免固定首屏截断历史任务。
+- 来源生命周期：Source 增加持久化 `IsEnabled`（旧数据迁移默认启用），运维页支持来源整体停用/恢复并保留理由；地址解析、搜索/追更调度、适配器、Worker 执行和健康探测均读取该门控，停用不删除既有来源数据。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 567/567、Architecture 1/1、Contract 12/12 PASS；迁移模型无 pending changes；`git diff --check` 与受影响脚本回归 PASS。完整 `dotnet test InkFlow.sln` 的 Integration 阶段受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用阻塞（8 项通过、3 项跳过，其余同一初始化错误），不记为本机 Integration PASS。
+- VM/浏览器证据：隔离工作树 `bfbad59` 使用源码 Compose 构建并运行 API、Worker、Scheduler、Migrations；迁移成功，PostgreSQL/Redis/API/Worker/Scheduler healthy；VM Integration 109 passed / 3 skipped / 0 failed。`admin-runtime-smoke`、`collection-package-runtime-smoke`、`reader-frontend-runtime-smoke` 均 PASS，覆盖全量列表、控制状态、直接地址采集、EPUB/TXT/ZIP、下载完整性和审计。内置浏览器使用一次性测试账号登录候选端口，看到 4 个运行按状态分组、来源停用/恢复交互和失败运行删除确认；删除后列表由 7 个变为 6 个且失败组消失。
+- CI/供应链：`bfbad59` 的 CI 与 Security 通过，但 Docker 扫描因固定 OTEL `0.159.0` 命中可修复的 HIGH CVE-2026-84304 而失败；已在本工作包中将两份 Compose/CI 扫描升级到固定 `0.160.0` 并移除旧 `.trivyignore-collector` 例外，待新候选门禁完成后更新最终链接。
+- 验收边界：未读取或提交真实账号、密码、生产令牌、Cookie；阅读 3.0/MuMu 真机、真实上游追更与其他明确人工验收继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
