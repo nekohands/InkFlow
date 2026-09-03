@@ -11,6 +11,9 @@ public static partial class ReaderHtml
             <a class="brand" href="/reader" aria-label="返回 InkFlow 书库"><span class="brand__name">墨流</span><span class="brand__sub">InkFlow · 运维</span></a>
             <nav class="reader-nav" aria-label="运维导航">
               <a href="/admin/operations" aria-current="page">运维中心</a>
+              <a href="/admin/operations#collection">采集</a>
+              <a href="/admin/operations#packages">下载</a>
+              <a href="/admin/operations#sources">来源状态</a>
               <a href="/reader">返回书库</a>
             </nav>
           </div>
@@ -799,6 +802,22 @@ public static partial class ReaderHtml
             element.replaceChildren();
             if (message) element.append(node("p", "operations-state operations-state--" + tone, message));
           };
+          const downloadPackageArtifact = async (packageValue, trigger) => {
+            const packageId = asGuid(packageValue?.id);
+            if (!packageId || !client?.isSignedIn()) return;
+            if (trigger) trigger.disabled = true;
+            setPanelStatus(packageStatus, "正在准备下载…");
+            const response = await client.apiFetch("/api/v1/admin/packages/" + packageId + "/download");
+            if (response?.ok && await client.downloadResponse(response, text(packageValue?.artifactFileName, "inkflow-download"))) {
+              setPanelStatus(packageStatus, "下载已开始。", "ready");
+            } else if (response?.status === 401) {
+              client.clearSession();
+              showLogin("会话已失效，请重新登录后访问运维中心。");
+            } else {
+              setPanelStatus(packageStatus, "下载暂时失败，请稍后重试。", "danger");
+            }
+            if (trigger) trigger.disabled = false;
+          };
           const scheduleTaskPoll = () => {
             if (taskPollTimer !== null) return;
             if (!collectionHasActive && !packageHasActive) return;
@@ -1117,10 +1136,10 @@ public static partial class ReaderHtml
               const actions = node("div", "operations-package-card__actions");
               if (status === "completed") {
                 card.append(node("p", "operations-package-card__meta", "文件 " + text(packageValue?.artifactFileName, "未记录") + " · " + sizeLabel(packageValue?.artifactLength) + " · 有效至 " + dateLabel(packageValue?.expiresAt)));
-                const link = node("a", "button", "下载 " + text(packageValue?.format, "书籍包").toUpperCase());
-                link.href = "/api/v1/admin/packages/" + packageId + "/download";
-                link.setAttribute("download", "");
-                actions.append(link);
+                const button = node("button", "button", "下载 " + text(packageValue?.format, "书籍包").toUpperCase());
+                button.type = "button";
+                button.addEventListener("click", () => { void downloadPackageArtifact(packageValue, button); });
+                actions.append(button);
               } else if (status === "expired") {
                 card.append(node("p", "operations-package-card__meta", "下载文件已过期，无法继续下载。"));
               }

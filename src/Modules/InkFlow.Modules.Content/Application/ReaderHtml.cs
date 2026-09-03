@@ -124,6 +124,25 @@ public static partial class ReaderHtml
             }
           };
 
+          const downloadResponse = async (response, fallbackName) => {
+            if (!response?.ok) return false;
+            const blob = await response.blob().catch(() => null);
+            if (!blob) return false;
+            const filename = typeof fallbackName === "string" && fallbackName.trim()
+              ? fallbackName.trim().replaceAll("\\", "_").replaceAll("/", "_").replaceAll("\0", "_")
+              : "inkflow-download";
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = filename;
+            link.hidden = true;
+            document.body.append(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            return true;
+          };
+
           const isAccountPage = () => ["/reader/account", "/reader/account/register"].includes(window.location.pathname);
           const redirectToLogin = () => {
             const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -159,7 +178,8 @@ public static partial class ReaderHtml
             saveSession,
             clearSession,
             authFetch,
-            apiFetch
+            apiFetch,
+            downloadResponse
           });
           void requireAuthentication();
         })();
@@ -442,6 +462,10 @@ public static partial class ReaderHtml
             .book-hero { padding: clamp(1.25rem, 4vw, 2.5rem); }
             .book-author { margin-bottom: 1.25rem; color: var(--reader-muted); font-size: 1.05rem; }
             .book-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+            .book-package-actions { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0.7rem; margin-top: 0.85rem; }
+            .book-package-format { display: grid; gap: 0.35rem; color: var(--reader-muted); font-size: 0.82rem; font-weight: 650; }
+            .book-package-format select { min-height: 2.85rem; padding: 0.65rem 0.75rem; border: 1px solid var(--reader-border); border-radius: 0.7rem; background: var(--reader-surface); color: var(--reader-text); }
+            .book-package-status { margin: 0.7rem 0 0; }
             .content-panel { margin-top: 1.25rem; padding: clamp(1.1rem, 3vw, 1.8rem); }
             .toc {
               display: grid;
@@ -811,6 +835,9 @@ public static partial class ReaderHtml
               <a href="/reader">书库</a>
               <a href="/reader/shelf">书架</a>
               <a href="/reader/history">历史</a>
+              <a href="/admin/operations#collection">采集</a>
+              <a href="/admin/operations#packages">下载</a>
+              <a href="/admin/operations#sources">来源状态</a>
               <a data-reader-account-link href="/reader/account">账户</a>
               <button id="reader-install" class="reader-nav__install" type="button" hidden>安装应用</button>
             </nav>
@@ -949,6 +976,20 @@ public static partial class ReaderHtml
         }
 
         sb.Append($"<button id=\"reader-shelf-toggle\" class=\"button\" type=\"button\" data-book-id=\"{book.Id:D}\" hidden>加入书架</button>");
+        sb.Append(
+            $"""
+              <div id="reader-package-actions" class="book-package-actions" data-book-id="{book.Id:D}" hidden>
+                <label class="book-package-format" for="reader-package-format">下载格式
+                  <select id="reader-package-format">
+                    <option value="epub" selected>EPUB</option>
+                    <option value="txt">单文件 TXT</option>
+                    <option value="zip">ZIP</option>
+                  </select>
+                </label>
+                <button id="reader-package-download" class="button" type="button">下载</button>
+              </div>
+              <p id="reader-package-status" class="book-package-status muted" role="status" aria-live="polite">登录后可创建下载任务。</p>
+            """);
 
         sb.Append(
             """

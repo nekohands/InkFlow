@@ -115,6 +115,33 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Book_Detail_Offers_Direct_Package_Download_Action()
+    {
+        var html = ReaderHtml.BookDetailPage(Detail);
+
+        StringAssert.Contains(html, "reader-package-download");
+        StringAssert.Contains(html, "reader-package-format");
+        StringAssert.Contains(html, $"data-book-id=\"{Detail.Id:D}\"");
+        StringAssert.Contains(html, "/api/v1/admin/packages?limit=100");
+        StringAssert.Contains(html, "/api/v1/admin/books/");
+        StringAssert.Contains(html, "downloadResponse");
+        StringAssert.Contains(html, "已有完成包");
+    }
+
+    [TestMethod]
+    public void Reader_Navigation_Exposes_Collection_Download_And_Source_Tabs()
+    {
+        var html = ReaderHtml.BookListPage([], query: null);
+
+        StringAssert.Contains(html, "href=\"/admin/operations#collection\"");
+        StringAssert.Contains(html, "href=\"/admin/operations#packages\"");
+        StringAssert.Contains(html, "href=\"/admin/operations#sources\"");
+        StringAssert.Contains(html, ">采集</a>");
+        StringAssert.Contains(html, ">下载</a>");
+        StringAssert.Contains(html, ">来源状态</a>");
+    }
+
+    [TestMethod]
     public void Chapter_Page_Escapes_Html_In_Content_And_Titles()
     {
         var content = new ChapterContent(
@@ -380,6 +407,9 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "operations-tabs");
         StringAssert.Contains(html, "data-operations-tab=\"collection\"");
         StringAssert.Contains(html, "data-operations-tab=\"packages\"");
+        StringAssert.Contains(html, "href=\"/admin/operations#collection\"");
+        StringAssert.Contains(html, "href=\"/admin/operations#packages\"");
+        StringAssert.Contains(html, "href=\"/admin/operations#sources\"");
         StringAssert.Contains(html, "operations-run-tabs");
         StringAssert.Contains(html, "data-collection-status");
         StringAssert.Contains(html, "bookTitle");
@@ -414,6 +444,7 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "data-operations-roles=\"Reader,Operator,Administrator\"");
         StringAssert.Contains(html, "data-operations-roles=\"Operator,Administrator\"");
         StringAssert.Contains(html, "currentRole !== \"Reader\"");
+        StringAssert.Contains(html, "const canOperateSources = () => currentRole !== \"Reader\"");
         StringAssert.Contains(html, "来源状态仅供查看");
         StringAssert.Contains(html, "Reader 账户可以创建和查看采集、打包并下载书籍");
     }
