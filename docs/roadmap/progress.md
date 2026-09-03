@@ -1671,6 +1671,15 @@ Phase 1A 自动化工作包状态：
 - CI：文档提交 `23757d0` 的 [CI 33738529085](https://github.com/nekohands/InkFlow/actions/runs/33738529085)、[Docker 33738530154](https://github.com/nekohands/InkFlow/actions/runs/33738530154)、[Security 33738530652](https://github.com/nekohands/InkFlow/actions/runs/33738530652) 均已 success。
 - 验收边界：真实上游、真实凭据、阅读 3.0/MuMu 真机及其他明确人工项目继续待定；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.52 Reader 采集与书籍包使用权限（本轮，2026-09-03）
+
+- 实现：新增 `OperationsSnapshotRead`、`CollectionUse` 与 `BookPackageUse` 权限；Reader 可创建/查看采集运行、创建/查看/下载 EPUB/TXT/ZIP 书籍包，并读取来源状态快照。来源启停、能力操作、死信、失败/取消清理、内容治理、告警和一致性检查仍由 Operator/Administrator 保护。
+- 前端：Reader 进入采集与下载工作面，来源页仅呈现状态和健康信息，不展示来源操作按钮；运营/管理员继续看到完整运维页签和控制入口。Reader 的账号中心链接同步指向采集与下载入口。
+- 回归：Release Build 0 warnings / 0 errors；Unit `572/572`、Architecture `1/1`、Contract `12/12` PASS；受影响 shell 合同回归与 `bash -n` PASS。Windows Integration 因 Docker Engine `npipe://./pipe/docker_engine` 不可用 BLOCKED（环境阻塞，不记为代码失败）。
+- Ubuntu VM：隔离工作树 `0f55282` 使用源码 Compose 构建并运行，Migration、API、Worker、Scheduler、PostgreSQL、Redis healthy；Reader 账户 runtime smoke 的 Reader 允许/拒绝矩阵 PASS；临时 Reader 实际创建、完成、下载并校验单文件 TXT 书籍包哈希 PASS；`reader-frontend-runtime-smoke` 使用隔离 18080 端口 PASS。手工栈未修改。
+- 权限边界：当前采集运行/书籍包仍是平台级任务，没有 `UserId` 归属字段；本轮不把全局暂停/恢复/停止/取消或清理权限下放给 Reader。若后续要求普通用户只能控制“自己发起的任务”，需先增加任务所有权和按用户隔离列表的迁移与回归。
+- 状态：代码提交 `0f55282` 已推送 `dev`；本轮文档提交及其 CI 门禁待完成。阅读 3.0/MuMu 真机、真实上游/真实凭据和其他第 6 节人工项目继续待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text
