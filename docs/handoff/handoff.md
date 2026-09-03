@@ -3,9 +3,9 @@
 > 用于开发者、AI Agent 或未来会话快速、安全接手 InkFlow。真实状态以仓库与 CI 为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI 待回传；真实来源与外部验收待定）
+- 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.53 Reader 顶部任务导航、来源状态入口与书籍详情下载入口已记录；提交 `9233b82` 已推送至 `dev`，本机回归、Ubuntu VM 源码 Compose、角色权限和内置浏览器入口检查均通过；当前提交 CI 待回传，最新交接见 5.53。
+- 文档状态：5.53 Reader 顶部任务导航、来源状态入口与书籍详情下载入口已记录；提交 `9233b82`、`94ce713` 已推送至 `dev`，本机回归、Ubuntu VM 源码 Compose、角色权限和内置浏览器入口检查均通过，CI/Docker/Security GREEN；最新交接见 5.53。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-09-04；dev 骨架重建更新：2026-08-25
 
@@ -1485,7 +1485,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 权限：Reader 通过 `OperationsSnapshotRead` 只读来源状态；来源编辑仍受 `SourceOperations` 保护，Administrator 可操作，既有 Operator 来源级授权不变。
 - 证据：本机 Release Build、Unit `574/574`、Architecture `1/1`、Contract `12/12`、ReaderHtml `27/27`、前端 smoke 和 shell 语法 PASS；Windows Integration 因 Docker Engine named pipe 不可用 BLOCKED。Ubuntu VM 隔离源码 Compose build/health、Reader/Admin HTTP 角色矩阵和内置浏览器三项顶部入口检查 PASS。
 - 清理：隔离 Compose 项目、验证卷/镜像和临时工作树已清理；远端既有手工栈未重启或修改。未使用真实上游账号、生产令牌、Cookie、阅读 3.0/MuMu 真机。
-- 门禁：代码提交 `9233b82` 已推送 `dev`，当前 CI 尚未回传；在 CI 结果返回前保持 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
+- 门禁：代码提交 `9233b82`、文档提交 `94ce713` 已推送 `dev`；[CI 33782382242](https://github.com/nekohands/InkFlow/actions/runs/33782382242)、[Docker 33782382191](https://github.com/nekohands/InkFlow/actions/runs/33782382191)、[Security 33782382185](https://github.com/nekohands/InkFlow/actions/runs/33782382185) 均 success 且 head SHA 为 `94ce713`。仍保持 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 
