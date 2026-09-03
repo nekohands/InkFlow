@@ -3,6 +3,7 @@ using System;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace InkFlow.Modules.Sources.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SourcesDbContext))]
-    partial class SourcesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260903031247_AddSourceEnabled")]
+    partial class AddSourceEnabled
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

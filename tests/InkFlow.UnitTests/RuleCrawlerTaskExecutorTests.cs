@@ -131,6 +131,23 @@ public sealed class RuleCrawlerTaskExecutorTests
     }
 
     [TestMethod]
+    public async Task Disabled_Source_Fails_Without_Hitting_Http()
+    {
+        var source = SourceWithSearchRule();
+        source.Disable(T0.AddMinutes(1));
+        var http = new FakeHttpClient();
+        var executor = new RuleCrawlerTaskExecutor(
+            new FakeSourceRepository(source),
+            new RuleAdapter(http, new PassthroughSelectorEvaluator()));
+
+        var outcome = await executor.ExecuteAsync(SearchTask());
+
+        Assert.IsFalse(outcome.Succeeded);
+        StringAssert.Contains(outcome.FailureReason!, "is disabled");
+        Assert.AreEqual(0, http.CallCount);
+    }
+
+    [TestMethod]
     public async Task Missing_Capability_Rule_Fails()
     {
         var http = new FakeHttpClient();

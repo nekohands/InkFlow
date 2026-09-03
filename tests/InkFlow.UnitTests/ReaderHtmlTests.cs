@@ -369,6 +369,13 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "打包进度");
         StringAssert.Contains(html, "taskPollTimer");
         StringAssert.Contains(html, "collectionHasActive");
+        StringAssert.Contains(html, "按状态分类");
+        StringAssert.Contains(html, "operations-run-group");
+        StringAssert.Contains(html, "source-disable");
+        StringAssert.Contains(html, "source-enable");
+        StringAssert.Contains(html, "run-delete");
+        StringAssert.Contains(html, "/api/v1/admin/collection-runs/");
+        StringAssert.Contains(html, "删除失败任务");
         Assert.IsFalse(html.Contains("window.setInterval("), "无活动任务时不应固定高频轮询");
     }
 

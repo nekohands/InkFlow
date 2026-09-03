@@ -11,16 +11,17 @@ public sealed class SourceAdapterFactoryTests
         new(2026, 8, 30, 7, 0, 0, TimeSpan.Zero);
 
     [TestMethod]
-    public async Task Returns_registered_code_adapter_without_loading_source_repository()
+    public async Task Returns_registered_code_adapter_after_loading_source_repository()
     {
         var codeAdapter = new StubAdapter("trusted-code");
-        var repository = new TrackingSourceRepository();
+        var repository = new TrackingSourceRepository(
+            Source.Create("trusted-code", "可信代码来源", "https://trusted-code.example", T0));
         var factory = CreateFactory(repository, [codeAdapter]);
 
         var result = await factory.GetAdapterAsync(codeAdapter.SourceId);
 
         Assert.AreSame(codeAdapter, result);
-        Assert.AreEqual(0, repository.GetCallCount);
+        Assert.AreEqual(1, repository.GetCallCount);
     }
 
     [TestMethod]
@@ -49,6 +50,19 @@ public sealed class SourceAdapterFactoryTests
         Assert.IsNull(withoutRule);
         Assert.IsNull(missing);
         Assert.AreEqual(2, repository.GetCallCount);
+    }
+
+    [TestMethod]
+    public async Task Does_Not_Return_An_Adapter_For_A_Disabled_Source()
+    {
+        var source = CreateRuleSource();
+        source.Disable(T0.AddMinutes(1));
+        var repository = new TrackingSourceRepository(source);
+        var factory = CreateFactory(repository);
+
+        var result = await factory.GetAdapterAsync(source.Id);
+
+        Assert.IsNull(result);
     }
 
     private static SourceAdapterFactory CreateFactory(

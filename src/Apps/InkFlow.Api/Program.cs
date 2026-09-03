@@ -234,6 +234,7 @@ builder.Services.AddScoped<CanonicalBookMatchingService>();
 builder.Services.AddScoped<BookDiscoveryService>();
 builder.Services.AddScoped<SourceBookUrlResolver>();
 builder.Services.AddScoped<CollectionRunService>();
+builder.Services.AddScoped<SourceLifecycleService>();
 
 var connectionStringForContent =
     builder.Configuration.GetConnectionString("Database")
@@ -965,6 +966,7 @@ var repair = api.MapGroup("/admin")
     .RequireAuthorization(IdentityPolicies.CrawlerRepair);
 
 CollectionRunEndpoints.Map(api);
+SourceLifecycleEndpointResults.Map(api);
 BookPackageEndpoints.Map(api);
 
 repair.MapPost("/crawler/dead-letters/{deadLetterId:guid}/replay", async (

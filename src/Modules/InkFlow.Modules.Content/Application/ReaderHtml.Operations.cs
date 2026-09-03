@@ -88,6 +88,10 @@ public static partial class ReaderHtml
           .operations-run-list,
           .operations-package-list,
           .operations-policy-list { display: grid; gap: 0.75rem; padding: 0; margin: 1rem 0 0; list-style: none; }
+          .operations-run-group { display: grid; gap: 0.65rem; }
+          .operations-run-group__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+          .operations-run-group__header h3 { margin: 0; font-size: 1rem; }
+          .operations-run-list--group { margin-top: 0; }
           .operations-run-card,
           .operations-package-card {
             display: grid;
@@ -172,6 +176,8 @@ public static partial class ReaderHtml
             margin-bottom: 0.8rem;
           }
           .operations-card__header h3 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+          .operations-card__badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+          .operations-source__actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0.8rem; }
           .operations-card__id { margin: 0.2rem 0 0; color: var(--reader-muted); font-size: 0.78rem; overflow-wrap: anywhere; }
           .operations-card__error { margin: 0 0 0.8rem; color: #8e321f; font-size: 0.88rem; overflow-wrap: anywhere; }
           .operations-health-list { display: grid; gap: 0.55rem; padding: 0; margin: 0; list-style: none; }
@@ -325,6 +331,7 @@ public static partial class ReaderHtml
           const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           const operationRoles = new Set(["Operator", "Administrator"]);
           const capabilities = new Set(["Search", "BookInfo", "Toc", "Content", "Update"]);
+          const runStatusOrder = ["pending", "running", "paused", "stopping", "completed", "failed", "stopped", "cancelled"];
           const stableErrors = {
             sources_unavailable: "来源清单暂时不可用。",
             source_health_unavailable: "部分来源健康记录暂时不可用。",
@@ -351,6 +358,7 @@ public static partial class ReaderHtml
           };
           const asGuid = (value) => typeof value === "string" && guidPattern.test(value) ? value : null;
           const asBoolean = (value) => value === true || value === "true";
+          const isSourceEnabled = (value) => value !== false && String(value).toLowerCase() !== "false";
           const asNumber = (value, fallback = 0) => {
             const parsed = Number(value);
             return Number.isFinite(parsed) ? parsed : fallback;
@@ -485,9 +493,30 @@ public static partial class ReaderHtml
               const headingWrap = node("div");
               headingWrap.append(node("h3", null, text(source?.displayName, "未命名来源")));
               headingWrap.append(node("p", "operations-card__id", sourceId));
-              header.append(headingWrap, badge(source?.status, sectionLabel(source?.status)));
+              const sourceEnabled = isSourceEnabled(source?.isEnabled);
+              const badges = node("div", "operations-card__badges");
+              badges.append(
+                badge(source?.status, sectionLabel(source?.status)),
+                badge(sourceEnabled ? "ready" : "disabled", sourceEnabled ? "已启用" : "已停用"));
+              header.append(headingWrap, badges);
               card.append(header);
               if (source?.error) card.append(node("p", "operations-card__error", stableErrors[source.error] || "来源健康记录暂时不可用。"));
+              const sourceActions = node("div", "operations-source__actions");
+              if (sourceId !== "unknown-source") {
+                const sourceAction = sourceEnabled ? "source-disable" : "source-enable";
+                const sourceButton = node("button", "button", sourceEnabled ? "停用来源" : "恢复来源");
+                sourceButton.type = "button";
+                sourceButton.addEventListener("click", () => openActionDialog({
+                  action: sourceAction,
+                  sourceId,
+                  title: (sourceEnabled ? "停用来源 · " : "恢复来源 · ") + text(source?.displayName, sourceId),
+                  detail: sourceEnabled
+                    ? "停用后，该来源不会再参与地址解析、搜索、追更调度或采集执行；已有来源数据会保留。"
+                    : "恢复后，该来源重新具备执行资格；各项能力健康状态不会被重置。",
+                }));
+                sourceActions.append(sourceButton);
+              }
+              card.append(sourceActions);
               const healthList = node("ul", "operations-health-list");
               const healthValues = Array.isArray(source?.capabilities) ? source.capabilities : [];
               if (!healthValues.length) {
@@ -610,112 +639,160 @@ public static partial class ReaderHtml
           };
           const renderCollectionRuns = (values) => {
             const runs = Array.isArray(values) ? values : [];
-            collectionHasActive = runs.some((run) => ["pending", "running", "stopping"].includes(String(run?.status || "").toLowerCase()));
+            const validRuns = runs.filter((run) => asGuid(run?.id));
+            collectionHasActive = validRuns.some((run) => ["pending", "running", "stopping"].includes(String(run?.status || "").toLowerCase()));
             collectionList?.replaceChildren();
-            if (runs.length === 0) {
+            if (validRuns.length === 0) {
               setPanelStatus(collectionStatus, "暂无采集运行。请输入一本已登记公共来源的书籍地址开始。", "ready");
               return;
             }
-            setPanelStatus(collectionStatus, "已加载 " + runs.length + " 个最近采集运行。", "ready");
-            for (const run of runs) {
-              const runId = asGuid(run?.id);
-              if (!runId) continue;
-              const card = node("li", "operations-run-card");
-              const header = node("div", "operations-run-card__header");
-              const titleWrap = node("div");
-              titleWrap.append(node("p", "operations-run-card__title", text(run?.sourceId, "未知来源") + " · " + text(run?.externalBookId, "未知书籍")));
-              titleWrap.append(node("p", "operations-run-card__meta", "运行 " + runId + " · 阶段：" + runStageLabel(run?.stage)));
-              header.append(titleWrap, badge(run?.status, runStatusLabel(run?.status)));
-              card.append(header);
-              card.append(node("p", "operations-run-card__url", "地址：" + text(run?.inputUrl, "未记录")));
-              const progressWrap = node("div", "operations-run-card__progress");
-              const progress = document.createElement("progress");
-              progress.max = 100;
-              progress.setAttribute("aria-valuemin", "0");
-              progress.setAttribute("aria-valuemax", "100");
-              const knownProgress = run?.progressPercent !== null && run?.progressPercent !== undefined;
-              if (knownProgress) {
-                const percent = Math.max(0, Math.min(100, Math.trunc(asNumber(run?.progressPercent))));
-                progress.value = percent;
-                progress.setAttribute("aria-valuenow", String(percent));
-              } else {
-                progress.removeAttribute("value");
-                progress.removeAttribute("aria-valuenow");
+            const grouped = new Map();
+            for (const run of validRuns) {
+              const status = text(run?.status, "unknown").toLowerCase();
+              if (!grouped.has(status)) grouped.set(status, []);
+              grouped.get(status).push(run);
+            }
+            const statuses = [
+              ...runStatusOrder.filter((status) => grouped.has(status)),
+              ...Array.from(grouped.keys()).filter((status) => !runStatusOrder.includes(status)),
+            ];
+            setPanelStatus(collectionStatus, "已加载 " + validRuns.length + " 个采集任务，按状态分类。", "ready");
+            for (const status of statuses) {
+              const groupRuns = grouped.get(status) || [];
+              const group = node("li", "operations-run-group");
+              const groupHeader = node("header", "operations-run-group__header");
+              groupHeader.append(
+                node("h3", null, runStatusLabel(status)),
+                badge(status, groupRuns.length + " 个"));
+              const groupList = node("ul", "operations-run-list operations-run-list--group");
+              group.append(groupHeader, groupList);
+              for (const run of groupRuns) {
+                const runId = asGuid(run?.id);
+                const card = node("li", "operations-run-card");
+                const header = node("div", "operations-run-card__header");
+                const titleWrap = node("div");
+                titleWrap.append(node("p", "operations-run-card__title", text(run?.sourceId, "未知来源") + " · " + text(run?.externalBookId, "未知书籍")));
+                titleWrap.append(node("p", "operations-run-card__meta", "运行 " + runId + " · 阶段：" + runStageLabel(run?.stage)));
+                header.append(titleWrap, badge(run?.status, runStatusLabel(run?.status)));
+                card.append(header);
+                card.append(node("p", "operations-run-card__url", "地址：" + text(run?.inputUrl, "未记录")));
+                const progressWrap = node("div", "operations-run-card__progress");
+                const progress = document.createElement("progress");
+                progress.max = 100;
+                progress.setAttribute("aria-valuemin", "0");
+                progress.setAttribute("aria-valuemax", "100");
+                const knownProgress = run?.progressPercent !== null && run?.progressPercent !== undefined;
+                if (knownProgress) {
+                  const percent = Math.max(0, Math.min(100, Math.trunc(asNumber(run?.progressPercent))));
+                  progress.value = percent;
+                  progress.setAttribute("aria-valuenow", String(percent));
+                } else {
+                  progress.removeAttribute("value");
+                  progress.removeAttribute("aria-valuenow");
+                }
+                progress.setAttribute("aria-label", "采集进度");
+                progressWrap.append(progress);
+                const progressLabel = knownProgress
+                  ? Math.max(0, Math.min(100, Math.trunc(asNumber(run?.progressPercent)))) + "%"
+                  : "正在发现总量";
+                progressWrap.append(node("p", "operations-run-card__meta", runStatusLabel(run?.status) + " · " + progressLabel + " · 已完成 " + Math.max(0, Math.trunc(asNumber(run?.completedTaskCount))) + " / " + Math.max(0, Math.trunc(asNumber(run?.totalTaskCount))) + " 个任务"));
+                progressWrap.append(node(
+                  "p",
+                  "operations-run-card__meta",
+                  "进行中 " + Math.max(0, Math.trunc(asNumber(run?.inFlightTaskCount))) +
+                  " · 待处理 " + Math.max(0, Math.trunc(asNumber(run?.pendingTaskCount))) +
+                  " · 失败 " + Math.max(0, Math.trunc(asNumber(run?.failedTaskCount))) +
+                  " · 取消 " + Math.max(0, Math.trunc(asNumber(run?.cancelledTaskCount))) +
+                  " · 剩余 " + Math.max(0, Math.trunc(asNumber(run?.remainingTaskCount)))));
+                card.append(progressWrap);
+                if (run?.lastError) card.append(node("p", "operations-run-card__error", "最近错误：" + text(run.lastError)));
+                const canonicalId = asGuid(run?.canonicalBookId);
+                if (canonicalId) card.append(node("p", "operations-run-card__meta", "正典书 ID：" + canonicalId));
+                const actions = node("div", "operations-run-card__actions");
+                if (["pending", "running"].includes(status)) {
+                  actions.append(createRunControlButton(run, "pause", "暂停"));
+                  actions.append(createRunControlButton(run, "stop", "停止"));
+                  actions.append(createRunControlButton(run, "cancel", "取消"));
+                } else if (status === "paused") {
+                  actions.append(createRunControlButton(run, "resume", "恢复"));
+                  actions.append(createRunControlButton(run, "stop", "停止"));
+                  actions.append(createRunControlButton(run, "cancel", "取消"));
+                } else if (status === "stopping") {
+                  actions.append(createRunControlButton(run, "cancel", "立即取消"));
+                }
+                if (status === "failed") {
+                  const deleteButton = node("button", "button", "删除失败任务");
+                  deleteButton.type = "button";
+                  deleteButton.addEventListener("click", () => openActionDialog({
+                    action: "run-delete",
+                    runId,
+                    title: "删除失败采集任务 · " + runId,
+                    detail: "该操作不可恢复，只删除这次失败运行及其采集子任务、死信记录，不会删除书籍、正文或审计记录。请填写理由。",
+                  }));
+                  actions.append(deleteButton);
+                }
+                if (["failed", "stopped", "cancelled"].includes(status)) {
+                  const rerunButton = node("button", "button", "重新开始");
+                  rerunButton.type = "button";
+                  rerunButton.addEventListener("click", () => rerunCollection(run));
+                  actions.append(rerunButton);
+                }
+                if (canonicalId) {
+                  const packageButton = node("button", "button", "为此书打包");
+                  packageButton.type = "button";
+                  packageButton.addEventListener("click", () => openPackageForBook(canonicalId));
+                  actions.append(packageButton);
+                }
+                card.append(actions);
+                groupList.append(card);
               }
-              progress.setAttribute("aria-label", "采集进度");
-              progressWrap.append(progress);
-              const progressLabel = knownProgress
-                ? Math.max(0, Math.min(100, Math.trunc(asNumber(run?.progressPercent)))) + "%"
-                : "正在发现总量";
-              progressWrap.append(node("p", "operations-run-card__meta", runStatusLabel(run?.status) + " · " + progressLabel + " · 已完成 " + Math.max(0, Math.trunc(asNumber(run?.completedTaskCount))) + " / " + Math.max(0, Math.trunc(asNumber(run?.totalTaskCount))) + " 个任务"));
-              progressWrap.append(node(
-                "p",
-                "operations-run-card__meta",
-                "进行中 " + Math.max(0, Math.trunc(asNumber(run?.inFlightTaskCount))) +
-                " · 待处理 " + Math.max(0, Math.trunc(asNumber(run?.pendingTaskCount))) +
-                " · 失败 " + Math.max(0, Math.trunc(asNumber(run?.failedTaskCount))) +
-                " · 取消 " + Math.max(0, Math.trunc(asNumber(run?.cancelledTaskCount))) +
-                " · 剩余 " + Math.max(0, Math.trunc(asNumber(run?.remainingTaskCount)))));
-              card.append(progressWrap);
-              if (run?.lastError) card.append(node("p", "operations-run-card__error", "最近错误：" + text(run.lastError)));
-              const canonicalId = asGuid(run?.canonicalBookId);
-              if (canonicalId) card.append(node("p", "operations-run-card__meta", "正典书 ID：" + canonicalId));
-              const actions = node("div", "operations-run-card__actions");
-              const status = String(run?.status || "").toLowerCase();
-              if (["pending", "running"].includes(status)) {
-                actions.append(createRunControlButton(run, "pause", "暂停"));
-                actions.append(createRunControlButton(run, "stop", "停止"));
-                actions.append(createRunControlButton(run, "cancel", "取消"));
-              } else if (status === "paused") {
-                actions.append(createRunControlButton(run, "resume", "恢复"));
-                actions.append(createRunControlButton(run, "stop", "停止"));
-                actions.append(createRunControlButton(run, "cancel", "取消"));
-              } else if (status === "stopping") {
-                actions.append(createRunControlButton(run, "cancel", "立即取消"));
-              }
-              if (["failed", "stopped", "cancelled"].includes(status)) {
-                const rerunButton = node("button", "button", "重新开始");
-                rerunButton.type = "button";
-                rerunButton.addEventListener("click", () => rerunCollection(run));
-                actions.append(rerunButton);
-              }
-              if (canonicalId) {
-                const packageButton = node("button", "button", "为此书打包");
-                packageButton.type = "button";
-                packageButton.addEventListener("click", () => openPackageForBook(canonicalId));
-                actions.append(packageButton);
-              }
-              card.append(actions);
-              collectionList?.append(card);
+              collectionList?.append(group);
             }
           };
           const loadCollectionRuns = async () => {
             if (collectionLoading || !client?.isSignedIn() || !operationRoles.has(currentRole)) return;
             collectionLoading = true;
-            const response = await client.apiFetch("/api/v1/admin/collection-runs?limit=50");
-            if (response === null) {
-              setPanelStatus(collectionStatus, "采集运行暂时不可用，请稍后刷新。", "danger");
-              collectionLoading = false;
-              return;
+            const allRuns = [];
+            const seenCursors = new Set();
+            let cursor = null;
+            while (true) {
+              const query = new URLSearchParams({ limit: "100" });
+              if (cursor) query.set("cursor", cursor);
+              const response = await client.apiFetch("/api/v1/admin/collection-runs?" + query.toString());
+              if (response === null) {
+                setPanelStatus(collectionStatus, "采集运行暂时不可用，请稍后刷新。", "danger");
+                collectionLoading = false;
+                return;
+              }
+              if (response.status === 401) {
+                client.clearSession();
+                showLogin("会话已失效，请重新登录后访问运维中心。");
+                collectionLoading = false;
+                return;
+              }
+              if (response.status === 403) {
+                setPanelStatus(collectionStatus, "当前账户没有读取采集运行的权限。", "danger");
+                collectionLoading = false;
+                return;
+              }
+              const payload = await response.json().catch(() => null);
+              if (!response.ok) {
+                setPanelStatus(collectionStatus, errorMessage(response.status, payload), "danger");
+                collectionLoading = false;
+                return;
+              }
+              if (Array.isArray(payload?.data)) allRuns.push(...payload.data);
+              const nextCursor = text(payload?.nextCursor, "") || null;
+              if (!nextCursor) break;
+              if (seenCursors.has(nextCursor)) {
+                setPanelStatus(collectionStatus, "采集运行分页游标异常，请稍后刷新。", "danger");
+                collectionLoading = false;
+                return;
+              }
+              seenCursors.add(nextCursor);
+              cursor = nextCursor;
             }
-            if (response.status === 401) {
-              client.clearSession();
-              showLogin("会话已失效，请重新登录后访问运维中心。");
-              collectionLoading = false;
-              return;
-            }
-            if (response.status === 403) {
-              setPanelStatus(collectionStatus, "当前账户没有读取采集运行的权限。", "danger");
-              collectionLoading = false;
-              return;
-            }
-            const payload = await response.json().catch(() => null);
-            if (!response.ok) {
-              setPanelStatus(collectionStatus, errorMessage(response.status, payload), "danger");
-              collectionLoading = false;
-              return;
-            }
-            renderCollectionRuns(payload?.data);
+            renderCollectionRuns(allRuns);
             collectionLoading = false;
             scheduleTaskPoll();
           };
@@ -1227,6 +1304,12 @@ public static partial class ReaderHtml
                 ? "确认" + controlLabel(action.controlAction)
                 : action.action === "content-policy"
                   ? "确认" + policyActionLabel(action.policyAction)
+                  : action.action === "run-delete"
+                    ? "确认删除"
+                    : action.action === "source-disable"
+                      ? "确认停用来源"
+                      : action.action === "source-enable"
+                        ? "确认恢复来源"
                 : (action.action === "disable" ? "确认停用" : "确认恢复");
             actionSubmit.disabled = false;
             actionDialog.showModal();
@@ -1253,10 +1336,15 @@ public static partial class ReaderHtml
               path = "/api/v1/admin/crawler/dead-letters/" + encodeURIComponent(pendingAction.deadLetterId) + "/replay";
             } else if (pendingAction.action === "run-control") {
               path = "/api/v1/admin/collection-runs/" + encodeURIComponent(pendingAction.runId) + "/control";
+            } else if (pendingAction.action === "run-delete") {
+              path = "/api/v1/admin/collection-runs/" + encodeURIComponent(pendingAction.runId) + "/delete";
             } else if (pendingAction.action === "content-policy") {
               path = pendingAction.policyAction === "takedown"
                 ? "/api/v1/admin/content/takedowns"
                 : "/api/v1/admin/content/takedowns/" + encodeURIComponent(pendingAction.bookId) + "/restore";
+            } else if (["source-disable", "source-enable"].includes(pendingAction.action)) {
+              path = "/api/v1/admin/sources/" + encodeURIComponent(pendingAction.sourceId) + "/" +
+                (pendingAction.action === "source-disable" ? "disable" : "enable");
             } else {
               path = "/api/v1/admin/sources/" + encodeURIComponent(pendingAction.sourceId) + "/health/" + encodeURIComponent(pendingAction.capability) + "/" + pendingAction.action;
             }
@@ -1276,6 +1364,12 @@ public static partial class ReaderHtml
                 ? (payload?.status === "AlreadyReplayed" ? "该死信已经重放过。" : "重放任务已创建。") + (taskId ? " 新任务：" + taskId : "")
                 : pendingAction.action === "run-control"
                   ? "采集运行控制命令已提交。"
+                  : pendingAction.action === "run-delete"
+                    ? "失败采集任务已删除。"
+                    : pendingAction.action === "source-disable"
+                      ? "来源已停用。"
+                      : pendingAction.action === "source-enable"
+                        ? "来源已恢复。"
                   : pendingAction.action === "content-policy"
                     ? "内容政策已" + policyActionLabel(pendingAction.policyAction) + "，并已记录审计。"
                   : (pendingAction.action === "disable" ? "能力已停用。" : "能力已恢复，等待真实探针确认。");
@@ -1355,7 +1449,7 @@ public static partial class ReaderHtml
                 <section class="operations-panel" aria-labelledby="operations-collection-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-collection-title">书籍采集</h2>
-                    <span class="muted">地址入口 · 异步执行</span>
+                     <span class="muted">地址入口 · 异步执行 · 按状态分类</span>
                   </header>
                   <form id="operations-collection-form" class="operations-form">
                     <div class="operations-form__field">

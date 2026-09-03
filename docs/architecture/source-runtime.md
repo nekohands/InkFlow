@@ -21,7 +21,9 @@
 - BrowserRequired
 - Images
 
-来源健康按 Capability 细分，例如 Search 可故障而 Content 仍健康。
+来源健康按 Capability 细分，例如 Search 可故障而 Content 仍健康。Source 另有独立的
+`IsEnabled` 生命周期开关，默认为 `true`；来源被运营侧停用后，不再参与地址解析、搜索、追更调度或
+Worker 执行，重新启用只恢复执行资格，不清除各项 Capability Health 事实。
 
 当前已落地的 Capability Health v1 保持在 `sources.capability_health`，以
 `(SourceId, Capability)` 为复合键。`Unknown`、`Healthy`、`Degraded` 默认仍可用；

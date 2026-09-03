@@ -141,6 +141,8 @@ Administrator、理由和命令级审计。`content.policy_decisions` 由数据�
 ## Sources
 
 Source 定义能力、策略和所有权；RuleVersion 为不可变发布物。
+Source 的 `IsEnabled` 是来源级执行资格，不替代 `(SourceId, Capability)` 的健康状态；停用保留来源及其历史事实，
+恢复不重置能力健康记录。
 
 CredentialReference 只标识非敏感引用。Provider 解析必须同时接收 SourceId、引用和
 `SourceCredentialOwnerScope`；Platform 不带 OwnerId，User/Organization 必须绑定稳定身份。

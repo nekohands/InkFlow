@@ -21,6 +21,11 @@ public sealed class RuleCrawlerTaskExecutor(
             return CrawlOutcome.Fail($"source '{task.Payload.SourceId}' does not exist.");
         }
 
+        if (!source.IsEnabled)
+        {
+            return CrawlOutcome.Fail($"source '{task.Payload.SourceId}' is disabled.");
+        }
+
         if (source.RuleDsl is null)
         {
             return CrawlOutcome.Fail($"source '{task.Payload.SourceId}' has no rule DSL installed.");

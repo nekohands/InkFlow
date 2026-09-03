@@ -13,6 +13,7 @@ public sealed class SourceEntity
     public string BaseUrl { get; set; } = null!;
     public string? RuleDslJson { get; set; }
     public string? DefaultCredentialReferenceId { get; set; }
+    public bool IsEnabled { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

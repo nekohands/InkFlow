@@ -82,4 +82,46 @@ public sealed class CollectionRunEndpointTests
 
         Assert.AreEqual(StatusCodes.Status400BadRequest, statusCode);
     }
+
+    [TestMethod]
+    public void List_Query_Uses_Bounded_Opaque_Cursor()
+    {
+        var id = Guid.Parse("0198f1b3-a0ca-7b21-8a2e-0123456789ab");
+        var cursor = CollectionRunEndpoints.EncodeCursor(
+            new CollectionRunCursor(
+                new DateTimeOffset(2026, 9, 3, 10, 0, 0, TimeSpan.Zero),
+                id));
+
+        var accepted = CollectionRunEndpoints.TryCreateQuery(
+            limitRaw: 10,
+            cursorRaw: cursor,
+            out var limit,
+            out var before,
+            out var error);
+
+        Assert.IsTrue(accepted, error);
+        Assert.AreEqual(10, limit);
+        Assert.AreEqual(id, before!.Id);
+
+        Assert.IsFalse(CollectionRunEndpoints.TryCreateQuery(
+            101, null, out _, out _, out _));
+        Assert.IsFalse(CollectionRunEndpoints.TryCreateQuery(
+            10, "not-a-cursor", out _, out _, out _));
+    }
+
+    [TestMethod]
+    public void Delete_Status_Maps_NotFound_And_NonFailed_Run_To_Safe_Responses()
+    {
+        Assert.AreEqual(
+            StatusCodes.Status200OK,
+            CollectionRunEndpoints.GetDeleteStatusCode(CollectionRunDeleteOutcome.Deleted()));
+        Assert.AreEqual(
+            StatusCodes.Status404NotFound,
+            CollectionRunEndpoints.GetDeleteStatusCode(
+                CollectionRunDeleteOutcome.Failure("collection-run.not-found", "not found")));
+        Assert.AreEqual(
+            StatusCodes.Status409Conflict,
+            CollectionRunEndpoints.GetDeleteStatusCode(
+                CollectionRunDeleteOutcome.Failure("collection-run.not-failed", "not failed")));
+    }
 }

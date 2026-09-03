@@ -1047,4 +1047,110 @@ public sealed class CrawlerTaskRepositoryTests
             .ConfigureAwait(false);
         Assert.AreEqual(1, count, "并发重放不得为同一来源创建多个新任务");
     }
+
+    [TestMethod]
+    public async Task DeleteFailedCollectionRun_Removes_Run_Tasks_And_DeadLetters_Atomically()
+    {
+        var failedRun = CollectionRun.Create(
+            "delete-failed-run-source",
+            "book-1",
+            "https://example.com/book/book-1",
+            T0);
+        var failedTask = CrawlerTask.Create(
+            new CrawlPayload(
+                failedRun.SourceId,
+                SourceCapability.BookInfo,
+                new Dictionary<string, string> { ["bookId"] = failedRun.ExternalBookId },
+                RunId: failedRun.Id),
+            maxAttempts: 1,
+            createdAt: T0);
+        failedTask.Lease("worker", T0, TimeSpan.FromMinutes(1));
+        failedTask.MarkRunning(T0);
+        failedTask.Fail(T0.AddMinutes(1));
+        failedRun.Reconcile(
+            new CollectionRunTaskProgress(1, 0, 0, 0, 0, 1, 0),
+            T0.AddMinutes(1));
+        var deadLetter = DeadLetterTask.From(failedTask, "upstream-503", T0.AddMinutes(1));
+
+        var pendingRun = CollectionRun.Create(
+            "delete-pending-run-source",
+            "book-2",
+            "https://example.com/book/book-2",
+            T0);
+        await using (var seed = CreateContext().Db)
+        {
+            seed.Runs.Add(CollectionRunMapper.ToEntity(failedRun));
+            seed.Tasks.Add(CrawlerTaskMapper.ToEntity(failedTask));
+            seed.DeadLetters.Add(new DeadLetterEntity
+            {
+                Id = deadLetter.Id,
+                TaskId = deadLetter.TaskId,
+                SourceId = deadLetter.SourceId,
+                Reason = deadLetter.Reason,
+                AttemptCount = deadLetter.AttemptCount,
+                DeadLetteredAt = deadLetter.DeadLetteredAt,
+            });
+            seed.Runs.Add(CollectionRunMapper.ToEntity(pendingRun));
+            await seed.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        await using (var deleteDb = CreateContext().Db)
+        {
+            var runs = new EfCollectionRunRepository(deleteDb, new EfTransactionalOutboxWriter());
+            Assert.IsTrue(await runs.DeleteFailedAsync(failedRun.Id).ConfigureAwait(false));
+            Assert.IsFalse(await runs.DeleteFailedAsync(pendingRun.Id).ConfigureAwait(false));
+            Assert.IsNull(await runs.DeleteFailedAsync(Guid.NewGuid()).ConfigureAwait(false));
+        }
+
+        await using var verify = CreateContext().Db;
+        Assert.IsNull(await verify.Runs.FindAsync(failedRun.Id).ConfigureAwait(false));
+        Assert.AreEqual(0, await verify.Tasks.CountAsync(task => task.RunId == failedRun.Id).ConfigureAwait(false));
+        Assert.AreEqual(0, await verify.DeadLetters.CountAsync(letter => letter.TaskId == failedTask.Id).ConfigureAwait(false));
+        Assert.IsNotNull(await verify.Runs.FindAsync(pendingRun.Id).ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task Collection_Run_Page_Uses_Stable_UpdatedAt_And_Id_Cursor()
+    {
+        var updatedAt = new DateTimeOffset(2099, 12, 31, 23, 0, 0, TimeSpan.Zero);
+        var firstId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var secondId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var thirdId = Guid.Parse("00000000-0000-0000-0000-000000000003");
+        var runs = new[]
+        {
+            CollectionRun.Rehydrate(
+                firstId, "page-source-1", "book-1", "https://example.com/book-1", null,
+                CollectionRunStatus.Completed, CollectionRunStage.Content, 0, 0, 0, null,
+                updatedAt, updatedAt),
+            CollectionRun.Rehydrate(
+                secondId, "page-source-2", "book-2", "https://example.com/book-2", null,
+                CollectionRunStatus.Completed, CollectionRunStage.Content, 0, 0, 0, null,
+                updatedAt, updatedAt),
+            CollectionRun.Rehydrate(
+                thirdId, "page-source-3", "book-3", "https://example.com/book-3", null,
+                CollectionRunStatus.Completed, CollectionRunStage.Content, 0, 0, 0, null,
+                updatedAt, updatedAt),
+        };
+
+        await using (var seed = CreateContext().Db)
+        {
+            seed.Runs.AddRange(runs.Select(CollectionRunMapper.ToEntity));
+            await seed.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        await using var pageDb = CreateContext().Db;
+        var repository = new EfCollectionRunRepository(pageDb, new EfTransactionalOutboxWriter());
+        var page = await repository.ListPageAsync(2).ConfigureAwait(false);
+
+        CollectionAssert.AreEqual(
+            new[] { thirdId, secondId },
+            page.Entries.Select(run => run.Id).ToArray());
+        Assert.IsNotNull(page.NextCursor);
+
+        var lastPage = await repository
+            .ListPageAsync(2, page.NextCursor)
+            .ConfigureAwait(false);
+        CollectionAssert.AreEqual(new[] { firstId }, lastPage.Entries.Select(run => run.Id).ToArray());
+        Assert.IsNull(lastPage.NextCursor);
+    }
 }

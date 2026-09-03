@@ -46,6 +46,25 @@ public sealed class SourceBookUrlResolverTests
         Assert.AreEqual("source-url.unresolved", result.ErrorCode);
     }
 
+    [TestMethod]
+    public async Task Disabled_Source_Is_Not_Eligible_For_Direct_Url_Collection()
+    {
+        var source = Source.Create(
+            "books",
+            "Books",
+            "https://books.example.com",
+            DateTimeOffset.UtcNow);
+        source.Disable(DateTimeOffset.UtcNow);
+        var resolver = new SourceBookUrlResolver(
+            new SingleSourceRepository(source),
+            new FixedAdapterFactory(new TestAdapter()));
+
+        var result = await resolver.ResolveAsync("https://books.example.com/novel/42.html");
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.AreEqual("source-url.unresolved", result.ErrorCode);
+    }
+
     private static SourceBookUrlResolver CreateResolver()
     {
         var source = Source.Create(

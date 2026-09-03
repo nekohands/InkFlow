@@ -25,7 +25,8 @@ public sealed record OperationsSourceView(
     string DisplayName,
     string Status,
     string? Error,
-    IReadOnlyList<SourceHealthResponse> Capabilities);
+    IReadOnlyList<SourceHealthResponse> Capabilities,
+    bool IsEnabled = true);
 
 public sealed record OperationsDeadLetterView(
     Guid Id,
@@ -148,7 +149,8 @@ public sealed class OperationsCenterReader(
                     source.DisplayName,
                     "ready",
                     null,
-                    health.Select(SourceHealthEndpointResults.ToResponse).ToList()));
+                    health.Select(SourceHealthEndpointResults.ToResponse).ToList(),
+                    source.IsEnabled));
             }
             catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
@@ -157,7 +159,8 @@ public sealed class OperationsCenterReader(
                     source.DisplayName,
                     "unavailable",
                     "source_health_unavailable",
-                    []));
+                    [],
+                    source.IsEnabled));
             }
         }
 

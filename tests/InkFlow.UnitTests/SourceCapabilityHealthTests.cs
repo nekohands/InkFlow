@@ -74,6 +74,19 @@ public sealed class SourceCapabilityHealthTests
     }
 
     [TestMethod]
+    public async Task Disabled_Source_Is_Unavailable_Even_Without_A_Capability_Health_Record()
+    {
+        var source = Source.Create("official-a", "Official A", "https://official-a.example", T0);
+        source.Disable(T0.AddMinutes(1));
+        var service = new SourceHealthService(
+            new InMemoryHealthRepository(),
+            new FixedClock(T0),
+            new SingleSourceRepository(source));
+
+        Assert.IsFalse(await service.IsAvailableAsync("official-a", SourceCapability.Search));
+    }
+
+    [TestMethod]
     public void Probe_Cooldown_Doubles_With_Failure_Depth_And_Caps_At_One_Day()
     {
         Assert.AreEqual(TimeSpan.FromMinutes(30),
@@ -258,6 +271,23 @@ public sealed class SourceCapabilityHealthTests
                     throw new ArgumentOutOfRangeException(nameof(mutation), mutation, null);
             }
         }
+    }
+
+    private sealed class SingleSourceRepository(Source source) : ISourceRepository
+    {
+        public Task AddAsync(Source value, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<Source?> GetAsync(
+            string sourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<Source?>(source.Id == sourceId ? source : null);
+
+        public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Source>>([source]);
+
+        public Task SaveAsync(Source value, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     [TestMethod]

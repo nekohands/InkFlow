@@ -56,6 +56,12 @@ public sealed class BookDiscoveryService(
         {
             try
             {
+                if (!source.IsEnabled)
+                {
+                    warnings.Add($"search: source '{source.Id}' skipped (source disabled).");
+                    continue;
+                }
+
                 if (healthReader is not null && !await healthReader
                         .IsAvailableAsync(source.Id, SourceCapability.Search, cancellationToken)
                         .ConfigureAwait(false))

@@ -50,6 +50,17 @@ public sealed record CollectionRunControlOutcome(
         new(false, null, code, error);
 }
 
+public sealed record CollectionRunDeleteOutcome(
+    bool IsSuccess,
+    string? ErrorCode = null,
+    string? Error = null)
+{
+    public static CollectionRunDeleteOutcome Deleted() => new(true);
+
+    public static CollectionRunDeleteOutcome Failure(string code, string error) =>
+        new(false, code, error);
+}
+
 /// <summary>
 /// 采集运行编排：负责直接地址入口、控制命令、阶段推进和父子进度折叠。
 /// 外部请求只创建/控制运行，不同步执行第三方请求。
@@ -145,14 +156,51 @@ public sealed class CollectionRunService(
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var entries = await runs.ListAsync(limit, cancellationToken).ConfigureAwait(false);
-        var views = new List<CollectionRunView>(entries.Count);
-        foreach (var run in entries)
+        var page = await ListPageViewsAsync(limit, null, cancellationToken).ConfigureAwait(false);
+        return page.Entries;
+    }
+
+    public async Task<CollectionRunViewPage> ListPageViewsAsync(
+        int limit,
+        CollectionRunCursor? before,
+        CancellationToken cancellationToken = default)
+    {
+        var page = await runs
+            .ListPageAsync(limit, before, cancellationToken)
+            .ConfigureAwait(false);
+        var views = new List<CollectionRunView>(page.Entries.Count);
+        foreach (var run in page.Entries)
         {
             views.Add(await BuildViewAsync(run, cancellationToken).ConfigureAwait(false));
         }
 
-        return views;
+        return new(views, page.NextCursor);
+    }
+
+    public async Task<CollectionRunDeleteOutcome> DeleteFailedAsync(
+        Guid runId,
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedReason = reason?.Trim() ?? string.Empty;
+        if (normalizedReason.Length == 0 || normalizedReason.Length > MaxControlReasonLength)
+        {
+            return CollectionRunDeleteOutcome.Failure(
+                "collection-run.reason",
+                "a deletion reason between 1 and 512 characters is required.");
+        }
+
+        var deleted = await runs.DeleteFailedAsync(runId, cancellationToken).ConfigureAwait(false);
+        return deleted switch
+        {
+            true => CollectionRunDeleteOutcome.Deleted(),
+            false => CollectionRunDeleteOutcome.Failure(
+                "collection-run.not-failed",
+                "only failed collection runs can be deleted."),
+            null => CollectionRunDeleteOutcome.Failure(
+                "collection-run.not-found",
+                "collection run was not found."),
+        };
     }
 
     public async Task<CollectionRunControlOutcome> ControlAsync(

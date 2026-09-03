@@ -8,7 +8,8 @@ namespace InkFlow.Modules.Sources.Application;
 /// </summary>
 public sealed class SourceHealthService(
     ISourceHealthRepository repository,
-    TimeProvider clock) : ISourceHealthReader, ISourceHealthRecorder, ISourceHealthOperations
+    TimeProvider clock,
+    ISourceRepository? sourceRepository = null) : ISourceHealthReader, ISourceHealthRecorder, ISourceHealthOperations
 {
     public Task<SourceCapabilityHealth?> GetAsync(
         string sourceId,
@@ -26,6 +27,13 @@ public sealed class SourceHealthService(
         SourceCapability capability,
         CancellationToken cancellationToken = default)
     {
+        if (sourceRepository is not null &&
+            await sourceRepository.GetAsync(sourceId, cancellationToken).ConfigureAwait(false)
+                is { IsEnabled: false })
+        {
+            return false;
+        }
+
         var health = await repository
             .GetAsync(sourceId, capability, cancellationToken)
             .ConfigureAwait(false);

@@ -129,6 +129,27 @@ public sealed class SourceRepositoryTests
     }
 
     [TestMethod]
+    public async Task Source_Enabled_State_Roundtrips_And_Defaults_To_Enabled()
+    {
+        var repo = CreateRepository();
+        await repo.AddAsync(NewSourceWithRules("source-enabled-roundtrip"))
+            .ConfigureAwait(false);
+
+        var loaded = (await repo.GetAsync("source-enabled-roundtrip").ConfigureAwait(false))!;
+        Assert.IsTrue(loaded.IsEnabled);
+
+        loaded.Disable(T0.AddMinutes(1));
+        await repo.SaveAsync(loaded).ConfigureAwait(false);
+        var disabled = (await repo.GetAsync("source-enabled-roundtrip").ConfigureAwait(false))!;
+        Assert.IsFalse(disabled.IsEnabled);
+
+        disabled.Enable(T0.AddMinutes(2));
+        await repo.SaveAsync(disabled).ConfigureAwait(false);
+        var enabled = (await repo.GetAsync("source-enabled-roundtrip").ConfigureAwait(false))!;
+        Assert.IsTrue(enabled.IsEnabled);
+    }
+
+    [TestMethod]
     public async Task Source_With_Transform_Rule_Dsl_Roundtrips()
     {
         var repo = CreateRepository();

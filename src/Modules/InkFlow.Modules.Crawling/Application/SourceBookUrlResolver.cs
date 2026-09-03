@@ -76,6 +76,11 @@ public sealed class SourceBookUrlResolver(
         var sources = await sourceRepository.ListAsync(cancellationToken).ConfigureAwait(false);
         foreach (var source in sources)
         {
+            if (!source.IsEnabled)
+            {
+                continue;
+            }
+
             if (!MatchesRegisteredBase(uri, source.BaseUrl))
             {
                 continue;

@@ -73,11 +73,40 @@ public interface ICollectionRunRepository
         int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 按 UpdatedAt、Id 的稳定倒序键集分页；默认实现兼容旧的内存替身。
+    /// </summary>
+    Task<CollectionRunPage> ListPageAsync(
+        int limit,
+        CollectionRunCursor? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ListPageFallbackAsync(limit, cancellationToken);
+    }
+
+    /// <summary>
+    /// 仅删除失败运行及其采集子任务/死信明细；返回 null 表示不存在，false 表示非失败状态。
+    /// </summary>
+    Task<bool?> DeleteFailedAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException("the collection run repository does not support deletion.");
+    }
+
     Task SaveAsync(CollectionRun run, CancellationToken cancellationToken = default);
 
     Task<CollectionRunTaskProgress> GetTaskProgressAsync(
         Guid runId,
         CancellationToken cancellationToken = default);
+
+    private async Task<CollectionRunPage> ListPageFallbackAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var entries = await ListAsync(limit, cancellationToken).ConfigureAwait(false);
+        return new(entries, null);
+    }
 
     private async Task<CollectionRun?> ApplyControlFallbackAsync(
         Guid id,

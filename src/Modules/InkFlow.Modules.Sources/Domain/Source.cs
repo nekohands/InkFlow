@@ -13,6 +13,7 @@ public sealed class Source
     public string DisplayName { get; private set; } = null!;
     public string BaseUrl { get; private set; } = null!;
     public SourceRuleDsl? RuleDsl { get; private set; }
+    public bool IsEnabled { get; private set; }
     /// <summary>
     /// 规则型来源在调用方没有提供显式引用时使用的非敏感凭据引用。
     /// 引用本身不包含 secret；解析和 Owner Scope 由凭据 Provider 负责。
@@ -35,13 +36,15 @@ public sealed class Source
             BaseUrl = baseUrl,
             CreatedAt = now,
             UpdatedAt = now,
+            IsEnabled = true,
         };
     }
 
     public static Source Rehydrate(
         string id, string displayName, string baseUrl, SourceRuleDsl? ruleDsl,
         DateTimeOffset createdAt, DateTimeOffset updatedAt,
-        string? defaultCredentialReferenceId = null)
+        string? defaultCredentialReferenceId = null,
+        bool isEnabled = true)
     {
         ValidateDefaultCredentialReference(defaultCredentialReferenceId);
 
@@ -54,7 +57,26 @@ public sealed class Source
             DefaultCredentialReferenceId = defaultCredentialReferenceId,
             CreatedAt = createdAt,
             UpdatedAt = updatedAt,
+            IsEnabled = isEnabled,
         };
+    }
+
+    public void Disable(DateTimeOffset now)
+    {
+        if (IsEnabled)
+        {
+            IsEnabled = false;
+            UpdatedAt = now;
+        }
+    }
+
+    public void Enable(DateTimeOffset now)
+    {
+        if (!IsEnabled)
+        {
+            IsEnabled = true;
+            UpdatedAt = now;
+        }
     }
 
     /// <summary>安装/更新规则文档。校验失败的文档绝不进入聚合。</summary>

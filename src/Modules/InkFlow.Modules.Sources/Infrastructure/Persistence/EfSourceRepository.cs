@@ -29,6 +29,7 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
             b.Property(s => s.BaseUrl).HasMaxLength(1024).IsRequired();
             b.Property(s => s.RuleDslJson).HasColumnType("jsonb");
             b.Property(s => s.DefaultCredentialReferenceId).HasMaxLength(SourceCredentialReferenceRules.MaxLength);
+            b.Property(s => s.IsEnabled).IsRequired();
         });
 
         modelBuilder.Entity<SourceBookEntity>(b =>
@@ -144,6 +145,7 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
         BaseUrl = source.BaseUrl,
         RuleDslJson = source.RuleDsl is null ? null : SourcesDbContext.SerializeRuleDsl(source.RuleDsl),
         DefaultCredentialReferenceId = source.DefaultCredentialReferenceId,
+        IsEnabled = source.IsEnabled,
         CreatedAt = source.CreatedAt,
         UpdatedAt = source.UpdatedAt,
     };
@@ -156,7 +158,8 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
             SourcesDbContext.DeserializeRuleDsl(entity.RuleDslJson),
             entity.CreatedAt,
             entity.UpdatedAt,
-            entity.DefaultCredentialReferenceId);
+            entity.DefaultCredentialReferenceId,
+            entity.IsEnabled);
 
     internal static void ApplyDomain(Source source, SourceEntity entity)
     {
@@ -165,6 +168,7 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
         entity.BaseUrl = fresh.BaseUrl;
         entity.RuleDslJson = fresh.RuleDslJson;
         entity.DefaultCredentialReferenceId = fresh.DefaultCredentialReferenceId;
+        entity.IsEnabled = fresh.IsEnabled;
         entity.UpdatedAt = fresh.UpdatedAt;
     }
 }

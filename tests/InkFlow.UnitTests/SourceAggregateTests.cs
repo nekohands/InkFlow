@@ -81,4 +81,20 @@ public sealed class SourceAggregateTests
         Assert.IsNull(source.DefaultCredentialReferenceId);
         Assert.AreEqual(T0.AddMinutes(3), source.UpdatedAt);
     }
+
+    [TestMethod]
+    public void Source_Can_Be_Disabled_And_Restored()
+    {
+        var source = Source.Create("example-source", "示例", "https://books.example.com", T0);
+
+        source.Disable(T0.AddMinutes(1));
+
+        Assert.IsFalse(source.IsEnabled);
+        Assert.AreEqual(T0.AddMinutes(1), source.UpdatedAt);
+
+        source.Enable(T0.AddMinutes(2));
+
+        Assert.IsTrue(source.IsEnabled);
+        Assert.AreEqual(T0.AddMinutes(2), source.UpdatedAt);
+    }
 }
