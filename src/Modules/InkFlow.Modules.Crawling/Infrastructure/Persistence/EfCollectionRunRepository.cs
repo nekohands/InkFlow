@@ -384,6 +384,84 @@ public sealed class EfCollectionRunRepository(
         return true;
     }
 
+    public async Task<int> DeleteCancelledAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var candidateRunIds = await db.Runs
+            .AsNoTracking()
+            .Where(run => run.Status == (int)CollectionRunStatus.Cancelled)
+            .OrderBy(run => run.Id)
+            .Select(run => run.Id)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (candidateRunIds.Length == 0)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return 0;
+        }
+
+        // Workers use task -> run lock order; keep cleanup in the same order.
+        _ = await db.Tasks
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."tasks"
+                WHERE "RunId" = ANY({candidateRunIds})
+                FOR UPDATE
+                """)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var lockedRuns = await db.Runs
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."runs"
+                WHERE "Id" = ANY({candidateRunIds})
+                  AND "Status" = {(int)CollectionRunStatus.Cancelled}
+                ORDER BY "Id"
+                FOR UPDATE
+                """)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var runIds = lockedRuns.Select(run => run.Id).ToArray();
+        if (runIds.Length == 0)
+        {
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return 0;
+        }
+
+        var taskIds = await db.Tasks
+            .AsNoTracking()
+            .Where(task => task.RunId.HasValue && runIds.Contains(task.RunId.Value))
+            .Select(task => task.Id)
+            .ToArrayAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (taskIds.Length > 0)
+        {
+            await db.DeadLetters
+                .Where(deadLetter => taskIds.Contains(deadLetter.TaskId))
+                .ExecuteDeleteAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await db.Tasks
+                .Where(task => task.RunId.HasValue && runIds.Contains(task.RunId.Value))
+                .ExecuteDeleteAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var deleted = await db.Runs
+            .Where(run => runIds.Contains(run.Id) &&
+                          run.Status == (int)CollectionRunStatus.Cancelled)
+            .ExecuteDeleteAsync(cancellationToken)
+            .ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return deleted;
+    }
+
     public async Task SaveAsync(CollectionRun run, CancellationToken cancellationToken = default)
     {
         var entity = await db.Runs

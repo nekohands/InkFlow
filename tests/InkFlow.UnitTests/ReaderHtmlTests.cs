@@ -392,6 +392,10 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "run-delete");
         StringAssert.Contains(html, "/api/v1/admin/collection-runs/");
         StringAssert.Contains(html, "删除失败任务");
+        StringAssert.Contains(html, "重试");
+        StringAssert.Contains(html, "清理已取消任务");
+        StringAssert.Contains(html, "cancelled-cleanup");
+        StringAssert.Contains(html, "/api/v1/admin/collection-runs/cancelled/cleanup");
         Assert.IsFalse(html.Contains("window.setInterval("), "无活动任务时不应固定高频轮询");
     }
 

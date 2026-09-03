@@ -94,6 +94,12 @@ public interface ICollectionRunRepository
         throw new NotSupportedException("the collection run repository does not support deletion.");
     }
 
+    /// <summary>删除所有已取消运行及其采集子任务/死信明细，并返回删除的运行数。</summary>
+    Task<int> DeleteCancelledAsync(CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException("the collection run repository does not support deletion.");
+    }
+
     Task SaveAsync(CollectionRun run, CancellationToken cancellationToken = default);
 
     Task<CollectionRunTaskProgress> GetTaskProgressAsync(

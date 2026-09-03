@@ -124,4 +124,19 @@ public sealed class CollectionRunEndpointTests
             CollectionRunEndpoints.GetDeleteStatusCode(
                 CollectionRunDeleteOutcome.Failure("collection-run.not-failed", "not failed")));
     }
+
+    [TestMethod]
+    public void Cancelled_Cleanup_Status_And_Count_Are_Reported()
+    {
+        var cleaned = CollectionRunCleanupOutcome.Cleaned(3);
+
+        Assert.AreEqual(
+            StatusCodes.Status200OK,
+            CollectionRunEndpoints.GetCleanupStatusCode(cleaned));
+        Assert.AreEqual(3, cleaned.DeletedCount);
+        Assert.AreEqual(
+            StatusCodes.Status400BadRequest,
+            CollectionRunEndpoints.GetCleanupStatusCode(
+                CollectionRunCleanupOutcome.Failure("collection-run.reason", "reason required")));
+    }
 }

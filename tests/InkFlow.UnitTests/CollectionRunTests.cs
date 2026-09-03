@@ -61,6 +61,35 @@ public sealed class CollectionRunTests
     }
 
     [TestMethod]
+    public void Stopped_Run_Can_Be_Cancelled_For_Cleanup()
+    {
+        var run = CreateRun();
+        run.RequestStop(T0.AddSeconds(1));
+        run.Reconcile(
+            new CollectionRunTaskProgress(0, 0, 0, 0, 0, 0, 0),
+            T0.AddSeconds(2));
+
+        Assert.AreEqual(CollectionRunStatus.Stopped, run.Status);
+
+        run.Cancel(T0.AddSeconds(3));
+
+        Assert.AreEqual(CollectionRunStatus.Cancelled, run.Status);
+        Assert.IsFalse(run.CanScheduleFollowUp);
+    }
+
+    [TestMethod]
+    public async Task Cancelled_Cleanup_Returns_Repository_Delete_Count()
+    {
+        var repository = new StaleReconcileRepository(CreateRun());
+        var service = CreateService(repository);
+
+        var result = await service.DeleteCancelledAsync("remove cancelled test runs");
+
+        Assert.IsTrue(result.IsSuccess);
+        Assert.AreEqual(3, result.DeletedCount);
+    }
+
+    [TestMethod]
     public void Reconcile_Completes_Only_After_Content_Children_Are_All_Complete()
     {
         var run = CreateRun();
@@ -307,5 +336,9 @@ public sealed class CollectionRunTests
             Guid runId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new CollectionRunTaskProgress(0, 0, 0, 0, 0, 0, 0));
+
+        public Task<int> DeleteCancelledAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(3);
     }
 }

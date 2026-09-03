@@ -172,6 +172,8 @@ public static partial class ReaderHtml
           .operations-policy-list { display: grid; gap: 0.75rem; padding: 0; margin: 1rem 0 0; list-style: none; }
           .operations-run-group { display: grid; gap: 0.65rem; }
           .operations-run-group__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+          .operations-run-group__actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 0.45rem; }
+          .operations-run-group__actions .button { min-height: 2.35rem; padding-block: 0.42rem; font-size: 0.82rem; }
           .operations-run-group__header h3 { margin: 0; font-size: 1rem; }
           .operations-run-list--group { margin-top: 0; }
           .operations-run-card,
@@ -803,9 +805,20 @@ public static partial class ReaderHtml
               group.setAttribute("aria-labelledby", tabId);
               group.hidden = true;
               const groupHeader = node("header", "operations-run-group__header");
-              groupHeader.append(
-                node("h3", null, runStatusLabel(status)),
-                badge(status, groupRuns.length + " 个"));
+              const groupActions = node("div", "operations-run-group__actions");
+              groupActions.append(badge(status, groupRuns.length + " 个"));
+              if (status === "cancelled") {
+                const cleanupButton = node("button", "button", "清理已取消任务");
+                cleanupButton.type = "button";
+                cleanupButton.setAttribute("aria-label", "清理所有已取消采集任务");
+                cleanupButton.addEventListener("click", () => openActionDialog({
+                  action: "cancelled-cleanup",
+                  title: "清理已取消采集任务",
+                  detail: "该操作不可恢复，将删除列表中的所有已取消运行及其采集子任务、死信记录；书籍、正文和审计记录会保留。请填写理由。",
+                }));
+                groupActions.append(cleanupButton);
+              }
+              groupHeader.append(node("h3", null, runStatusLabel(status)), groupActions);
               const groupList = node("ul", "operations-run-list operations-run-list--group");
               group.append(groupHeader, groupList);
               for (const run of groupRuns) {
@@ -866,6 +879,8 @@ public static partial class ReaderHtml
                   actions.append(createRunControlButton(run, "cancel", "取消"));
                 } else if (status === "stopping") {
                   actions.append(createRunControlButton(run, "cancel", "立即取消"));
+                } else if (status === "stopped") {
+                  actions.append(createRunControlButton(run, "cancel", "取消"));
                 }
                 if (status === "failed") {
                   const deleteButton = node("button", "button", "删除失败任务");
@@ -879,7 +894,7 @@ public static partial class ReaderHtml
                   actions.append(deleteButton);
                 }
                 if (["failed", "stopped", "cancelled"].includes(status)) {
-                  const rerunButton = node("button", "button", "重新开始");
+                  const rerunButton = node("button", "button", status === "stopped" ? "重试" : "重新开始");
                   rerunButton.type = "button";
                   rerunButton.addEventListener("click", () => rerunCollection(run));
                   actions.append(rerunButton);
@@ -1492,8 +1507,10 @@ public static partial class ReaderHtml
                 ? "确认" + controlLabel(action.controlAction)
                 : action.action === "content-policy"
                   ? "确认" + policyActionLabel(action.policyAction)
-                  : action.action === "run-delete"
+                : action.action === "run-delete"
                     ? "确认删除"
+                    : action.action === "cancelled-cleanup"
+                      ? "确认清理"
                     : action.action === "source-disable"
                       ? "确认停用来源"
                       : action.action === "source-enable"
@@ -1526,6 +1543,8 @@ public static partial class ReaderHtml
               path = "/api/v1/admin/collection-runs/" + encodeURIComponent(pendingAction.runId) + "/control";
             } else if (pendingAction.action === "run-delete") {
               path = "/api/v1/admin/collection-runs/" + encodeURIComponent(pendingAction.runId) + "/delete";
+            } else if (pendingAction.action === "cancelled-cleanup") {
+              path = "/api/v1/admin/collection-runs/cancelled/cleanup";
             } else if (pendingAction.action === "content-policy") {
               path = pendingAction.policyAction === "takedown"
                 ? "/api/v1/admin/content/takedowns"
@@ -1554,6 +1573,8 @@ public static partial class ReaderHtml
                   ? "采集运行控制命令已提交。"
                   : pendingAction.action === "run-delete"
                     ? "失败采集任务已删除。"
+                    : pendingAction.action === "cancelled-cleanup"
+                      ? "已取消采集任务已清理，共删除 " + Math.max(0, Math.trunc(asNumber(payload?.deletedCount))) + " 条。"
                     : pendingAction.action === "source-disable"
                       ? "来源已停用。"
                       : pendingAction.action === "source-enable"

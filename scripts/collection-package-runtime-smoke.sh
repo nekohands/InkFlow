@@ -222,8 +222,19 @@ control_run "$resume_run_id" resume pending "$work_dir/control-resume-action.jso
 control_run "$resume_run_id" resume pending "$work_dir/control-resume-repeat.json"
 control_run "$stop_run_id" stop stopped "$work_dir/control-stop.json"
 control_run "$stop_run_id" stop stopped "$work_dir/control-stop-repeat.json"
+control_run "$stop_run_id" cancel cancelled "$work_dir/control-stop-cancel.json"
 control_run "$cancel_run_id" cancel cancelled "$work_dir/control-cancel.json"
 control_run "$cancel_run_id" cancel cancelled "$work_dir/control-cancel-repeat.json"
+
+cleanup_payload="$($jq_bin -nc '{reason: "automated cancelled collection cleanup smoke"}')"
+expect_status POST /api/v1/admin/collection-runs/cancelled/cleanup "$operator_token" \
+  "$cleanup_payload" 200 "$work_dir/collection-cancelled-cleanup.json"
+assert_json \
+  '.status == "cleaned" and .deletedCount >= 3' \
+  "$work_dir/collection-cancelled-cleanup.json" \
+  'cancelled collection cleanup did not remove all cancelled fixture runs'
+expect_status GET "/api/v1/admin/collection-runs/$cancel_run_id" "$operator_token" '' 404 \
+  "$work_dir/collection-cancelled-cleanup-view.json"
 
 assert_json \
   '.run.stage == "bookInfo" and .run.progressPercent == null and .run.totalTaskCount == 0' \
@@ -369,6 +380,12 @@ if [[ -n "$admin_token" ]]; then
     'any(.events[]; .action == "book.package.download" and .outcome == "success")' \
     "$work_dir/package-download-audit.json" \
     'book package download audit event is missing'
+  expect_status GET '/api/v1/admin/audit/events?action=collection.run.cancelled.cleanup&limit=100' \
+    "$admin_token" '' 200 "$work_dir/collection-cancelled-cleanup-audit.json"
+  assert_json \
+    'any(.events[]; .action == "collection.run.cancelled.cleanup" and .outcome == "success")' \
+    "$work_dir/collection-cancelled-cleanup-audit.json" \
+    'cancelled collection cleanup audit event is missing'
 fi
 
 printf 'collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)\n'

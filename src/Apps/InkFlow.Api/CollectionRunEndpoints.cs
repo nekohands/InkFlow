@@ -97,6 +97,32 @@ public static class CollectionRunEndpoints
                 clock,
                 ct);
         });
+        write.MapPost("/cancelled/cleanup", async (
+            CollectionRunDeleteRequest? request,
+            ClaimsPrincipal principal,
+            CollectionRunService collectionRuns,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await collectionRuns
+                .DeleteCancelledAsync(request?.Reason, ct)
+                .ConfigureAwait(false);
+            return CleanupCancelledAudited(
+                result,
+                request?.Reason,
+                actorId,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
         write.MapPost("/{runId:guid}/control", async (
             Guid runId,
             CollectionRunControlRequest? request,
@@ -368,6 +394,15 @@ public static class CollectionRunEndpoints
                     : StatusCodes.Status400BadRequest;
     }
 
+    public static int GetCleanupStatusCode(CollectionRunCleanupOutcome result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return result.IsSuccess
+            ? StatusCodes.Status200OK
+            : StatusCodes.Status400BadRequest;
+    }
+
     private static IResult DeleteAudited(
         CollectionRunDeleteOutcome result,
         Guid runId,
@@ -390,6 +425,36 @@ public static class CollectionRunEndpoints
             reason: reason,
             traceId: Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier,
             reference: $"run:{runId};result:{(result.IsSuccess ? "deleted" : result.ErrorCode)}");
+
+        return new AuditedResult(
+            result,
+            statusCode,
+            audit,
+            auditSink,
+            cancellationToken);
+    }
+
+    private static IResult CleanupCancelledAudited(
+        CollectionRunCleanupOutcome result,
+        string? reason,
+        string actorId,
+        HttpContext httpContext,
+        IAuditEventSink auditSink,
+        TimeProvider clock,
+        CancellationToken cancellationToken)
+    {
+        var statusCode = GetCleanupStatusCode(result);
+        var audit = AuditEvent.Create(
+            action: "collection.run.cancelled.cleanup",
+            resource: "/api/v1/admin/collection-runs/cancelled/cleanup",
+            outcome: result.IsSuccess ? "success" : "client_error",
+            statusCode,
+            clock.GetUtcNow(),
+            actorType: "authenticated",
+            actorId: actorId,
+            reason: reason,
+            traceId: Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier,
+            reference: $"deleted:{result.DeletedCount};result:{(result.IsSuccess ? "cleaned" : result.ErrorCode)}");
 
         return new AuditedResult(
             result,
@@ -437,6 +502,15 @@ public static class CollectionRunEndpoints
                 CollectionRunDeleteOutcome deletion => new
                 {
                     error = deletion.ErrorCode ?? "collection_run_delete_failed",
+                },
+                CollectionRunCleanupOutcome cleanup when cleanup.IsSuccess => new
+                {
+                    status = "cleaned",
+                    deletedCount = cleanup.DeletedCount,
+                },
+                CollectionRunCleanupOutcome cleanup => new
+                {
+                    error = cleanup.ErrorCode ?? "collection_run_cleanup_failed",
                 },
                 _ => new { error = "collection_run_operation_failed" },
             };

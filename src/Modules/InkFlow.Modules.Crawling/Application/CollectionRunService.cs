@@ -62,6 +62,19 @@ public sealed record CollectionRunDeleteOutcome(
         new(false, code, error);
 }
 
+public sealed record CollectionRunCleanupOutcome(
+    bool IsSuccess,
+    int DeletedCount,
+    string? ErrorCode = null,
+    string? Error = null)
+{
+    public static CollectionRunCleanupOutcome Cleaned(int deletedCount) =>
+        new(true, deletedCount);
+
+    public static CollectionRunCleanupOutcome Failure(string code, string error) =>
+        new(false, 0, code, error);
+}
+
 /// <summary>
 /// 采集运行编排：负责直接地址入口、控制命令、阶段推进和父子进度折叠。
 /// 外部请求只创建/控制运行，不同步执行第三方请求。
@@ -202,6 +215,22 @@ public sealed class CollectionRunService(
                 "collection-run.not-found",
                 "collection run was not found."),
         };
+    }
+
+    public async Task<CollectionRunCleanupOutcome> DeleteCancelledAsync(
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedReason = reason?.Trim() ?? string.Empty;
+        if (normalizedReason.Length == 0 || normalizedReason.Length > MaxControlReasonLength)
+        {
+            return CollectionRunCleanupOutcome.Failure(
+                "collection-run.reason",
+                "a cleanup reason between 1 and 512 characters is required.");
+        }
+
+        return CollectionRunCleanupOutcome.Cleaned(
+            await runs.DeleteCancelledAsync(cancellationToken).ConfigureAwait(false));
     }
 
     public async Task<CollectionRunControlOutcome> ControlAsync(

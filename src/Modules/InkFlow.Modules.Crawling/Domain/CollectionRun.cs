@@ -184,8 +184,7 @@ public sealed class CollectionRun
     public void Cancel(DateTimeOffset now)
     {
         if (Status is CollectionRunStatus.Completed or
-            CollectionRunStatus.Failed or
-            CollectionRunStatus.Stopped)
+            CollectionRunStatus.Failed)
         {
             throw new InvalidOperationException(
                 $"collection run {Id} cannot be cancelled from {Status}.");

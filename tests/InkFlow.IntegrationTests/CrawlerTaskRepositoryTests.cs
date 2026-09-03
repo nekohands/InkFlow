@@ -1110,6 +1110,79 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task DeleteCancelledCollectionRuns_Removes_All_Cancelled_Runs_And_Children()
+    {
+        var cancelledRun = CollectionRun.Create(
+            $"delete-cancelled-{Guid.NewGuid():N}",
+            "book-1",
+            "https://example.com/book/book-1",
+            T0);
+        cancelledRun.Cancel(T0.AddMinutes(1));
+        var cancelledTask = CrawlerTask.Create(
+            new CrawlPayload(
+                cancelledRun.SourceId,
+                SourceCapability.Content,
+                new Dictionary<string, string> { ["chapterId"] = "chapter-1" },
+                RunId: cancelledRun.Id),
+            maxAttempts: 1,
+            createdAt: T0);
+        cancelledTask.Lease("worker", T0, TimeSpan.FromMinutes(1));
+        cancelledTask.MarkRunning(T0.AddSeconds(1));
+        cancelledTask.Fail(T0.AddMinutes(1));
+        var deadLetter = DeadLetterTask.From(cancelledTask, "cancelled-fixture", T0.AddMinutes(1));
+
+        var secondCancelledRun = CollectionRun.Create(
+            $"delete-cancelled-{Guid.NewGuid():N}",
+            "book-2",
+            "https://example.com/book/book-2",
+            T0);
+        secondCancelledRun.Cancel(T0.AddMinutes(1));
+
+        var completedRun = CollectionRun.Create(
+            $"keep-completed-{Guid.NewGuid():N}",
+            "book-3",
+            "https://example.com/book/book-3",
+            T0);
+        completedRun.AdvanceTo(CollectionRunStage.Content, T0.AddSeconds(1));
+        completedRun.Reconcile(
+            new CollectionRunTaskProgress(1, 0, 0, 0, 1, 0, 0),
+            T0.AddMinutes(1));
+
+        await using (var seed = CreateContext().Db)
+        {
+            seed.Runs.AddRange(
+                CollectionRunMapper.ToEntity(cancelledRun),
+                CollectionRunMapper.ToEntity(secondCancelledRun),
+                CollectionRunMapper.ToEntity(completedRun));
+            seed.Tasks.Add(CrawlerTaskMapper.ToEntity(cancelledTask));
+            seed.DeadLetters.Add(new DeadLetterEntity
+            {
+                Id = deadLetter.Id,
+                TaskId = deadLetter.TaskId,
+                SourceId = deadLetter.SourceId,
+                Reason = deadLetter.Reason,
+                AttemptCount = deadLetter.AttemptCount,
+                DeadLetteredAt = deadLetter.DeadLetteredAt,
+            });
+            await seed.SaveChangesAsync().ConfigureAwait(false);
+        }
+
+        await using (var deleteDb = CreateContext().Db)
+        {
+            var runs = new EfCollectionRunRepository(deleteDb, new EfTransactionalOutboxWriter());
+            Assert.AreEqual(2, await runs.DeleteCancelledAsync().ConfigureAwait(false));
+            Assert.AreEqual(0, await runs.DeleteCancelledAsync().ConfigureAwait(false));
+        }
+
+        await using var verify = CreateContext().Db;
+        Assert.IsNull(await verify.Runs.FindAsync(cancelledRun.Id).ConfigureAwait(false));
+        Assert.IsNull(await verify.Runs.FindAsync(secondCancelledRun.Id).ConfigureAwait(false));
+        Assert.IsNotNull(await verify.Runs.FindAsync(completedRun.Id).ConfigureAwait(false));
+        Assert.AreEqual(0, await verify.Tasks.CountAsync(task => task.RunId == cancelledRun.Id).ConfigureAwait(false));
+        Assert.AreEqual(0, await verify.DeadLetters.CountAsync(letter => letter.TaskId == cancelledTask.Id).ConfigureAwait(false));
+    }
+
+    [TestMethod]
     public async Task Collection_Run_Page_Uses_Stable_UpdatedAt_And_Id_Cursor()
     {
         var updatedAt = new DateTimeOffset(2099, 12, 31, 23, 0, 0, TimeSpan.Zero);
