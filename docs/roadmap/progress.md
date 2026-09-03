@@ -3,10 +3,10 @@
 > 持续进度账本。状态只以真实代码、测试、Runtime 和 CI 结果为准。
 
 - 产品：墨流 / InkFlow
-- 当前阶段：1.0 Release Candidate（本轮账户中心、令牌生命周期与头像上传的本机/VM 自动化及候选提交 CI/Docker/Security 均已通过，人工及其他真实环境验收待定）
+- 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI 待回传；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.46 采集任务与打包下载任务工作面已记录；候选提交 `638743c` 已推送至 `dev`，本机测试/构建、Ubuntu VM 源码 Compose、运行冒烟和 CI/Docker/Security 门禁均有证据；本轮候选视觉浏览器因验证端口隔离未执行。
-- 最后更新日期：2026-09-03
+- 文档状态：5.53 Reader 顶部任务导航、来源状态入口与书籍详情下载入口已记录；提交 `9233b82` 已推送至 `dev`，本机测试/构建、Ubuntu VM 源码 Compose、运行冒烟、角色权限和内置浏览器入口检查均有证据。
+- 最后更新日期：2026-09-04
 
 ## 1. 总体状态
 
@@ -1679,6 +1679,14 @@ Phase 1A 自动化工作包状态：
 - Ubuntu VM：隔离工作树 `0f55282` 使用源码 Compose 构建并运行，Migration、API、Worker、Scheduler、PostgreSQL、Redis healthy；Reader 账户 runtime smoke 的 Reader 允许/拒绝矩阵 PASS；临时 Reader 实际创建、完成、下载并校验单文件 TXT 书籍包哈希 PASS；`reader-frontend-runtime-smoke` 使用隔离 18080 端口 PASS。手工栈未修改。
 - 权限边界：当前采集运行/书籍包仍是平台级任务，没有 `UserId` 归属字段；本轮不把全局暂停/恢复/停止/取消或清理权限下放给 Reader。若后续要求普通用户只能控制“自己发起的任务”，需先增加任务所有权和按用户隔离列表的迁移与回归。
 - 状态：代码提交 `0f55282`、文档提交 `a08d9a2` 已推送 `dev`；[CI 33750052745](https://github.com/nekohands/InkFlow/actions/runs/33750052745)、[Docker 33750052746](https://github.com/nekohands/InkFlow/actions/runs/33750052746)、[Security 33750052726](https://github.com/nekohands/InkFlow/actions/runs/33750052726) 均 success 且 head SHA 一致。阅读 3.0/MuMu 真机、真实上游/真实凭据和其他第 6 节人工项目继续待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.53 Reader 顶部任务导航、来源状态与书籍详情下载入口（本轮，2026-09-04）
+
+- 实现：Reader 顶部新增独立“采集”“下载”“来源状态”页签；书籍详情新增 EPUB、单文件 TXT、ZIP 格式选择和下载入口。已完成书籍包使用当前登录会话直接下载，排队/运行中跳转下载页签，否则创建下载任务。
+- 权限：普通 Reader 可读取来源状态快照但不能调用来源编辑接口；Administrator 可编辑来源状态。既有 Operator 来源级授权模型保持不变，未将普通用户与运维角色混淆。
+- 验证：本机 focused ReaderHtml `27/27`、完整 Unit `574/574`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`、前端 smoke 与 shell 语法均 PASS；Windows Integration `8 passed / 3 skipped / 102 failed`，全部失败发生于本机 Docker Engine named pipe 不可用，记为环境 BLOCKED。
+- Ubuntu VM：隔离工作树 `9233b82` 使用源码 Compose 构建，API/Worker/Scheduler/PostgreSQL/Redis healthy；`reader-frontend-runtime-smoke` PASS；真实 HTTP 角色 smoke 验证首个注册账号为 Administrator、第二个为 Reader、Reader 来源总览 `200`、编辑 `403`、管理员禁用/恢复 `200`；内置浏览器确认三项顶部入口。隔离栈已停止并清理，既有手工栈保留。
+- 状态：代码提交 `9233b82` 已推送 `dev`；当前提交 CI 尚未回传，保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。阅读 3.0/MuMu 真机、真实上游/真实凭据及其他第 6 节人工项目继续待定。
 
 ## 5. Phase 1A 核心验收链路
 
