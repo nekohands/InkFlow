@@ -1652,6 +1652,16 @@ Phase 1A 自动化工作包状态：
 - CI/供应链：提交 `0b3aa43` 的 [CI 33723946968](https://github.com/nekohands/InkFlow/actions/runs/33723946968)、[Docker 33723946966](https://github.com/nekohands/InkFlow/actions/runs/33723946966)、[Security 33723946917](https://github.com/nekohands/InkFlow/actions/runs/33723946917) 均 success，三者 head SHA 一致。
 - 验收边界：未读取或提交真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游追更与其他明确人工验收继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.50 已停止任务重试/取消与已取消任务清理（本轮，2026-09-03）
+
+- 实现：已停止采集运行增加“重试”和“取消”操作；“重试”沿用原有地址回填入口创建新运行，“取消”将 `Stopped` 归类为可清理的 `Cancelled`，不恢复原运行，也不删除书籍或正文。
+- 清理：已取消页签增加带理由确认的一键清理；受保护 API 原子删除全部已取消运行及其采集子任务/死信，保留书籍、正文、审计和 Outbox 事实，并记录 `collection.run.cancelled.cleanup` 审计事件。
+- 测试：先以缺失接口/类型验证红态，再补充 Domain、Service、Endpoint、PostgreSQL 和前端合同回归；VM Linux SDK 全量 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit `570/570`、Architecture `1/1`、Contract `12/12`、Integration `110 passed / 3 skipped / 0 failed`。
+- VM/运行时：隔离 Compose 从源码重建并健康启动；`verify-migrations.sh` 通过 11 个 contexts；`collection-package-runtime-smoke` PASS，实际覆盖停止后取消、已取消批量清理、直接地址采集、ZIP/EPUB/TXT 生成下载、完整性和审计；`reader-frontend-runtime-smoke` PASS。为适配 VM 缓存，隔离验证临时使用 Collector `0.159.0`，生产 Compose/CI 仍为 `0.160.0`。
+- 浏览器：内置浏览器在候选 `18080` 端口确认已停止页签出现“取消/重试”、展开状态跨 4.5 秒轮询保持；取消后进入已取消页签并出现“清理已取消任务”及不可恢复确认说明。清理确认未在浏览器中提交，避免误删现场；删除行为已由隔离 HTTP smoke 实际验证。
+- CI：`5d64dd2` 的首次 CI 因前端 smoke 夹具漏记新合同字符串失败，已在 `4b896fb` 补齐；`4b896fb` 的 [CI 33734431190](https://github.com/nekohands/InkFlow/actions/runs/33734431190)、[Docker 33734431170](https://github.com/nekohands/InkFlow/actions/runs/33734431170)、[Security 33734431235](https://github.com/nekohands/InkFlow/actions/runs/33734431235) 均已 success。
+- 验收边界：Windows Integration 仍因本机 Docker Engine named pipe 不可用而 BLOCKED；未使用真实上游账号、生产令牌、Cookie，阅读 3.0/MuMu 真机及其他明确人工验收继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

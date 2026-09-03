@@ -1452,6 +1452,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - CI 门禁：`0b3aa43` 的 [CI 33723946968](https://github.com/nekohands/InkFlow/actions/runs/33723946968)、[Docker 33723946966](https://github.com/nekohands/InkFlow/actions/runs/33723946966)、[Security 33723946917](https://github.com/nekohands/InkFlow/actions/runs/33723946917) 全部 success 且 head SHA 一致。
 - 人工待定：本轮未使用真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游和其他第 6 节人工项目继续待定，整体仍为 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
 
+### 5.50 已停止任务重试/取消与已取消任务清理交接（本轮，2026-09-03）
+
+- 代码范围：`Stopped` 运行增加取消路径；终态运行显示“重试”地址回填入口；新增批量清理已取消运行的 Service、PostgreSQL 事务删除实现、受保护 API/审计和运维页确认交互。
+- 删除语义：清理锁定子任务后锁定已取消父运行，原子删除采集任务与死信，随后删除仍为 `Cancelled` 的运行；书籍、正文、审计、Outbox 不受影响。理由限制为 1–512 字符，权限沿用 `CrawlerRepair`。
+- 回归证据：Unit `570/570`、Architecture `1/1`、Contract `12/12`、Integration `110 passed / 3 skipped / 0 failed`；前端 smoke 夹具已在 `4b896fb` 补齐 `cancelled-cleanup` 合同并通过。
+- VM 证据：源码构建隔离 Compose，11 个 migration context PASS，API/Worker/Scheduler/PostgreSQL/Redis/Collector healthy；`collection-package-runtime-smoke` 与 `reader-frontend-runtime-smoke` PASS。验证栈保留运行以供人工查看，未触碰用户的手工栈。
+- 浏览器证据：内置浏览器确认 stopped 卡片按钮为“取消/重试”，4.5 秒轮询后展开状态未丢失；执行取消后已取消页签显示带 aria 标签的“清理所有已取消采集任务”，并打开了不可恢复确认对话框。浏览器未提交清理，HTTP smoke 已实际验证批量删除和审计。
+- CI 状态：`5d64dd2` 的首次 CI 失败原因为 smoke 夹具合同漏项，已在 `4b896fb` 修复；`4b896fb` 的 [CI 33734431190](https://github.com/nekohands/InkFlow/actions/runs/33734431190)、[Docker 33734431170](https://github.com/nekohands/InkFlow/actions/runs/33734431170)、[Security 33734431235](https://github.com/nekohands/InkFlow/actions/runs/33734431235) 均 success。
+- 人工待定：Windows 本机 Integration 因 Docker named pipe 不可用；阅读 3.0/MuMu 真机、真实上游/真实凭据、视觉和其他第 6 节人工项目仍待后续处理。当前保持 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
