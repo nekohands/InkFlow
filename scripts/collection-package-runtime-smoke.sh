@@ -10,6 +10,7 @@ source "$script_dir/load-local-env.sh"
 base_url="${1:-${INKFLOW_COLLECTION_PACKAGE_SMOKE_BASE_URL:-http://localhost:8080}}"
 operator_token="${INKFLOW_COLLECTION_PACKAGE_SMOKE_OPERATOR_TOKEN:-}"
 admin_token="${INKFLOW_COLLECTION_PACKAGE_SMOKE_ADMIN_TOKEN:-}"
+reader_token="${INKFLOW_COLLECTION_PACKAGE_SMOKE_READER_TOKEN:-}"
 book_id="${INKFLOW_COLLECTION_PACKAGE_SMOKE_BOOK_ID:-}"
 pause_run_id="${INKFLOW_COLLECTION_PACKAGE_SMOKE_PAUSE_RUN_ID:-}"
 stop_run_id="${INKFLOW_COLLECTION_PACKAGE_SMOKE_STOP_RUN_ID:-}"
@@ -23,6 +24,8 @@ curl_bin="${INKFLOW_COLLECTION_PACKAGE_SMOKE_CURL_BIN:-curl}"
 jq_bin="${INKFLOW_COLLECTION_PACKAGE_SMOKE_JQ_BIN:-jq}"
 work_dir=""
 direct_run_id=""
+collection_token=""
+package_token=""
 
 fail() {
   printf 'collection-package-runtime-smoke: %s\n' "$1" >&2
@@ -45,6 +48,13 @@ esac
 
 if [[ -z "$operator_token" || -z "$book_id" ]]; then
   fail 'operator token and canonical book id must be supplied through environment variables'
+fi
+
+collection_token="$operator_token"
+package_token="$operator_token"
+if [[ -n "$reader_token" ]]; then
+  collection_token="$reader_token"
+  package_token="$reader_token"
 fi
 
 for control_id in "$pause_run_id" "$stop_run_id" "$cancel_run_id" "$resume_run_id"; do
@@ -172,7 +182,7 @@ control_run() {
 
 expect_status GET /api/v1/admin/collection-runs '' '' 401 \
   "$work_dir/collection-unauthenticated.json"
-expect_status GET '/api/v1/admin/collection-runs?limit=10' "$operator_token" '' 200 \
+expect_status GET '/api/v1/admin/collection-runs?limit=10' "$collection_token" '' 200 \
   "$work_dir/collection-list.json"
 assert_json '.data | type == "array"' \
   "$work_dir/collection-list.json" \
@@ -199,14 +209,14 @@ if [[ -z "$collection_url" ]]; then
   collection_url="https://inkflow-acceptance.invalid/book/runtime-$(date -u +%s%N)-$$-${RANDOM}"
 fi
 start_payload="$($jq_bin -nc --arg url "$collection_url" '{url: $url}')"
-expect_status POST /api/v1/admin/collection-runs "$operator_token" \
+expect_status POST /api/v1/admin/collection-runs "$collection_token" \
   "$start_payload" 202 "$work_dir/collection-start.json"
 assert_json \
   '.status == "accepted" and .run.id != null and (.run.status == "pending" or .run.status == "running")' \
   "$work_dir/collection-start.json" \
   'direct URL collection was not accepted'
 direct_run_id="$($jq_bin -er '.run.id' "$work_dir/collection-start.json")"
-expect_status GET "/api/v1/admin/collection-runs/$direct_run_id" "$operator_token" '' 200 \
+expect_status GET "/api/v1/admin/collection-runs/$direct_run_id" "$collection_token" '' 200 \
   "$work_dir/collection-start-view.json"
 assert_json_arg expected "$direct_run_id" \
   '.id == $expected and (.inputUrl | startswith("https://"))' \
@@ -246,7 +256,7 @@ create_package() {
   local output="$work_dir/package-$format-create.json"
   local payload
   payload="$($jq_bin -nc --arg format "$format" '{format: $format}')"
-  expect_status POST "/api/v1/admin/books/$book_id/packages" "$operator_token" \
+  expect_status POST "/api/v1/admin/books/$book_id/packages" "$package_token" \
     "$payload" 202 "$output"
   assert_json_arg format "$format" \
     '.status == "accepted" and .package.id != null and .package.canonicalBookId != null and .package.format == $format and .package.status == "queued"' \
@@ -262,7 +272,7 @@ poll_package() {
   local status
 
   while (( SECONDS < deadline )); do
-    expect_status GET "/api/v1/admin/packages/$package_id" "$operator_token" '' 200 "$output"
+    expect_status GET "/api/v1/admin/packages/$package_id" "$package_token" '' 200 "$output"
     status="$($jq_bin -er '.status' "$output")"
     case "$status" in
       completed)
@@ -303,7 +313,7 @@ download_package() {
   expected_length="$($jq_bin -er '.artifactLength' "$status_file")"
   if ! "$curl_bin" --silent --show-error --fail --max-time "$max_time" \
     --request GET \
-    -H "Authorization: Bearer $operator_token" \
+    -H "Authorization: Bearer $package_token" \
     --dump-header "$headers" \
     --output "$artifact" \
     "$base_url/api/v1/admin/packages/$package_id/download"; then
@@ -354,7 +364,7 @@ for format in zip epub txt; do
   package_ids["$format"]="$($jq_bin -er '.package.id' "$work_dir/package-$format-create.json")"
 done
 
-expect_status GET '/api/v1/admin/packages?limit=100' "$operator_token" '' 200 \
+expect_status GET '/api/v1/admin/packages?limit=100' "$package_token" '' 200 \
   "$work_dir/package-list.json"
 for format in zip epub txt; do
   assert_json_arg package "${package_ids[$format]}" \

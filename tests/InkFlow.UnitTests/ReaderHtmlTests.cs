@@ -406,6 +406,19 @@ public sealed class ReaderHtmlTests
     }
 
     [TestMethod]
+    public void Operations_Page_Exposes_Reader_Collection_Package_And_ReadOnly_Source_Surface()
+    {
+        var html = ReaderHtml.OperationsPage();
+
+        StringAssert.Contains(html, "operationRoles = new Set([\"Reader\", \"Operator\", \"Administrator\"])");
+        StringAssert.Contains(html, "data-operations-roles=\"Reader,Operator,Administrator\"");
+        StringAssert.Contains(html, "data-operations-roles=\"Operator,Administrator\"");
+        StringAssert.Contains(html, "currentRole !== \"Reader\"");
+        StringAssert.Contains(html, "来源状态仅供查看");
+        StringAssert.Contains(html, "Reader 账户可以创建和查看采集、打包并下载书籍");
+    }
+
+    [TestMethod]
     public void Operations_Page_Includes_Run_Control_Action_In_Request_Body()
     {
         var html = ReaderHtml.OperationsPage();

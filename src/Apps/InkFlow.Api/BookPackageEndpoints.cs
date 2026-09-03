@@ -9,13 +9,13 @@ namespace InkFlow.Api;
 
 public sealed record CreateBookPackageRequest(string? Format);
 
-/// <summary>书籍包创建、状态查询和下载 API；仅运维角色可访问。</summary>
+/// <summary>书籍包创建、状态查询和下载 API；登录用户可使用，运维命令另行保护。</summary>
 public static class BookPackageEndpoints
 {
     public static void Map(RouteGroupBuilder api)
     {
         var read = api.MapGroup("/admin/packages")
-            .RequireAuthorization(IdentityPolicies.OperationsRead);
+            .RequireAuthorization(IdentityPolicies.BookPackageUse);
         read.MapGet("", async (
             int? limit,
             BookPackageService packages,
@@ -120,7 +120,7 @@ public static class BookPackageEndpoints
         });
 
         var write = api.MapGroup("/admin/books")
-            .RequireAuthorization(IdentityPolicies.CrawlerRepair);
+            .RequireAuthorization(IdentityPolicies.BookPackageUse);
         write.MapPost("/{bookId:guid}/packages", async (
             Guid bookId,
             CreateBookPackageRequest? request,

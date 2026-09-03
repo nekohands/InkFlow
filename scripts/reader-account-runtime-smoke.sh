@@ -178,6 +178,33 @@ access_token="$rotated_access_token"
 request GET /api/v1/auth/me "$access_token" '__NO_BODY__' "$work_dir/me.json" 200
 assert_json "$work_dir/me.json" '.email == $email and .role == "Reader"' --arg email "$email"
 
+request GET '/api/v1/admin/operations/overview?limit=50' "$access_token" '__NO_BODY__' \
+  "$work_dir/reader-operations-overview.json" 200
+assert_json "$work_dir/reader-operations-overview.json" \
+  '.status != null and .sources.status != null and (has("crawler") | not) and (has("consistency") | not)'
+request GET '/api/v1/admin/collection-runs?limit=1' "$access_token" '__NO_BODY__' \
+  "$work_dir/reader-collection-list.json" 200
+assert_json "$work_dir/reader-collection-list.json" '.data | type == "array"'
+request POST /api/v1/admin/collection-runs "$access_token" \
+  '{"url":"javascript:alert(1)"}' "$work_dir/reader-collection-invalid-url.json" 422
+assert_json "$work_dir/reader-collection-invalid-url.json" \
+  '.error == "source-url.scheme"'
+request GET '/api/v1/admin/packages?limit=1' "$access_token" '__NO_BODY__' \
+  "$work_dir/reader-package-list.json" 200
+assert_json "$work_dir/reader-package-list.json" '.data | type == "array"'
+request POST "/api/v1/admin/books/$book_id/packages" "$access_token" \
+  '{"format":"invalid"}' "$work_dir/reader-package-invalid-format.json" 400
+assert_json "$work_dir/reader-package-invalid-format.json" \
+  '.error == "invalid_package_format"'
+request GET '/api/v1/admin/crawler/dead-letters?limit=1' "$access_token" '__NO_BODY__' \
+  "$work_dir/reader-dead-letters.json" 403
+reader_source_id="${INKFLOW_READER_ACCOUNT_SMOKE_SOURCE_ID:-reader-permission-denial-fixture}"
+request GET "/api/v1/admin/sources/$reader_source_id/health" "$access_token" '__NO_BODY__' \
+  "$work_dir/reader-source-health-detail.json" 403
+request POST "/api/v1/admin/sources/$reader_source_id/health/search/disable" "$access_token" \
+  '{"reason":"reader source operation denial smoke"}' \
+  "$work_dir/reader-source-disable.json" 403
+
 printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' \
   | base64 --decode > "$work_dir/avatar.png"
 request_file() {

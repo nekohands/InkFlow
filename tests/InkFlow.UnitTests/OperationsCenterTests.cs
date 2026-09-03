@@ -147,6 +147,32 @@ public sealed class OperationsCenterTests
         Assert.AreEqual(sourceB.Id, response.Sources.Data[0].Capabilities.Single().SourceId);
     }
 
+    [TestMethod]
+    public async Task ReadSourcesOnlyAsync_Does_Not_Read_Crawler_Or_Consistency_State()
+    {
+        var source = Source.Create("official-a", "Official A", "https://official-a.example", T0);
+        var health = new FakeSourceHealthOperations();
+        health.Rows[source.Id] =
+        [
+            SourceCapabilityHealth.Create(source.Id, SourceCapability.Content, T0),
+        ];
+        var reader = new OperationsCenterReader(
+            new FakeSourceRepository([source]),
+            health,
+            new FakeCrawlerTaskRepository([], throwOnRead: true),
+            new FakeConsistencyCheckService(
+                report: null,
+                throwOnRead: true),
+            new FixedClock(T0));
+
+        var response = await reader.ReadSourcesOnlyAsync();
+
+        Assert.AreEqual(T0, response.GeneratedAt);
+        Assert.AreEqual("ready", response.Status);
+        Assert.AreEqual("ready", response.Sources.Status);
+        Assert.AreEqual(source.Id, response.Sources.Data!.Single().SourceId);
+    }
+
     private sealed class FakeSourceRepository(IReadOnlyList<Source> sources) : ISourceRepository
     {
         public Task AddAsync(Source source, CancellationToken cancellationToken = default) =>

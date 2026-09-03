@@ -128,6 +128,9 @@ public static partial class ReaderHtml
           const legadoTokenCopyButton = document.getElementById("reader-legado-token-copy");
           const sessionStatus = document.getElementById("reader-session-status");
           const adminPanel = document.getElementById("reader-admin-panel");
+          const adminPanelTitle = document.getElementById("account-admin-title");
+          const adminPanelDescription = document.getElementById("account-admin-description");
+          const adminPanelLink = document.getElementById("account-admin-link");
           const accountTabs = Array.from(document.querySelectorAll("[data-account-tab]"));
           const status = document.getElementById("reader-account-status");
           let latestBookSource = null;
@@ -141,7 +144,7 @@ public static partial class ReaderHtml
               default: return "读者";
             }
           };
-          const hasOperationsAccess = (value) => value === "Administrator" || value === "Operator";
+          const hasOperationsAccess = (value) => ["Reader", "Administrator", "Operator"].includes(value);
           const firstCharacter = (value) => Array.from(String(value || "墨").trim() || "墨")[0].toUpperCase();
           const showAvatarFallback = () => {
             if (avatarObjectUrl) {
@@ -406,6 +409,15 @@ public static partial class ReaderHtml
             if (role) role.textContent = roleLabel(accountRole);
             if (roleValue) roleValue.textContent = roleLabel(accountRole);
             if (adminPanel) adminPanel.hidden = !hasOperationsAccess(accountRole);
+            if (accountRole === "Reader") {
+              if (adminPanelTitle) adminPanelTitle.textContent = "采集与下载";
+              if (adminPanelDescription) adminPanelDescription.textContent = "你可以发起书籍采集、查看进度，并生成 EPUB、TXT 或 ZIP 书籍包；来源状态仅供查看。";
+              if (adminPanelLink) adminPanelLink.textContent = "进入采集与下载";
+            } else {
+              if (adminPanelTitle) adminPanelTitle.textContent = "管理入口";
+              if (adminPanelDescription) adminPanelDescription.textContent = "你拥有运营管理权限，可以查看采集运行和平台状态。";
+              if (adminPanelLink) adminPanelLink.textContent = "进入运营中心";
+            }
             if (sessionStatus) sessionStatus.textContent = "当前会话有效";
             await loadAvatar();
             await loadLegadoTokens();
@@ -968,8 +980,8 @@ public static partial class ReaderHtml
                 </div>
                 <section id="reader-admin-panel" class="form-card account-panel" hidden aria-labelledby="account-admin-title">
                   <h2 id="account-admin-title">管理入口</h2>
-                  <p class="muted">你拥有运营管理权限，可以查看采集运行和平台状态。</p>
-                  <a class="button button--primary" href="/admin/operations">进入运营中心</a>
+                  <p id="account-admin-description" class="muted">你拥有运营管理权限，可以查看采集运行和平台状态。</p>
+                  <a id="account-admin-link" class="button button--primary" href="/admin/operations">进入运营中心</a>
                 </section>
                 <div class="account-actions"><button id="reader-logout" class="button" type="button">退出登录</button></div>
               </section>

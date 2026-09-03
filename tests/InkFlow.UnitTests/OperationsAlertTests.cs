@@ -346,6 +346,13 @@ public sealed class OperationsAlertTests
             RequestedLimit = limit;
             return Task.FromResult(response);
         }
+
+        public Task<OperationsSourceStatusResponse> ReadSourcesOnlyAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new OperationsSourceStatusResponse(
+                response.GeneratedAt,
+                response.Status,
+                response.Sources));
     }
 
     private sealed class FixedRateLimitHealthReader(RateLimitStoreHealthSnapshot snapshot)

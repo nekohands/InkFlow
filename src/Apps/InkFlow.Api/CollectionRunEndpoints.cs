@@ -17,13 +17,13 @@ public sealed record CollectionRunControlRequest(string? Action, string? Reason)
 
 public sealed record CollectionRunDeleteRequest(string? Reason);
 
-/// <summary>采集运行的受保护运维 API。</summary>
+/// <summary>采集运行的用户使用 API；运行清理和控制命令仍由运维策略保护。</summary>
 public static class CollectionRunEndpoints
 {
     public static void Map(RouteGroupBuilder api)
     {
         var read = api.MapGroup("/admin/collection-runs")
-            .RequireAuthorization(IdentityPolicies.OperationsRead);
+            .RequireAuthorization(IdentityPolicies.CollectionUse);
         read.MapGet("", async (
             int? limit,
             string? cursor,
@@ -70,9 +70,9 @@ public static class CollectionRunEndpoints
                         ct).ConfigureAwait(false))));
         });
 
-        var write = api.MapGroup("/admin/collection-runs")
-            .RequireAuthorization(IdentityPolicies.CrawlerRepair);
-        write.MapPost("", async (
+        var create = api.MapGroup("/admin/collection-runs")
+            .RequireAuthorization(IdentityPolicies.CollectionUse);
+        create.MapPost("", async (
             StartCollectionRunRequest? request,
             ClaimsPrincipal principal,
             CollectionRunService collectionRuns,
@@ -97,6 +97,9 @@ public static class CollectionRunEndpoints
                 clock,
                 ct);
         });
+
+        var write = api.MapGroup("/admin/collection-runs")
+            .RequireAuthorization(IdentityPolicies.CrawlerRepair);
         write.MapPost("/cancelled/cleanup", async (
             CollectionRunDeleteRequest? request,
             ClaimsPrincipal principal,

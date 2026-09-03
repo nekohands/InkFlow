@@ -15,6 +15,14 @@ for required in \
   '/api/v1/me/reading/progress' \
   '/api/v1/me/reading/history' \
   '/api/v1/me/profile/avatar' \
+  '/api/v1/admin/operations/overview?limit=50' \
+  '/api/v1/admin/collection-runs?limit=1' \
+  '/api/v1/admin/packages?limit=1' \
+  '/api/v1/admin/crawler/dead-letters?limit=1' \
+  'reader_source_id/health"' \
+  'reader source operation denial smoke' \
+  'invalid_package_format' \
+  'has("crawler") | not' \
   'base64 --decode' \
   'uploaded avatar response was empty' \
   '/api/v1/me/legado/tokens' \

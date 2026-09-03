@@ -426,8 +426,9 @@ public static partial class ReaderHtml
           const historyRefresh = document.getElementById("operations-history-refresh");
           const historyMore = document.getElementById("operations-history-more");
           const operationsTabs = Array.from(document.querySelectorAll("[data-operations-tab]"));
+          const operationsRoleElements = Array.from(document.querySelectorAll("[data-operations-roles]"));
           const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-          const operationRoles = new Set(["Operator", "Administrator"]);
+          const operationRoles = new Set(["Reader", "Operator", "Administrator"]);
           const capabilities = new Set(["Search", "BookInfo", "Toc", "Content", "Update"]);
           const runStatusOrder = ["pending", "running", "paused", "stopping", "completed", "failed", "stopped", "cancelled"];
           const stableErrors = {
@@ -538,10 +539,13 @@ public static partial class ReaderHtml
           };
           const operationsTabFromHash = () => {
             const candidate = window.location.hash.slice(1);
-            return operationsTabs.some((tab) => tab.dataset.operationsTab === candidate) ? candidate : "collection";
+            return operationsTabs.some((tab) => !tab.hidden && tab.dataset.operationsTab === candidate)
+              ? candidate
+              : operationsTabs.find((tab) => !tab.hidden)?.dataset.operationsTab || "collection";
           };
           const selectOperationsTab = (name, focus = false, updateHash = false) => {
-            const selected = operationsTabs.find((tab) => tab.dataset.operationsTab === name) || operationsTabs[0];
+            const selected = operationsTabs.find((tab) => !tab.hidden && tab.dataset.operationsTab === name)
+              || operationsTabs.find((tab) => !tab.hidden);
             if (!selected) return;
             const selectedName = selected.dataset.operationsTab;
             for (const tab of operationsTabs) {
@@ -597,8 +601,24 @@ public static partial class ReaderHtml
           };
           const showForbidden = () => {
             hideContent();
-            setNotice(authStatus, "当前账户没有运维中心权限。", "danger");
+            setNotice(authStatus, "当前账户没有采集与下载中心权限。", "danger");
           };
+          const applyRoleSurface = () => {
+            const isReader = currentRole === "Reader";
+            for (const element of operationsRoleElements) {
+              const allowedRoles = String(element.dataset.operationsRoles || "")
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean);
+              element.hidden = !allowedRoles.includes(currentRole);
+            }
+            const title = document.getElementById("operations-title");
+            if (title) title.textContent = isReader ? "采集与下载" : "运维中心";
+            const sourceTab = document.getElementById("operations-tab-sources");
+            if (sourceTab) sourceTab.textContent = isReader ? "来源状态" : "来源与死信";
+            selectOperationsTab(operationsTabFromHash());
+          };
+          const canOperateSources = () => currentRole !== "Reader";
           const errorMessage = (status, payload) => {
             if (status === 400) return "请求理由无效，请填写 1–512 个字符。";
             if (status === 401) return "会话已失效，请重新登录。";
@@ -679,7 +699,7 @@ public static partial class ReaderHtml
               card.append(header);
               if (source?.error) card.append(node("p", "operations-card__error", stableErrors[source.error] || "来源健康记录暂时不可用。"));
               const sourceActions = node("div", "operations-source__actions");
-              if (sourceId !== "unknown-source") {
+              if (canOperateSources() && sourceId !== "unknown-source") {
                 const sourceAction = sourceEnabled ? "source-disable" : "source-enable";
                 const sourceButton = node("button", "button", sourceEnabled ? "停用来源" : "恢复来源");
                 sourceButton.type = "button";
@@ -711,7 +731,7 @@ public static partial class ReaderHtml
                   row.append(node("div", "operations-health-row__reason", "最近失败： " + text(health.lastFailureReason)));
                 }
                 const actions = node("div", "operations-health-row__actions");
-                if (capabilities.has(capability) && sourceId !== "unknown-source") {
+                if (canOperateSources() && capabilities.has(capability) && sourceId !== "unknown-source") {
                   const available = asBoolean(health?.isAvailable);
                   actions.append(createActionButton(
                     available ? "停用能力" : "恢复能力",
@@ -865,7 +885,7 @@ public static partial class ReaderHtml
               const groupHeader = node("header", "operations-run-group__header");
               const groupActions = node("div", "operations-run-group__actions");
               groupActions.append(badge(status, groupRuns.length + " 个"));
-              if (status === "cancelled") {
+              if (status === "cancelled" && currentRole !== "Reader") {
                 const cleanupButton = node("button", "button", "清理已取消任务");
                 cleanupButton.type = "button";
                 cleanupButton.setAttribute("aria-label", "清理所有已取消采集任务");
@@ -927,20 +947,20 @@ public static partial class ReaderHtml
                 const canonicalId = asGuid(run?.canonicalBookId);
                 if (canonicalId) card.append(node("p", "operations-run-card__meta", "正典书 ID：" + canonicalId));
                 const actions = node("div", "operations-run-card__actions");
-                if (["pending", "running"].includes(status)) {
+                if (currentRole !== "Reader" && ["pending", "running"].includes(status)) {
                   actions.append(createRunControlButton(run, "pause", "暂停"));
                   actions.append(createRunControlButton(run, "stop", "停止"));
                   actions.append(createRunControlButton(run, "cancel", "取消"));
-                } else if (status === "paused") {
+                } else if (currentRole !== "Reader" && status === "paused") {
                   actions.append(createRunControlButton(run, "resume", "恢复"));
                   actions.append(createRunControlButton(run, "stop", "停止"));
                   actions.append(createRunControlButton(run, "cancel", "取消"));
-                } else if (status === "stopping") {
+                } else if (currentRole !== "Reader" && status === "stopping") {
                   actions.append(createRunControlButton(run, "cancel", "立即取消"));
-                } else if (status === "stopped") {
+                } else if (currentRole !== "Reader" && status === "stopped") {
                   actions.append(createRunControlButton(run, "cancel", "取消"));
                 }
-                if (status === "failed") {
+                if (currentRole !== "Reader" && status === "failed") {
                   const deleteButton = node("button", "button", "删除失败任务");
                   deleteButton.type = "button";
                   deleteButton.addEventListener("click", () => openActionDialog({
@@ -1462,8 +1482,10 @@ public static partial class ReaderHtml
             if (content) content.hidden = false;
             renderSummary(snapshot);
             renderSources(snapshot.sources);
-            renderCrawler(snapshot.crawler);
-            renderConsistency(snapshot.consistency);
+            if (currentRole !== "Reader") {
+              renderCrawler(snapshot.crawler);
+              renderConsistency(snapshot.consistency);
+            }
           };
           const showAuthorized = (identity) => {
             currentRole = text(identity?.role, "");
@@ -1471,6 +1493,7 @@ public static partial class ReaderHtml
               showForbidden();
               return false;
             }
+            applyRoleSurface();
             if (historyPanel) historyPanel.hidden = false;
             if (currentRole === "Administrator") {
               if (historyRefresh) {
@@ -1485,12 +1508,17 @@ public static partial class ReaderHtml
               renderPolicyRestricted();
             }
             if (refreshButton) refreshButton.disabled = false;
-            setNotice(authStatus, "已验证 " + roleLabel(currentRole) + " 身份，可以读取运维快照。", "ready");
+            setNotice(
+              authStatus,
+              currentRole === "Reader"
+                ? "已验证读者身份，可以创建和查看采集、打包并下载书籍；来源状态仅供查看。"
+                : "已验证 " + roleLabel(currentRole) + " 身份，可以读取运维快照。",
+              "ready");
             return true;
           };
           const ensureAuthorized = async () => {
             if (!client?.isSignedIn()) {
-              showLogin("运维中心需要登录后的 Operator 或 Administrator 账户。");
+              showLogin("采集与下载中心需要登录后的账户。");
               return false;
             }
             const response = await client.apiFetch("/api/v1/auth/me");
@@ -1718,7 +1746,7 @@ public static partial class ReaderHtml
               <section class="page-intro" aria-labelledby="operations-title">
                 <p class="eyebrow">InkFlow Operations</p>
                 <h1 id="operations-title">运维中心</h1>
-                <p class="muted">集中查看来源健康、采集死信、跨模块一致性与告警恢复记录。页面只消费受保护的有限数据，不展示凭据、任务变量或正文载荷。</p>
+                <p class="muted">Reader 账户可以创建和查看采集、打包并下载书籍；来源状态仅供查看。运营人员和管理员还可以处理死信、治理内容和恢复平台告警。页面只消费受保护的有限数据，不展示凭据、任务变量或正文载荷。</p>
               </section>
               <section class="operations-toolbar" aria-label="运维中心控制">
                 <p id="operations-auth-status" class="notice" role="status" aria-live="polite">正在检查运维权限…</p>
@@ -1729,19 +1757,19 @@ public static partial class ReaderHtml
                 <section class="operations-summary" id="operations-summary" aria-label="快照摘要" hidden>
                   <dl class="operations-summary__item"><dt>整体状态</dt><dd id="operations-summary-status"></dd></dl>
                   <dl class="operations-summary__item"><dt>来源健康</dt><dd id="operations-summary-sources"></dd></dl>
-                  <dl class="operations-summary__item"><dt>采集死信</dt><dd id="operations-summary-crawler"></dd></dl>
-                   <dl class="operations-summary__item"><dt>一致性</dt><dd id="operations-summary-consistency"></dd></dl>
+                  <dl id="operations-summary-crawler-item" class="operations-summary__item" data-operations-roles="Operator,Administrator"><dt>采集死信</dt><dd id="operations-summary-crawler"></dd></dl>
+                   <dl id="operations-summary-consistency-item" class="operations-summary__item" data-operations-roles="Operator,Administrator"><dt>一致性</dt><dd id="operations-summary-consistency"></dd></dl>
                    <dl class="operations-summary__item"><dt>快照时间</dt><dd id="operations-generated-at">—</dd></dl>
                  </section>
                 <nav id="operations-tabs" class="operations-tabs" aria-label="运维功能分类" role="tablist">
-                  <button id="operations-tab-collection" class="operations-tab" type="button" role="tab" aria-selected="true" aria-controls="operations-panel-collection" data-operations-tab="collection">采集任务</button>
-                  <button id="operations-tab-packages" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-packages" data-operations-tab="packages" tabindex="-1">打包下载</button>
-                  <button id="operations-tab-sources" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-sources" data-operations-tab="sources" tabindex="-1">来源与死信</button>
-                  <button id="operations-tab-governance" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-governance" data-operations-tab="governance" tabindex="-1">内容治理</button>
-                  <button id="operations-tab-diagnostics" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-diagnostics" data-operations-tab="diagnostics" tabindex="-1">告警与一致性</button>
+                  <button id="operations-tab-collection" class="operations-tab" type="button" role="tab" aria-selected="true" aria-controls="operations-panel-collection" data-operations-tab="collection" data-operations-roles="Reader,Operator,Administrator">采集任务</button>
+                  <button id="operations-tab-packages" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-packages" data-operations-tab="packages" data-operations-roles="Reader,Operator,Administrator" tabindex="-1">打包下载</button>
+                  <button id="operations-tab-sources" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-sources" data-operations-tab="sources" data-operations-roles="Reader,Operator,Administrator" tabindex="-1">来源与死信</button>
+                  <button id="operations-tab-governance" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-governance" data-operations-tab="governance" data-operations-roles="Operator,Administrator" tabindex="-1">内容治理</button>
+                  <button id="operations-tab-diagnostics" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-diagnostics" data-operations-tab="diagnostics" data-operations-roles="Operator,Administrator" tabindex="-1">告警与一致性</button>
                 </nav>
                 <div class="operations-tab-panels">
-                  <section id="operations-panel-collection" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-collection" data-operations-panel="collection">
+                  <section id="operations-panel-collection" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-collection" data-operations-panel="collection" data-operations-roles="Reader,Operator,Administrator">
                     <section class="operations-panel" aria-labelledby="operations-collection-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-collection-title">书籍采集</h2>
@@ -1759,7 +1787,7 @@ public static partial class ReaderHtml
                    <div id="operations-collection-list" class="operations-run-status-view" aria-label="采集运行列表"></div>
                     </section>
                   </section>
-                  <section id="operations-panel-packages" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-packages" data-operations-panel="packages" hidden>
+                  <section id="operations-panel-packages" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-packages" data-operations-panel="packages" data-operations-roles="Reader,Operator,Administrator" hidden>
                     <section class="operations-panel" aria-labelledby="operations-package-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-package-title">书籍打包</h2>
@@ -1785,7 +1813,7 @@ public static partial class ReaderHtml
                    <ul id="operations-package-list" class="operations-package-list" aria-label="书籍打包任务列表"></ul>
                     </section>
                   </section>
-                  <section id="operations-panel-governance" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-governance" data-operations-panel="governance" hidden>
+                  <section id="operations-panel-governance" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-governance" data-operations-panel="governance" data-operations-roles="Operator,Administrator" hidden>
                     <section class="operations-panel" aria-labelledby="operations-policy-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-policy-title">内容政策</h2>
@@ -1803,16 +1831,16 @@ public static partial class ReaderHtml
                    <ul id="operations-policy-list" class="operations-policy-list" aria-label="当前下架书籍列表"></ul>
                     </section>
                   </section>
-                  <section id="operations-panel-sources" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-sources" data-operations-panel="sources" hidden>
+                  <section id="operations-panel-sources" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-sources" data-operations-panel="sources" data-operations-roles="Reader,Operator,Administrator" hidden>
                     <section class="operations-panel" aria-labelledby="operations-sources-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-sources-title">来源健康</h2>
-                    <span class="muted">按来源能力分组</span>
+                    <span class="muted">按来源能力分组 · Reader 只读</span>
                   </header>
                   <div id="operations-sources-status" class="operations-panel__status" role="status" aria-live="polite"></div>
                   <div id="operations-sources-list" class="operations-grid"></div>
                 </section>
-                <section class="operations-panel" aria-labelledby="operations-crawler-title">
+                <section class="operations-panel" aria-labelledby="operations-crawler-title" data-operations-roles="Operator,Administrator">
                   <header class="operations-panel__header">
                     <h2 id="operations-crawler-title">采集死信</h2>
                     <span class="muted">受控重放</span>
@@ -1827,7 +1855,7 @@ public static partial class ReaderHtml
                   </div>
                  </section>
                   </section>
-                  <section id="operations-panel-diagnostics" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-diagnostics" data-operations-panel="diagnostics" hidden>
+                  <section id="operations-panel-diagnostics" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-diagnostics" data-operations-panel="diagnostics" data-operations-roles="Operator,Administrator" hidden>
                     <section class="operations-panel" id="operations-history" aria-labelledby="operations-history-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-history-title">告警历史</h2>

@@ -7,6 +7,9 @@ script="$root_dir/scripts/collection-package-runtime-smoke.sh"
 bash -n "$script"
 for required in \
   '/api/v1/admin/collection-runs' \
+  'INKFLOW_COLLECTION_PACKAGE_SMOKE_READER_TOKEN' \
+  'collection_token="$reader_token"' \
+  'package_token="$reader_token"' \
   'source-url.scheme' \
   'pause' \
   'resume' \

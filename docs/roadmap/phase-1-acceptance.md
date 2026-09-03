@@ -128,7 +128,7 @@ All user-visible frontend surfaces already shipped in this repository are part o
 
 - Web Reader: `/reader`, Book Detail/TOC and Chapter Reader.
 - Reader/PWA: account, shelf, history, offline fallback, manifest, service worker and install enhancement.
-- Operations Center: protected `/admin/operations` workbench for Operator/Administrator users.
+- Operations Center: protected `/admin/operations` workbench where authenticated Readers use collection, book packages and source status, while Operator/Administrator users retain the full operations surface.
 
 The automated frontend gate must run against the current source-built Compose stack and cover the HTML shell plus its authenticated route gate, responsive/accessibility markers, account/shelf/history/offline pages, Manifest, Service Worker, icons, Operations UI contracts and sensitive-data exclusions. The repository entrypoints are scripts/reader-frontend-runtime-smoke.sh for frontend contracts and scripts/reader-account-runtime-smoke.sh for authenticated Reader state runtime; their fixture/structure regressions live under scripts/tests/.
 

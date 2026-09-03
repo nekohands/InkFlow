@@ -51,6 +51,11 @@ public sealed record OperationsCenterResponse(
     OperationsSection<OperationsCrawlerView> Crawler,
     OperationsSection<ConsistencyCheckReport> Consistency);
 
+public sealed record OperationsSourceStatusResponse(
+    DateTimeOffset GeneratedAt,
+    string Status,
+    OperationsSection<IReadOnlyList<OperationsSourceView>> Sources);
+
 /// <summary>
 /// Operations Center 的深接口：调用方只需一次读取即可获得受限、可解释的运维快照。
 /// 实现负责区块隔离、上限和领域结果到管理读模型的映射。
@@ -64,6 +69,8 @@ public interface IOperationsCenterReader
     Task<OperationsCenterResponse> ReadForSourcesAsync(
         int limit,
         IReadOnlySet<string> allowedSourceIds,
+        CancellationToken cancellationToken = default);
+    Task<OperationsSourceStatusResponse> ReadSourcesOnlyAsync(
         CancellationToken cancellationToken = default);
 }
 
@@ -92,6 +99,16 @@ public sealed class OperationsCenterReader(
         ArgumentNullException.ThrowIfNull(allowedSourceIds);
         return await ReadCoreAsync(limit, allowedSourceIds, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    public async Task<OperationsSourceStatusResponse> ReadSourcesOnlyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var sources = await ReadSourcesAsync(null, cancellationToken).ConfigureAwait(false);
+        return new(
+            clock.GetUtcNow(),
+            sources.Status,
+            sources);
     }
 
     private async Task<OperationsCenterResponse> ReadCoreAsync(

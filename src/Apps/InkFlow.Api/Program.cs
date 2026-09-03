@@ -130,6 +130,24 @@ builder.Services.AddAuthorization(options =>
             UserRole.Operator.ToString(),
             UserRole.Administrator.ToString()));
     options.AddPolicy(
+        IdentityPolicies.OperationsSnapshotRead,
+        policy => policy.RequireRole(
+            UserRole.Reader.ToString(),
+            UserRole.Operator.ToString(),
+            UserRole.Administrator.ToString()));
+    options.AddPolicy(
+        IdentityPolicies.CollectionUse,
+        policy => policy.RequireRole(
+            UserRole.Reader.ToString(),
+            UserRole.Operator.ToString(),
+            UserRole.Administrator.ToString()));
+    options.AddPolicy(
+        IdentityPolicies.BookPackageUse,
+        policy => policy.RequireRole(
+            UserRole.Reader.ToString(),
+            UserRole.Operator.ToString(),
+            UserRole.Administrator.ToString()));
+    options.AddPolicy(
         IdentityPolicies.OperationsRead,
         policy => policy.RequireRole(
             UserRole.Operator.ToString(),
@@ -855,7 +873,10 @@ operationsRead.MapGet("/consistency", async (
     return Results.Ok(report);
 });
 
-operationsRead.MapGet("/operations/overview", async (
+var operationsSnapshotRead = api.MapGroup("/admin/operations")
+    .RequireAuthorization(IdentityPolicies.OperationsSnapshotRead);
+
+operationsSnapshotRead.MapGet("/overview", async (
     int? limit,
     ClaimsPrincipal principal,
     IOperationsCenterReader operations,
@@ -868,6 +889,11 @@ operationsRead.MapGet("/operations/overview", async (
             out var role))
     {
         return (IResult)Results.Unauthorized();
+    }
+
+    if (role == UserRole.Reader)
+    {
+        return Results.Ok(await operations.ReadSourcesOnlyAsync(ct).ConfigureAwait(false));
     }
 
     var boundedLimit = limit ?? OperationsCenterReader.DefaultLimit;
