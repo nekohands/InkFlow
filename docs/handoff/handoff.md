@@ -1440,7 +1440,9 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 代码范围：采集运行响应增加可选 `bookTitle`；API 组合层批量读取正典书名；运维页在采集运行折叠标题展示书名（可用时）与采集地址，并将采集、打包、来源、内容政策记录改为原生可折叠卡片。
 - 展示语义：书名读取不到时不隐藏采集地址，回退显示来源和外部书籍 ID；活动打包任务默认展开以保持进度可见，其他终态详情默认收起。
 - 本机验证：Release Build 0/0；Unit 567/567、Architecture 1/1、Contract 12/12；前端 fixture smoke 与 `git diff --check` PASS。
-- 下一步：提交/推送后在新的 Ubuntu VM 隔离工作树执行源码 Compose 重建、Migration/Health、Integration 与运行时 smoke；用内置浏览器确认任务地址/书名、顶层/状态页签和折叠展开。阅读 3.0/MuMu 真机、真实上游和其他人工项继续待定；未达到 `Accepted/Completed`。
+- VM/浏览器验证：候选 `a98ed89` 已在 Ubuntu VM 新隔离工作树源码构建并启动，PostgreSQL、Redis、API、Worker、Scheduler、Collector healthy；因 `0.160.0` 在 VM 的 Docker Hub 拉取超时，验证栈临时用缓存 `0.159.0` Collector，生产配置仍为 `0.160.0`。三个受影响 runtime smoke 均 PASS；内置浏览器重新导航后确认顶层 5 页签、采集状态分类、11 个任务地址、9 个打包卡片、4 个来源卡片及默认收起/点击展开行为。合成运行没有 `CanonicalBookId`，未产生书名展示实例；接口字段与书名回退由 Contract/Unit 覆盖。
+- CI 门禁：`a98ed89` 的 [CI 33720160702](https://github.com/nekohands/InkFlow/actions/runs/33720160702)、[Docker 33720160659](https://github.com/nekohands/InkFlow/actions/runs/33720160659)、[Security 33720160678](https://github.com/nekohands/InkFlow/actions/runs/33720160678) 全部 success 且 head SHA 一致。
+- 人工待定：未使用真实账号/密码/生产令牌/Cookie；阅读 3.0/MuMu 真机、真实上游和其他第 6 节人工项目继续待定，整体仍为 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
 
 ## 5. 关键架构不变量
 

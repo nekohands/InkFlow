@@ -1639,7 +1639,9 @@ Phase 1A 自动化工作包状态：
 - 任务展示：采集运行卡片折叠标题优先显示已读取的书名，并始终显示本次采集地址；无法关联正典书时保留来源与外部书籍 ID。运维 API 在列表和单项读取中按正典书 ID 批量补充 `bookTitle`，不改变采集运行事实模型。
 - 折叠交互：采集运行、打包任务、来源健康和内容政策记录使用原生 `<details>/<summary>`，默认不铺开终态详情；活动打包任务保留展开状态以便观察实时进度。顶层业务页签和采集状态页签继续限制首屏信息量。
 - 本机证据：Release Build 0 warnings / 0 errors；Unit 567/567、Architecture 1/1、Contract 12/12 PASS；前端 `reader-frontend-runtime-smoke.test.sh` PASS；`git diff --check` PASS。
-- 验收边界：待将候选提交同步至 Ubuntu VM，重新执行源码 Compose、运行时 smoke 和内置浏览器的地址/书名/折叠交互验收。未使用真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游追更及其他明确人工验收继续待定，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- VM/浏览器证据：候选 `a98ed89` 在 Ubuntu VM 隔离工作树完成源码构建；PostgreSQL、Redis、API、Worker、Scheduler 与 Collector healthy。因 VM 无法从 Docker Hub 拉取新固定 Collector `0.160.0`，本次运行仅对隔离验证栈临时复用已缓存 `0.159.0`，生产 Compose/CI 配置未改回；`admin-runtime-smoke`、`collection-package-runtime-smoke`、`reader-frontend-runtime-smoke` 均 PASS。内置浏览器重新导航后确认顶层 5 个页签、采集状态页签、11 个地址任务、9 个打包卡片和 4 个来源卡片；重新加载后采集/打包/来源卡片均默认收起，展开后进度与操作可见。当前合成运行均未关联 `CanonicalBookId`，因此 VM 未显示具体书名，书名 JSON/渲染分支由 Contract 12/12 与本机回归覆盖。
+- CI/供应链：候选 `a98ed89` 的 [CI 33720160702](https://github.com/nekohands/InkFlow/actions/runs/33720160702)、[Docker 33720160659](https://github.com/nekohands/InkFlow/actions/runs/33720160659)、[Security 33720160678](https://github.com/nekohands/InkFlow/actions/runs/33720160678) 均 success，三者 head SHA 一致。
+- 验收边界：未使用真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游追更及其他明确人工验收继续待定，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
