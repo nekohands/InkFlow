@@ -1668,7 +1668,7 @@ Phase 1A 自动化工作包状态：
 - 安全与可访问性：候选项使用键盘可操作的按钮，位于带“常用理由”图例的 fieldset 中；原有 1–512 字符校验、二次确认、权限和审计链路不变，不把理由改为不可编辑的枚举。
 - 测试：ReaderHtml 单元回归先红后绿（24/24），前端 smoke 合同回归 PASS；完整本地 Build PASS、Unit `570/570`、Architecture `1/1`、Contract `12/12`，Windows Integration 因 Docker named pipe 不可用 BLOCKED。
 - VM/运行时：Ubuntu VM 隔离栈已用 `4600d2b` 重建，API/Worker/Scheduler/PostgreSQL/Redis healthy；`reader-frontend-runtime-smoke` PASS。浏览器已实际打开“取消”理由弹窗，确认 3 个候选、默认理由、候选替换和自定义文本输入，未提交破坏性操作。
-- CI：代码提交 `4600d2b` 的远端门禁待本轮推送后完成；文档同步后需以最新 head 的 CI、Docker、Security 结果为准。
+- CI：文档提交 `23757d0` 的 [CI 33738529085](https://github.com/nekohands/InkFlow/actions/runs/33738529085)、[Docker 33738530154](https://github.com/nekohands/InkFlow/actions/runs/33738530154)、[Security 33738530652](https://github.com/nekohands/InkFlow/actions/runs/33738530652) 均已 success。
 - 验收边界：真实上游、真实凭据、阅读 3.0/MuMu 真机及其他明确人工项目继续待定；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路

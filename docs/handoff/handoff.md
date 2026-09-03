@@ -1467,7 +1467,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 代码范围：现有运维操作理由弹窗增加按操作生成的 3 个常用理由；默认使用第一项，候选按钮可回填文本框，用户仍可修改或自行填写。覆盖重放、采集运行控制、失败/已取消清理、来源/能力启停和内容政策。
 - 保持不变：后端仍接收自由文本理由，1–512 字符校验、权限、二次确认与审计事件不变；候选理由只是输入辅助，不是新的后端枚举合同。
 - 验证：Windows 本地 Build PASS；Unit `570/570`、Architecture `1/1`、Contract `12/12` PASS；前端合同脚本 PASS；Ubuntu VM API 源码重建与前端 smoke PASS；浏览器已验收候选选择和自定义输入。
-- 待门禁：`4600d2b` 推送后等待最新 CI、Docker、Security；不要将本地 Windows Integration 的 Docker named pipe 失败误判为代码回归。
+- 门禁：文档提交 `23757d0` 的 [CI 33738529085](https://github.com/nekohands/InkFlow/actions/runs/33738529085)、[Docker 33738530154](https://github.com/nekohands/InkFlow/actions/runs/33738530154)、[Security 33738530652](https://github.com/nekohands/InkFlow/actions/runs/33738530652) 均 success；不要将本地 Windows Integration 的 Docker named pipe 失败误判为代码回归。
 - 人工待定：浏览器中未提交取消/清理等破坏性操作；真实上游、真实凭据、阅读 3.0/MuMu 真机和其他第 6 节人工验收继续待定。
 
 ## 5. 关键架构不变量
