@@ -30,6 +30,49 @@ public static partial class ReaderHtml
           }
           .operations-toolbar .notice { flex: 1; margin: 0; }
           .operations-content { display: grid; gap: 1rem; }
+          .operations-tabs,
+          .operations-run-tabs {
+            display: flex;
+            gap: 0.25rem;
+            overflow-x: auto;
+            padding: 0.25rem;
+            border: 1px solid var(--reader-border);
+            border-radius: 0.8rem;
+            background: var(--reader-surface);
+          }
+          .operations-tab,
+          .operations-run-tab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            flex: 1 0 auto;
+            min-height: 2.8rem;
+            padding: 0.65rem 1rem;
+            border: 0;
+            border-radius: 0.6rem;
+            background: transparent;
+            color: var(--reader-muted);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+          }
+          .operations-tab:hover,
+          .operations-run-tab:hover { color: var(--reader-text); background: var(--reader-bg); }
+          .operations-tab[aria-selected="true"],
+          .operations-run-tab[aria-selected="true"] { background: var(--reader-accent); color: var(--reader-accent-contrast); }
+          .operations-tab:focus-visible,
+          .operations-run-tab:focus-visible { outline: 2px solid var(--reader-accent); outline-offset: 2px; }
+          .operations-tab-panels,
+          .operations-tab-panel,
+          .operations-run-tab-panels,
+          .operations-run-tab-panel { display: grid; gap: 1rem; min-width: 0; }
+          .operations-tab-panel[hidden],
+          .operations-run-tab-panel[hidden] { display: none; }
+          .operations-run-status-view { display: grid; gap: 0.9rem; margin-top: 1rem; }
+          .operations-run-tabs { margin-top: 0.2rem; }
+          .operations-run-tab { min-height: 2.55rem; padding: 0.55rem 0.8rem; font-size: 0.88rem; }
           .operations-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
@@ -328,6 +371,7 @@ public static partial class ReaderHtml
           const historyBody = document.getElementById("operations-history-body");
           const historyRefresh = document.getElementById("operations-history-refresh");
           const historyMore = document.getElementById("operations-history-more");
+          const operationsTabs = Array.from(document.querySelectorAll("[data-operations-tab]"));
           const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           const operationRoles = new Set(["Operator", "Administrator"]);
           const capabilities = new Set(["Search", "BookInfo", "Toc", "Content", "Update"]);
@@ -349,6 +393,7 @@ public static partial class ReaderHtml
           let collectionHasActive = false;
           let packageHasActive = false;
           let taskPollTimer = null;
+          let activeCollectionStatus = null;
           const packageValues = new Map();
 
           const text = (value, fallback = "") => {
@@ -381,6 +426,26 @@ public static partial class ReaderHtml
           const packageStatusLabel = (status) => ({ queued: "排队中", running: "打包中", completed: "已完成", failed: "失败", expired: "已过期" }[String(status).toLowerCase()] || text(status, "未知"));
           const controlLabel = (action) => ({ pause: "暂停", resume: "恢复", stop: "停止", cancel: "取消" }[String(action).toLowerCase()] || "执行");
           const policyActionLabel = (action) => ({ takedown: "下架", restore: "恢复" }[String(action).toLowerCase()] || "执行");
+          const operationsTabFromHash = () => {
+            const candidate = window.location.hash.slice(1);
+            return operationsTabs.some((tab) => tab.dataset.operationsTab === candidate) ? candidate : "collection";
+          };
+          const selectOperationsTab = (name, focus = false, updateHash = false) => {
+            const selected = operationsTabs.find((tab) => tab.dataset.operationsTab === name) || operationsTabs[0];
+            if (!selected) return;
+            const selectedName = selected.dataset.operationsTab;
+            for (const tab of operationsTabs) {
+              const active = tab === selected;
+              tab.setAttribute("aria-selected", active ? "true" : "false");
+              tab.tabIndex = active ? 0 : -1;
+              const panel = document.getElementById(tab.getAttribute("aria-controls") || "");
+              if (panel) panel.hidden = !active;
+            }
+            if (updateHash && window.location.hash !== `#${selectedName}`) {
+              window.history.replaceState(null, "", `#${selectedName}`);
+            }
+            if (focus) selected.focus();
+          };
           const statusTone = (value) => {
             const normalized = String(value || "").toLowerCase();
             if (["ready", "healthy", "replayed", "resolved", "completed"].includes(normalized)) return "ready";
@@ -643,6 +708,7 @@ public static partial class ReaderHtml
             collectionHasActive = validRuns.some((run) => ["pending", "running", "stopping"].includes(String(run?.status || "").toLowerCase()));
             collectionList?.replaceChildren();
             if (validRuns.length === 0) {
+              activeCollectionStatus = null;
               setPanelStatus(collectionStatus, "暂无采集运行。请输入一本已登记公共来源的书籍地址开始。", "ready");
               return;
             }
@@ -657,9 +723,32 @@ public static partial class ReaderHtml
               ...Array.from(grouped.keys()).filter((status) => !runStatusOrder.includes(status)),
             ];
             setPanelStatus(collectionStatus, "已加载 " + validRuns.length + " 个采集任务，按状态分类。", "ready");
-            for (const status of statuses) {
+            const runTabs = node("nav", "operations-run-tabs");
+            runTabs.setAttribute("role", "tablist");
+            runTabs.setAttribute("aria-label", "采集任务状态");
+            const runPanels = node("div", "operations-run-tab-panels");
+            const statusTabs = [];
+            collectionList?.append(runTabs, runPanels);
+            for (const [index, status] of statuses.entries()) {
               const groupRuns = grouped.get(status) || [];
-              const group = node("li", "operations-run-group");
+              const tabId = "operations-collection-tab-" + index;
+              const panelId = "operations-collection-panel-" + index;
+              const tab = node("button", "operations-run-tab");
+              tab.type = "button";
+              tab.id = tabId;
+              tab.dataset.collectionStatus = status;
+              tab.setAttribute("data-collection-status", status);
+              tab.setAttribute("role", "tab");
+              tab.setAttribute("aria-controls", panelId);
+              tab.setAttribute("aria-selected", "false");
+              tab.append(node("span", null, runStatusLabel(status)), badge(status, groupRuns.length + " 个"));
+              runTabs.append(tab);
+              statusTabs.push(tab);
+              const group = node("section", "operations-run-tab-panel");
+              group.id = panelId;
+              group.setAttribute("role", "tabpanel");
+              group.setAttribute("aria-labelledby", tabId);
+              group.hidden = true;
               const groupHeader = node("header", "operations-run-group__header");
               groupHeader.append(
                 node("h3", null, runStatusLabel(status)),
@@ -746,8 +835,40 @@ public static partial class ReaderHtml
                 card.append(actions);
                 groupList.append(card);
               }
-              collectionList?.append(group);
+              runPanels.append(group);
             }
+            const selectCollectionStatus = (name, focus = false) => {
+              const selected = statusTabs.find((tab) => tab.dataset.collectionStatus === name) || statusTabs[0];
+              if (!selected) return;
+              activeCollectionStatus = selected.dataset.collectionStatus;
+              for (const tab of statusTabs) {
+                const active = tab === selected;
+                tab.setAttribute("aria-selected", active ? "true" : "false");
+                tab.tabIndex = active ? 0 : -1;
+                const panel = document.getElementById(tab.getAttribute("aria-controls") || "");
+                if (panel) panel.hidden = !active;
+              }
+              if (focus) selected.focus();
+            };
+            for (const [index, tab] of statusTabs.entries()) {
+              tab.addEventListener("click", () => selectCollectionStatus(tab.dataset.collectionStatus, false));
+              tab.addEventListener("keydown", (event) => {
+                const offset = event.key === "ArrowRight" || event.key === "ArrowDown"
+                  ? 1
+                  : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                    ? -1
+                    : event.key === "Home"
+                      ? -index
+                      : event.key === "End"
+                        ? statusTabs.length - 1 - index
+                        : 0;
+                if (!offset || statusTabs.length < 2) return;
+                event.preventDefault();
+                const nextIndex = (index + offset + statusTabs.length) % statusTabs.length;
+                selectCollectionStatus(statusTabs[nextIndex].dataset.collectionStatus, true);
+              });
+            }
+            selectCollectionStatus(activeCollectionStatus || statuses[0]);
           };
           const loadCollectionRuns = async () => {
             if (collectionLoading || !client?.isSignedIn() || !operationRoles.has(currentRole)) return;
@@ -1393,6 +1514,26 @@ public static partial class ReaderHtml
             actionSubmit.disabled = false;
           };
 
+          for (const [index, tab] of operationsTabs.entries()) {
+            tab.addEventListener("click", () => selectOperationsTab(tab.dataset.operationsTab, false, true));
+            tab.addEventListener("keydown", (event) => {
+              const offset = event.key === "ArrowRight" || event.key === "ArrowDown"
+                ? 1
+                : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                  ? -1
+                  : event.key === "Home"
+                    ? -index
+                    : event.key === "End"
+                      ? operationsTabs.length - 1 - index
+                      : 0;
+              if (!offset || operationsTabs.length < 2) return;
+              event.preventDefault();
+              const nextIndex = (index + offset + operationsTabs.length) % operationsTabs.length;
+              selectOperationsTab(operationsTabs[nextIndex].dataset.operationsTab, true, true);
+            });
+          }
+          window.addEventListener("hashchange", () => selectOperationsTab(operationsTabFromHash()));
+          selectOperationsTab(operationsTabFromHash());
           refreshButton?.addEventListener("click", () => { void loadSnapshot(); });
           collectionForm?.addEventListener("submit", (event) => {
             event.preventDefault();
@@ -1443,10 +1584,19 @@ public static partial class ReaderHtml
                   <dl class="operations-summary__item"><dt>整体状态</dt><dd id="operations-summary-status"></dd></dl>
                   <dl class="operations-summary__item"><dt>来源健康</dt><dd id="operations-summary-sources"></dd></dl>
                   <dl class="operations-summary__item"><dt>采集死信</dt><dd id="operations-summary-crawler"></dd></dl>
-                  <dl class="operations-summary__item"><dt>一致性</dt><dd id="operations-summary-consistency"></dd></dl>
-                  <dl class="operations-summary__item"><dt>快照时间</dt><dd id="operations-generated-at">—</dd></dl>
-                </section>
-                <section class="operations-panel" aria-labelledby="operations-collection-title">
+                   <dl class="operations-summary__item"><dt>一致性</dt><dd id="operations-summary-consistency"></dd></dl>
+                   <dl class="operations-summary__item"><dt>快照时间</dt><dd id="operations-generated-at">—</dd></dl>
+                 </section>
+                <nav id="operations-tabs" class="operations-tabs" aria-label="运维功能分类" role="tablist">
+                  <button id="operations-tab-collection" class="operations-tab" type="button" role="tab" aria-selected="true" aria-controls="operations-panel-collection" data-operations-tab="collection">采集任务</button>
+                  <button id="operations-tab-packages" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-packages" data-operations-tab="packages" tabindex="-1">打包下载</button>
+                  <button id="operations-tab-sources" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-sources" data-operations-tab="sources" tabindex="-1">来源与死信</button>
+                  <button id="operations-tab-governance" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-governance" data-operations-tab="governance" tabindex="-1">内容治理</button>
+                  <button id="operations-tab-diagnostics" class="operations-tab" type="button" role="tab" aria-selected="false" aria-controls="operations-panel-diagnostics" data-operations-tab="diagnostics" tabindex="-1">告警与一致性</button>
+                </nav>
+                <div class="operations-tab-panels">
+                  <section id="operations-panel-collection" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-collection" data-operations-panel="collection">
+                    <section class="operations-panel" aria-labelledby="operations-collection-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-collection-title">书籍采集</h2>
                      <span class="muted">地址入口 · 异步执行 · 按状态分类</span>
@@ -1459,10 +1609,12 @@ public static partial class ReaderHtml
                     <div class="operations-form__actions"><button id="operations-collection-submit" class="button button--primary" type="submit">开始采集</button></div>
                     <p class="operations-form__hint">只接受已登记来源的精确书籍页面；不做代理、不绕过登录、付费、VIP、验证码或访问控制。</p>
                   </form>
-                  <div id="operations-collection-status" class="operations-panel__status" role="status" aria-live="polite"></div>
-                  <ul id="operations-collection-list" class="operations-run-list" aria-label="采集运行列表"></ul>
-                </section>
-                <section class="operations-panel" aria-labelledby="operations-package-title">
+                   <div id="operations-collection-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                   <div id="operations-collection-list" class="operations-run-status-view" aria-label="采集运行列表"></div>
+                    </section>
+                  </section>
+                  <section id="operations-panel-packages" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-packages" data-operations-panel="packages" hidden>
+                    <section class="operations-panel" aria-labelledby="operations-package-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-package-title">书籍打包</h2>
                     <span class="muted">完整快照 · 不覆盖旧包</span>
@@ -1483,10 +1635,12 @@ public static partial class ReaderHtml
                     <div class="operations-form__actions"><button id="operations-package-submit" class="button button--primary" type="submit">创建打包任务</button></div>
                     <p class="operations-form__hint">只有全部必需章节存在当前已发布正文时，任务才会生成可下载文件。</p>
                   </form>
-                  <div id="operations-package-status" class="operations-panel__status" role="status" aria-live="polite"></div>
-                  <ul id="operations-package-list" class="operations-package-list" aria-label="书籍打包任务列表"></ul>
-                </section>
-                <section class="operations-panel" aria-labelledby="operations-policy-title">
+                   <div id="operations-package-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                   <ul id="operations-package-list" class="operations-package-list" aria-label="书籍打包任务列表"></ul>
+                    </section>
+                  </section>
+                  <section id="operations-panel-governance" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-governance" data-operations-panel="governance" hidden>
+                    <section class="operations-panel" aria-labelledby="operations-policy-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-policy-title">内容政策</h2>
                     <span class="muted">管理员下架 / 恢复</span>
@@ -1499,10 +1653,12 @@ public static partial class ReaderHtml
                     <div class="operations-form__actions"><button id="operations-policy-submit" class="button button--primary" type="submit">发起下架</button></div>
                     <p class="operations-form__hint">下架是追加式政策决定；不会删除历史数据，恢复操作需要再次填写理由。</p>
                   </form>
-                  <div id="operations-policy-status" class="operations-panel__status" role="status" aria-live="polite"></div>
-                  <ul id="operations-policy-list" class="operations-policy-list" aria-label="当前下架书籍列表"></ul>
-                </section>
-                <section class="operations-panel" aria-labelledby="operations-sources-title">
+                   <div id="operations-policy-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                   <ul id="operations-policy-list" class="operations-policy-list" aria-label="当前下架书籍列表"></ul>
+                    </section>
+                  </section>
+                  <section id="operations-panel-sources" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-sources" data-operations-panel="sources" hidden>
+                    <section class="operations-panel" aria-labelledby="operations-sources-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-sources-title">来源健康</h2>
                     <span class="muted">按来源能力分组</span>
@@ -1523,8 +1679,10 @@ public static partial class ReaderHtml
                       <tbody id="operations-crawler-body"></tbody>
                     </table>
                   </div>
-                </section>
-                <section class="operations-panel" id="operations-history" aria-labelledby="operations-history-title">
+                 </section>
+                  </section>
+                  <section id="operations-panel-diagnostics" class="operations-tab-panel" role="tabpanel" aria-labelledby="operations-tab-diagnostics" data-operations-panel="diagnostics" hidden>
+                    <section class="operations-panel" id="operations-history" aria-labelledby="operations-history-title">
                   <header class="operations-panel__header">
                     <h2 id="operations-history-title">告警历史</h2>
                     <span class="muted">触发与恢复转折</span>
@@ -1550,9 +1708,11 @@ public static partial class ReaderHtml
                     <h2 id="operations-consistency-title">跨模块一致性</h2>
                     <span id="operations-consistency-meta" class="muted"></span>
                   </header>
-                  <div id="operations-consistency-status" class="operations-panel__status" role="status" aria-live="polite"></div>
-                  <ul id="operations-consistency-list" class="operations-issue-list" aria-label="一致性问题列表"></ul>
-                </section>
+                   <div id="operations-consistency-status" class="operations-panel__status" role="status" aria-live="polite"></div>
+                   <ul id="operations-consistency-list" class="operations-issue-list" aria-label="一致性问题列表"></ul>
+                 </section>
+                  </section>
+                </div>
               </div>
               <dialog id="operations-action-dialog" aria-labelledby="operations-action-title">
                 <form id="operations-action-form" class="operations-dialog__inner">

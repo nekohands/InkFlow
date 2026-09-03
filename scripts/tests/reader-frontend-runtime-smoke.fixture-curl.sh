@@ -67,7 +67,7 @@ case "$url" in
     body='<svg viewBox="0 0 512 512"></svg>'
     ;;
   */admin/operations)
-    body='id="operations-content" id="operations-collection-form" id="operations-collection-url" /api/v1/admin/operations/overview /api/v1/admin/collection-runs /api/v1/admin/books/ id="operations-package-form" /api/v1/admin/packages?limit=50 operations-package-card__progress EPUB 3 单文件 TXT id="operations-policy-form" id="operations-policy-book-id" 当前下架书籍列表 /api/v1/admin/content/takedowns?limit=50 bookId: pendingAction.bookId /api/v1/admin/operations/alerts/history? operations-history-more operations-action-reason aria-live="polite" reader-auth-pending'
+    body='id="operations-content" id="operations-tabs" data-operations-tab="collection" data-operations-tab="packages" data-operations-tab="sources" role="tablist" id="operations-collection-form" id="operations-collection-url" /api/v1/admin/operations/overview /api/v1/admin/collection-runs operations-run-tabs data-collection-status /api/v1/admin/books/ id="operations-package-form" /api/v1/admin/packages?limit=50 operations-package-card__progress EPUB 3 单文件 TXT id="operations-policy-form" id="operations-policy-book-id" 当前下架书籍列表 /api/v1/admin/content/takedowns?limit=50 bookId: pendingAction.bookId /api/v1/admin/operations/alerts/history? operations-history-more operations-action-reason aria-live="polite" reader-auth-pending'
     ;;
   *)
     exit 1

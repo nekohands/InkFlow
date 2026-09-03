@@ -223,10 +223,17 @@ done
 
 fetch_route /admin/operations operations.html
 contains "$work_dir/operations.html" 'id="operations-content"'
+contains "$work_dir/operations.html" 'id="operations-tabs"'
+contains "$work_dir/operations.html" 'data-operations-tab="collection"'
+contains "$work_dir/operations.html" 'data-operations-tab="packages"'
+contains "$work_dir/operations.html" 'data-operations-tab="sources"'
+contains "$work_dir/operations.html" 'role="tablist"'
 contains "$work_dir/operations.html" '/api/v1/admin/operations/overview'
 contains "$work_dir/operations.html" 'id="operations-collection-form"'
 contains "$work_dir/operations.html" 'id="operations-collection-url"'
 contains "$work_dir/operations.html" '/api/v1/admin/collection-runs'
+contains "$work_dir/operations.html" 'operations-run-tabs'
+contains "$work_dir/operations.html" 'data-collection-status'
 contains "$work_dir/operations.html" 'id="operations-package-form"'
 contains "$work_dir/operations.html" '/api/v1/admin/packages?limit=50'
 contains "$work_dir/operations.html" 'operations-package-card__progress'

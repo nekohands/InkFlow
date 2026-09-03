@@ -371,6 +371,11 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "collectionHasActive");
         StringAssert.Contains(html, "按状态分类");
         StringAssert.Contains(html, "operations-run-group");
+        StringAssert.Contains(html, "operations-tabs");
+        StringAssert.Contains(html, "data-operations-tab=\"collection\"");
+        StringAssert.Contains(html, "data-operations-tab=\"packages\"");
+        StringAssert.Contains(html, "operations-run-tabs");
+        StringAssert.Contains(html, "data-collection-status");
         StringAssert.Contains(html, "source-disable");
         StringAssert.Contains(html, "source-enable");
         StringAssert.Contains(html, "run-delete");
