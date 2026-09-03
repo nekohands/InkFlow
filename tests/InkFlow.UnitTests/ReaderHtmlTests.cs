@@ -379,6 +379,10 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "bookTitle");
         StringAssert.Contains(html, "采集地址：");
         StringAssert.Contains(html, "operations-run-card__summary");
+        StringAssert.Contains(html, "detailsOpenState");
+        StringAssert.Contains(html, "captureDetailsOpenState");
+        StringAssert.Contains(html, "restoreDetailsOpenState");
+        StringAssert.Contains(html, "data-operations-details-key");
         StringAssert.Contains(html, "node(\"details\"");
         StringAssert.Contains(html, "operations-package-card");
         StringAssert.Contains(html, "operations-card");

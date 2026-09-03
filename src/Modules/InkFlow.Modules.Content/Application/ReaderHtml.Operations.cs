@@ -434,6 +434,17 @@ public static partial class ReaderHtml
           let taskPollTimer = null;
           let activeCollectionStatus = null;
           const packageValues = new Map();
+          const detailsOpenState = new Map();
+
+          const captureDetailsOpenState = () => {
+            for (const element of document.querySelectorAll("[data-operations-details-key]")) {
+              detailsOpenState.set(element.dataset.operationsDetailsKey, element.open);
+            }
+          };
+          const restoreDetailsOpenState = (element, key, fallback = false) => {
+            element.dataset.operationsDetailsKey = key;
+            element.open = detailsOpenState.has(key) ? detailsOpenState.get(key) : fallback;
+          };
 
           const text = (value, fallback = "") => {
             if (value === null || value === undefined) return fallback;
@@ -589,10 +600,12 @@ public static partial class ReaderHtml
             const status = document.getElementById("operations-sources-status");
             const values = Array.isArray(section?.data) ? section.data : [];
             renderSectionStatus(status, section, values.length > 0, "暂无已登记来源或能力健康记录。");
+            captureDetailsOpenState();
             list?.replaceChildren();
             for (const source of values) {
               const sourceId = text(source?.sourceId, "unknown-source");
               const card = node("details", "operations-card");
+              restoreDetailsOpenState(card, "source:" + sourceId);
               const header = node("summary", "operations-card__header");
               const headingWrap = node("div");
               headingWrap.append(node("h3", null, text(source?.displayName, "未命名来源")));
@@ -745,6 +758,7 @@ public static partial class ReaderHtml
             const runs = Array.isArray(values) ? values : [];
             const validRuns = runs.filter((run) => asGuid(run?.id));
             collectionHasActive = validRuns.some((run) => ["pending", "running", "stopping"].includes(String(run?.status || "").toLowerCase()));
+            captureDetailsOpenState();
             collectionList?.replaceChildren();
             if (validRuns.length === 0) {
               activeCollectionStatus = null;
@@ -798,6 +812,7 @@ public static partial class ReaderHtml
                 const runId = asGuid(run?.id);
                 const item = node("li");
                 const card = node("details", "operations-run-card");
+                restoreDetailsOpenState(card, "run:" + runId);
                 const header = node("summary", "operations-run-card__summary");
                 const titleWrap = node("span", "operations-run-card__summary-copy");
                 const bookTitle = text(run?.bookTitle, "");
@@ -963,6 +978,7 @@ public static partial class ReaderHtml
           };
           const renderPackages = () => {
             packageHasActive = Array.from(packageValues.values()).some((value) => ["queued", "running"].includes(String(value?.status || "").toLowerCase()));
+            captureDetailsOpenState();
             packageList?.replaceChildren();
             if (!packageValues.size) {
               setPanelStatus(packageStatus, "暂无打包任务。可填写采集运行卡片中的正典书 ID。", "ready");
@@ -974,14 +990,14 @@ public static partial class ReaderHtml
               if (!packageId) continue;
               const item = node("li");
               const card = node("details", "operations-package-card");
+              const status = String(packageValue?.status || "").toLowerCase();
+              restoreDetailsOpenState(card, "package:" + packageId, ["queued", "running"].includes(status));
               const header = node("summary", "operations-package-card__header");
               const titleWrap = node("span", "operations-package-card__summary-copy");
               titleWrap.append(node("span", "operations-package-card__summary-title", text(packageValue?.format, "未知格式").toUpperCase() + " · " + packageStatusLabel(packageValue?.status)));
               titleWrap.append(node("span", "operations-package-card__summary-meta", "任务 " + packageId + " · 书籍 " + (asGuid(packageValue?.canonicalBookId) || "无效 ID")));
               header.append(titleWrap, badge(packageValue?.status, packageStatusLabel(packageValue?.status)));
               card.append(header);
-              const status = String(packageValue?.status || "").toLowerCase();
-              card.open = ["queued", "running"].includes(status);
               const totalChapters = Math.max(0, Math.trunc(asNumber(packageValue?.totalChapterCount)));
               const progressKnown = totalChapters > 0;
               const progressLabel = progressKnown
@@ -1030,6 +1046,7 @@ public static partial class ReaderHtml
           const renderPolicy = (values) => {
             if (policyBookId) policyBookId.disabled = false;
             if (policySubmit) policySubmit.disabled = false;
+            captureDetailsOpenState();
             policyList?.replaceChildren();
             if (!Array.isArray(values) || values.length === 0) {
               setPanelStatus(policyStatus, "当前没有下架书籍。", "ready");
@@ -1042,6 +1059,7 @@ public static partial class ReaderHtml
               const decision = value?.latestDecision;
               const item = node("li");
               const card = node("details", "operations-policy-card");
+              restoreDetailsOpenState(card, "policy:" + bookId);
               const header = node("summary", "operations-policy-card__header");
               const titleWrap = node("div");
               titleWrap.append(node("p", "operations-policy-card__title", "正典书 " + bookId));
