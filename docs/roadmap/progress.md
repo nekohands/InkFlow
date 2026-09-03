@@ -1678,7 +1678,7 @@ Phase 1A 自动化工作包状态：
 - 回归：Release Build 0 warnings / 0 errors；Unit `572/572`、Architecture `1/1`、Contract `12/12` PASS；受影响 shell 合同回归与 `bash -n` PASS。Windows Integration 因 Docker Engine `npipe://./pipe/docker_engine` 不可用 BLOCKED（环境阻塞，不记为代码失败）。
 - Ubuntu VM：隔离工作树 `0f55282` 使用源码 Compose 构建并运行，Migration、API、Worker、Scheduler、PostgreSQL、Redis healthy；Reader 账户 runtime smoke 的 Reader 允许/拒绝矩阵 PASS；临时 Reader 实际创建、完成、下载并校验单文件 TXT 书籍包哈希 PASS；`reader-frontend-runtime-smoke` 使用隔离 18080 端口 PASS。手工栈未修改。
 - 权限边界：当前采集运行/书籍包仍是平台级任务，没有 `UserId` 归属字段；本轮不把全局暂停/恢复/停止/取消或清理权限下放给 Reader。若后续要求普通用户只能控制“自己发起的任务”，需先增加任务所有权和按用户隔离列表的迁移与回归。
-- 状态：代码提交 `0f55282` 已推送 `dev`；本轮文档提交及其 CI 门禁待完成。阅读 3.0/MuMu 真机、真实上游/真实凭据和其他第 6 节人工项目继续待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+- 状态：代码提交 `0f55282`、文档提交 `a08d9a2` 已推送 `dev`；[CI 33750052745](https://github.com/nekohands/InkFlow/actions/runs/33750052745)、[Docker 33750052746](https://github.com/nekohands/InkFlow/actions/runs/33750052746)、[Security 33750052726](https://github.com/nekohands/InkFlow/actions/runs/33750052726) 均 success 且 head SHA 一致。阅读 3.0/MuMu 真机、真实上游/真实凭据和其他第 6 节人工项目继续待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -1815,7 +1815,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-09-03）：当前工作树已实现账户中心设置页、改密流程、Personal Legado 令牌撤销即删除规则和用户头像上传；本机、Ubuntu VM 源码 Compose、账户 runtime smoke 和内置浏览器账户中心自动化检查均通过。候选提交 `f3b98e4` 的 CI、Docker、Security 门禁均 GREEN。
+最新状态（2026-09-03）：当前工作树已实现账户中心设置页、改密流程、Personal Legado 令牌撤销即删除规则、用户头像上传，以及 Reader 采集/书籍包使用权限；本机、Ubuntu VM 源码 Compose、账户/权限 runtime smoke 和 Reader 前端自动化检查均通过。代码提交 `0f55282` 与文档提交 `a08d9a2` 的 CI、Docker、Security 门禁均 GREEN。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

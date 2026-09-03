@@ -1477,7 +1477,7 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 关键实现：`Program.cs` 将 Reader 使用权限与 `OperationsRead`/`CrawlerRepair` 分开；Operations overview 对 Reader 走仅来源状态读取，不读取 crawler/consistency；采集/打包读写接口允许 Reader 使用，控制/清理接口保持原权限。
 - 验证：本机 Release Build 0 warnings / 0 errors；Unit `572/572`、Architecture `1/1`、Contract `12/12`，前端合同与 shell 语法回归 PASS；Windows Integration 因 Docker Engine named pipe 不可用 BLOCKED。Ubuntu VM 隔离源码 Compose `0f55282` healthy，Reader 权限矩阵和实际 TXT 创建/完成/下载/哈希校验 PASS，18080 端口 `reader-frontend-runtime-smoke` PASS。
 - 已知边界：采集运行和书籍包当前没有 `UserId` 归属，Reader 看到的是平台级任务列表；本轮不下放全局暂停/恢复/停止/取消和清理。若要允许 Reader 仅控制自己发起的任务，先增加所有权字段、按用户查询和迁移/回归测试。
-- Git/下一步：代码 `0f55282` 已推送 `dev`；本条交接文档与需求文档待提交并触发最终 CI。阅读 3.0/MuMu、真实上游/凭据和其他第 6 节人工验收仍保持待定，整体为 `1.0 Release Candidate`。
+- Git/门禁：代码提交 `0f55282`、文档提交 `a08d9a2` 已推送 `dev`；[CI 33750052745](https://github.com/nekohands/InkFlow/actions/runs/33750052745)、[Docker 33750052746](https://github.com/nekohands/InkFlow/actions/runs/33750052746)、[Security 33750052726](https://github.com/nekohands/InkFlow/actions/runs/33750052726) 均 success 且 head SHA 一致。阅读 3.0/MuMu、真实上游/凭据和其他第 6 节人工验收仍保持待定，整体为 `1.0 Release Candidate`。
 
 ## 5. 关键架构不变量
 
