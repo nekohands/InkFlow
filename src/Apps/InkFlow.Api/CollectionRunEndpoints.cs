@@ -6,6 +6,7 @@ using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Identity.Application;
+using InkFlow.Modules.Library.Application;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace InkFlow.Api;
@@ -27,6 +28,7 @@ public static class CollectionRunEndpoints
             int? limit,
             string? cursor,
             CollectionRunService collectionRuns,
+            ICanonicalBookRepository books,
             CancellationToken ct) =>
         {
             if (!TryCreateQuery(limit, cursor, out var safeLimit, out var before, out var error))
@@ -37,21 +39,35 @@ public static class CollectionRunEndpoints
             var page = await collectionRuns
                 .ListPageViewsAsync(safeLimit, before, ct)
                 .ConfigureAwait(false);
+            var titles = await books
+                .GetTitlesAsync(
+                    page.Entries
+                        .Select(value => value.CanonicalBookId)
+                        .OfType<Guid>()
+                        .Distinct()
+                        .ToArray(),
+                    ct)
+                .ConfigureAwait(false);
             return Results.Ok(new
             {
-                data = page.Entries.Select(ToResponse),
+                data = page.Entries.Select(value => ToResponse(WithBookTitle(value, titles))),
                 nextCursor = EncodeCursor(page.NextCursor),
             });
         });
         read.MapGet("/{runId:guid}", async (
             Guid runId,
             CollectionRunService collectionRuns,
+            ICanonicalBookRepository books,
             CancellationToken ct) =>
         {
             var value = await collectionRuns.GetViewAsync(runId, ct).ConfigureAwait(false);
             return value is null
                 ? Results.NotFound(new { error = "collection_run_not_found" })
-                : Results.Ok(ToResponse(value));
+                : Results.Ok(ToResponse(WithBookTitle(
+                    value,
+                    await books.GetTitlesAsync(
+                        value.CanonicalBookId is { } id ? [id] : [],
+                        ct).ConfigureAwait(false))));
         });
 
         var write = api.MapGroup("/admin/collection-runs")
@@ -225,6 +241,7 @@ public static class CollectionRunEndpoints
         sourceId = value.SourceId,
         externalBookId = value.ExternalBookId,
         inputUrl = value.InputUrl,
+        bookTitle = value.BookTitle,
         canonicalBookId = value.CanonicalBookId,
         status = value.Status.ToString().ToLowerInvariant(),
         stage = value.Stage switch
@@ -246,6 +263,13 @@ public static class CollectionRunEndpoints
         createdAt = value.CreatedAt,
         updatedAt = value.UpdatedAt,
     };
+
+    private static CollectionRunView WithBookTitle(
+        CollectionRunView value,
+        IReadOnlyDictionary<Guid, string> titles) =>
+        value.CanonicalBookId is { } id && titles.TryGetValue(id, out var title)
+            ? value with { BookTitle = title }
+            : value;
 
     public static int GetStartStatusCode(CollectionRunStartOutcome result)
     {

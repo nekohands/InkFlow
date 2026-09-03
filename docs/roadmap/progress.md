@@ -1634,6 +1634,13 @@ Phase 1A 自动化工作包状态：
 - CI/供应链：`bfbad59` 的 CI 与 Security 通过，但 Docker 扫描因固定 OTEL `0.159.0` 命中可修复的 HIGH CVE-2026-84304 而失败；已在本工作包中将两份 Compose/CI 扫描升级到固定 `0.160.0` 并移除旧 `.trivyignore-collector` 例外，待新候选门禁完成后更新最终链接。
 - 验收边界：未读取或提交真实账号、密码、生产令牌、Cookie；阅读 3.0/MuMu 真机、真实上游追更与其他明确人工验收继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.48 运维中心地址、书名与折叠卡片（本轮，2026-09-03）
+
+- 任务展示：采集运行卡片折叠标题优先显示已读取的书名，并始终显示本次采集地址；无法关联正典书时保留来源与外部书籍 ID。运维 API 在列表和单项读取中按正典书 ID 批量补充 `bookTitle`，不改变采集运行事实模型。
+- 折叠交互：采集运行、打包任务、来源健康和内容政策记录使用原生 `<details>/<summary>`，默认不铺开终态详情；活动打包任务保留展开状态以便观察实时进度。顶层业务页签和采集状态页签继续限制首屏信息量。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 567/567、Architecture 1/1、Contract 12/12 PASS；前端 `reader-frontend-runtime-smoke.test.sh` PASS；`git diff --check` PASS。
+- 验收边界：待将候选提交同步至 Ubuntu VM，重新执行源码 Compose、运行时 smoke 和内置浏览器的地址/书名/折叠交互验收。未使用真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游追更及其他明确人工验收继续待定，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

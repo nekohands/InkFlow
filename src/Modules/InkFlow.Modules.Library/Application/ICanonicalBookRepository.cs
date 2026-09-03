@@ -9,6 +9,24 @@ public interface ICanonicalBookRepository
 
     Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>按正典书 ID 批量读取轻量书名，供跨模块列表投影使用。</summary>
+    async Task<IReadOnlyDictionary<Guid, string>> GetTitlesAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var titles = new Dictionary<Guid, string>();
+        foreach (var id in ids.Distinct())
+        {
+            var book = await GetAsync(id, cancellationToken).ConfigureAwait(false);
+            if (book is not null)
+            {
+                titles[id] = book.Title;
+            }
+        }
+
+        return titles;
+    }
+
     /// <summary>全部书目(不含章节,供列表页使用)。</summary>
     Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default);
 

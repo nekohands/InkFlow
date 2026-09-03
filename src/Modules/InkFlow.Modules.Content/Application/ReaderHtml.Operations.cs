@@ -73,6 +73,45 @@ public static partial class ReaderHtml
           .operations-run-status-view { display: grid; gap: 0.9rem; margin-top: 1rem; }
           .operations-run-tabs { margin-top: 0.2rem; }
           .operations-run-tab { min-height: 2.55rem; padding: 0.55rem 0.8rem; font-size: 0.88rem; }
+          .operations-run-card > summary,
+          .operations-package-card > summary,
+          .operations-card > summary,
+          .operations-policy-card > summary {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+            cursor: pointer;
+            list-style: none;
+          }
+          .operations-run-card > summary::-webkit-details-marker,
+          .operations-package-card > summary::-webkit-details-marker,
+          .operations-card > summary::-webkit-details-marker,
+          .operations-policy-card > summary::-webkit-details-marker { display: none; }
+          .operations-run-card > summary::before,
+          .operations-package-card > summary::before,
+          .operations-card > summary::before,
+          .operations-policy-card > summary::before {
+            flex: none;
+            color: var(--reader-accent-strong);
+            content: "▸";
+            font-size: 1.1rem;
+            line-height: 1.45;
+          }
+          .operations-run-card[open] > summary::before,
+          .operations-package-card[open] > summary::before,
+          .operations-card[open] > summary::before,
+          .operations-policy-card[open] > summary::before { content: "▾"; }
+          .operations-run-card[open] > summary,
+          .operations-package-card[open] > summary,
+          .operations-card[open] > summary,
+          .operations-policy-card[open] > summary { margin-bottom: 0.65rem; }
+          .operations-run-card__summary-copy,
+          .operations-package-card__summary-copy { display: grid; gap: 0.2rem; min-width: 0; flex: 1; }
+          .operations-run-card__summary-title,
+          .operations-package-card__summary-title { font-weight: 750; overflow-wrap: anywhere; }
+          .operations-run-card__summary-meta,
+          .operations-package-card__summary-meta { color: var(--reader-muted); font-size: 0.82rem; overflow-wrap: anywhere; }
           .operations-summary {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
@@ -553,8 +592,8 @@ public static partial class ReaderHtml
             list?.replaceChildren();
             for (const source of values) {
               const sourceId = text(source?.sourceId, "unknown-source");
-              const card = node("article", "operations-card");
-              const header = node("header", "operations-card__header");
+              const card = node("details", "operations-card");
+              const header = node("summary", "operations-card__header");
               const headingWrap = node("div");
               headingWrap.append(node("h3", null, text(source?.displayName, "未命名来源")));
               headingWrap.append(node("p", "operations-card__id", sourceId));
@@ -757,14 +796,18 @@ public static partial class ReaderHtml
               group.append(groupHeader, groupList);
               for (const run of groupRuns) {
                 const runId = asGuid(run?.id);
-                const card = node("li", "operations-run-card");
-                const header = node("div", "operations-run-card__header");
-                const titleWrap = node("div");
-                titleWrap.append(node("p", "operations-run-card__title", text(run?.sourceId, "未知来源") + " · " + text(run?.externalBookId, "未知书籍")));
-                titleWrap.append(node("p", "operations-run-card__meta", "运行 " + runId + " · 阶段：" + runStageLabel(run?.stage)));
+                const item = node("li");
+                const card = node("details", "operations-run-card");
+                const header = node("summary", "operations-run-card__summary");
+                const titleWrap = node("span", "operations-run-card__summary-copy");
+                const bookTitle = text(run?.bookTitle, "");
+                const sourceId = text(run?.sourceId, "未知来源");
+                const externalBookId = text(run?.externalBookId, "未知书籍");
+                titleWrap.append(node("span", "operations-run-card__summary-title", bookTitle ? "书名：" + bookTitle : sourceId + " · " + externalBookId));
+                titleWrap.append(node("span", "operations-run-card__summary-meta", "采集地址：" + text(run?.inputUrl, "未记录")));
                 header.append(titleWrap, badge(run?.status, runStatusLabel(run?.status)));
                 card.append(header);
-                card.append(node("p", "operations-run-card__url", "地址：" + text(run?.inputUrl, "未记录")));
+                card.append(node("p", "operations-run-card__meta", "来源：" + sourceId + " · 外部书籍 ID：" + externalBookId + " · 运行 " + runId + " · 阶段：" + runStageLabel(run?.stage)));
                 const progressWrap = node("div", "operations-run-card__progress");
                 const progress = document.createElement("progress");
                 progress.max = 100;
@@ -833,7 +876,8 @@ public static partial class ReaderHtml
                   actions.append(packageButton);
                 }
                 card.append(actions);
-                groupList.append(card);
+                item.append(card);
+                groupList.append(item);
               }
               runPanels.append(group);
             }
@@ -928,14 +972,16 @@ public static partial class ReaderHtml
             for (const packageValue of packageValues.values()) {
               const packageId = asGuid(packageValue?.id);
               if (!packageId) continue;
-              const card = node("li", "operations-package-card");
-              const header = node("div", "operations-package-card__header");
-              const titleWrap = node("div");
-              titleWrap.append(node("p", "operations-package-card__title", text(packageValue?.format, "未知格式").toUpperCase() + " · " + packageStatusLabel(packageValue?.status)));
-              titleWrap.append(node("p", "operations-package-card__meta", "任务 " + packageId + " · 书籍 " + (asGuid(packageValue?.canonicalBookId) || "无效 ID")));
+              const item = node("li");
+              const card = node("details", "operations-package-card");
+              const header = node("summary", "operations-package-card__header");
+              const titleWrap = node("span", "operations-package-card__summary-copy");
+              titleWrap.append(node("span", "operations-package-card__summary-title", text(packageValue?.format, "未知格式").toUpperCase() + " · " + packageStatusLabel(packageValue?.status)));
+              titleWrap.append(node("span", "operations-package-card__summary-meta", "任务 " + packageId + " · 书籍 " + (asGuid(packageValue?.canonicalBookId) || "无效 ID")));
               header.append(titleWrap, badge(packageValue?.status, packageStatusLabel(packageValue?.status)));
               card.append(header);
               const status = String(packageValue?.status || "").toLowerCase();
+              card.open = ["queued", "running"].includes(status);
               const totalChapters = Math.max(0, Math.trunc(asNumber(packageValue?.totalChapterCount)));
               const progressKnown = totalChapters > 0;
               const progressLabel = progressKnown
@@ -970,7 +1016,8 @@ public static partial class ReaderHtml
                 card.append(node("p", "operations-package-card__meta", "下载文件已过期，无法继续下载。"));
               }
               card.append(actions);
-              packageList?.append(card);
+              item.append(card);
+              packageList?.append(item);
             }
             scheduleTaskPoll();
           };
@@ -993,8 +1040,9 @@ public static partial class ReaderHtml
               const bookId = asGuid(value?.canonicalBookId);
               if (!bookId || value?.isTakedown !== true) continue;
               const decision = value?.latestDecision;
-              const card = node("li", "operations-policy-card");
-              const header = node("div", "operations-policy-card__header");
+              const item = node("li");
+              const card = node("details", "operations-policy-card");
+              const header = node("summary", "operations-policy-card__header");
               const titleWrap = node("div");
               titleWrap.append(node("p", "operations-policy-card__title", "正典书 " + bookId));
               titleWrap.append(node(
@@ -1019,7 +1067,8 @@ public static partial class ReaderHtml
               }));
               actions.append(restoreButton);
               card.append(actions);
-              policyList?.append(card);
+              item.append(card);
+              policyList?.append(item);
             }
           };
           const loadPolicy = async () => {

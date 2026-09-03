@@ -28,7 +28,10 @@ public sealed class CollectionRunContractTests
             RemainingTaskCount: 1,
             LastError: "collection failed",
             CreatedAt: DateTimeOffset.Parse("2026-09-03T00:00:00Z"),
-            UpdatedAt: DateTimeOffset.Parse("2026-09-03T00:01:00Z"));
+            UpdatedAt: DateTimeOffset.Parse("2026-09-03T00:01:00Z")) with
+        {
+            BookTitle = "Fixture Book",
+        };
         var cursor = new CollectionRunCursor(value.UpdatedAt, value.Id);
 
         var json = JsonSerializer.Serialize(
@@ -45,6 +48,7 @@ public sealed class CollectionRunContractTests
         Assert.AreEqual("failed", run.GetProperty("status").GetString());
         Assert.AreEqual("content", run.GetProperty("stage").GetString());
         Assert.AreEqual(1, run.GetProperty("failedTaskCount").GetInt32());
+        Assert.AreEqual("Fixture Book", run.GetProperty("bookTitle").GetString());
         Assert.IsFalse(string.IsNullOrWhiteSpace(root.GetProperty("nextCursor").GetString()));
         Assert.IsFalse(json.Contains("Variables", StringComparison.OrdinalIgnoreCase));
     }

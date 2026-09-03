@@ -20,7 +20,8 @@ public sealed record CollectionRunView(
     int RemainingTaskCount,
     string? LastError,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt,
+    string? BookTitle = null)
 {
     public int? ProgressPercent => Stage != CollectionRunStage.Content || TotalTaskCount == 0
         ? null

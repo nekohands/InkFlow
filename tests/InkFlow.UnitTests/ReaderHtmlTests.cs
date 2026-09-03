@@ -376,6 +376,13 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "data-operations-tab=\"packages\"");
         StringAssert.Contains(html, "operations-run-tabs");
         StringAssert.Contains(html, "data-collection-status");
+        StringAssert.Contains(html, "bookTitle");
+        StringAssert.Contains(html, "采集地址：");
+        StringAssert.Contains(html, "operations-run-card__summary");
+        StringAssert.Contains(html, "node(\"details\"");
+        StringAssert.Contains(html, "operations-package-card");
+        StringAssert.Contains(html, "operations-card");
+        StringAssert.Contains(html, "operations-policy-card");
         StringAssert.Contains(html, "source-disable");
         StringAssert.Contains(html, "source-enable");
         StringAssert.Contains(html, "run-delete");

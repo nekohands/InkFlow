@@ -63,6 +63,25 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
         return LibraryMapper.ToDomain(bookEntity, chapters);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, string>> GetTitlesAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var safeIds = ids
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        if (safeIds.Length == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        return await db.Books
+            .Where(book => safeIds.Contains(book.Id))
+            .ToDictionaryAsync(book => book.Id, book => book.Title, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
     {
         var entities = await db.Books

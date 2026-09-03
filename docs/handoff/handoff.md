@@ -1435,6 +1435,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - CI 状态：`bfbad59` 的 CI/Security 通过，Docker 因 OTEL `0.159.0` 的 CVE-2026-84304 失败；当前交接同时包含 `0.160.0` 固定版本安全补丁和例外删除，推送后必须以新的 CI、Docker、Security 结果作为最终门禁证据。
 - 人工待定：按用户要求不执行阅读 3.0/MuMu 真机；真实上游账号/追更、人工视觉和其他第 6 节项目继续待后续处理。当前状态保持 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
 
+### 5.48 运维中心地址、书名与折叠卡片交接（本轮，2026-09-03）
+
+- 代码范围：采集运行响应增加可选 `bookTitle`；API 组合层批量读取正典书名；运维页在采集运行折叠标题展示书名（可用时）与采集地址，并将采集、打包、来源、内容政策记录改为原生可折叠卡片。
+- 展示语义：书名读取不到时不隐藏采集地址，回退显示来源和外部书籍 ID；活动打包任务默认展开以保持进度可见，其他终态详情默认收起。
+- 本机验证：Release Build 0/0；Unit 567/567、Architecture 1/1、Contract 12/12；前端 fixture smoke 与 `git diff --check` PASS。
+- 下一步：提交/推送后在新的 Ubuntu VM 隔离工作树执行源码 Compose 重建、Migration/Health、Integration 与运行时 smoke；用内置浏览器确认任务地址/书名、顶层/状态页签和折叠展开。阅读 3.0/MuMu 真机、真实上游和其他人工项继续待定；未达到 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
