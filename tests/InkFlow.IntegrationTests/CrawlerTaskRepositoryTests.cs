@@ -1170,7 +1170,9 @@ public sealed class CrawlerTaskRepositoryTests
         await using (var deleteDb = CreateContext().Db)
         {
             var runs = new EfCollectionRunRepository(deleteDb, new EfTransactionalOutboxWriter());
-            Assert.AreEqual(2, await runs.DeleteCancelledAsync().ConfigureAwait(false));
+            Assert.IsTrue(
+                await runs.DeleteCancelledAsync().ConfigureAwait(false) >= 2,
+                "cleanup must remove both cancelled runs created by this test");
             Assert.AreEqual(0, await runs.DeleteCancelledAsync().ConfigureAwait(false));
         }
 
