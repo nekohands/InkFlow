@@ -1643,6 +1643,15 @@ Phase 1A 自动化工作包状态：
 - CI/供应链：候选 `a98ed89` 的 [CI 33720160702](https://github.com/nekohands/InkFlow/actions/runs/33720160702)、[Docker 33720160659](https://github.com/nekohands/InkFlow/actions/runs/33720160659)、[Security 33720160678](https://github.com/nekohands/InkFlow/actions/runs/33720160678) 均 success，三者 head SHA 一致。
 - 验收边界：未使用真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游追更及其他明确人工验收继续待定，整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
+### 5.49 运维卡片展开状态在轮询重绘中保持（本轮，2026-09-03）
+
+- 根因：采集任务和打包任务轮询会调用 `replaceChildren()` 重建列表，原生 `<details>` 节点随之销毁，浏览器的 `open` 状态因此被覆盖。
+- 实现：在运维页运行时按稳定的运行、打包、来源和内容政策 ID 记录当前 `open` 值；重绘时恢复该值。新记录继续使用原有默认状态，用户再次点击后新的展开/收起选择生效。
+- 本机证据：Release Build 0 warnings / 0 errors；Unit 567/567、Architecture 1/1、Contract 12/12 PASS；前端 `reader-frontend-runtime-smoke.test.sh` PASS；`git diff --check` PASS。
+- VM/浏览器证据：提交 `0b3aa43` 在 Ubuntu VM 隔离工作树 `/home/nekohands/InkFlow-verify-0b3aa43` 使用源码构建，API、Worker、Scheduler、PostgreSQL、Redis 与 Collector healthy；`reader-frontend-runtime-smoke` PASS。内置浏览器在版本化刷新后，展开首个采集任务并等待超过 4 秒轮询仍保持展开；再次手动收起并等待超过 4 秒仍保持收起。
+- CI/供应链：提交 `0b3aa43` 的 [CI 33723946968](https://github.com/nekohands/InkFlow/actions/runs/33723946968)、[Docker 33723946966](https://github.com/nekohands/InkFlow/actions/runs/33723946966)、[Security 33723946917](https://github.com/nekohands/InkFlow/actions/runs/33723946917) 均 success，三者 head SHA 一致。
+- 验收边界：未读取或提交真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游追更与其他明确人工验收继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
 ## 5. Phase 1A 核心验收链路
 
 ```text

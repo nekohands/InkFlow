@@ -1444,6 +1444,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - CI 门禁：`a98ed89` 的 [CI 33720160702](https://github.com/nekohands/InkFlow/actions/runs/33720160702)、[Docker 33720160659](https://github.com/nekohands/InkFlow/actions/runs/33720160659)、[Security 33720160678](https://github.com/nekohands/InkFlow/actions/runs/33720160678) 全部 success 且 head SHA 一致。
 - 人工待定：未使用真实账号/密码/生产令牌/Cookie；阅读 3.0/MuMu 真机、真实上游和其他第 6 节人工项目继续待定，整体仍为 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
 
+### 5.49 运维卡片展开状态在轮询重绘中保持交接（本轮，2026-09-03）
+
+- 修复范围：轮询重建采集任务、打包任务、来源和内容政策卡片前，按稳定 ID 保存原生 `<details>` 的 `open` 状态；重建后恢复。这样自动刷新不会改变用户最后一次展开或收起选择，新记录仍使用既有默认值。
+- 本机验证：Release Build 0/0；Unit 567/567、Architecture 1/1、Contract 12/12；前端 fixture smoke 与 `git diff --check` PASS。
+- VM/浏览器验证：`0b3aa43` 已在 Ubuntu VM 隔离工作树源码构建并启动，服务健康，前端 runtime smoke PASS。内置浏览器版本化刷新后，展开首个采集任务等待超过 4 秒仍展开；手动收起后再等待超过 4 秒仍收起。
+- CI 门禁：`0b3aa43` 的 [CI 33723946968](https://github.com/nekohands/InkFlow/actions/runs/33723946968)、[Docker 33723946966](https://github.com/nekohands/InkFlow/actions/runs/33723946966)、[Security 33723946917](https://github.com/nekohands/InkFlow/actions/runs/33723946917) 全部 success 且 head SHA 一致。
+- 人工待定：本轮未使用真实账号、密码、生产令牌或 Cookie；阅读 3.0/MuMu 真机、真实上游和其他第 6 节人工项目继续待定，整体仍为 `1.0 Release Candidate`，不得标记 `Accepted/Completed`。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
