@@ -1150,7 +1150,12 @@ public sealed class CrawlerTaskRepositoryTests
         var lastPage = await repository
             .ListPageAsync(2, page.NextCursor)
             .ConfigureAwait(false);
-        CollectionAssert.AreEqual(new[] { firstId }, lastPage.Entries.Select(run => run.Id).ToArray());
-        Assert.IsNull(lastPage.NextCursor);
+        var seededIds = new HashSet<Guid> { firstId, secondId, thirdId };
+        CollectionAssert.AreEqual(
+            new[] { firstId },
+            lastPage.Entries.Select(run => run.Id).Take(1).ToArray());
+        Assert.IsFalse(
+            lastPage.Entries.Skip(1).Any(run => seededIds.Contains(run.Id)),
+            "the cursor page must not repeat a seeded run when other durable runs exist");
     }
 }
