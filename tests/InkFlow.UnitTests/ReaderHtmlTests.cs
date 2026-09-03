@@ -356,6 +356,12 @@ public sealed class ReaderHtmlTests
         StringAssert.Contains(html, "/api/v1/admin/crawler/dead-letters/");
         StringAssert.Contains(html, "/api/v1/admin/sources/");
         StringAssert.Contains(html, "operations-action-reason");
+        StringAssert.Contains(html, "operations-action-suggestions");
+        StringAssert.Contains(html, "常用理由");
+        StringAssert.Contains(html, "reasonSuggestionsFor");
+        StringAssert.Contains(html, "可直接选择、修改或自行填写");
+        StringAssert.Contains(html, "data-reason-suggestion");
+        StringAssert.Contains(html, "任务已不再需要继续执行");
         StringAssert.Contains(html, "aria-live=\"polite\"");
         StringAssert.Contains(html, "hasMoreDeadLetters");
         StringAssert.Contains(html, "isReplayed");

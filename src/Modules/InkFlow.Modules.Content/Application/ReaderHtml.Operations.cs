@@ -343,6 +343,18 @@ public static partial class ReaderHtml
             background: var(--reader-bg);
             color: var(--reader-text);
           }
+          .operations-dialog__suggestions {
+            display: grid;
+            gap: 0.45rem;
+            margin: 0.75rem 0 1rem;
+            padding: 0.7rem 0.8rem 0.8rem;
+            border: 1px solid var(--reader-border);
+            border-radius: 0.65rem;
+          }
+          .operations-dialog__suggestions[hidden] { display: none; }
+          .operations-dialog__suggestions legend { padding: 0 0.25rem; color: var(--reader-muted); font-size: 0.82rem; font-weight: 700; }
+          .operations-dialog__suggestion { justify-content: flex-start; min-height: 2.45rem; padding: 0.5rem 0.7rem; text-align: left; white-space: normal; }
+          .operations-dialog__hint { margin: -0.4rem 0 0.8rem; color: var(--reader-muted); font-size: 0.82rem; }
           .operations-dialog__status { min-height: 1.4rem; margin: 0.8rem 0 0; color: var(--reader-muted); font-size: 0.86rem; }
           .operations-dialog__status--danger { color: #8e321f; }
           .operations-dialog__status--ready { color: #27643d; }
@@ -388,6 +400,7 @@ public static partial class ReaderHtml
           const actionTitle = document.getElementById("operations-action-title");
           const actionDescription = document.getElementById("operations-action-description");
           const actionStatus = document.getElementById("operations-action-status");
+          const actionSuggestions = document.getElementById("operations-action-suggestions");
           const actionReason = document.getElementById("operations-action-reason");
           const actionSubmit = document.getElementById("operations-action-submit");
           const collectionForm = document.getElementById("operations-collection-form");
@@ -478,6 +491,51 @@ public static partial class ReaderHtml
           const packageStatusLabel = (status) => ({ queued: "排队中", running: "打包中", completed: "已完成", failed: "失败", expired: "已过期" }[String(status).toLowerCase()] || text(status, "未知"));
           const controlLabel = (action) => ({ pause: "暂停", resume: "恢复", stop: "停止", cancel: "取消" }[String(action).toLowerCase()] || "执行");
           const policyActionLabel = (action) => ({ takedown: "下架", restore: "恢复" }[String(action).toLowerCase()] || "执行");
+          const reasonSuggestionsFor = (action) => {
+            const actionName = String(action?.action || "");
+            if (actionName === "run-control") {
+              return ({
+                pause: ["临时暂停采集，稍后继续", "需要核查来源或任务状态", "暂时释放采集资源"],
+                resume: ["已确认来源状态，继续采集", "维护完成，恢复任务执行", "补充资源后继续执行"],
+                stop: ["本次采集暂不再继续", "采集内容已改用其他来源", "需要重新安排采集任务"],
+                cancel: ["任务已不再需要继续执行", "已确认本次采集结果无需保留", "任务重复，保留其他运行即可"]
+              }[String(action?.controlAction || "").toLowerCase()] || []);
+            }
+            if (actionName === "content-policy") {
+              return action?.policyAction === "takedown"
+                ? ["依据内容治理要求暂时下架", "收到版权或合规处理请求", "待复核期间暂时隐藏内容"]
+                : ["复核完成，恢复内容展示", "下架原因已处理，恢复公开访问", "确认内容符合展示要求"];
+            }
+            return ({
+              replay: ["上游临时失败，人工确认后重放", "网络或服务短暂异常，重新尝试", "来源问题已修复，重新投递任务"],
+              "cancelled-cleanup": ["按计划清理已取消任务", "已确认取消任务无需保留", "清理历史任务以释放运维空间"],
+              "run-delete": ["按计划清理失败任务", "已确认失败任务无需保留", "清理失败任务及其残留记录"],
+              "source-disable": ["来源当前不可用，暂时停用", "来源维护中，暂时停止使用", "发现来源异常，先暂停调度"],
+              "source-enable": ["来源已恢复，重新启用", "维护完成，恢复来源调度", "已确认来源可以继续使用"],
+              disable: ["能力当前异常，暂时停用", "能力维护中，暂时停止调用", "连续失败，先暂停该能力"],
+              enable: ["能力已恢复，重新启用", "维护完成，恢复能力调用", "已确认可以继续探测该能力"]
+            }[actionName] || ["按运维计划执行该操作", "已确认当前状态后执行", "由管理员手动发起"]).slice(0, 3);
+          };
+          const renderReasonSuggestions = (action) => {
+            if (!actionSuggestions) return;
+            const suggestions = reasonSuggestionsFor(action);
+            actionSuggestions.replaceChildren();
+            actionSuggestions.hidden = suggestions.length === 0;
+            if (!suggestions.length) return;
+            actionSuggestions.append(node("legend", null, "常用理由"));
+            for (const suggestion of suggestions) {
+              const button = node("button", "button operations-dialog__suggestion", suggestion);
+              button.type = "button";
+              button.dataset.reasonSuggestion = suggestion;
+              button.setAttribute("data-reason-suggestion", suggestion);
+              button.addEventListener("click", () => {
+                actionReason.value = suggestion;
+                actionReason.focus();
+              });
+              actionSuggestions.append(button);
+            }
+            actionReason.value = suggestions[0];
+          };
           const operationsTabFromHash = () => {
             const candidate = window.location.hash.slice(1);
             return operationsTabs.some((tab) => tab.dataset.operationsTab === candidate) ? candidate : "collection";
@@ -1498,7 +1556,7 @@ public static partial class ReaderHtml
             pendingAction = action;
             actionTitle.textContent = action.title || "确认运维操作";
             actionDescription.textContent = action.detail || "请填写本次操作理由。";
-            actionReason.value = "";
+            renderReasonSuggestions(action);
             actionStatus.textContent = "";
             actionStatus.className = "operations-dialog__status";
             actionSubmit.textContent = action.action === "replay"
@@ -1809,9 +1867,11 @@ public static partial class ReaderHtml
                     <button id="operations-action-close" class="icon-button" type="button" aria-label="关闭确认对话框">×</button>
                   </header>
                   <p id="operations-action-description" class="operations-dialog__description"></p>
+                  <fieldset id="operations-action-suggestions" class="operations-dialog__suggestions" hidden></fieldset>
+                  <p class="operations-dialog__hint">可直接选择、修改或自行填写理由。</p>
                   <div class="form-field">
                     <label for="operations-action-reason">操作理由</label>
-                    <textarea id="operations-action-reason" maxlength="512" required placeholder="说明本次操作的原因"></textarea>
+                    <textarea id="operations-action-reason" maxlength="512" required placeholder="可选择上方常用理由，也可以自行填写或修改"></textarea>
                   </div>
                   <p id="operations-action-status" class="operations-dialog__status" role="status" aria-live="polite"></p>
                   <div class="form-actions">
