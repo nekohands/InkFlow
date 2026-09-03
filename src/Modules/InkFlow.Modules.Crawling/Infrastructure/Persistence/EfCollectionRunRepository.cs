@@ -124,16 +124,7 @@ public sealed class EfCollectionRunRepository(
 
         // Read and mutate under one row lock so concurrent control retries see
         // the same durable state and cannot overwrite one another.
-        var entity = await db.Runs
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "crawler"."runs"
-                WHERE "Id" = {id}
-                FOR UPDATE
-                """)
-            .AsNoTracking()
-            .SingleOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await LoadForUpdateAsync(id, cancellationToken).ConfigureAwait(false);
         if (entity is null)
         {
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -176,15 +167,7 @@ public sealed class EfCollectionRunRepository(
 
         // Lock the current run before reading progress so a control command
         // cannot commit between the read and the snapshot save.
-        var entity = await db.Runs
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "crawler"."runs"
-                WHERE "Id" = {id}
-                FOR UPDATE
-                """)
-            .SingleOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await LoadForUpdateAsync(id, cancellationToken).ConfigureAwait(false);
         if (entity is null)
         {
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -228,15 +211,7 @@ public sealed class EfCollectionRunRepository(
 
         // All run aggregate writes use the same row lock as controls and
         // reconciliation, so stale snapshots cannot restore an old status.
-        var entity = await db.Runs
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "crawler"."runs"
-                WHERE "Id" = {id}
-                FOR UPDATE
-                """)
-            .SingleOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var entity = await LoadForUpdateAsync(id, cancellationToken).ConfigureAwait(false);
         if (entity is null)
         {
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -317,6 +292,30 @@ public sealed class EfCollectionRunRepository(
             : null;
 
         return new(entries, nextCursor);
+    }
+
+    private async Task<CollectionRunEntity?> LoadForUpdateAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        // A scoped context may still track a stale entity from an earlier insert.
+        // Detach only this run before the lock query so the database row is the
+        // snapshot that gets mutated and saved.
+        var tracked = db.Runs.Local.FirstOrDefault(run => run.Id == id);
+        if (tracked is not null)
+        {
+            db.Entry(tracked).State = EntityState.Detached;
+        }
+
+        return await db.Runs
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."runs"
+                WHERE "Id" = {id}
+                FOR UPDATE
+                """)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<bool?> DeleteFailedAsync(
