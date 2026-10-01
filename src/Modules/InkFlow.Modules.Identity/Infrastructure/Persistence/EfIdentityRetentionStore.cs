@@ -4,11 +4,12 @@ using InkFlow.Modules.Identity.Application;
 namespace InkFlow.Modules.Identity.Infrastructure.Persistence;
 
 /// <summary>
-/// PostgreSQL Identity 保留实现：每个会话在单独事务内按“子表优先”的顺序删除，
-/// 并用 SKIP LOCKED 避免与认证写入互相阻塞。
+/// PostgreSQL Identity 保留实现：会话与其令牌在单独事务内按“子表优先”的顺序删除，
+/// 并用 SKIP LOCKED 避免与认证写入互相阻塞；不属于删除候选会话的令牌由独立的
+/// 终态清扫语句按批次删除。
 ///
-/// 删除范围只由一对条件决定，两条都必须成立：
-///   1. 行的 <c>ExpiresAt</c> 已早于 cutoff（会话事实整体过期）；
+/// 删除范围只由每行的一对条件决定，两条都必须成立：
+///   1. 行的 <c>ExpiresAt</c> 已早于 cutoff（事实整体过期）；
 ///   2. 行处于终态 —— 会话 <c>RevokedAt IS NOT NULL</c>，访问令牌 <c>RevokedAt IS NOT NULL</c>。
 ///
 /// 条件 2 是必需的：撤销时间晚于过期时间时（改密/重放吊销发生在过期之后），
@@ -48,7 +49,11 @@ public sealed class EfIdentityRetentionStore(IdentityDbContext db) : IIdentityRe
 
         if (candidateSessionIds.Count == 0)
         {
-            return new IdentityRetentionResult(0, 0);
+            var swept = await DeleteTerminalTokensOutsideCandidateSessionsAsync(
+                accessTokenCutoffUtc,
+                batchSize,
+                cancellationToken).ConfigureAwait(false);
+            return new IdentityRetentionResult(0, swept);
         }
 
         var deletedSessions = 0;
@@ -86,8 +91,39 @@ public sealed class EfIdentityRetentionStore(IdentityDbContext db) : IIdentityRe
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        deletedAccessTokens += await DeleteTerminalTokensOutsideCandidateSessionsAsync(
+            accessTokenCutoffUtc,
+            batchSize,
+            cancellationToken).ConfigureAwait(false);
+
         db.ChangeTracker.Clear();
         return new IdentityRetentionResult(deletedSessions, deletedAccessTokens);
+    }
+
+    /// <summary>
+    /// 清扫不属于删除候选会话（活跃会话或尚未过期的已吊销会话）的终态令牌，
+    /// 例如登出后令牌早已过期而会话仍在 TTL 内的情况。按 ctid 有界删除，
+    /// 排队状态由调用方的批次循环推进。
+    /// </summary>
+    private async Task<int> DeleteTerminalTokensOutsideCandidateSessionsAsync(
+        DateTimeOffset accessTokenCutoffUtc,
+        int batchSize,
+        CancellationToken cancellationToken)
+    {
+        return await db.Database.ExecuteSqlInterpolatedAsync($"""
+            DELETE FROM "identity"."access_tokens" AS t
+             WHERE t."ctid" IN (
+                   SELECT c."ctid"
+                     FROM "identity"."access_tokens" AS c
+                    WHERE c."RevokedAt" IS NOT NULL
+                      AND c."ExpiresAt" < {accessTokenCutoffUtc}
+                      AND NOT EXISTS (
+                          SELECT 1 FROM "identity"."sessions" AS s
+                           WHERE s."Id" = c."SessionId"
+                             AND s."RevokedAt" IS NOT NULL
+                             AND s."ExpiresAt" < {accessTokenCutoffUtc})
+                    LIMIT {batchSize});
+            """, cancellationToken).ConfigureAwait(false);
     }
 
     private static void ValidateCutoff(DateTimeOffset cutoff, string parameterName)
