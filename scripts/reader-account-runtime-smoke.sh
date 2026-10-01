@@ -173,8 +173,15 @@ fi
 request POST /api/v1/auth/refresh '' \
   "$("$jq_bin" -nc --arg refresh_token "$login_refresh_token" '{refresh_token: $refresh_token}')" \
   "$work_dir/reused-refresh.json" 401
+# 已轮换令牌重用即重放：返回独立错误码，并吊销整个令牌族。
+assert_json "$work_dir/reused-refresh.json" '.error == "refresh_token_replay_detected"'
+request GET /api/v1/auth/me "$rotated_access_token" '__NO_BODY__' \
+  "$work_dir/family-revoked-me.json" 401
 
-access_token="$rotated_access_token"
+# 族吊销使刚轮换出的会话一并失效；后续步骤改用全新登录会话继续。
+request POST /api/v1/auth/login '' "$registration_payload" "$work_dir/relogin.json" 200
+assert_json "$work_dir/relogin.json" '.user.email == $email and .user.role == "Reader"' --arg email "$email"
+access_token="$(read_token "$work_dir/relogin.json" access_token)"
 request GET /api/v1/auth/me "$access_token" '__NO_BODY__' "$work_dir/me.json" 200
 assert_json "$work_dir/me.json" '.email == $email and .role == "Reader"' --arg email "$email"
 
