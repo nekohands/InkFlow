@@ -77,6 +77,12 @@ public enum IdentityResultStatus
     EmailAlreadyRegistered,
     InvalidCredentials,
     InvalidRefreshToken,
+
+    /// <summary>
+    /// 检测到已轮换的 refresh token 被重复使用。整个令牌族已吊销，
+    /// 调用方应提示重新登录，并据此触发安全告警。
+    /// </summary>
+    RefreshTokenReplayDetected,
 }
 
 public static class IdentityPolicies
@@ -275,6 +281,14 @@ public interface IIdentitySessionRepository
         string tokenHash,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 解析访问令牌摘要并同时返回其所属 refresh 会话；会话缺失或已吊销时返回 null。
+    /// 访问令牌的有效性以所属会话活跃为前提，避免登出/轮换后遗留幽灵凭证。
+    /// </summary>
+    Task<(AccessToken Token, RefreshSession Session)?> FindAccessTokenWithSessionAsync(
+        string tokenHash,
+        CancellationToken cancellationToken = default);
+
     Task AddSessionAsync(
         RefreshSession session,
         AccessToken accessToken,
@@ -287,6 +301,15 @@ public interface IIdentitySessionRepository
         string currentRefreshTokenHash,
         RefreshSession replacement,
         AccessToken replacementAccessToken,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 吊销指定会话及其后继轮换链上的全部会话与访问令牌，用于 refresh token 重放响应。
+    /// 返回被吊销的会话数量（含起始会话）。
+    /// </summary>
+    Task<int> RevokeSessionFamilyAsync(
+        Guid sessionId,
         DateTimeOffset now,
         CancellationToken cancellationToken = default);
 
@@ -325,6 +348,16 @@ public interface IPasswordHasher
 public interface IOpaqueTokenGenerator
 {
     string CreateToken();
+}
+
+/// <summary>
+/// 认证安全事件端口。只接收脱敏后的稳定事实：不含 token 原文、摘要、密码或会话秘密，
+/// 由宿主适配到审计 sink 或安全告警通道。实现必须为非阻塞且不得因报告失败而中断认证流程。
+/// </summary>
+public interface IIdentitySecurityEventSink
+{
+    /// <summary>检测到 refresh token 重放并已吊销令牌族。</summary>
+    void ReportRefreshReplay(Guid userId, int revokedSessionCount, DateTimeOffset occurredAt);
 }
 
 public interface IIdentityService

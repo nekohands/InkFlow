@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.BuildingBlocks.Persistence;
+using InkFlow.Modules.Identity.Application;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
@@ -406,5 +407,46 @@ public sealed class CompositeAuditEventSink(
 
         await loggingSink.AppendAsync(auditEvent, cancellationToken)
             .ConfigureAwait(false);
+    }
+}
+
+/// <summary>
+/// 把 Identity 认证安全事件适配到审计 sink。只记录脱敏后的稳定事实
+/// （用户 ID、吊销会话数量、发生时间），不写入 token、摘要或任何会话秘密。
+/// 记录失败被吞掉并记日志，避免因审计不可用而阻断认证流程。
+/// </summary>
+public sealed class AuditIdentitySecurityEventSink(
+    IAuditEventSink auditSink,
+    ILogger<AuditIdentitySecurityEventSink> logger) : IIdentitySecurityEventSink
+{
+    public void ReportRefreshReplay(Guid userId, int revokedSessionCount, DateTimeOffset occurredAt)
+    {
+        // 调用方位于认证热路径且不可 await，因此以已捕获的依赖发起即发即忘写入。
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await auditSink
+                    .AppendAsync(
+                        AuditEvent.Create(
+                            "identity.refresh.replay_detected",
+                            $"identity:session-family:user:{userId}",
+                            "security_alert",
+                            StatusCodes.Status401Unauthorized,
+                            occurredAt,
+                            actorType: "authenticated",
+                            actorId: userId.ToString(),
+                            reason: $"revoked_sessions={revokedSessionCount}"),
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "failed to record refresh replay security event for user {UserId}",
+                    userId);
+            }
+        });
     }
 }

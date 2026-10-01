@@ -307,6 +307,195 @@ public sealed class IdentityPersistenceTests
         }
     }
 
+    [TestMethod]
+    public async Task Rotation_Revokes_Previous_Access_Token_Rows()
+    {
+        await using var db = CreateDb();
+        var users = new EfUserRepository(db);
+        var sessions = new EfIdentitySessionRepository(db);
+        var user = User.Create("rotation-revoke@example.com", "$hash$only", T0);
+        await users.AddAsync(user).ConfigureAwait(false);
+
+        const string currentRaw = "rotation-revoke-current-refresh";
+        var current = RefreshSession.Create(
+            user.Id,
+            OpaqueTokenHashing.Hash(currentRaw),
+            T0,
+            T0.AddDays(30));
+        const string previousAccessRaw = "rotation-revoke-previous-access";
+        var previousAccess = AccessToken.Create(
+            user.Id,
+            current.Id,
+            OpaqueTokenHashing.Hash(previousAccessRaw),
+            T0,
+            T0.AddMinutes(15));
+        await sessions.AddSessionAsync(current, previousAccess).ConfigureAwait(false);
+
+        var replacement = CreateReplacement(user.Id, "rotation-revoke-next-refresh", "rotation-revoke-next-access");
+        var rotated = await sessions
+            .RotateRefreshSessionAsync(
+                OpaqueTokenHashing.Hash(currentRaw),
+                replacement.Session,
+                replacement.Access,
+                T0.AddMinutes(1))
+            .ConfigureAwait(false);
+        Assert.IsTrue(rotated);
+        db.ChangeTracker.Clear();
+
+        // 轮换后旧访问令牌行本身必须被吊销：验证语义（按会话拒绝）与存储事实一致，
+        // 保留清理也才能把该令牌判定为终态。
+        var storedPrevious = await db.AccessTokens
+            .AsNoTracking()
+            .SingleAsync(token => token.TokenHash == OpaqueTokenHashing.Hash(previousAccessRaw))
+            .ConfigureAwait(false);
+        Assert.IsNotNull(storedPrevious.RevokedAt);
+    }
+
+    [TestMethod]
+    public async Task RevokeSessionFamily_Revokes_Whole_Rotation_Chain()
+    {
+        await using var db = CreateDb();
+        var users = new EfUserRepository(db);
+        var sessions = new EfIdentitySessionRepository(db);
+        var user = User.Create("family-revoke@example.com", "$hash$only", T0);
+        await users.AddAsync(user).ConfigureAwait(false);
+
+        const string firstRaw = "family-revoke-first-refresh";
+        var first = RefreshSession.Create(
+            user.Id,
+            OpaqueTokenHashing.Hash(firstRaw),
+            T0,
+            T0.AddDays(30));
+        await sessions.AddSessionAsync(
+            first,
+            AccessToken.Create(user.Id, first.Id, OpaqueTokenHashing.Hash("family-access-1"), T0, T0.AddMinutes(15)))
+            .ConfigureAwait(false);
+
+        var second = CreateReplacement(user.Id, "family-revoke-second-refresh", "family-access-2");
+        Assert.IsTrue(await sessions
+            .RotateRefreshSessionAsync(
+                OpaqueTokenHashing.Hash(firstRaw),
+                second.Session,
+                second.Access,
+                T0.AddMinutes(1))
+            .ConfigureAwait(false));
+        var third = CreateReplacement(user.Id, "family-revoke-third-refresh", "family-access-3");
+        Assert.IsTrue(await sessions
+            .RotateRefreshSessionAsync(
+                OpaqueTokenHashing.Hash("family-revoke-second-refresh"),
+                third.Session,
+                third.Access,
+                T0.AddMinutes(2))
+            .ConfigureAwait(false));
+        db.ChangeTracker.Clear();
+
+        var revoked = await sessions
+            .RevokeSessionFamilyAsync(first.Id, T0.AddMinutes(3))
+            .ConfigureAwait(false);
+        Assert.AreEqual(3, revoked);
+        db.ChangeTracker.Clear();
+
+        var sessionRows = await db.Sessions
+            .AsNoTracking()
+            .Where(session => session.UserId == user.Id)
+            .ToListAsync()
+            .ConfigureAwait(false);
+        Assert.IsTrue(sessionRows.All(session => session.RevokedAt is not null));
+        var tokenRows = await db.AccessTokens
+            .AsNoTracking()
+            .Where(token => token.UserId == user.Id)
+            .ToListAsync()
+            .ConfigureAwait(false);
+        Assert.AreEqual(3, tokenRows.Count);
+        Assert.IsTrue(tokenRows.All(token => token.RevokedAt is not null));
+    }
+
+    [TestMethod]
+    public async Task Retention_Deletes_Only_Terminal_Facts_And_Respects_Cascade_Guard()
+    {
+        await using var db = CreateDb();
+        var users = new EfUserRepository(db);
+        var user = User.Create("retention@example.com", "$hash$only", T0);
+        await users.AddAsync(user).ConfigureAwait(false);
+
+        var fullyExpiredSession = SeedSession(db, user.Id, "retention-session-a", revokedAt: T0.AddDays(-31));
+        SeedToken(db, user.Id, fullyExpiredSession, "retention-token-a", revokedAt: T0.AddDays(-31));
+        var guardedSession = SeedSession(db, user.Id, "retention-session-b", revokedAt: T0.AddDays(-31));
+        SeedToken(db, user.Id, guardedSession, "retention-token-b", revokedAt: null);
+        var liveSession = SeedSession(db, user.Id, "retention-session-c", revokedAt: null);
+        SeedToken(db, user.Id, liveSession, "retention-token-c", revokedAt: T0.AddDays(-31));
+        var recentSession = SeedSession(db, user.Id, "retention-session-d", revokedAt: T0.AddDays(-1), expiresAt: T0.AddDays(29));
+        SeedToken(db, user.Id, recentSession, "retention-token-d", revokedAt: T0.AddDays(-1));
+        await db.SaveChangesAsync().ConfigureAwait(false);
+        db.ChangeTracker.Clear();
+
+        // A（会话与令牌均已吊销且过期）可删；B 的令牌未吊销，NOT EXISTS 护栏禁止
+        // 会话随 CASCADE 带走未终态令牌；C/D 的会话保留，但其已吊销且过期的令牌属终态可删。
+        var store = new EfIdentityRetentionStore(db);
+        var result = await store
+            .DeleteExpiredBatchAsync(T0, T0, batchSize: 100)
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(1, result.DeletedSessions);
+        Assert.AreEqual(3, result.DeletedAccessTokens);
+
+        var sessionHashes = await db.Sessions
+            .AsNoTracking()
+            .Where(session => session.UserId == user.Id)
+            .Select(session => session.RefreshTokenHash)
+            .ToListAsync()
+            .ConfigureAwait(false);
+        CollectionAssert.AreEquivalent(
+            new[] { "retention-session-b", "retention-session-c", "retention-session-d" },
+            sessionHashes);
+        var tokenHashes = await db.AccessTokens
+            .AsNoTracking()
+            .Where(token => token.UserId == user.Id)
+            .Select(token => token.TokenHash)
+            .ToListAsync()
+            .ConfigureAwait(false);
+        CollectionAssert.AreEquivalent(
+            new[] { "retention-token-b" },
+            tokenHashes);
+    }
+
+    private static Guid SeedSession(
+        IdentityDbContext db,
+        Guid userId,
+        string refreshTokenHash,
+        DateTimeOffset? revokedAt,
+        DateTimeOffset? expiresAt = null)
+    {
+        var session = new RefreshSessionEntity
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            RefreshTokenHash = refreshTokenHash,
+            CreatedAt = T0.AddDays(-30),
+            ExpiresAt = expiresAt ?? T0.AddDays(-1),
+            RevokedAt = revokedAt,
+        };
+        db.Sessions.Add(session);
+        return session.Id;
+    }
+
+    private static void SeedToken(
+        IdentityDbContext db,
+        Guid userId,
+        Guid sessionId,
+        string tokenHash,
+        DateTimeOffset? revokedAt) =>
+        db.AccessTokens.Add(new AccessTokenEntity
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            SessionId = sessionId,
+            TokenHash = tokenHash,
+            CreatedAt = T0.AddDays(-30),
+            ExpiresAt = T0.AddDays(-1),
+            RevokedAt = revokedAt,
+        });
+
     private static IdentityDbContext CreateDb()
         => CreateDb(_container!);
 

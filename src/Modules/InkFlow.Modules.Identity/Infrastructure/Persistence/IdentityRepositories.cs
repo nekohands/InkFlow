@@ -324,6 +324,24 @@ public sealed class EfIdentitySessionRepository(IdentityDbContext db) : IIdentit
         return entity is null ? null : IdentityMapper.ToDomain(entity);
     }
 
+    public async Task<(AccessToken Token, RefreshSession Session)?> FindAccessTokenWithSessionAsync(
+        string tokenHash,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await (
+                from token in db.AccessTokens.AsNoTracking()
+                join session in db.Sessions.AsNoTracking()
+                    on token.SessionId equals session.Id
+                where token.TokenHash == tokenHash
+                select new { Token = token, Session = session })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return row is null
+            ? null
+            : (IdentityMapper.ToDomain(row.Token), IdentityMapper.ToDomain(row.Session));
+    }
+
     public async Task AddSessionAsync(
         RefreshSession session,
         AccessToken accessToken,
@@ -368,6 +386,17 @@ public sealed class EfIdentitySessionRepository(IdentityDbContext db) : IIdentit
 
         current.RevokedAt ??= now;
         current.ReplacedBySessionId ??= replacement.Id;
+        var previousAccessTokens = await db.AccessTokens
+            .Where(token => token.SessionId == current.Id && token.RevokedAt == null)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        foreach (var previousAccessToken in previousAccessTokens)
+        {
+            // 访问令牌的有效性以所属会话活跃为前提；轮换即吊销旧令牌，
+            // 让存储事实与验证语义一致，也避免保留清理把未终态令牌随会话级联删除。
+            previousAccessToken.RevokedAt ??= now;
+        }
+
         db.Sessions.Add(IdentityMapper.ToEntity(replacement));
         db.AccessTokens.Add(IdentityMapper.ToEntity(replacementAccessToken));
 
@@ -400,6 +429,71 @@ public sealed class EfIdentitySessionRepository(IdentityDbContext db) : IIdentit
         }
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<int> RevokeSessionFamilyAsync(
+        Guid sessionId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        if (sessionId == Guid.Empty)
+        {
+            return 0;
+        }
+
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var revokedSessionIds = new List<Guid>();
+        var visited = new HashSet<Guid>();
+        var frontier = new List<Guid> { sessionId };
+
+        // 迭代遍历 ReplacedBySessionId 后继链。每一跳都加 visited 防护，
+        // 使历史数据中意外形成的环不会导致无限循环。
+        while (frontier.Count > 0)
+        {
+            var currentIds = frontier
+                .Where(visited.Add)
+                .ToArray();
+            if (currentIds.Length == 0)
+            {
+                break;
+            }
+
+            var currentSessions = await db.Sessions
+                .Where(session => currentIds.Contains(session.Id))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            revokedSessionIds.AddRange(currentSessions.Select(session => session.Id));
+            foreach (var session in currentSessions)
+            {
+                session.RevokedAt ??= now;
+            }
+
+            frontier = currentSessions
+                .Select(session => session.ReplacedBySessionId)
+                .OfType<Guid>()
+                .Distinct()
+                .ToList();
+        }
+
+        if (revokedSessionIds.Count > 0)
+        {
+            var accessTokens = await db.AccessTokens
+                .Where(token => revokedSessionIds.Contains(token.SessionId))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            foreach (var accessToken in accessTokens)
+            {
+                accessToken.RevokedAt ??= now;
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        return revokedSessionIds.Count;
     }
 }
 

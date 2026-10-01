@@ -5,6 +5,8 @@ using InkFlow.Modules.Content.Domain;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Crawling.Infrastructure.Persistence;
+using InkFlow.Modules.Identity.Application;
+using InkFlow.Modules.Identity.Infrastructure.Persistence;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
@@ -40,6 +42,7 @@ builder.Services.AddDbContext<LibraryDbContext>(o => o.UseNpgsql(connectionStrin
 builder.Services.AddDbContext<ContentDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<MessagingDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddDbContext<AuditDbContext>(o => o.UseNpgsql(connectionString));
+builder.Services.AddDbContext<IdentityDbContext>(o => o.UseNpgsql(connectionString));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(
@@ -72,6 +75,12 @@ builder.Services.AddScoped<EfAuditRetentionStore>();
 builder.Services.AddScoped<IAuditRetentionStore>(sp =>
     sp.GetRequiredService<EfAuditRetentionStore>());
 builder.Services.AddScoped<IAuditRetentionService, AuditRetentionService>();
+builder.Services.AddSingleton(
+    IdentityRetentionOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddScoped<EfIdentityRetentionStore>();
+builder.Services.AddScoped<IIdentityRetentionStore>(sp =>
+    sp.GetRequiredService<EfIdentityRetentionStore>());
+builder.Services.AddScoped<IIdentityRetentionService, IdentityRetentionService>();
 builder.Services.AddScoped<ITransactionalOutboxWriter, EfTransactionalOutboxWriter>();
 var sourceHealthOptions = SourceHealthOptions.FromConfiguration(builder.Configuration);
 SourceHealthPolicy.Configure(sourceHealthOptions.ToParameters());
@@ -157,6 +166,7 @@ builder.Services.AddHostedService<OutboxRelayBackgroundService>();
 builder.Services.AddHostedService<InboxConsumerBackgroundService>();
 builder.Services.AddHostedService<MessageRetentionBackgroundService>();
 builder.Services.AddHostedService<AuditRetentionBackgroundService>();
+builder.Services.AddHostedService<IdentityRetentionBackgroundService>();
 
 
 var app = builder.Build();

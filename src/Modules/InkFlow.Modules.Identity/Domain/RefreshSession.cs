@@ -50,6 +50,12 @@ public sealed class RefreshSession
 
     public bool IsActive(DateTimeOffset now) => RevokedAt is null && ExpiresAt > now;
 
+    /// <summary>
+    /// 本会话是否已被轮换取代。轮换过一次的 refresh token 再次出现即视为重放，
+    /// 调用方必须据此吊销整个令牌族，而不是当作普通失效静默忽略。
+    /// </summary>
+    public bool IsRotated => ReplacedBySessionId is not null;
+
     public void ReplaceWith(Guid replacementSessionId, DateTimeOffset now)
     {
         if (replacementSessionId == Guid.Empty)

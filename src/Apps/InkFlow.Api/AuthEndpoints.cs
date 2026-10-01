@@ -67,6 +67,10 @@ public static class AuthEndpointResults
                 Error("email_already_registered", StatusCodes.Status409Conflict),
             IdentityResultStatus.InvalidCredentials or IdentityResultStatus.InvalidRefreshToken =>
                 Error("invalid_credentials", StatusCodes.Status401Unauthorized),
+            // 重放响应与普通失效同样返回 401，但使用独立错误码：客户端必须丢弃本地令牌并重新登录，
+            // 运维/告警侧也可据此识别凭证泄露信号。
+            IdentityResultStatus.RefreshTokenReplayDetected =>
+                Error("refresh_token_replay_detected", StatusCodes.Status401Unauthorized),
             _ => Error("authentication_failed", StatusCodes.Status401Unauthorized),
         };
     }

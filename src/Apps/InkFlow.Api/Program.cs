@@ -85,6 +85,7 @@ builder.Services.AddScoped<IResourcePermissionRepository, EfResourcePermissionRe
 builder.Services.AddSingleton(IdentityOptions.FromConfiguration(builder.Configuration));
 builder.Services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
 builder.Services.AddSingleton<IOpaqueTokenGenerator, SecureOpaqueTokenGenerator>();
+builder.Services.AddScoped<IIdentitySecurityEventSink, AuditIdentitySecurityEventSink>();
 builder.Services.AddScoped<IIdentityService, IdentityService>();
 builder.Services.AddScoped<ILegadoAccessTokenService, LegadoAccessTokenService>();
 builder.Services.AddScoped<IResourcePermissionService, ResourcePermissionService>();
