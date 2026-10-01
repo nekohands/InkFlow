@@ -5,8 +5,8 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.54 Identity 令牌重放检测、族吊销与会话保留清理已记录；历史记录已拆分至 `progress-history.md`。本机 Gate 全部通过，Integration 因本机无 Docker BLOCKED，远端 CI 待推送后确认。
-- 最后更新日期：2026-10-01
+- 文档状态：5.54 Identity 令牌重放检测、族吊销与会话保留清理已记录；历史记录已拆分至 `progress-history.md`。本机 Gate 与远端 CI/Docker/Security（`beb3e56`）均通过，本机 Integration 因无 Docker NOT RUN（由远端 CI 容器覆盖）。
+- 最后更新日期：2026-10-02
 
 ## 1. 总体状态
 
@@ -89,9 +89,10 @@ Phase 1A 自动化工作包状态：
 - 访问令牌会话耦合：`ValidateAccessTokenAsync` 联查所属会话并要求会话活跃，登出/轮换/族吊销后旧访问令牌立即失效；`RotateRefreshSessionAsync` 轮换时同步吊销旧会话的全部访问令牌行，消除最长 15 分钟的幽灵凭证窗口。
 - 保留清理（I-6）：`IdentityRetentionService`（宽限期/批大小/单轮批次上限，配置节 `Identity:Retention`，非法值启动快速失败）由 Worker `IdentityRetentionBackgroundService` 每小时执行；`EfIdentityRetentionStore` 以 `SKIP LOCKED` 取候选、逐会话事务“子表优先”删除；会话删除带 `NOT EXISTS` 护栏，防止外键 CASCADE 把未终态令牌一并带走，且删除谓词与该护栏共同保证“只删终态事实”。
 - 数据回填：`AddIdentityRotatedTokenBackfill` Migration 把被吊销/轮换会话下仍为未吊销的访问令牌回填为随会话吊销（幂等、单向、无模型变更），使存量数据与新验证语义一致，也让保留清理可安全判定令牌终态。
-- 测试：单元新增重放族吊销、安全事件上报、会话吊销后访问令牌失效、轮换吊销旧令牌等回归；集成（真实 PostgreSQL）新增轮换吊销旧令牌行、令牌族全链吊销和保留终态矩阵（含 CASCADE 护栏场景）。
+- 测试：单元新增重放族吊销、安全事件上报、会话吊销后访问令牌失效、轮换吊销旧令牌等回归；集成（真实 PostgreSQL，远端 CI 容器执行）新增轮换吊销旧令牌行、令牌族全链吊销和保留终态矩阵（含 CASCADE 护栏场景）。
 - 文档：`docs/roadmap/progress.md` 与 `docs/handoff/handoff.md` 拆分为“当前记录 + `*-history.md` 历史归档”，`phase-1-acceptance.md` 与 `handoff.md` 中的历史小节引用同步改指归档文件。
-- 验证：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 583/583、Architecture 1/1、Contract 12/12 PASS；`scripts/verify-migrations.sh` PASS（11 contexts 无漂移）。本机无 Docker，Integration NOT RUN（环境 BLOCKED，与历轮同因）；远端 CI 结果在推送后回填确认。
+- 验证：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 583/583、Architecture 1/1、Contract 12/12 PASS；`scripts/verify-migrations.sh` PASS（11 contexts 无漂移）。本机无 Docker，本机 Integration NOT RUN（环境 BLOCKED，与历轮同因）。
+- CI 迭代与修复：候选 `a661293` 的远端 CI RED 暴露保留存储实现缺口（删除候选会话之外的终态令牌未被清理，与其声明的按行终态契约不符），以 `ctid` 有界终态清扫修复（`3c67dba`）；同提交 CI RED 再暴露 `reader-account-runtime-smoke` 沿用“旧令牌重用仅普通失效”的旧语义（现重放会吊销整族），脚本改为断言 `refresh_token_replay_detected`、验证族吊销并重新登录后通过。Docker 门禁另发现 ubuntu 基础镜像快照 `libssl3t64` CVE-2026-84782（HIGH），四个发布镜像在最终阶段显式升级修复。最终提交 `beb3e56` 的 [CI 36891052979](https://github.com/nekohands/InkFlow/actions/runs/36891052979)、[Docker 36891052985](https://github.com/nekohands/InkFlow/actions/runs/36891052985)、[Security 36891052989](https://github.com/nekohands/InkFlow/actions/runs/36891052989) 均 success 且 head SHA 一致。
 
 ## 5. Phase 1A 核心验收链路
 

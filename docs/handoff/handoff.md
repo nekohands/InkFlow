@@ -5,9 +5,9 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.54 Identity 令牌重放检测、族吊销与会话保留清理已记录；历史交接明细已拆分至 `handoff-history.md`。本机 Gate 全部通过，Integration 因本机无 Docker BLOCKED，远端 CI 待推送后确认。
+- 文档状态：5.54 Identity 令牌重放检测、族吊销与会话保留清理已记录；历史交接明细已拆分至 `handoff-history.md`。本机 Gate 与远端 CI/Docker/Security（`beb3e56`）均通过，本机 Integration 因无 Docker NOT RUN（由远端 CI 容器覆盖）。
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-10-01；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-10-02；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -132,7 +132,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 - 代码：`IdentityService` 检测已轮换 refresh token 的重放（含竞态分支）并经 `RevokeSessionFamilyAsync` 事务内吊销整条轮换链；访问令牌验证改为联查所属会话；`RotateRefreshSessionAsync` 轮换即吊销旧访问令牌行；Worker 新增 `IdentityRetentionBackgroundService` 接线 `IdentityRetentionService`/`EfIdentityRetentionStore`（SKIP LOCKED + 子表优先 + NOT EXISTS 级联护栏）；新增 `AddIdentityRotatedTokenBackfill` 数据回填 Migration（无模型变更）；文档拆分为当前记录 + `*-history.md` 归档。
 - 安全边界：审计事件只含 userId 与吊销会话数，不含 token/摘要/会话秘密；重放响应使用独立错误码 `refresh_token_replay_detected`（401），凭证泄露可被运维侧识别。
-- 证据：本机 Restore、Release Build 0 warnings / 0 errors、Unit 583/583、Architecture 1/1、Contract 12/12、`verify-migrations.sh`（11 contexts）PASS；Windows 本机无 Docker，Integration NOT RUN（BLOCKED），真实 PostgreSQL 用例由远端 CI 执行。未使用真实账户、生产令牌或生产数据库。
+- 证据：本机 Restore、Release Build 0 warnings / 0 errors、Unit 583/583、Architecture 1/1、Contract 12/12、`verify-migrations.sh`（11 contexts）PASS；Windows 本机无 Docker，本机 Integration NOT RUN（BLOCKED），真实 PostgreSQL 用例由远端 CI 执行并全绿。未使用真实账户、生产令牌或生产数据库。
+- CI 迭代：候选 `a661293` CI RED → 修复保留清扫缺口（候选会话外终态令牌，`3c67dba`）；再 RED → `reader-account-runtime-smoke` 跟随重放族吊销语义（断言错误码 + 族失效 + 重新登录）；Docker 门禁 RED → 四镜像显式升级 `libssl3t64`（CVE-2026-84782）。最终 `beb3e56` 三 workflow GREEN：[CI 36891052979](https://github.com/nekohands/InkFlow/actions/runs/36891052979)、[Docker 36891052985](https://github.com/nekohands/InkFlow/actions/runs/36891052985)、[Security 36891052989](https://github.com/nekohands/InkFlow/actions/runs/36891052989)。
 - 下一步：API 宿主全局异常处理中间件（审查项 H1）为下一个已识别工作包；生产 Migration 仍由独立 Migrations 流程执行，本轮回填 Migration 需在部署时一并评审。
 
 ## 5. 关键架构不变量
