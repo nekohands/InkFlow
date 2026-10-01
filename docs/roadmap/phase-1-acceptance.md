@@ -77,7 +77,7 @@ checklist below:
   stable ChapterIds and published content through both runtime smoke and in-app
   browser interaction.
 
-Evidence is recorded in `docs/roadmap/progress.md` sections 4.75, 4.82–4.86,
+Evidence is recorded in `docs/roadmap/progress-history.md` sections 4.75, 4.82–4.86,
 4.97–4.99, 5.8, 5.10 and 5.26–5.28, with repository entrypoints
 `scripts/reader-frontend-runtime-smoke.sh`,
 `scripts/reader-account-runtime-smoke.sh`,
