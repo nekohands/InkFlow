@@ -8,6 +8,9 @@ RUN --mount=type=cache,id=inkflow-nuget,target=/root/.nuget/packages,sharing=loc
     dotnet publish src/Apps/InkFlow.Migrations/InkFlow.Migrations.csproj -c Release -o /app/publish --no-self-contained
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+# 基础镜像快照的 libssl3t64 滞后于 Ubuntu 安全 pocket（CVE-2026-84782，
+# 修复版 3.0.13-0ubuntu3.16），显式升级，避免发布镜像带已知 HIGH 漏洞。
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3t64 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/publish .
 USER app
