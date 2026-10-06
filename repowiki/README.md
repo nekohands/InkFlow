@@ -24,15 +24,16 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 ## Current work
 
 Active work package: Intake required — next candidates are the review's
-medium-severity items (Inbox/Outbox lease heartbeat renewal, optimistic
-concurrency tokens, catalog query pagination, adapter regex timeouts; see
-profile Work Package).
-Last completed: dead-letter/task-state same-transaction write (5.57) —
-`ICrawlerTaskRepository.AddDeadLetterWithTaskAsync` commits the dead-letter row
-and the DeadLettered terminal state in one ReadCommitted transaction (the
-sequential pair remains the test-double fallback); rollback regression proves
-no orphan dead-letter rows (CI/Docker/Security GREEN at `8a8fcd1`, runs
-37469389070/37469389018/37469389126).
+medium-severity items (optimistic concurrency tokens, catalog query pagination,
+adapter regex timeouts, EntitlementService actor check; see profile Work
+Package).
+Last completed: batch lease renewal (5.58) — `OutboxDispatcher` and
+`InboxConsumerPump` renew the remaining claimed batch before each message via
+`ExtendLeaseBatchAsync` (owner- and terminal-state-guarded UPDATE; default
+no-op fallback is for test doubles only). Batch work slower than the lease no
+longer hands messages to other instances mid-batch; a single handler outliving
+its whole lease remains bounded by the idempotent consumer (CI/Docker/Security
+GREEN at `1658b87`, runs 37478901744/37478902070/37478901915).
 
 Current progress: [docs/roadmap/progress.md](../docs/roadmap/progress.md) ·
 Current handoff: [docs/handoff/handoff.md](../docs/handoff/handoff.md) ·
