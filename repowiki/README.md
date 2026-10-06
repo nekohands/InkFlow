@@ -23,10 +23,15 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: H1 — API host global exception handling (Planned; see
-[profile work package](../docs/delivery/PROJECT_WORKFLOW.md#work-package)).
-Last completed: 5.54 identity token replay/family revocation + retention wiring
-(CI/Docker/Security GREEN at `f136ede`, runs 36891052979/36891052985/36891052989).
+Active work package: Intake required — next candidates are the review's
+medium-severity items (Inbox/Outbox lease heartbeat renewal, optimistic
+concurrency tokens, canonical matching atomicity; see profile Work Package).
+Last completed: H1 global exception handling → sanitized ProblemDetails, zero
+leaks in every environment (5.55; CI/Docker/Security GREEN at `d2cbbca`, runs
+37427977446/37427977438/37427977441). Contract: outermost middleware returns
+`application/problem+json` for unhandled exceptions; endpoint error bodies and
+4xx are never rewritten — see [architecture.md](architecture.md) links and
+[src/Apps/InkFlow.Api/ApiErrorHandling.cs](../src/Apps/InkFlow.Api/ApiErrorHandling.cs).
 
 Current progress: [docs/roadmap/progress.md](../docs/roadmap/progress.md) ·
 Current handoff: [docs/handoff/handoff.md](../docs/handoff/handoff.md) ·

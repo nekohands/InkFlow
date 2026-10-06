@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.54 Identity 令牌重放检测、族吊销与会话保留清理已记录；历史记录已拆分至 `progress-history.md`。本机 Gate 与远端 CI/Docker/Security（`beb3e56`）均通过，本机 Integration 因无 Docker NOT RUN（由远端 CI 容器覆盖）。
+- 文档状态：5.55 API 宿主全局异常处理（审查项 H1）已实现并通过全部 Gate；历史记录见 `progress-history.md`。本机 Gate 与远端 CI/Docker/Security（`d2cbbca`）均通过。
 - 最后更新日期：2026-10-02
 
 ## 1. 总体状态
@@ -93,6 +93,14 @@ Phase 1A 自动化工作包状态：
 - 文档：`docs/roadmap/progress.md` 与 `docs/handoff/handoff.md` 拆分为“当前记录 + `*-history.md` 历史归档”，`phase-1-acceptance.md` 与 `handoff.md` 中的历史小节引用同步改指归档文件。
 - 验证：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 583/583、Architecture 1/1、Contract 12/12 PASS；`scripts/verify-migrations.sh` PASS（11 contexts 无漂移）。本机无 Docker，本机 Integration NOT RUN（环境 BLOCKED，与历轮同因）。
 - CI 迭代与修复：候选 `a661293` 的远端 CI RED 暴露保留存储实现缺口（删除候选会话之外的终态令牌未被清理，与其声明的按行终态契约不符），以 `ctid` 有界终态清扫修复（`3c67dba`）；同提交 CI RED 再暴露 `reader-account-runtime-smoke` 沿用“旧令牌重用仅普通失效”的旧语义（现重放会吊销整族），脚本改为断言 `refresh_token_replay_detected`、验证族吊销并重新登录后通过。Docker 门禁另发现 ubuntu 基础镜像快照 `libssl3t64` CVE-2026-84782（HIGH），四个发布镜像在最终阶段显式升级修复。最终提交 `beb3e56` 的 [CI 36891052979](https://github.com/nekohands/InkFlow/actions/runs/36891052979)、[Docker 36891052985](https://github.com/nekohands/InkFlow/actions/runs/36891052985)、[Security 36891052989](https://github.com/nekohands/InkFlow/actions/runs/36891052989) 均 success 且 head SHA 一致。
+
+### 5.55 API 宿主全局异常处理中间件（本轮，2026-10-02）
+
+- 缺口（审查项 H1，2026-10-02 在当前代码复核成立）：未捕获异常走 ASP.NET 默认错误页，Development 环境泄露堆栈；宿主无任何全局兜底。
+- 实现：`ApiErrorHandlingExtensions` 提供 `AddInkFlowProblemDetails`（写出前剥除 `exceptionDetails` 扩展）与 `UseInkFlowExceptionHandler`（最外层 `UseExceptionHandler`）；Program.cs 接线为首个中间件，任何环境统一返回 `application/problem+json`，不含异常类型、消息、堆栈或路径。审计与 SLO 中间件在内层仍观察原始异常（`unhandled-exception` 审计语义不变）；既有端点稳定错误体（auth 错误码、429、4xx）不重写。
+- 测试：新增 TestServer 级回归 2 例——Development 环境注入异常断言 500 + `application/problem+json` 且无 `secret-exception-detail`/`InvalidOperationException`/`exceptionDetails`/`StackTrace` 泄露；正常端点与 404 不被兜底重写。测试依赖新增 `Microsoft.AspNetCore.TestHost`（CPM 固定 10.0.4，仅测试工程引用）。
+- 验证：本机 Restore/Release Build 0 warnings / 0 errors；Unit 585/585、Architecture 1/1、Contract 12/12 PASS；Migration 未触及（N/A）。远端提交 `d2cbbca` 的 [CI 37427977446](https://github.com/nekohands/InkFlow/actions/runs/37427977446)、[Docker 37427977438](https://github.com/nekohands/InkFlow/actions/runs/37427977438)、[Security 37427977441](https://github.com/nekohands/InkFlow/actions/runs/37427977441) 均 success（含真实 PostgreSQL Integration 与 Compose/Runtime smoke）。
+- 交付结构：同日完成 project-delivery adoption——建立 `repowiki/`（AI 权威参考）与 `docs/delivery/`（profile 迁移 + 索引 + adoption 记录），提交 `507e473` 三 workflow 全绿。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -229,7 +237,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-10-01）：Identity 令牌重放检测、族吊销与会话/令牌保留清理已实现并通过本机 Build/Unit/Architecture/Contract/Migration 漂移 Gate（5.54）；本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。文档层面 `progress.md`/`handoff.md` 已拆分为当前记录与历史归档。API 宿主全局异常处理中间件（审查项 H1）为下一个已识别工作包；Reader 采集/书籍包的平台级可见边界已在 5.52 记录为既定产品决策，待引入任务所有权字段后再收敛。
+最新状态（2026-10-02）：5.54 Identity 令牌重放检测/族吊销/保留清理与 5.55 API 宿主全局异常处理（审查项 H1）均已通过完整 Gate 并由远端 CI 覆盖；2026-09-11 全面审查的三个高危项全部关闭（H2 重放→5.54，H1 异常处理→5.55，H3 为 5.52/ADR 0028 既定产品边界）。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。下一候选工作包为审查中危项（Inbox/Outbox 租约心跳续约、乐观并发令牌、Canonical 匹配原子化等），待定义 intake。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

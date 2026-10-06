@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.54 Identity 令牌重放检测、族吊销与会话保留清理已记录；历史交接明细已拆分至 `handoff-history.md`。本机 Gate 与远端 CI/Docker/Security（`beb3e56`）均通过，本机 Integration 因无 Docker NOT RUN（由远端 CI 容器覆盖）。
+- 文档状态：5.55 API 宿主全局异常处理（审查项 H1）已实现并通过全部 Gate（`d2cbbca` 三 workflow GREEN）；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-02；dev 骨架重建更新：2026-08-25
 
@@ -136,6 +136,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - CI 迭代：候选 `a661293` CI RED → 修复保留清扫缺口（候选会话外终态令牌，`3c67dba`）；再 RED → `reader-account-runtime-smoke` 跟随重放族吊销语义（断言错误码 + 族失效 + 重新登录）；Docker 门禁 RED → 四镜像显式升级 `libssl3t64`（CVE-2026-84782）。最终 `beb3e56` 三 workflow GREEN：[CI 36891052979](https://github.com/nekohands/InkFlow/actions/runs/36891052979)、[Docker 36891052985](https://github.com/nekohands/InkFlow/actions/runs/36891052985)、[Security 36891052989](https://github.com/nekohands/InkFlow/actions/runs/36891052989)。
 - 下一步：API 宿主全局异常处理中间件（审查项 H1）为下一个已识别工作包；生产 Migration 仍由独立 Migrations 流程执行，本轮回填 Migration 需在部署时一并评审。
 
+### 5.55 API 宿主全局异常处理中间件交接（本轮，2026-10-02）
+
+- 代码：`src/Apps/InkFlow.Api/ApiErrorHandling.cs` 新增 `AddInkFlowProblemDetails`（剥除 `exceptionDetails`）与 `UseInkFlowExceptionHandler`；`Program.cs` 将其注册为最外层中间件。任何环境未捕获异常统一返回 `application/problem+json`，不含异常类型/消息/堆栈/路径；审计与 SLO 中间件在内层仍记录原始异常；既有端点错误体与 4xx 不重写。
+- 测试：`ApiErrorHandlingTests`（TestServer，CPM 新增 `Microsoft.AspNetCore.TestHost` 10.0.4）覆盖 Development 注入异常零泄露与正常响应/404 不重写；本机 Unit 585/585、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors。
+- 交付结构：同日完成 project-delivery adoption（`repowiki/` + `docs/delivery/` profile/索引/adoption 记录，提交 `507e473` 三 workflow GREEN）。
+- 门禁：代码提交 `d2cbbca` 的 [CI 37427977446](https://github.com/nekohands/InkFlow/actions/runs/37427977446)、[Docker 37427977438](https://github.com/nekohands/InkFlow/actions/runs/37427977438)、[Security 37427977441](https://github.com/nekohands/InkFlow/actions/runs/37427977441) 均 success（含真实 PostgreSQL Integration 与 Runtime smoke）。2026-09-11 审查三个高危项全部关闭（H2→5.54，H1→5.55，H3→5.52/ADR 0028 既定边界）。保持 `1.0 Release Candidate`。
+- 下一步候选：审查中危项（Inbox/Outbox 租约心跳续约、乐观并发令牌、Canonical 匹配 check-then-act 原子化、Catalog 查询分页/N+1）；下一个工作包需先定义 intake（目标/范围/验收）。
+
 ## 5. 关键架构不变量
 
 未经 ADR 不得破坏：
@@ -229,7 +237,7 @@ Phase 2 及以后：
 
 - Source Health 的半开恢复、主动巡检探针与冷却参数配置化已完成；Crawler 死信受控重放、受保护 Repair/replay 入口、跨模块 Consistency Check v1、Operations Center Read Model v1 和 Center UI v1 自动化基线已完成，自动修复和更强运维治理仍待实现。
 - Crawler 失败结构化日志与 OpenTelemetry counters、请求审计持久化、独立 `AuditRead` 有界查询、CI 级 PostgreSQL 备份恢复演练、告警快照/阈值/内部历史去重与恢复、来源级授权 v1 和已落地高风险命令审计基线已完成；审计有界 retention 代码基线已完成，但生产法律/合同保留、归档、删除授权和证据治理仍待部署环境确定。外部告警路由、生产异地备份/RPO-RTO、安全扫描治理、组织/更广泛资源权限仍待实现。限流已接入 Redis 原子分布式计数，并在 Redis 故障时保留同配额本地有界降级。
-- 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1、Private Library 私有正文/TXT/EPUB 导入导出自动化基础和 Developer API / Entitlement / Billing v1 候选基线已完成；PWA Service Worker/离线壳已由 4.82 自动验收，真实安装、账户/跨设备验收、Private Library 与 Developer API 真实账户/凭据验收、Organization、Community Marketplace 仍未完成。Identity 令牌重放检测、族吊销与会话/令牌保留清理已接线（5.54）；API 宿主全局异常处理中间件（审查项 H1）待实现。
+- 用户身份基础、Reading State v1、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1、Private Library 私有正文/TXT/EPUB 导入导出自动化基础和 Developer API / Entitlement / Billing v1 候选基线已完成；PWA Service Worker/离线壳已由 4.82 自动验收，真实安装、账户/跨设备验收、Private Library 与 Developer API 真实账户/凭据验收、Organization、Community Marketplace 仍未完成。Identity 令牌重放检测、族吊销与会话/令牌保留清理已接线（5.54）；API 宿主全局异常处理中间件已完成（5.55）。
 
 更后阶段：Developer API / Commercial Foundation 的真实运营与产品化深化、Organization、Community Marketplace、Enterprise Deployment。
 

@@ -69,25 +69,24 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前工作包（Planned，待执行；来自 2026-09-11 全面审查 + 5.54 交接，H1 已于 2026-10-02 在当前代码复核成立）：
+当前状态：Intake required（无进行中工作包）。最近完成：H1（下）与 5.54；下一
+候选为 2026-09-11 审查中危项（Inbox/Outbox 租约心跳续约、乐观并发令牌、
+Canonical 匹配 check-then-act 原子化、Catalog 查询分页/N+1），开工前先填：
+目标/用户结果、范围与非目标、验收条件（正常/错误/回归）。
+
+最近完成工作包（H1，2026-10-02，`Accepted` 级证据）：
 
 ```text
 Name: H1 — API 宿主全局异常处理中间件
-Objective / user outcome: 未捕获异常不再走 ASP.NET 默认错误页（Development 下泄露堆栈），统一返回 ProblemDetails 且不泄露敏感细节
-In scope: src/Apps/InkFlow.Api（Program.cs 管道：AddProblemDetails / UseExceptionHandler / UseStatusCodePages，按需最小 ProblemDetails 映射）
-Non-goals: 不改业务错误映射（auth 等端点已有稳定错误码契约）；不做 H3 授权收敛（5.52/ADR 0028 已记录为既定产品边界，待任务所有权字段另行立项）
-Acceptance criteria:
-  - happy path: 正常请求不受影响
-  - error path: 注入未捕获异常返回 application/problem+json，无堆栈/路径泄露；4xx 保持既有错误体
-  - regression: Unit/Contract 全绿；受影响 smoke 在 CI 通过
-Risks: 与既有请求审计中间件、限流 429 响应、Reader HTML 页面的交互；ProblemDetails 需脱敏
-Verification plan: Diff 自检 → Release Build → Unit/Architecture/Contract → verify-migrations（如触及）→ CI（Integration/Runtime smoke 由 CI 覆盖，本机 Docker BLOCKED）
-Expected evidence sources: local + CI
+Objective / user outcome: 未捕获异常不再走 ASP.NET 默认错误页，统一 application/problem+json 且零敏感细节泄露
+In scope: src/Apps/InkFlow.Api（ApiErrorHandlingExtensions + Program.cs 最外层接线）
+Non-goals: 不改业务错误映射；不做 H3 授权收敛（5.52/ADR 0028 既定边界）
+Acceptance criteria（全部满足）:
+  - happy path: 正常请求与 404 不被兜底重写（测试 Handled_Responses_And_Route_Patterns_Are_Not_Rewritten）
+  - error path: Development 注入异常 → 500 + application/problem+json，无异常类型/消息/堆栈/exceptionDetails（测试 Unhandled_Exceptions_Return_Sanitized_ProblemDetails_Even_In_Development）
+  - regression: Unit 585/585、Architecture 1/1、Contract 12/12；CI 37427977446 含真实 PostgreSQL Integration 与 Runtime smoke
+Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `d2cbbca`（37427977446/37427977438/37427977441）
 ```
-
-最近完成工作包：5.54 Identity 令牌重放检测、族吊销与会话保留清理（2026-10-02，
-`Accepted` 级证据：Unit 583/583、Contract 12/12、verify-migrations 11 contexts、
-CI/Docker/Security GREEN at `f136ede`）。详情与历史见 [progress.md](../roadmap/progress.md)。
 
 ## Adoption 记录
 
