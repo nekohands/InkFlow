@@ -1115,11 +1115,14 @@ public sealed class MessagingPersistenceTests
         }
 
         await using var claimDb = CreateMessagingDb();
-        var claimed = await new EfMessagingMessageStore(claimDb)
-            .ClaimBatchAsync("dispatcher-a", T0, TimeSpan.FromSeconds(30), 10)
+        // Outbox 领取没有消息类型过滤，共享容器中可能存在此前用例的遗留行；
+        // 只断言本用例的两条消息被领取。
+        var claimedAll = await new EfMessagingMessageStore(claimDb)
+            .ClaimBatchAsync("dispatcher-a", T0, TimeSpan.FromSeconds(30), 100)
             .ConfigureAwait(false);
-        Assert.AreEqual(2, claimed.Count);
-        var ids = claimed.Select(record => record.Id).ToArray();
+        var mine = claimedAll.Where(record => record.Id == first.Id || record.Id == second.Id).ToList();
+        Assert.AreEqual(2, mine.Count);
+        var ids = mine.Select(record => record.Id).ToArray();
 
         await using var renewDb = CreateMessagingDb();
         var renewed = await new EfMessagingMessageStore(renewDb)
@@ -1129,9 +1132,9 @@ public sealed class MessagingPersistenceTests
 
         await using var stealDb = CreateMessagingDb();
         var stolen = await new EfMessagingMessageStore(stealDb)
-            .ClaimBatchAsync("dispatcher-b", T0.AddSeconds(40), TimeSpan.FromSeconds(30), 10)
+            .ClaimBatchAsync("dispatcher-b", T0.AddSeconds(40), TimeSpan.FromSeconds(30), 100)
             .ConfigureAwait(false);
-        Assert.AreEqual(0, stolen.Count);
+        Assert.IsFalse(stolen.Any(record => record.Id == first.Id || record.Id == second.Id));
 
         await using var markDb = CreateMessagingDb();
         await new EfMessagingMessageStore(markDb)
