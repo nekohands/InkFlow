@@ -63,6 +63,20 @@ public interface ICrawlerTaskRepository
 
     Task AddDeadLetterAsync(DeadLetterTask deadLetter, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 原子记录死信与任务终态：死信行与 DeadLettered 任务状态在同一事务内提交，
+    /// 避免崩溃/写失败留下"有死信无终态"或"有终态无死信"的半一致状态。
+    /// 默认实现为顺序两写的兼容回退，仅供测试替身使用；生产实现必须覆写。
+    /// </summary>
+    async Task AddDeadLetterWithTaskAsync(
+        DeadLetterTask deadLetter,
+        CrawlerTask task,
+        CancellationToken cancellationToken = default)
+    {
+        await AddDeadLetterAsync(deadLetter, cancellationToken).ConfigureAwait(false);
+        await SaveAsync(task, cancellationToken).ConfigureAwait(false);
+    }
+
     Task<IReadOnlyList<DeadLetterTask>> ListDeadLettersAsync(int limit, CancellationToken cancellationToken = default);
 
     /// <summary>是否存在某来源某能力的活跃(Pending/Leased/Running)任务,用于入队去重。</summary>

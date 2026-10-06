@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using InkFlow.Modules.Crawling.Application;
@@ -316,6 +317,38 @@ public sealed class EfCrawlerTaskRepository(
 
     public async Task AddDeadLetterAsync(DeadLetterTask deadLetter, CancellationToken cancellationToken = default)
     {
+        AddDeadLetterRow(deadLetter);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 死信行与 DeadLettered 任务终态在同一 ReadCommitted 事务内提交：
+    /// 任一写失败（如任务行不存在）整体回滚，不会留下半一致状态。
+    /// </summary>
+    public async Task AddDeadLetterWithTaskAsync(
+        DeadLetterTask deadLetter,
+        CrawlerTask task,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+
+        await using var transaction = await db.Database
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+
+        AddDeadLetterRow(deadLetter);
+
+        var entity = await db.Tasks.FindAsync([task.Id], cancellationToken).ConfigureAwait(false)
+                     ?? throw new InvalidOperationException(
+                         $"crawler task {task.Id} does not exist; use {nameof(AddAsync)} first.");
+        CrawlerTaskMapper.ApplyDomain(task, entity);
+
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private void AddDeadLetterRow(DeadLetterTask deadLetter)
+    {
         db.DeadLetters.Add(new DeadLetterEntity
         {
             Id = deadLetter.Id,
@@ -329,8 +362,6 @@ public sealed class EfCrawlerTaskRepository(
             ReplayRequestedBy = deadLetter.ReplayRequestedBy,
             ReplayReason = deadLetter.ReplayReason,
         });
-
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<DeadLetterReplayResult> ReplayDeadLetterAsync(

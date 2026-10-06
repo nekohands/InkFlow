@@ -206,11 +206,15 @@ public sealed class CrawlerTaskProcessor(
 
         if (task.Status == CrawlerTaskStatus.DeadLettered)
         {
+            // 死信行与任务终态必须原子落库：分两次提交时，任一写失败都会留下
+            // 半一致状态（有死信无终态 → 修复视图与任务状态漂移；有终态无死信 → 无法重放）。
             await tasks
-                .AddDeadLetterAsync(
+                .AddDeadLetterWithTaskAsync(
                     DeadLetterTask.From(task, reason, now),
+                    task,
                     cancellationToken)
                 .ConfigureAwait(false);
+            return;
         }
 
         await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);

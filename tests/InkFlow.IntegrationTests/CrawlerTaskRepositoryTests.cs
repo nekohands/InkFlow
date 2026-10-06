@@ -943,6 +943,49 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task Dead_Letter_And_Task_State_Are_Committed_Together()
+    {
+        var (_, repo) = CreateContext();
+        var task = CrawlerTask.Create(Payload("dead-letter-atomic-source"), maxAttempts: 1, T0);
+        await repo.AddAsync(task).ConfigureAwait(false);
+
+        var loaded = (await repo.GetAsync(task.Id).ConfigureAwait(false))!;
+        loaded.Lease("w", T0, TimeSpan.FromMinutes(1));
+        loaded.MarkRunning(T0);
+        loaded.Fail(T0.AddMinutes(1));
+        Assert.AreEqual(CrawlerTaskStatus.DeadLettered, loaded.Status);
+
+        // 生产路径：死信行与 DeadLettered 终态单事务提交，二者必须同时可见。
+        var deadLetter = DeadLetterTask.From(loaded, "upstream 503", T0.AddMinutes(2));
+        await repo.AddDeadLetterWithTaskAsync(deadLetter, loaded).ConfigureAwait(false);
+
+        var persisted = await repo.GetAsync(task.Id).ConfigureAwait(false);
+        Assert.AreEqual(CrawlerTaskStatus.DeadLettered, persisted!.Status);
+        var letters = await repo.ListDeadLettersAsync(limit: 50).ConfigureAwait(false);
+        Assert.IsTrue(letters.Any(letter => letter.TaskId == task.Id && letter.Reason == "upstream 503"));
+    }
+
+    [TestMethod]
+    public async Task Dead_Letter_Write_Rolls_Back_When_Task_State_Is_Missing()
+    {
+        var (_, repo) = CreateContext();
+        var task = CrawlerTask.Create(Payload("dead-letter-rollback-source"), maxAttempts: 1, T0);
+        // 关键：任务本身从未入库——SaveAsync 会在事务内抛出。
+        task.Lease("w", T0, TimeSpan.FromMinutes(1));
+        task.MarkRunning(T0);
+        task.Fail(T0);
+        var deadLetter = DeadLetterTask.From(task, "upstream 503", T0.AddMinutes(1));
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+            () => repo.AddDeadLetterWithTaskAsync(deadLetter, task)).ConfigureAwait(false);
+
+        // 旧的两段式写入会在任务保存失败前先提交死信行，留下"有死信无终态"的漂移；
+        // 单事务实现必须整体回滚，死信行不存在。
+        var letters = await repo.ListDeadLettersAsync(limit: 100).ConfigureAwait(false);
+        Assert.IsFalse(letters.Any(letter => letter.TaskId == task.Id));
+    }
+
+    [TestMethod]
     public async Task Dead_Letter_Replay_Creates_New_Pending_Task_And_Is_Idempotent()
     {
         var (_, repo) = CreateContext();
