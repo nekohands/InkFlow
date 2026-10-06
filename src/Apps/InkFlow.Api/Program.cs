@@ -46,6 +46,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddInkFlowObservability("InkFlow.Api");
 builder.Services.AddInkFlowApiRateLimiting(
     ApiRateLimitOptions.FromConfiguration(builder.Configuration));
+builder.Services.AddInkFlowProblemDetails();
 
 // 来源发现按需使用老站编码(kanunu8 GB18030 等)。
 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
@@ -295,6 +296,10 @@ builder.Services.AddScoped<LegadoContractService>();
 builder.Services.AddSingleton<ILegadoRuleGenerator, LegadoRuleGenerator>();
 
 var app = builder.Build();
+
+// 全局兜底放在最外层：未捕获异常由 RequestAuditMiddleware/SLO 中间件先观察并审计，
+// 到达这里后统一转为不含堆栈与异常细节的 ProblemDetails，任何环境都不走默认错误页。
+app.UseInkFlowExceptionHandler();
 
 // 认证先于审计/限流，使审计 actor 与认证主体分桶均可用；health 不进入业务审计。
 app.UseAuthentication();
