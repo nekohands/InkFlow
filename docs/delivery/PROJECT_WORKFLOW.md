@@ -70,23 +70,21 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 ## Work Package
 
 当前状态：Intake required（无进行中工作包）。下一候选为 2026-09-11 审查中危项
-（Inbox/Outbox 租约心跳续约、乐观并发令牌、Catalog 查询分页/N+1、适配器正则
-超时/无界读取、EntitlementService actor 校验），开工前先填：目标/用户结果、
-范围与非目标、验收条件（正常/错误/回归）。
+（乐观并发令牌、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService
+actor 校验），开工前先填：目标/用户结果、范围与非目标、验收条件（正常/错误/回归）。
 
-最近完成工作包（5.57，2026-10-06，`Accepted` 级证据）：
+最近完成工作包（5.58，2026-10-06，`Accepted` 级证据）：
 
 ```text
-Name: 死信与任务状态同事务
-Objective / user outcome: 任务失败进死信时，死信行与 DeadLettered 终态原子落库，不再产生半一致状态
-In scope: Crawling 模块（ICrawlerTaskRepository.AddDeadLetterWithTaskAsync + EF 事务 + Processor 接线）
-Non-goals: 无 Schema/Migration 变更；乐观并发令牌另行立项
+Name: Inbox/Outbox 批次租约续约
+Objective / user outcome: 长批次处理不再因租约过期被其他实例重复领取/投递
+In scope: Messaging 端口与 EF 存储（ExtendLeaseBatchAsync）+ Dispatcher/Inbox 泵接线
+Non-goals: 单条 Handler 超长租约的中途续约（幂等消费兜底，已记录边界）；无 Schema/Migration 变更
 Acceptance criteria（全部满足）:
-  - happy path: 死信 + 终态同时可见（真实 PostgreSQL 回归）
-  - error path: 任务行缺失时整体回滚，不留孤儿死信行（真实 PostgreSQL 回归）
-  - regression: Unit 585/585、Architecture 1/1、Contract 12/12
-Evidence: Build 0 warnings/0 errors；CI/Security GREEN at `8a8fcd1`（37469389070/37469389126）；
-     Docker 37469389018 GREEN（首跑 GHCR 推送瞬时 unknown blob，重跑通过）
+  - happy path: 每条消息处理前续约整批剩余租约（单元接线断言）
+  - error path: 过期后经续约不可被其他 owner 领取；终态行不参与续约（真实 PostgreSQL 回归）
+  - regression: Unit 587/587、Architecture 1/1、Contract 12/12
+Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `1658b87`（37478901744/37478902070/37478901915）
 ```
 
 ## Adoption 记录

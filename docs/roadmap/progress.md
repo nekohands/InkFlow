@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.57 死信与任务状态同事务已实现并通过全部 Gate（`8a8fcd1` 三 workflow GREEN）；历史记录见 `progress-history.md`。
+- 文档状态：5.58 Inbox/Outbox 批次租约续约已实现并通过全部 Gate（`1658b87` 三 workflow GREEN）；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-06
 
 ## 1. 总体状态
@@ -116,6 +116,14 @@ Phase 1A 自动化工作包状态：
 - 实现：`ICrawlerTaskRepository` 新增 `AddDeadLetterWithTaskAsync`（默认顺序两写回退供测试替身，生产必须覆写，沿仓库既有先例）；EF 实现以单个 ReadCommitted 事务同时提交死信行与任务终态，任一写失败整体回滚；`CrawlerTaskProcessor` 死信路径改用原子方法。
 - 测试：新增真实 PostgreSQL 回归两条——死信+终态单事务同时可见；任务行缺失时死信写入整体回滚（旧两段式会先提交死信行留下漂移，单事务实现断言死信行不存在）。
 - 验证：本机 Release Build 0 warnings / 0 errors；Unit 585/585、Architecture 1/1、Contract 12/12 PASS；无 Schema/Migration 变更。远端提交 `8a8fcd1` 的 [CI 37469389070](https://github.com/nekohands/InkFlow/actions/runs/37469389070) 与 [Security 37469389126](https://github.com/nekohands/InkFlow/actions/runs/37469389126) GREEN；Docker 首跑在镜像构建/扫描（0 漏洞）成功后遇 GHCR 推送瞬时 `unknown blob`，定位为 registry 侧抖动并重跑该 job 后 [Docker 37469389018](https://github.com/nekohands/InkFlow/actions/runs/37469389018) GREEN。
+
+### 5.58 Inbox/Outbox 批次租约续约（本轮，2026-10-06）
+
+- 缺口（审查中危项）：Outbox 投递与 Inbox 消费都以短租约整批领取后串行处理，批次耗时超过租约时长时，后半段消息在处理途中租约过期，会被其他实例重复领取/投递（仅靠幂等消费兜底，浪费且放大竞态窗口）。
+- 实现：`IOutboxStore`/`IInboxStore` 新增 `ExtendLeaseBatchAsync`（默认无操作回退供测试替身，生产必须覆写）；`EfMessagingMessageStore` 以单语句 UPDATE 只续约仍由同一 owner 持有且未达终态的行（Outbox 要求 ProcessedAt 为空；Inbox 还要求 DeadLetteredAt 为空），owner 不匹配的行不会被续约；`OutboxDispatcher` 与 `InboxConsumerPump` 在处理每条消息前续约整批剩余租约。
+- 测试：单元新增 dispatcher/pump 续约接线断言（每条消息前一次续约、ids/owner/时长正确）；集成（真实 PostgreSQL）新增两条——Inbox/Outbox 各验证"原租约过期后经续约不可被其他 owner 领取 + 终态行不参与续约"。候选 `e2b4e6a` CI RED 暴露 Outbox 领取无类型过滤会捞到共享容器中此前用例的遗留行，测试断言收窄到本用例消息后修复（`1658b87`）。
+- 验证：本机 Release Build 0 warnings / 0 errors；Unit 587/587、Architecture 1/1、Contract 12/12 PASS；无 Schema/Migration 变更。远端提交 `1658b87` 的 [CI 37478901744](https://github.com/nekohands/InkFlow/actions/runs/37478901744)、[Docker 37478902070](https://github.com/nekohands/InkFlow/actions/runs/37478902070)、[Security 37478901915](https://github.com/nekohands/InkFlow/actions/runs/37478901915) 均 success（含真实 PostgreSQL Integration 与 Runtime smoke）。
+- 边界：单条 Handler 执行超过完整租约时长的中途续约本轮未实现（仍由幂等消费兜底），已记录为后续可选加固。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -252,7 +260,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-10-06）：审查高危项全部关闭（H2→5.54 重放/族吊销，H1→5.55 全局异常处理，H3→5.52/ADR 0028 既定边界）；5.56 完成 Canonical 匹配入口原子化（并发重复正典身份缺口），5.57 完成死信与任务状态同事务（半一致终态缺口）。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。剩余中危候选：Inbox/Outbox 租约心跳续约、乐观并发令牌、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验，待逐项 intake。
+最新状态（2026-10-06）：审查高危项全部关闭（H2→5.54 重放/族吊销，H1→5.55 全局异常处理，H3→5.52/ADR 0028 既定边界）；5.56 完成 Canonical 匹配入口原子化（并发重复正典身份缺口），5.57 完成死信与任务状态同事务（半一致终态缺口），5.58 完成 Inbox/Outbox 批次租约续约（长批次重复领取缺口）。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。剩余中危候选：乐观并发令牌、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验，待逐项 intake。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

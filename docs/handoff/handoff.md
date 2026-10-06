@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.57 死信与任务状态同事务已实现并通过全部 Gate（`8a8fcd1` 三 workflow GREEN）；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.58 Inbox/Outbox 批次租约续约已实现并通过全部 Gate（`1658b87` 三 workflow GREEN）；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-06；dev 骨架重建更新：2026-08-25
 
@@ -157,6 +157,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 测试：`CrawlerTaskRepositoryTests` 新增两条真实 PostgreSQL 回归——双写同时可见；任务行缺失时死信整体回滚（旧两段式会留下孤儿死信行）。
 - 门禁：本机 Unit 585/585、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors；无 Schema/Migration 变更。远端 `8a8fcd1` 的 [CI 37469389070](https://github.com/nekohands/InkFlow/actions/runs/37469389070)、[Security 37469389126](https://github.com/nekohands/InkFlow/actions/runs/37469389126) GREEN；Docker 首跑遇 GHCR 推送瞬时 `unknown blob`（构建与 0 漏洞扫描均已成功），重跑该 job 后 GREEN。
 - 下一步候选：Inbox/Outbox 租约心跳续约、乐观并发令牌、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验；需先定义 intake。
+
+### 5.58 Inbox/Outbox 批次租约续约交接（本轮，2026-10-06）
+
+- 代码：`IOutboxStore`/`IInboxStore.ExtendLeaseBatchAsync`（默认回退 + EF 单语句 UPDATE，owner/终态守卫）；`OutboxDispatcher` 与 `InboxConsumerPump` 处理每条消息前续约整批剩余租约。消除长批次下后半段消息租约过期被重复领取/投递的缺口。
+- 测试：单元接线断言（记录型 fake）2 例 + 真实 PostgreSQL 回归 2 例（过期后不可被其他 owner 领取、终态行不参与续约）。候选 `e2b4e6a` CI RED 暴露 Outbox 领取无类型过滤捞到遗留行，断言收窄后 `1658b87` 修复。
+- 门禁：本机 Unit 587/587、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors；无 Schema/Migration 变更。远端 `1658b87` 的 [CI 37478901744](https://github.com/nekohands/InkFlow/actions/runs/37478901744)、[Docker 37478902070](https://github.com/nekohands/InkFlow/actions/runs/37478902070)、[Security 37478901915](https://github.com/nekohands/InkFlow/actions/runs/37478901915) 均 success。
+- 边界：单条 Handler 超过完整租约时长的中途续约未实现（幂等消费兜底），已记录。
 
 ## 5. 关键架构不变量
 
