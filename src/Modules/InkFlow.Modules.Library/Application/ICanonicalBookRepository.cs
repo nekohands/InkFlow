@@ -37,6 +37,34 @@ public interface ICanonicalBookRepository
     Task<CanonicalBook?> FindByTitleAuthorAsync(
         string title, string author, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 归一化 (title, author) 维度的匹配互斥作用域：生产实现必须在单个事务内
+    /// 取稳定 advisory lock 并保持到提交，使锁内的候选复查与书/候选写入成为
+    /// 原子临界区，杜绝并发匹配创建重复正典身份。默认实现为无互斥的兼容回退，
+    /// 仅供测试替身使用；生产实现必须覆写。
+    /// </summary>
+    Task<ICanonicalMatchScope> BeginTitleAuthorScopeAsync(
+        string title, string author, CancellationToken cancellationToken = default)
+        => Task.FromResult<ICanonicalMatchScope>(NoOpCanonicalMatchScope.Instance);
+
     /// <summary>写回聚合的元数据与新增章节（已有章节不可变）。</summary>
     Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// 匹配临界区作用域：同一 DbContext 上的全部仓储写入共享作用域事务。
+/// 提交后互斥锁随事务释放；未提交即释放（Dispose）时回滚全部临界区写入。
+/// </summary>
+public interface ICanonicalMatchScope : IAsyncDisposable
+{
+    Task CommitAsync(CancellationToken cancellationToken = default);
+}
+
+internal sealed class NoOpCanonicalMatchScope : ICanonicalMatchScope
+{
+    internal static readonly NoOpCanonicalMatchScope Instance = new();
+
+    public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

@@ -1,8 +1,10 @@
+using System.Data;
 using InkFlow.BuildingBlocks.Persistence;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Library.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace InkFlow.Modules.Library.Infrastructure.Persistence;
 
@@ -114,6 +116,68 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
 
     private static string Normalize(string value) =>
         string.Concat(value.Where(c => !char.IsWhiteSpace(c))).ToLowerInvariant();
+
+    /// <summary>
+    /// 匹配互斥作用域：单个 ReadCommitted 事务内以归一化 (title, author) 的稳定
+    /// SHA-256 前缀为键取 pg_advisory_xact_lock。同一书身份的并发匹配在此串行化，
+    /// 事务提交前锁不释放；本 DbContext 上的其余仓储写入共享该事务。
+    /// </summary>
+    public async Task<ICanonicalMatchScope> BeginTitleAuthorScopeAsync(
+        string title, string author, CancellationToken cancellationToken = default)
+    {
+        var transaction = await db.Database
+            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
+            .ConfigureAwait(false);
+
+        try
+        {
+            var lockKey = TitleAuthorLockKey(title, author);
+            await db.Database
+                .ExecuteSqlInterpolatedAsync(
+                    $"SELECT pg_advisory_xact_lock({lockKey})", cancellationToken)
+                .ConfigureAwait(false);
+            return new EfCanonicalMatchScope(transaction);
+        }
+        catch
+        {
+            await transaction.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    internal static long TitleAuthorLockKey(string title, string author)
+    {
+        // 进程间稳定：归一化与哈希均为确定性计算，不依赖 PG 内置哈希。
+        var material = string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"{Normalize(title)}\u0001{Normalize(author)}");
+        var digest = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(material));
+        return BitConverter.ToInt64(digest, 0);
+    }
+
+    private sealed class EfCanonicalMatchScope(IDbContextTransaction transaction) : ICanonicalMatchScope
+    {
+        private IDbContextTransaction? _transaction = transaction;
+
+        public async Task CommitAsync(CancellationToken cancellationToken = default)
+        {
+            if (_transaction is { } current)
+            {
+                _transaction = null;
+                await current.CommitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_transaction is { } current)
+            {
+                _transaction = null;
+                await current.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
 
     public async Task SaveAsync(CanonicalBook book, CancellationToken cancellationToken = default)
     {

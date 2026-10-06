@@ -31,20 +31,14 @@ public sealed class CanonicalBookMatchingService(
     public async Task<MatchOutcome> CreateOrMatchAsync(
         string sourceId, string externalBookId, CancellationToken cancellationToken = default)
     {
+        // 快路径：既有 Confirmed 候选是不可变事实，幂等返回且无需互斥。
         var existing = await matchCandidateRepository
             .FindForSourceBookAsync(sourceId, externalBookId, cancellationToken)
             .ConfigureAwait(false);
 
         if (existing is { Status: MatchCandidateStatus.Confirmed })
         {
-            var confirmed = await canonicalBookRepository
-                .GetAsync(existing.CanonicalBookId, cancellationToken)
-                .ConfigureAwait(false);
-
-            return confirmed is null
-                ? new MatchOutcome(false, null, false,
-                    [$"match: candidate {existing.Id} points to missing book {existing.CanonicalBookId}."])
-                : MatchOutcome.Ok(confirmed, newlyCreated: false);
+            return await ResolveConfirmedAsync(existing, cancellationToken).ConfigureAwait(false);
         }
 
         var sourceBook = await sourceBookRepository
@@ -57,6 +51,22 @@ public sealed class CanonicalBookMatchingService(
             [
                 $"match: source book '{sourceId}/{externalBookId}' does not exist; import it first.",
             ]);
+        }
+
+        // 临界区：并发匹配同一书身份（归一化同名同作者）时，检查-创建必须原子完成，
+        // 否则会为同一本书创建重复正典身份。作用域在单个事务内持有 (title, author)
+        // 互斥锁；锁内复查候选（另一并发请求可能已完成整段流程）后再创建/挂接。
+        await using var scope = await canonicalBookRepository
+            .BeginTitleAuthorScopeAsync(sourceBook.Title, sourceBook.Author, cancellationToken)
+            .ConfigureAwait(false);
+
+        var raced = await matchCandidateRepository
+            .FindForSourceBookAsync(sourceId, externalBookId, cancellationToken)
+            .ConfigureAwait(false);
+        if (raced is { Status: MatchCandidateStatus.Confirmed })
+        {
+            await scope.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return await ResolveConfirmedAsync(raced, cancellationToken).ConfigureAwait(false);
         }
 
         // 同书自动挂接:另一来源已导入的同名同作者书 → 复用其正典书(BookId 不变)。
@@ -82,6 +92,20 @@ public sealed class CanonicalBookMatchingService(
             book.Id, sourceId, externalBookId, Clock.GetUtcNow());
         await matchCandidateRepository.AddAsync(newCandidate, cancellationToken).ConfigureAwait(false);
 
+        await scope.CommitAsync(cancellationToken).ConfigureAwait(false);
         return MatchOutcome.Ok(book, newlyCreated);
+    }
+
+    private async Task<MatchOutcome> ResolveConfirmedAsync(
+        MatchCandidate confirmedCandidate, CancellationToken cancellationToken)
+    {
+        var confirmed = await canonicalBookRepository
+            .GetAsync(confirmedCandidate.CanonicalBookId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return confirmed is null
+            ? new MatchOutcome(false, null, false,
+                [$"match: candidate {confirmedCandidate.Id} points to missing book {confirmedCandidate.CanonicalBookId}."])
+            : MatchOutcome.Ok(confirmed, newlyCreated: false);
     }
 }
