@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.56 Canonical 匹配入口原子化已实现并通过全部 Gate（`8eb9162` 三 workflow GREEN）；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.57 死信与任务状态同事务已实现并通过全部 Gate（`8a8fcd1` 三 workflow GREEN）；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-06；dev 骨架重建更新：2026-08-25
 
@@ -150,6 +150,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 测试：`CanonicalMatchConcurrencyTests`（真实 PostgreSQL，8 路并发 × 两个空白变体来源书）断言恰 1 个正典书、同一 BookId、2 候选、至多 1 次创建。夹具 `Migrate()` 竞争缺陷由提交 `8eb9162` 修复（类初始化迁移一次）。
 - 门禁：本机 Unit 585/585、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors；远端 `8eb9162` 的 [CI 37437471071](https://github.com/nekohands/InkFlow/actions/runs/37437471071)、[Docker 37437470761](https://github.com/nekohands/InkFlow/actions/runs/37437470761)、[Security 37437470720](https://github.com/nekohands/InkFlow/actions/runs/37437470720) 均 success。无 Schema/Migration 变更；`FindByTitleAuthorAsync` 全表加载（性能项）未动，单独立项。
 - 下一步候选：Inbox/Outbox 租约心跳续约、乐观并发令牌、死信与任务状态同事务、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验；需先定义 intake。
+
+### 5.57 死信与任务状态同事务交接（本轮，2026-10-06）
+
+- 代码：`ICrawlerTaskRepository.AddDeadLetterWithTaskAsync`（默认顺序两写回退 + EF 覆写：单个 ReadCommitted 事务同时提交死信行与 DeadLettered 终态）；`CrawlerTaskProcessor.FailTaskAsync` 死信路径改用原子方法。消除崩溃/写失败留下的"有死信无终态"或"有终态无死信"半一致状态。
+- 测试：`CrawlerTaskRepositoryTests` 新增两条真实 PostgreSQL 回归——双写同时可见；任务行缺失时死信整体回滚（旧两段式会留下孤儿死信行）。
+- 门禁：本机 Unit 585/585、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors；无 Schema/Migration 变更。远端 `8a8fcd1` 的 [CI 37469389070](https://github.com/nekohands/InkFlow/actions/runs/37469389070)、[Security 37469389126](https://github.com/nekohands/InkFlow/actions/runs/37469389126) GREEN；Docker 首跑遇 GHCR 推送瞬时 `unknown blob`（构建与 0 漏洞扫描均已成功），重跑该 job 后 GREEN。
+- 下一步候选：Inbox/Outbox 租约心跳续约、乐观并发令牌、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验；需先定义 intake。
 
 ## 5. 关键架构不变量
 

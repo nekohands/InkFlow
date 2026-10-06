@@ -25,16 +25,14 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 Active work package: Intake required — next candidates are the review's
 medium-severity items (Inbox/Outbox lease heartbeat renewal, optimistic
-concurrency tokens, dead-letter/task-state same-transaction, catalog query
-pagination; see profile Work Package).
-Last completed: canonical match entry-point atomicity (5.56) — concurrent
-matching of the same book identity is serialized by a transaction-scoped
-advisory lock on the normalized (title, author), with an in-lock candidate
-re-check; 8-way concurrent match yields exactly one canonical book
-(CI/Docker/Security GREEN at `8eb9162`, runs 37437471071/37437470761/37437470720).
-Contract: `ICanonicalBookRepository.BeginTitleAuthorScopeAsync` is the matching
-mutex; the default no-op scope is for test doubles only — production
-implementations must override it.
+concurrency tokens, catalog query pagination, adapter regex timeouts; see
+profile Work Package).
+Last completed: dead-letter/task-state same-transaction write (5.57) —
+`ICrawlerTaskRepository.AddDeadLetterWithTaskAsync` commits the dead-letter row
+and the DeadLettered terminal state in one ReadCommitted transaction (the
+sequential pair remains the test-double fallback); rollback regression proves
+no orphan dead-letter rows (CI/Docker/Security GREEN at `8a8fcd1`, runs
+37469389070/37469389018/37469389126).
 
 Current progress: [docs/roadmap/progress.md](../docs/roadmap/progress.md) ·
 Current handoff: [docs/handoff/handoff.md](../docs/handoff/handoff.md) ·

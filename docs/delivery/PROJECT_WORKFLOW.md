@@ -70,22 +70,23 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 ## Work Package
 
 当前状态：Intake required（无进行中工作包）。下一候选为 2026-09-11 审查中危项
-（Inbox/Outbox 租约心跳续约、乐观并发令牌、死信与任务状态同事务、Catalog 查询
-分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验），开工前先填：
-目标/用户结果、范围与非目标、验收条件（正常/错误/回归）。
+（Inbox/Outbox 租约心跳续约、乐观并发令牌、Catalog 查询分页/N+1、适配器正则
+超时/无界读取、EntitlementService actor 校验），开工前先填：目标/用户结果、
+范围与非目标、验收条件（正常/错误/回归）。
 
-最近完成工作包（5.56，2026-10-06，`Accepted` 级证据）：
+最近完成工作包（5.57，2026-10-06，`Accepted` 级证据）：
 
 ```text
-Name: Canonical 匹配入口原子化
-Objective / user outcome: 并发匹配同一书身份不再产生重复正典身份（BookId 稳定不变量的并发面）
-In scope: Library 模块（ICanonicalBookRepository 互斥作用域 + EF advisory lock + 匹配服务临界区双检）
-Non-goals: FindByTitleAuthorAsync 全表加载性能项（另行立项）；无 Schema/Migration 变更
+Name: 死信与任务状态同事务
+Objective / user outcome: 任务失败进死信时，死信行与 DeadLettered 终态原子落库，不再产生半一致状态
+In scope: Crawling 模块（ICrawlerTaskRepository.AddDeadLetterWithTaskAsync + EF 事务 + Processor 接线）
+Non-goals: 无 Schema/Migration 变更；乐观并发令牌另行立项
 Acceptance criteria（全部满足）:
-  - happy path: 串行/幂等匹配行为不变（Unit 585/585 全绿）
-  - error path: 作用域内异常整体回滚，锁随事务释放
-  - regression: 真实 PostgreSQL 8 路并发匹配断言恰 1 个正典书/同一 BookId/2 候选/至多 1 次创建
-Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `8eb9162`（37437471071/37437470761/37437470720）
+  - happy path: 死信 + 终态同时可见（真实 PostgreSQL 回归）
+  - error path: 任务行缺失时整体回滚，不留孤儿死信行（真实 PostgreSQL 回归）
+  - regression: Unit 585/585、Architecture 1/1、Contract 12/12
+Evidence: Build 0 warnings/0 errors；CI/Security GREEN at `8a8fcd1`（37469389070/37469389126）；
+     Docker 37469389018 GREEN（首跑 GHCR 推送瞬时 unknown blob，重跑通过）
 ```
 
 ## Adoption 记录
