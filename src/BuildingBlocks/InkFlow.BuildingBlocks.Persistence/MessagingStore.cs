@@ -464,6 +464,52 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 单语句续约整批租约：只延长仍由同一 owner 持有且未达终态的行
+    /// （Outbox 要求 ProcessedAt 为空；Inbox 还要求 DeadLetteredAt 为空）。
+    /// 同一组 Id 只会存在于其中一张表，两张表各更新一次并求和。
+    /// </summary>
+    public async Task<int> ExtendLeaseBatchAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string owner,
+        DateTimeOffset now,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateOwner(owner);
+        ValidateLease(leaseDuration);
+        ValidateMessageIdBatch(messageIds);
+        if (messageIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var until = now.ToUniversalTime() + leaseDuration;
+        var parameters = new object[] { CreateIdParameter(messageIds), owner, until };
+        var outboxRows = await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE "messaging"."outbox_messages"
+               SET "LockedUntil" = {2}
+             WHERE "Id" = ANY ({0})
+               AND "LockOwner" = {1}
+               AND "ProcessedAt" IS NULL
+               AND "LockedUntil" IS NOT NULL
+            """,
+            parameters, cancellationToken).ConfigureAwait(false);
+        var inboxRows = await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE "messaging"."inbox_messages"
+               SET "LockedUntil" = {2}
+             WHERE "Id" = ANY ({0})
+               AND "LockOwner" = {1}
+               AND "ProcessedAt" IS NULL
+               AND "DeadLetteredAt" IS NULL
+               AND "LockedUntil" IS NOT NULL
+            """,
+            parameters, cancellationToken).ConfigureAwait(false);
+        return outboxRows + inboxRows;
+    }
+
     private async Task<OutboxMessageEntity> GetOutboxForUpdateAsync(
         Guid messageId,
         CancellationToken cancellationToken)
@@ -624,6 +670,21 @@ public sealed class EfMessagingMessageStore(MessagingDbContext db)
             throw new ArgumentOutOfRangeException(nameof(limit));
         }
     }
+
+    private static void ValidateMessageIdBatch(IReadOnlyCollection<Guid> messageIds)
+    {
+        ArgumentNullException.ThrowIfNull(messageIds);
+        if (messageIds.Any(id => id == Guid.Empty))
+        {
+            throw new ArgumentException("message ids must not be empty.", nameof(messageIds));
+        }
+    }
+
+    private static NpgsqlParameter CreateIdParameter(IReadOnlyCollection<Guid> messageIds) =>
+        new("ids", messageIds.ToArray())
+        {
+            NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Uuid,
+        };
 
     private static void ValidateRetentionLimit(int limit)
     {

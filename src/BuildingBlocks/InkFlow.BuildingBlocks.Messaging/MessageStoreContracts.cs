@@ -102,6 +102,20 @@ public interface IOutboxStore
         DateTimeOffset availableAt,
         string failureCode,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 续约一批仍由同一 owner 持有的消息租约（已发布/非本 owner 的行自动跳过）。
+    /// 返回实际续约数。批次处理慢于租约时长时，调用方在处理每条消息前续约剩余
+    /// 整批，避免租约过期后被其他 dispatcher 重复投递。
+    /// 默认实现为无操作的兼容回退，仅供测试替身使用；生产实现必须覆写。
+    /// </summary>
+    Task<int> ExtendLeaseBatchAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string owner,
+        DateTimeOffset now,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(messageIds.Count);
 }
 
 /// <summary>
@@ -153,4 +167,18 @@ public interface IInboxStore
         DateTimeOffset? availableAt,
         bool deadLettered,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 续约一批仍由同一 owner 持有且未达终态的消息租约。返回实际续约数。
+    /// 批次处理慢于租约时长时，调用方在处理每条消息前续约剩余整批，
+    /// 避免租约过期后被其他 consumer 重复领取。
+    /// 默认实现为无操作的兼容回退，仅供测试替身使用；生产实现必须覆写。
+    /// </summary>
+    Task<int> ExtendLeaseBatchAsync(
+        IReadOnlyCollection<Guid> messageIds,
+        string owner,
+        DateTimeOffset now,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(messageIds.Count);
 }

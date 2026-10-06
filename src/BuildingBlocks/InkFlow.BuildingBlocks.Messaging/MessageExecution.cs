@@ -40,9 +40,21 @@ public sealed class OutboxDispatcher : IOutboxDispatcher
 
         var publishedCount = 0;
         var failedCount = 0;
+        var claimedIds = messages.Select(message => message.Id).ToArray();
         foreach (var message in messages)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // 批次可能慢于租约时长：处理每条前续约整批剩余租约，
+            // 防止后半段消息租约过期后被其他 dispatcher 重复投递。
+            await _store
+                .ExtendLeaseBatchAsync(
+                    claimedIds,
+                    _options.Owner,
+                    _clock.GetUtcNow(),
+                    _options.LeaseDuration,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             try
             {

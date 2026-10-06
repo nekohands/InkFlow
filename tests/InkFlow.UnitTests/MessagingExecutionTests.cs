@@ -168,6 +168,74 @@ public sealed class MessagingExecutionTests
         Assert.Throws<ArgumentOutOfRangeException>(() => policy.DelayFor(0));
     }
 
+    [TestMethod]
+    public async Task Outbox_Dispatcher_Renews_Claimed_Leases_Before_Each_Publish()
+    {
+        var first = CreateMessage("test.dispatch.renew-1");
+        var second = CreateMessage("test.dispatch.renew-2");
+        var store = new RecordingRenewalOutboxStore(first, second);
+        var dispatcher = new OutboxDispatcher(
+            store,
+            new RecordingPublisher(),
+            new FixedTimeProvider(T0),
+            new OutboxDispatcherOptions
+            {
+                Owner = "dispatcher-renew",
+                LeaseDuration = TimeSpan.FromMinutes(2),
+                BatchSize = 10,
+            });
+
+        var result = await dispatcher.DispatchOnceAsync().ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.PublishedCount);
+        Assert.AreEqual(2, store.Renewals.Count, "每条消息投递前都必须续约整批租约");
+        Assert.IsTrue(store.Renewals.All(renewal =>
+            renewal.Owner == "dispatcher-renew" &&
+            renewal.Until == T0.AddMinutes(2)));
+        CollectionAssert.AreEquivalent(
+            new[] { first.Id, second.Id },
+            store.Renewals[0].MessageIds);
+        CollectionAssert.AreEquivalent(
+            new[] { first.Id, second.Id },
+            store.Renewals[1].MessageIds);
+    }
+
+    [TestMethod]
+    public async Task Inbox_Pump_Renews_Claimed_Leases_Before_Each_Consume()
+    {
+        var first = CreateMessage("test.consume.renew");
+        var second = CreateMessage("test.consume.renew");
+        var store = new RecordingRenewalInboxStore(first, second);
+        var handler = new RecordingHandler(first.MessageType);
+        var pump = new InboxConsumerPump(
+            store,
+            new IntegrationMessageConsumer(
+                store,
+                new IntegrationMessageHandlerRegistry([handler]),
+                new FixedTimeProvider(T0),
+                new InboxConsumerOptions { Owner = "pump-renew" }),
+            new IntegrationMessageHandlerRegistry([handler]),
+            new FixedTimeProvider(T0),
+            new InboxConsumerOptions
+            {
+                Owner = "pump-renew",
+                LeaseDuration = TimeSpan.FromMinutes(2),
+                BatchSize = 10,
+            });
+
+        var result = await pump.ConsumeOnceAsync().ConfigureAwait(false);
+
+        Assert.AreEqual(2, result.ClaimedCount);
+        Assert.AreEqual(2, result.ProcessedCount);
+        Assert.AreEqual(2, store.Renewals.Count, "每条消息消费前都必须续约整批租约");
+        Assert.IsTrue(store.Renewals.All(renewal =>
+            renewal.Owner == "pump-renew" &&
+            renewal.Until == T0.AddMinutes(2)));
+        CollectionAssert.AreEquivalent(
+            new[] { first.Id, second.Id },
+            store.Renewals[0].MessageIds);
+    }
+
     private static IntegrationMessage CreateMessage(string messageType) =>
         IntegrationMessage.Create(messageType, "{\"value\":1}", T0, id: Guid.CreateVersion7());
 
@@ -203,6 +271,141 @@ public sealed class MessagingExecutionTests
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed record LeaseRenewal(
+        Guid[] MessageIds,
+        string Owner,
+        DateTimeOffset Until);
+
+    /// <summary>批量领取调用方给定的消息并记录每次续约，用于断言泵/dispatcher 的续约接线。</summary>
+    private sealed class RecordingRenewalOutboxStore(params IntegrationMessage[] messages) : IOutboxStore
+    {
+        private readonly Queue<OutboxMessageRecord> _outstanding = new(messages
+            .Select(message => new OutboxMessageRecord(
+                message.Id,
+                message.MessageType,
+                message.OccurredAt,
+                message.OccurredAt,
+                message.Payload,
+                message.PayloadHash,
+                message.TraceId,
+                0,
+                null,
+                null,
+                null,
+                null)));
+
+        public List<LeaseRenewal> Renewals { get; } = [];
+
+        public Task EnqueueAsync(
+            IntegrationMessage message,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<OutboxMessageRecord>> ClaimBatchAsync(
+            string owner,
+            DateTimeOffset now,
+            TimeSpan leaseDuration,
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            List<OutboxMessageRecord> claimed = [];
+            while (claimed.Count < limit && _outstanding.Count > 0)
+            {
+                claimed.Add(_outstanding.Dequeue());
+            }
+
+            return Task.FromResult<IReadOnlyList<OutboxMessageRecord>>(claimed);
+        }
+
+        public Task MarkPublishedAsync(
+            Guid messageId,
+            string owner,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task MarkFailedAsync(
+            Guid messageId,
+            string owner,
+            DateTimeOffset now,
+            DateTimeOffset availableAt,
+            string failureCode,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<int> ExtendLeaseBatchAsync(
+            IReadOnlyCollection<Guid> messageIds,
+            string owner,
+            DateTimeOffset now,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default)
+        {
+            Renewals.Add(new([.. messageIds], owner, now + leaseDuration));
+            return Task.FromResult(messageIds.Count);
+        }
+    }
+
+    /// <summary>批量领取调用方给定的 Inbox 消息并记录每次续约。</summary>
+    private sealed class RecordingRenewalInboxStore(params IntegrationMessage[] messages) : IInboxStore
+    {
+        private readonly Queue<InboxMessageRecord> _outstanding = new(messages
+            .Select(message => new InboxMessageRecord(message, 1)));
+
+        public List<LeaseRenewal> Renewals { get; } = [];
+
+        public Task<IReadOnlyList<InboxMessageRecord>> ClaimBatchAsync(
+            string owner,
+            DateTimeOffset now,
+            TimeSpan leaseDuration,
+            int limit,
+            IReadOnlyCollection<string> messageTypes,
+            CancellationToken cancellationToken = default)
+        {
+            List<InboxMessageRecord> claimed = [];
+            while (claimed.Count < limit && _outstanding.Count > 0)
+            {
+                claimed.Add(_outstanding.Dequeue());
+            }
+
+            return Task.FromResult<IReadOnlyList<InboxMessageRecord>>(claimed);
+        }
+
+        public Task<InboxClaimResult> TryClaimAsync(
+            IntegrationMessage message,
+            string owner,
+            DateTimeOffset now,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new InboxClaimResult(
+                message.Id,
+                InboxClaimStatus.Claimed,
+                1));
+
+        public Task MarkProcessedAsync(
+            Guid messageId,
+            string owner,
+            DateTimeOffset now,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task MarkFailedAsync(
+            Guid messageId,
+            string owner,
+            DateTimeOffset now,
+            string failureCode,
+            DateTimeOffset? availableAt,
+            bool deadLettered,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<int> ExtendLeaseBatchAsync(
+            IReadOnlyCollection<Guid> messageIds,
+            string owner,
+            DateTimeOffset now,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default)
+        {
+            Renewals.Add(new([.. messageIds], owner, now + leaseDuration));
+            return Task.FromResult(messageIds.Count);
+        }
     }
 
     private sealed class MutableTimeProvider(DateTimeOffset now) : TimeProvider

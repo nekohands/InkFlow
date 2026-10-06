@@ -1055,6 +1055,95 @@ public sealed class MessagingPersistenceTests
                 .ConfigureAwait(false));
     }
 
+    [TestMethod]
+    public async Task Inbox_Lease_Renewal_Extends_Claim_And_Skips_Terminal_Rows()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var first = IntegrationMessage.Create("test.inbox.renew", "{\"n\":1}", T0, id: Guid.CreateVersion7());
+        var second = IntegrationMessage.Create("test.inbox.renew", "{\"n\":2}", T0, id: Guid.CreateVersion7());
+        await using (var seed = CreateMessagingDb())
+        {
+            var seedStore = new EfMessagingMessageStore(seed);
+            await seedStore.EnqueueAsync(first, T0).ConfigureAwait(false);
+            await seedStore.EnqueueAsync(second, T0).ConfigureAwait(false);
+        }
+
+        await using var claimDb = CreateMessagingDb();
+        var claimed = await new EfMessagingMessageStore(claimDb)
+            .ClaimBatchAsync("consumer-a", T0, TimeSpan.FromSeconds(30), 10, ["test.inbox.renew"])
+            .ConfigureAwait(false);
+        Assert.AreEqual(2, claimed.Count);
+        var ids = claimed.Select(record => record.Message.Id).ToArray();
+
+        // 原租约 T0+30s 过期。不续约时另一 owner 在 T0+31s 即可重复领取；
+        // 续约把整批租约延到 T0+61s，期间其他 owner 领取不到。
+        await using var renewDb = CreateMessagingDb();
+        var renewed = await new EfMessagingMessageStore(renewDb)
+            .ExtendLeaseBatchAsync(ids, "consumer-a", T0.AddSeconds(31), TimeSpan.FromSeconds(30))
+            .ConfigureAwait(false);
+        Assert.AreEqual(2, renewed);
+
+        await using var stealDb = CreateMessagingDb();
+        var stolen = await new EfMessagingMessageStore(stealDb)
+            .ClaimBatchAsync("consumer-b", T0.AddSeconds(40), TimeSpan.FromSeconds(30), 10, ["test.inbox.renew"])
+            .ConfigureAwait(false);
+        Assert.AreEqual(0, stolen.Count);
+
+        // 终态行不参与续约：确认一条后，同批续约只应命中剩余一条。
+        await using var markDb = CreateMessagingDb();
+        await new EfMessagingMessageStore(markDb)
+            .MarkProcessedAsync(ids[0], "consumer-a", T0.AddSeconds(41))
+            .ConfigureAwait(false);
+        await using var renewAgainDb = CreateMessagingDb();
+        var renewedAgain = await new EfMessagingMessageStore(renewAgainDb)
+            .ExtendLeaseBatchAsync(ids, "consumer-a", T0.AddSeconds(45), TimeSpan.FromSeconds(30))
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, renewedAgain);
+    }
+
+    [TestMethod]
+    public async Task Outbox_Lease_Renewal_Prevents_Republish_After_Original_Lease_Expiry()
+    {
+        await MigrateMessagingAsync().ConfigureAwait(false);
+        var first = IntegrationMessage.Create("test.outbox.renew", "{\"n\":1}", T0, id: Guid.CreateVersion7());
+        var second = IntegrationMessage.Create("test.outbox.renew", "{\"n\":2}", T0, id: Guid.CreateVersion7());
+        await using (var seed = CreateMessagingDb())
+        {
+            var seedStore = new EfMessagingMessageStore(seed);
+            await seedStore.EnqueueAsync(first).ConfigureAwait(false);
+            await seedStore.EnqueueAsync(second).ConfigureAwait(false);
+        }
+
+        await using var claimDb = CreateMessagingDb();
+        var claimed = await new EfMessagingMessageStore(claimDb)
+            .ClaimBatchAsync("dispatcher-a", T0, TimeSpan.FromSeconds(30), 10)
+            .ConfigureAwait(false);
+        Assert.AreEqual(2, claimed.Count);
+        var ids = claimed.Select(record => record.Id).ToArray();
+
+        await using var renewDb = CreateMessagingDb();
+        var renewed = await new EfMessagingMessageStore(renewDb)
+            .ExtendLeaseBatchAsync(ids, "dispatcher-a", T0.AddSeconds(31), TimeSpan.FromSeconds(30))
+            .ConfigureAwait(false);
+        Assert.AreEqual(2, renewed);
+
+        await using var stealDb = CreateMessagingDb();
+        var stolen = await new EfMessagingMessageStore(stealDb)
+            .ClaimBatchAsync("dispatcher-b", T0.AddSeconds(40), TimeSpan.FromSeconds(30), 10)
+            .ConfigureAwait(false);
+        Assert.AreEqual(0, stolen.Count);
+
+        await using var markDb = CreateMessagingDb();
+        await new EfMessagingMessageStore(markDb)
+            .MarkPublishedAsync(ids[0], "dispatcher-a", T0.AddSeconds(41))
+            .ConfigureAwait(false);
+        await using var renewAgainDb = CreateMessagingDb();
+        var renewedAgain = await new EfMessagingMessageStore(renewAgainDb)
+            .ExtendLeaseBatchAsync(ids, "dispatcher-a", T0.AddSeconds(45), TimeSpan.FromSeconds(30))
+            .ConfigureAwait(false);
+        Assert.AreEqual(1, renewedAgain);
+    }
+
     private static async Task MigrateAllRequiredSchemasAsync()
     {
         await MigrateMessagingAsync().ConfigureAwait(false);

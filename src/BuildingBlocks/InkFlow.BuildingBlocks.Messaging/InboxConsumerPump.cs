@@ -63,9 +63,22 @@ public sealed class InboxConsumerPump : IInboxConsumerPump
         var failedCount = 0;
         var skippedCount = 0;
         var deadLetteredCount = 0;
+        var claimedIds = claimed.Select(record => record.Message.Id).ToArray();
         foreach (var message in claimed)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // 批次可能慢于租约时长：处理每条前续约整批剩余租约，
+            // 防止后半段消息租约过期后被其他 consumer 重复领取。
+            await _store
+                .ExtendLeaseBatchAsync(
+                    claimedIds,
+                    _options.Owner,
+                    _clock.GetUtcNow(),
+                    _options.LeaseDuration,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
             var result = await _consumer
                 .ConsumeClaimedAsync(message, cancellationToken)
                 .ConfigureAwait(false);
