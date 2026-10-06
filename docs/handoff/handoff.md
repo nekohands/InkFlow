@@ -5,9 +5,9 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.55 API 宿主全局异常处理（审查项 H1）已实现并通过全部 Gate（`d2cbbca` 三 workflow GREEN）；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.56 Canonical 匹配入口原子化已实现并通过全部 Gate（`8eb9162` 三 workflow GREEN）；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-10-02；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-10-06；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -143,6 +143,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 交付结构：同日完成 project-delivery adoption（`repowiki/` + `docs/delivery/` profile/索引/adoption 记录，提交 `507e473` 三 workflow GREEN）。
 - 门禁：代码提交 `d2cbbca` 的 [CI 37427977446](https://github.com/nekohands/InkFlow/actions/runs/37427977446)、[Docker 37427977438](https://github.com/nekohands/InkFlow/actions/runs/37427977438)、[Security 37427977441](https://github.com/nekohands/InkFlow/actions/runs/37427977441) 均 success（含真实 PostgreSQL Integration 与 Runtime smoke）。2026-09-11 审查三个高危项全部关闭（H2→5.54，H1→5.55，H3→5.52/ADR 0028 既定边界）。保持 `1.0 Release Candidate`。
 - 下一步候选：审查中危项（Inbox/Outbox 租约心跳续约、乐观并发令牌、Canonical 匹配 check-then-act 原子化、Catalog 查询分页/N+1）；下一个工作包需先定义 intake（目标/范围/验收）。
+
+### 5.56 Canonical 匹配入口原子化交接（本轮，2026-10-06）
+
+- 代码：`ICanonicalBookRepository.BeginTitleAuthorScopeAsync`（默认无互斥回退 + EF 覆写：事务内 `pg_advisory_xact_lock`，键为归一化 title/author 的 SHA-256 稳定前缀）；`CanonicalBookMatchingService` 重构为互斥临界区 + 锁内候选双检，书与候选原子提交。消除并发匹配同一书身份产生重复正典身份的缺口（BookId 稳定不变量的并发面）。
+- 测试：`CanonicalMatchConcurrencyTests`（真实 PostgreSQL，8 路并发 × 两个空白变体来源书）断言恰 1 个正典书、同一 BookId、2 候选、至多 1 次创建。夹具 `Migrate()` 竞争缺陷由提交 `8eb9162` 修复（类初始化迁移一次）。
+- 门禁：本机 Unit 585/585、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors；远端 `8eb9162` 的 [CI 37437471071](https://github.com/nekohands/InkFlow/actions/runs/37437471071)、[Docker 37437470761](https://github.com/nekohands/InkFlow/actions/runs/37437470761)、[Security 37437470720](https://github.com/nekohands/InkFlow/actions/runs/37437470720) 均 success。无 Schema/Migration 变更；`FindByTitleAuthorAsync` 全表加载（性能项）未动，单独立项。
+- 下一步候选：Inbox/Outbox 租约心跳续约、乐观并发令牌、死信与任务状态同事务、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验；需先定义 intake。
 
 ## 5. 关键架构不变量
 

@@ -69,23 +69,23 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Intake required（无进行中工作包）。最近完成：H1（下）与 5.54；下一
-候选为 2026-09-11 审查中危项（Inbox/Outbox 租约心跳续约、乐观并发令牌、
-Canonical 匹配 check-then-act 原子化、Catalog 查询分页/N+1），开工前先填：
+当前状态：Intake required（无进行中工作包）。下一候选为 2026-09-11 审查中危项
+（Inbox/Outbox 租约心跳续约、乐观并发令牌、死信与任务状态同事务、Catalog 查询
+分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验），开工前先填：
 目标/用户结果、范围与非目标、验收条件（正常/错误/回归）。
 
-最近完成工作包（H1，2026-10-02，`Accepted` 级证据）：
+最近完成工作包（5.56，2026-10-06，`Accepted` 级证据）：
 
 ```text
-Name: H1 — API 宿主全局异常处理中间件
-Objective / user outcome: 未捕获异常不再走 ASP.NET 默认错误页，统一 application/problem+json 且零敏感细节泄露
-In scope: src/Apps/InkFlow.Api（ApiErrorHandlingExtensions + Program.cs 最外层接线）
-Non-goals: 不改业务错误映射；不做 H3 授权收敛（5.52/ADR 0028 既定边界）
+Name: Canonical 匹配入口原子化
+Objective / user outcome: 并发匹配同一书身份不再产生重复正典身份（BookId 稳定不变量的并发面）
+In scope: Library 模块（ICanonicalBookRepository 互斥作用域 + EF advisory lock + 匹配服务临界区双检）
+Non-goals: FindByTitleAuthorAsync 全表加载性能项（另行立项）；无 Schema/Migration 变更
 Acceptance criteria（全部满足）:
-  - happy path: 正常请求与 404 不被兜底重写（测试 Handled_Responses_And_Route_Patterns_Are_Not_Rewritten）
-  - error path: Development 注入异常 → 500 + application/problem+json，无异常类型/消息/堆栈/exceptionDetails（测试 Unhandled_Exceptions_Return_Sanitized_ProblemDetails_Even_In_Development）
-  - regression: Unit 585/585、Architecture 1/1、Contract 12/12；CI 37427977446 含真实 PostgreSQL Integration 与 Runtime smoke
-Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `d2cbbca`（37427977446/37427977438/37427977441）
+  - happy path: 串行/幂等匹配行为不变（Unit 585/585 全绿）
+  - error path: 作用域内异常整体回滚，锁随事务释放
+  - regression: 真实 PostgreSQL 8 路并发匹配断言恰 1 个正典书/同一 BookId/2 候选/至多 1 次创建
+Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `8eb9162`（37437471071/37437470761/37437470720）
 ```
 
 ## Adoption 记录

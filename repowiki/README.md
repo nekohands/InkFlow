@@ -25,13 +25,16 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 Active work package: Intake required — next candidates are the review's
 medium-severity items (Inbox/Outbox lease heartbeat renewal, optimistic
-concurrency tokens, canonical matching atomicity; see profile Work Package).
-Last completed: H1 global exception handling → sanitized ProblemDetails, zero
-leaks in every environment (5.55; CI/Docker/Security GREEN at `d2cbbca`, runs
-37427977446/37427977438/37427977441). Contract: outermost middleware returns
-`application/problem+json` for unhandled exceptions; endpoint error bodies and
-4xx are never rewritten — see [architecture.md](architecture.md) links and
-[src/Apps/InkFlow.Api/ApiErrorHandling.cs](../src/Apps/InkFlow.Api/ApiErrorHandling.cs).
+concurrency tokens, dead-letter/task-state same-transaction, catalog query
+pagination; see profile Work Package).
+Last completed: canonical match entry-point atomicity (5.56) — concurrent
+matching of the same book identity is serialized by a transaction-scoped
+advisory lock on the normalized (title, author), with an in-lock candidate
+re-check; 8-way concurrent match yields exactly one canonical book
+(CI/Docker/Security GREEN at `8eb9162`, runs 37437471071/37437470761/37437470720).
+Contract: `ICanonicalBookRepository.BeginTitleAuthorScopeAsync` is the matching
+mutex; the default no-op scope is for test doubles only — production
+implementations must override it.
 
 Current progress: [docs/roadmap/progress.md](../docs/roadmap/progress.md) ·
 Current handoff: [docs/handoff/handoff.md](../docs/handoff/handoff.md) ·

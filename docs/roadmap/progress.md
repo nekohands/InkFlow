@@ -5,8 +5,8 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.55 API 宿主全局异常处理（审查项 H1）已实现并通过全部 Gate；历史记录见 `progress-history.md`。本机 Gate 与远端 CI/Docker/Security（`d2cbbca`）均通过。
-- 最后更新日期：2026-10-02
+- 文档状态：5.56 Canonical 匹配入口原子化已实现并通过全部 Gate（`8eb9162` 三 workflow GREEN）；历史记录见 `progress-history.md`。
+- 最后更新日期：2026-10-06
 
 ## 1. 总体状态
 
@@ -101,6 +101,14 @@ Phase 1A 自动化工作包状态：
 - 测试：新增 TestServer 级回归 2 例——Development 环境注入异常断言 500 + `application/problem+json` 且无 `secret-exception-detail`/`InvalidOperationException`/`exceptionDetails`/`StackTrace` 泄露；正常端点与 404 不被兜底重写。测试依赖新增 `Microsoft.AspNetCore.TestHost`（CPM 固定 10.0.4，仅测试工程引用）。
 - 验证：本机 Restore/Release Build 0 warnings / 0 errors；Unit 585/585、Architecture 1/1、Contract 12/12 PASS；Migration 未触及（N/A）。远端提交 `d2cbbca` 的 [CI 37427977446](https://github.com/nekohands/InkFlow/actions/runs/37427977446)、[Docker 37427977438](https://github.com/nekohands/InkFlow/actions/runs/37427977438)、[Security 37427977441](https://github.com/nekohands/InkFlow/actions/runs/37427977441) 均 success（含真实 PostgreSQL Integration 与 Compose/Runtime smoke）。
 - 交付结构：同日完成 project-delivery adoption——建立 `repowiki/`（AI 权威参考）与 `docs/delivery/`（profile 迁移 + 索引 + adoption 记录），提交 `507e473` 三 workflow 全绿。
+
+### 5.56 Canonical 匹配入口原子化（本轮，2026-10-06）
+
+- 缺口（审查中危项）：`CanonicalBookMatchingService.CreateOrMatchAsync` 为非原子 check-then-act——并发匹配同一归一化书名/作者时，两路同时看到"无既有正典书"而各自创建，产生重复正典身份，直接威胁"对外 BookId 稳定"不变量；同源书并发路径则依赖 `match_candidates` 唯一索引兜底报 500。
+- 实现：`ICanonicalBookRepository` 新增 `BeginTitleAuthorScopeAsync`（匹配互斥作用域，默认无互斥回退供测试替身，沿 ICrawlerTaskRepository 先例）；EF 实现在单个 ReadCommitted 事务内以归一化 (title, author) 的 SHA-256 稳定前缀取 `pg_advisory_xact_lock`（进程间确定性，不依赖 PG 哈希），作用域内同 DbContext 的书/候选写入共享事务。匹配服务重构为临界区：快路径（既有 Confirmed 候选）无需互斥；进入作用域后锁内复查候选（双检）再创建/挂接，书与候选原子提交；异常整体回滚。
+- 测试：新增真实 PostgreSQL 并发回归 `CanonicalMatchConcurrencyTests`——8 路并发匹配两个空白变体来源书（"同一本书/烽火戏诸侯"），断言恰好 1 个正典书、全部结果同一 BookId、2 个候选、至多 1 次真正创建。候选提交 `7b9553a` CI RED 暴露测试夹具缺陷（并行任务逐上下文 `Migrate()` 竞争 `__EFMigrationsHistory`），改为类初始化迁移一次后修复（`8eb9162`）。
+- 验证：本机 Restore/Release Build 0 warnings / 0 errors；Unit 585/585、Architecture 1/1、Contract 12/12 PASS；无 Schema/Migration 变更。远端提交 `8eb9162` 的 [CI 37437471071](https://github.com/nekohands/InkFlow/actions/runs/37437471071)、[Docker 37437470761](https://github.com/nekohands/InkFlow/actions/runs/37437470761)、[Security 37437470720](https://github.com/nekohands/InkFlow/actions/runs/37437470720) 均 success（含真实 PostgreSQL Integration 与 Runtime smoke）。
+- 边界：`FindByTitleAuthorAsync` 的全表内存加载（审查另列的性能项）本轮未动，保持精确 C# 归一化语义；后续以持久化归一化键 + 索引单独立项。
 
 ## 5. Phase 1A 核心验收链路
 
@@ -237,7 +245,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-10-02）：5.54 Identity 令牌重放检测/族吊销/保留清理与 5.55 API 宿主全局异常处理（审查项 H1）均已通过完整 Gate 并由远端 CI 覆盖；2026-09-11 全面审查的三个高危项全部关闭（H2 重放→5.54，H1 异常处理→5.55，H3 为 5.52/ADR 0028 既定产品边界）。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。下一候选工作包为审查中危项（Inbox/Outbox 租约心跳续约、乐观并发令牌、Canonical 匹配原子化等），待定义 intake。
+最新状态（2026-10-06）：审查高危项全部关闭（H2→5.54 重放/族吊销，H1→5.55 全局异常处理，H3→5.52/ADR 0028 既定边界）；5.56 完成 Canonical 匹配入口原子化（并发重复正典身份缺口）。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。剩余中危候选：Inbox/Outbox 租约心跳续约、乐观并发令牌、死信与任务状态同事务、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验，待逐项 intake。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 
