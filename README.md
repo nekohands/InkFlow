@@ -208,6 +208,8 @@ CI Runtime smoke 随后执行 `scripts/core-slo-runtime-smoke.sh`，对四个服
 
 ## 核心文档
 
+- [repowiki/README.md](repowiki/README.md)（AI 权威参考索引）
+- [docs/delivery/README.md](docs/delivery/README.md)（工作流 profile 与交付状态索引）
 - `docs/product/product-vision.md`
 - `docs/product/non-goals.md`
 - `docs/architecture/architecture.md`
