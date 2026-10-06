@@ -25,6 +25,13 @@ public sealed class CanonicalMatchConcurrencyTests
     {
         _container = new PostgreSqlBuilder(new DockerImage("postgres:18-alpine")).Build();
         await _container.StartAsync().ConfigureAwait(false);
+
+        // 迁移只做一次：并发匹配阶段会创建大量并行上下文，逐上下文 Migrate()
+        // 会因 __EFMigrationsHistory 竞争报 "relation already exists"。
+        await using var sourcesDb = CreateSourcesDb();
+        await using var libraryDb = CreateLibraryDb();
+        await sourcesDb.Database.MigrateAsync().ConfigureAwait(false);
+        await libraryDb.Database.MigrateAsync().ConfigureAwait(false);
     }
 
     [ClassCleanup]
@@ -90,9 +97,7 @@ public sealed class CanonicalMatchConcurrencyTests
         var options = new DbContextOptionsBuilder<SourcesDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
             .Options;
-        var db = new SourcesDbContext(options);
-        db.Database.Migrate();
-        return db;
+        return new SourcesDbContext(options);
     }
 
     private static LibraryDbContext CreateLibraryDb()
@@ -100,8 +105,6 @@ public sealed class CanonicalMatchConcurrencyTests
         var options = new DbContextOptionsBuilder<LibraryDbContext>()
             .UseNpgsql(_container!.GetConnectionString())
             .Options;
-        var db = new LibraryDbContext(options);
-        db.Database.Migrate();
-        return db;
+        return new LibraryDbContext(options);
     }
 }
