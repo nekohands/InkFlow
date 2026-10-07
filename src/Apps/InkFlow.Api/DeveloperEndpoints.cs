@@ -7,6 +7,7 @@ using InkFlow.Modules.Developers.Application;
 using InkFlow.Modules.Developers.Domain;
 using InkFlow.Modules.Developers.Infrastructure.Authentication;
 using InkFlow.Modules.Identity.Application;
+using InkFlow.Modules.Identity.Domain;
 using Microsoft.Extensions.Logging;
 
 namespace InkFlow.Api;
@@ -84,6 +85,14 @@ public sealed class DeveloperUserStatusReader(IUserRepository users)
     {
         var user = await users.GetAsync(userId, cancellationToken).ConfigureAwait(false);
         return user?.CanAuthenticate == true;
+    }
+
+    public async Task<bool> IsActiveAdministratorAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await users.GetAsync(userId, cancellationToken).ConfigureAwait(false);
+        return user?.CanAuthenticate == true && user.Role == UserRole.Administrator;
     }
 }
 
@@ -694,6 +703,7 @@ public static class DeveloperEndpointMapping
         EntitlementOperationStatus.Success => StatusCodes.Status200OK,
         EntitlementOperationStatus.PlanNotFound => StatusCodes.Status404NotFound,
         EntitlementOperationStatus.UserNotFound => StatusCodes.Status404NotFound,
+        EntitlementOperationStatus.ActorNotAllowed => StatusCodes.Status403Forbidden,
         _ => StatusCodes.Status400BadRequest,
     };
 
@@ -701,6 +711,7 @@ public static class DeveloperEndpointMapping
     {
         EntitlementOperationStatus.PlanNotFound => "plan_not_found",
         EntitlementOperationStatus.UserNotFound => "user_not_found",
+        EntitlementOperationStatus.ActorNotAllowed => "entitlement_management_forbidden",
         _ => "invalid_request",
     };
 

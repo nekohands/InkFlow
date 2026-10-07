@@ -361,6 +361,11 @@ public sealed class DeveloperBillingPersistenceTests
             Guid userId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(userId != Guid.Empty);
+
+        public Task<bool> IsActiveAdministratorAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(userId != Guid.Empty);
     }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider

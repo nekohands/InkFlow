@@ -8,6 +8,7 @@ public enum EntitlementOperationStatus
     InvalidRequest = 1,
     PlanNotFound = 2,
     UserNotFound = 3,
+    ActorNotAllowed = 4,
 }
 
 public enum QuotaReservationStatus
@@ -65,6 +66,10 @@ public sealed record QuotaReservationResult(
 public interface IBillingUserStatusReader
 {
     Task<bool> IsActiveAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    Task<bool> IsActiveAdministratorAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IPlanRepository

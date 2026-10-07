@@ -347,6 +347,28 @@ public sealed class CommercialFoundationTests
     }
 
     [TestMethod]
+    public async Task Assignment_Rejects_An_Actor_That_Is_Not_An_Eligible_Billing_User()
+    {
+        var actorId = Guid.CreateVersion7();
+        var targetUserId = Guid.CreateVersion7();
+        var assignments = new FakeAssignments();
+        var service = new EntitlementService(
+            new FakePlans(),
+            assignments,
+            new ActiveBillingUserReader(targetUserId),
+            new FixedClock(T0));
+
+        var result = await service.AssignAsync(
+            actorId,
+            targetUserId,
+            CommercialPlanCodes.Pro,
+            "manual verification upgrade");
+
+        Assert.AreEqual(EntitlementOperationStatus.ActorNotAllowed, result.Status);
+        Assert.AreEqual(0, assignments.Count);
+    }
+
+    [TestMethod]
     public async Task Missing_Assignment_Uses_Free_And_Admin_Assignment_Changes_It()
     {
         var userId = Guid.CreateVersion7();
@@ -379,10 +401,24 @@ public sealed class CommercialFoundationTests
 
     private sealed class ActiveBillingUserReader : IBillingUserStatusReader
     {
+        private readonly Guid[]? _activeUserIds;
+
+        public ActiveBillingUserReader(params Guid[] activeUserIds) =>
+            _activeUserIds = activeUserIds.Length == 0 ? null : activeUserIds;
+
         public Task<bool> IsActiveAsync(
             Guid userId,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(userId != Guid.Empty);
+            Task.FromResult(
+                userId != Guid.Empty &&
+                (_activeUserIds is null || _activeUserIds.Contains(userId)));
+
+        public Task<bool> IsActiveAdministratorAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                userId != Guid.Empty &&
+                (_activeUserIds is null || _activeUserIds.Contains(userId)));
     }
 
     private sealed class FakePlans : IPlanRepository
@@ -402,6 +438,8 @@ public sealed class CommercialFoundationTests
     private sealed class FakeAssignments : IEntitlementAssignmentRepository
     {
         private readonly List<EntitlementAssignment> _items = [];
+
+        public int Count => _items.Count;
 
         public Task<EntitlementAssignment?> GetLatestForUserAsync(
             Guid userId,

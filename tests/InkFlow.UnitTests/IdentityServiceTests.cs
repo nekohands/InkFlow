@@ -1,3 +1,4 @@
+using InkFlow.Api;
 using InkFlow.Modules.Identity.Application;
 using InkFlow.Modules.Identity.Domain;
 
@@ -7,6 +8,36 @@ namespace InkFlow.UnitTests;
 public sealed class IdentityServiceTests
 {
     private static readonly DateTimeOffset T0 = new(2026, 8, 28, 12, 0, 0, TimeSpan.Zero);
+
+    [TestMethod]
+    public async Task Billing_Actor_Reader_Requires_An_Active_Administrator()
+    {
+        var users = new InMemoryUserRepository();
+        var administrator = User.Create(
+            "admin@example.com",
+            "$hash$only",
+            T0,
+            UserRole.Administrator);
+        var reader = User.Create(
+            "reader@example.com",
+            "$hash$only",
+            T0,
+            UserRole.Reader);
+        var suspendedAdministrator = User.Create(
+            "suspended@example.com",
+            "$hash$only",
+            T0,
+            UserRole.Administrator);
+        suspendedAdministrator.Suspend(T0.AddMinutes(1));
+        users.Store.AddRange([administrator, reader, suspendedAdministrator]);
+
+        var statusReader = new DeveloperUserStatusReader(users);
+
+        Assert.IsTrue(await statusReader.IsActiveAdministratorAsync(administrator.Id));
+        Assert.IsFalse(await statusReader.IsActiveAdministratorAsync(reader.Id));
+        Assert.IsFalse(await statusReader.IsActiveAdministratorAsync(suspendedAdministrator.Id));
+        Assert.IsFalse(await statusReader.IsActiveAdministratorAsync(Guid.CreateVersion7()));
+    }
 
     [TestMethod]
     public async Task Register_Stores_Only_Hash_And_Issues_Separate_Opaque_Tokens()

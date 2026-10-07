@@ -52,10 +52,20 @@ public sealed class EntitlementService(
         string? reason,
         CancellationToken cancellationToken = default)
     {
-        if (actorId == Guid.Empty || userId == Guid.Empty || string.IsNullOrWhiteSpace(planCode) ||
+        if (actorId == Guid.Empty)
+        {
+            return new EntitlementOperationResult(EntitlementOperationStatus.ActorNotAllowed);
+        }
+
+        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(planCode) ||
             string.IsNullOrWhiteSpace(reason))
         {
             return new EntitlementOperationResult(EntitlementOperationStatus.InvalidRequest);
+        }
+
+        if (!await users.IsActiveAdministratorAsync(actorId, cancellationToken).ConfigureAwait(false))
+        {
+            return new EntitlementOperationResult(EntitlementOperationStatus.ActorNotAllowed);
         }
 
         if (!await users.IsActiveAsync(userId, cancellationToken).ConfigureAwait(false))
