@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.62 Private book optimistic concurrency In Progress；5.61 Code adapter response and regex bounds 已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.62 Private book optimistic concurrency 已 Accepted；当前无 In Progress 工作包；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -141,12 +141,14 @@ Phase 1A 自动化工作包状态：
 - 远端：`d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime 验证。
 - 边界：本机 Billing Testcontainers 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包需重新 intake，候选为乐观并发和适配器正则/读取边界。
 
-### 5.62 Private book optimistic concurrency（本轮，2026-10-08，In Progress）
+### 5.62 Private book optimistic concurrency（本轮，2026-10-08，Accepted）
 
 - Intake：将“乐观并发”收窄为 Private Library 私有书目元数据更新；`PrivateBook` 增加从 1 开始的单调 `Version`，PUT 提交当前版本，过期版本返回 409；不扩展到 Canonical/Source/Identity/Reading 等其他聚合。
-- 当前缺口：`PrivateLibraryService.UpdateAsync` 先读取，`EfPrivateBookRepository.SaveAsync` 按用户/书 ID 无条件回写，存在并发元数据静默覆盖。
-- 验收与验证计划：版本化响应/请求、原子 UserId+BookId+Version 条件更新、过期写不改数据、两个真实 PostgreSQL 并发写仅一个成功；随后执行 Restore/Release Build、Unit、Architecture、Contract、迁移、远端 CI/Docker/Security。
-- 状态：仅完成 intake，代码、测试、Runtime 和 CI 均 NOT RUN；本机 Docker named pipe 仍可能导致 Testcontainers BLOCKED，需由远端 CI 提供 PostgreSQL/runtime 证据。
+- 实现：`PrivateBook.Version`、版本化 View/PUT contract、稳定 `private_book_version_conflict` 409、owner-scoped `UserId+BookId+Version` 原子更新、existing rows default 1 的 Migration，以及 Unit/Contract/Integration 回归。
+- 验收：create/get/list/import 的初始版本为 1；当前版本更新只成功一次并递增；缺失/非正版本拒绝；过期版本不改 title/author；同版本并发写仅一个成功。
+- 本机验证：Release Build 0 warnings / 0 errors；Unit 597/597、Architecture 1/1、Contract 12/12、聚焦 Library/API 13/13；迁移模型检查 11/11。Integration 实际执行 125 项（8 passed / 3 skipped / 114 failed），失败均为 Windows Docker named pipe 不可用，记录为环境 BLOCKED。
+- 远端验证：精确 SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` 的 [CI 37655196433](https://github.com/nekohands/InkFlow/actions/runs/37655196433)、[Docker 37655726362](https://github.com/nekohands/InkFlow/actions/runs/37655726362)、[Security 37655196520](https://github.com/nekohands/InkFlow/actions/runs/37655196520) 均 success，包含 PostgreSQL/runtime/Compose smoke 与 CodeQL。
+- 边界：本机 Docker/Testcontainers 仍 BLOCKED；真实账户、真实外部来源和其他 Release Candidate 人工验收不属于本包；下一工作包需重新 intake。
 
 ### 5.61 Code adapter response and regex bounds（本轮，2026-10-08，Accepted）
 
@@ -293,7 +295,7 @@ Official Source
 
 ## 7. 当前阻塞
 
-最新状态（2026-10-06）：审查高危项全部关闭（H2→5.54 重放/族吊销，H1→5.55 全局异常处理，H3→5.52/ADR 0028 既定边界）；5.56 完成 Canonical 匹配入口原子化（并发重复正典身份缺口），5.57 完成死信与任务状态同事务（半一致终态缺口），5.58 完成 Inbox/Outbox 批次租约续约（长批次重复领取缺口）。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。剩余中危候选：乐观并发令牌、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService actor 校验，待逐项 intake。
+最新状态（2026-10-08）：审查高危项全部关闭（H2→5.54 重放/族吊销，H1→5.55 全局异常处理，H3→5.52/ADR 0028 既定边界）；5.56–5.62 已分别关闭 Canonical 匹配入口原子化、死信与任务状态同事务、Inbox/Outbox 批次租约续约、适配器边界、Entitlement actor 校验和 PrivateBook 乐观并发缺口。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。下一工作包需重新 intake，候选应重新按风险和证据缺口排序。
 
 当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
 

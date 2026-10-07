@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.62 Private book optimistic concurrency In Progress；5.61 Code adapter response and regex bounds 已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.62 Private book optimistic concurrency 已 Accepted；当前无 In Progress 工作包；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -189,12 +189,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
 - 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
 
-### 5.62 Private book optimistic concurrency 交接（本轮，2026-10-08，In Progress）
+### 5.62 Private book optimistic concurrency 交接（本轮，2026-10-08，Accepted）
 
 - Intake：工作范围收窄为 Private Library 私有书目元数据更新；`PrivateBook` 使用从 1 开始的单调 `Version`，PUT 提交当前版本，过期版本返回 409。
-- 当前缺口：服务先读取、仓储按 UserId/BookId 无条件回写，存在并发编辑静默覆盖；本轮不扩展到其他聚合、删除 CAS、章节正文、自动合并或 UI。
-- 状态：仅完成 intake；代码、测试、Runtime、Security 和 CI 均 NOT RUN。实现后必须补 Migration、红绿回归、Release Build、Unit/Architecture/Contract、真实 PostgreSQL 和远端 CI/Docker/Security。
-- 下一步：先建立两个相同版本并发写的失败回归，再落地最小条件更新。
+- 实现：新增 `PrivateBook.Version` 与 `private_books.Version` Migration；PUT 强制正版本并将过期版本映射为稳定 409；仓储以 UserId、BookId、Version 做单条条件更新，成功后递增。
+- 验收：创建/导入/读取返回版本 1；当前版本更新成功并递增；缺失/非正/过期版本不写入；两个相同版本并发写仅一个成功，stale 写不覆盖 winner。
+- 验证：聚焦 Library/API 13/13、Unit 597/597、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors、迁移模型 11/11；本机 Integration 125 项因 Docker named pipe 不可用而 BLOCKED；远端 PostgreSQL/runtime/Compose smoke 通过。
+- 门禁：精确 SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` 的 [CI 37655196433](https://github.com/nekohands/InkFlow/actions/runs/37655196433)、[Docker 37655726362](https://github.com/nekohands/InkFlow/actions/runs/37655726362)、[Security 37655196520](https://github.com/nekohands/InkFlow/actions/runs/37655196520) 均 success。
+- 下一步：重新 intake 下一项有明确证据缺口的工作包；本机 Docker、真实账户/外部来源和 Release Candidate 人工验收继续作为独立边界。
 
 ## 5. 关键架构不变量
 

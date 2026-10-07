@@ -69,9 +69,9 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.62，Private book optimistic concurrency）。当前工作包：[Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)。最近已完成：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
+当前状态：Accepted（5.62，Private book optimistic concurrency）。当前无 In Progress 工作包。最近完成：[Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)；前一包为：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
 
-当前工作包（5.62，2026-10-08，`In Progress`）：
+最近完成工作包（5.62，2026-10-08，`Accepted`）：
 
 ```text
 Name: Private book optimistic concurrency
@@ -79,7 +79,10 @@ Objective / user outcome: 私有书目元数据并发编辑不再静默覆盖较
 In scope: PrivateBook Version、private_books Migration、原子条件更新、PUT version/409 contract、回归与 PostgreSQL evidence
 Non-goals: 其他聚合、删除 CAS、章节正文编辑、自动合并、ETag/If-Match、UI
 Acceptance: 当前 version 更新成功并递增；过期/缺失 version 不写入并返回稳定错误；真实 PostgreSQL 仅一个并发写成功
-Evidence status: intake complete; implementation and verification pending
+Evidence status: Accepted; implementation and verification complete
+Verification: focused Library/API 13/13; Unit 597/597; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model check 11/11. Local Integration attempted but BLOCKED by unavailable Docker named pipe; remote PostgreSQL/runtime passed.
+CI: exact SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` passed CI `37655196433`, Docker/Compose `37655726362`, and Security `37655196520`.
+Delivery boundary: no changes to other aggregate concurrency, delete CAS, chapter/content editing, automatic merge/retry, ETag/If-Match, or UI.
 ```
 
 最近完成工作包（5.61，2026-10-08，`Accepted` 级证据）：
