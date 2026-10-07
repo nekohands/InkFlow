@@ -50,3 +50,6 @@ Parent/root index: [README.md](README.md)
   ≤5 redirects); private/loopback/link-local/metadata ranges blocked.
 - Budgets bound requests, bytes, time, regex; credentials travel by reference
   only (`CredentialReference`), never in task payloads.
+- Trusted Kanunu8/17K CodeAdapters use the same `SourceRuleExecutionLimits`:
+  `SourceResponseReader` rejects oversized bodies before decode/parse, and
+  Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.

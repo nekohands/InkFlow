@@ -60,7 +60,7 @@ public sealed class ProductionSafeSourceHttpClient(
             .ConfigureAwait(false);
 
         // 兼容老站点的非 UTF-8 编码(GB2312/GBK 等):按响应声明的 charset 解码,未知则回退 UTF-8。
-        var bytes = await ReadBoundedBytesAsync(
+        var bytes = await SourceResponseReader.ReadBoundedBytesAsync(
             response.Content,
             _limits.MaxBytes,
             cancellationToken).ConfigureAwait(false);
@@ -80,45 +80,6 @@ public sealed class ProductionSafeSourceHttpClient(
         var value = limits ?? SourceRuleExecutionLimits.Default;
         value.Validate();
         return value;
-    }
-
-    private static async Task<byte[]> ReadBoundedBytesAsync(
-        HttpContent content,
-        int maxBytes,
-        CancellationToken cancellationToken)
-    {
-        if (content.Headers.ContentLength is { } contentLength && contentLength > maxBytes)
-        {
-            throw new SourceResponseTooLargeException();
-        }
-
-        using var stream = await content
-            .ReadAsStreamAsync(cancellationToken)
-            .ConfigureAwait(false);
-        using var buffer = new MemoryStream(Math.Min(maxBytes, 81_920));
-        var chunk = new byte[Math.Min(maxBytes, 81_920)];
-        var totalBytes = 0;
-
-        while (true)
-        {
-            var read = await stream
-                .ReadAsync(chunk.AsMemory(), cancellationToken)
-                .ConfigureAwait(false);
-            if (read == 0)
-            {
-                break;
-            }
-
-            if (read > maxBytes - totalBytes)
-            {
-                throw new SourceResponseTooLargeException();
-            }
-
-            buffer.Write(chunk, 0, read);
-            totalBytes += read;
-        }
-
-        return buffer.ToArray();
     }
 
     private static string Decode(byte[] bytes, string? charset)

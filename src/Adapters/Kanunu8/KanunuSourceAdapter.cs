@@ -18,17 +18,21 @@ namespace InkFlow.Sources.Adapters.Kanunu8;
 /// </summary>
 public sealed class KanunuSourceAdapter(
     HttpClient http,
-    IIpAddressResolver resolver) : ISourceAdapter
+    IIpAddressResolver resolver,
+    SourceRuleExecutionLimits? limits = null) : ISourceAdapter
 {
     public const string SourceIdValue = "kanunu8";
     public const string DisplayNameValue = "努努书坊(kanunu8)";
     public const string BaseUrlValue = "https://www.kanunu8.com";
 
     private static readonly HtmlParserHolder ParserHolder = new();
-    private static readonly Regex ChapterLinkPattern =
-        NewRegex(@"href=""(\d+[0-9]*\.html)""[^>]*>([^<]+)</a>");
-    private static readonly Regex TitleByAuthorPattern =
-        NewRegex(@"\s+by\s+(.+?)\s+-");
+    private readonly int _maxResponseBytes = ValidateLimits(limits).MaxBytes;
+    private readonly Regex _chapterLinkPattern = NewRegex(
+        @"href=""(\d+[0-9]*\.html)""[^>]*>([^<]+)</a>",
+        (limits ?? SourceRuleExecutionLimits.Default).MaxRegexTime);
+    private readonly Regex _titleByAuthorPattern = NewRegex(
+        @"\s+by\s+(.+?)\s+-",
+        (limits ?? SourceRuleExecutionLimits.Default).MaxRegexTime);
 
     public string SourceId => SourceIdValue;
 
@@ -73,7 +77,17 @@ public sealed class KanunuSourceAdapter(
 
         // 页面标题形如 "{书名} by {作者} - 小说在线阅读 - 努努书坊"。
         var pageTitle = document.Title ?? string.Empty;
-        var author = TitleByAuthorPattern.Match(pageTitle) is { Success: true } m
+        Match? authorMatch;
+        try
+        {
+            authorMatch = _titleByAuthorPattern.Match(pageTitle);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return null;
+        }
+
+        var author = authorMatch is { Success: true } m
             ? m.Groups[1].Value.Trim()
             : "未知";
 
@@ -87,12 +101,19 @@ public sealed class KanunuSourceAdapter(
 
         var index = 0;
         var entries = new List<SourceTocEntry>();
-        foreach (Match match in ChapterLinkPattern.Matches(html))
+        try
         {
-            entries.Add(new SourceTocEntry(
-                $"{externalBookId}/{match.Groups[1].Value}",
-                index++,
-                match.Groups[2].Value.Trim()));
+            foreach (Match match in _chapterLinkPattern.Matches(html))
+            {
+                entries.Add(new SourceTocEntry(
+                    $"{externalBookId}/{match.Groups[1].Value}",
+                    index++,
+                    match.Groups[2].Value.Trim()));
+            }
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return [];
         }
 
         return entries;
@@ -127,15 +148,29 @@ public sealed class KanunuSourceAdapter(
             throw new InvalidOperationException($"ssrf: {string.Join("; ", errors)}");
         }
 
-        var bytes = await http.GetByteArrayAsync(uri, cancellationToken).ConfigureAwait(false);
+        using var response = await http
+            .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var bytes = await SourceResponseReader.ReadBoundedBytesAsync(
+            response.Content,
+            _maxResponseBytes,
+            cancellationToken).ConfigureAwait(false);
         return Gb18030.GetString(bytes);
     }
 
     private const string BaseUrl = BaseUrlValue;
     private static readonly Encoding Gb18030 = SourceEncodings.Gb18030;
 
-    private static System.Text.RegularExpressions.Regex NewRegex(string pattern) =>
-        new(pattern, System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static SourceRuleExecutionLimits ValidateLimits(SourceRuleExecutionLimits? limits)
+    {
+        var value = limits ?? SourceRuleExecutionLimits.Default;
+        value.Validate();
+        return value;
+    }
+
+    private static Regex NewRegex(string pattern, TimeSpan timeout) =>
+        new(pattern, RegexOptions.Compiled, timeout);
 
     /// <summary>延迟持有解析器,避免静态初始化顺序问题。</summary>
     private sealed class HtmlParserHolder

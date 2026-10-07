@@ -140,6 +140,11 @@ Platform；调用方显式提供用户/组织引用时，RuleAdapter 会把对�
 
 CodeAdapter 与 RuleAdapter 暴露相同 Application Contract，Scheduler/Crawler 不关心实现类型。
 
+当前 `Kanunu8` 与 `17K` CodeAdapter 复用 `SourceRuleExecutionLimits`：响应体先由
+`SourceResponseReader` 按 `MaxBytes` 流式读取，超限在 GB18030/UTF-8 解码、HTML/JSON
+解析前失败关闭；不得使用无界的 `GetByteArrayAsync` 或 `ReadAsStringAsync`。Kanunu8 的
+静态 HTML 正则使用 `MaxRegexTime` 有限超时，超时返回失败/空结果，不暴露部分解析结果。
+
 ## 5. 分层抓取
 
 按最低成本能力优先：
@@ -160,7 +165,7 @@ Community/Private Rule 的网络请求必须统一经过 SafeHttpClient：
 - 每次 Redirect 重新解析并校验目标。
 - 防 DNS rebinding，连接目标必须与已验证解析结果保持安全约束。
 
-当前 API、Worker、Scheduler 的来源 HTTP typed client 及 Kanunu8 adapter 均接入
+当前 API、Worker、Scheduler 的来源 HTTP typed client 及 Kanunu8/17K adapter 均接入
 `SsrfSafeHttpMessageHandler`：关闭环境代理，在每次新 TCP 连接时重新解析并检查全部结果，
 再直接连接同一批已验证 IP；80/443 之外的端口拒绝。无 Cookie 请求自动重定向最多 5 跳且每个
 新目标重新走连接级校验；带显式 Cookie 的请求关闭自动重定向，避免 Cookie 被复制到跨源目标，
@@ -186,8 +191,8 @@ Community/Private Rule 的网络请求必须统一经过 SafeHttpClient：
 
 当前基线的默认上限为：MaxRequests=8、MaxBytes=2 MiB、MaxExecutionTime=20 s、MaxRegexTime=2 s、
 MaxResultSize=512 KiB。请求体、分页累计解码响应体、字段聚合结果和 Search/TOC 列表均 fail-closed；
-`SsrfSafeHttpMessageHandler` 另以最多 5 跳限制自动重定向。递归尚未进入执行器，因此 MaxDepth 不在本基线中
-宣称已实现。
+CodeAdapter 的 HTML/JSON 响应也必须在解码/解析前使用同一 MaxBytes 上限；`SsrfSafeHttpMessageHandler`
+另以最多 5 跳限制自动重定向。递归尚未进入执行器，因此 MaxDepth 不在本基线中宣称已实现。
 
 ## 8. Credential
 

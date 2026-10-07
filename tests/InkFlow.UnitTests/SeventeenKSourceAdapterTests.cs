@@ -1,5 +1,6 @@
 using System.Net;
 using InkFlow.BuildingBlocks.Security;
+using InkFlow.Modules.Sources.Application;
 using InkFlow.Sources.Adapters.SeventeenK;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -97,8 +98,22 @@ public sealed class SeventeenKSourceAdapterTests
         Assert.AreEqual(0, handler.Requests.Count);
     }
 
-    private static SeventeenKSourceAdapter CreateAdapter(FixtureHandler handler) =>
-        new(new HttpClient(handler), new FixedResolver());
+    [TestMethod]
+    public async Task Response_Over_Max_Bytes_Is_Rejected_Before_Json_Parsing()
+    {
+        var handler = new FixtureHandler((_, _) => Json("123456"));
+        var adapter = CreateAdapter(
+            handler,
+            new SourceRuleExecutionLimits { MaxBytes = 5 });
+
+        await Assert.ThrowsAsync<SourceResponseTooLargeException>(() =>
+            adapter.GetBookInfoAsync("123"));
+    }
+
+    private static SeventeenKSourceAdapter CreateAdapter(
+        FixtureHandler handler,
+        SourceRuleExecutionLimits? limits = null) =>
+        new(new HttpClient(handler), new FixedResolver(), limits);
 
     private static HttpResponseMessage Json(string body) =>
         new(HttpStatusCode.OK)

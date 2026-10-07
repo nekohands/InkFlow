@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Sources.Application;
@@ -16,7 +17,8 @@ namespace InkFlow.Sources.Adapters.SeventeenK;
 /// </summary>
 public sealed class SeventeenKSourceAdapter(
     HttpClient http,
-    IIpAddressResolver resolver) : ISourceAdapter
+    IIpAddressResolver resolver,
+    SourceRuleExecutionLimits? limits = null) : ISourceAdapter
 {
     public const string SourceIdValue = "17k";
     public const string DisplayNameValue = "17K小说网";
@@ -35,6 +37,7 @@ public sealed class SeventeenKSourceAdapter(
             ApiHost,
             WebHost,
         };
+    private readonly int _maxResponseBytes = ValidateLimits(limits).MaxBytes;
 
     public string SourceId => SourceIdValue;
 
@@ -312,9 +315,11 @@ public sealed class SeventeenKSourceAdapter(
             return null;
         }
 
-        var payload = await response.Content
-            .ReadAsStringAsync(cancellationToken)
-            .ConfigureAwait(false);
+        var bytes = await SourceResponseReader.ReadBoundedBytesAsync(
+            response.Content,
+            _maxResponseBytes,
+            cancellationToken).ConfigureAwait(false);
+        var payload = Encoding.UTF8.GetString(bytes);
         if (string.IsNullOrWhiteSpace(payload))
         {
             return null;
@@ -332,6 +337,13 @@ public sealed class SeventeenKSourceAdapter(
 
     private static Uri BuildUri(string host, string pathAndQuery) =>
         new($"https://{host}{pathAndQuery}", UriKind.Absolute);
+
+    private static SourceRuleExecutionLimits ValidateLimits(SourceRuleExecutionLimits? limits)
+    {
+        var value = limits ?? SourceRuleExecutionLimits.Default;
+        value.Validate();
+        return value;
+    }
 
     private static bool TryParseChapterReference(
         string? externalChapterId,

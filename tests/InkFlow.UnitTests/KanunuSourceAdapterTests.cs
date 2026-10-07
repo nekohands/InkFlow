@@ -1,6 +1,9 @@
+using System.Reflection;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Text;
 using InkFlow.BuildingBlocks.Security;
+using InkFlow.Modules.Sources.Application;
 using InkFlow.Sources.Adapters.Kanunu8;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -65,10 +68,41 @@ public sealed class KanunuSourceAdapterTests
         Assert.IsFalse(content.Contains("&nbsp;"));
     }
 
-    private static KanunuSourceAdapter CreateAdapter(string html)
+    [TestMethod]
+    public async Task Response_Over_Max_Bytes_Is_Rejected_Before_Decoding()
+    {
+        var adapter = CreateAdapter(
+            BookPage,
+            new SourceRuleExecutionLimits { MaxBytes = 5 });
+
+        await Assert.ThrowsAsync<SourceResponseTooLargeException>(() =>
+            adapter.GetBookInfoAsync("book/3441"));
+    }
+
+    [TestMethod]
+    public void Regexes_Use_The_Configured_Bounded_Timeout()
+    {
+        var timeout = TimeSpan.FromMilliseconds(500);
+        var adapter = CreateAdapter(
+            BookPage,
+            new SourceRuleExecutionLimits { MaxRegexTime = timeout });
+        var regexes = typeof(KanunuSourceAdapter)
+            .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+            .Select(field => field.GetValue(adapter))
+            .OfType<Regex>()
+            .ToArray();
+
+        Assert.IsTrue(regexes.Length >= 2);
+        Assert.IsTrue(regexes.All(regex =>
+            regex.MatchTimeout == timeout));
+    }
+
+    private static KanunuSourceAdapter CreateAdapter(
+        string html,
+        SourceRuleExecutionLimits? limits = null)
     {
         var handler = new FakeHandler(SourceEncodings.Gb18030.GetBytes(html));
-        return new KanunuSourceAdapter(new HttpClient(handler), new FixedResolver());
+        return new KanunuSourceAdapter(new HttpClient(handler), new FixedResolver(), limits);
     }
 
     private sealed class FakeHandler(byte[] payload) : HttpMessageHandler
