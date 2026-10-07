@@ -85,6 +85,47 @@ public sealed class ContentPolicyRepositoryTests
         Assert.AreEqual(restore.Id, stillLatest!.Id);
     }
 
+    [TestMethod]
+    public async Task Latest_For_Books_Returns_Only_One_Current_Decision_Per_Book()
+    {
+        await using var db = CreateDb();
+        await db.Database.MigrateAsync().ConfigureAwait(false);
+        var repository = new EfContentPolicyRepository(db);
+        var restoredBookId = Guid.CreateVersion7();
+        var takenDownBookId = Guid.CreateVersion7();
+
+        await repository.AddAsync(ContentPolicyDecision.Create(
+            restoredBookId,
+            ContentPolicyAction.Takedown,
+            "admin-1",
+            "待核实授权",
+            T0)).ConfigureAwait(false);
+        await repository.AddAsync(ContentPolicyDecision.Create(
+            restoredBookId,
+            ContentPolicyAction.Restore,
+            "admin-1",
+            "授权核验完成",
+            T0.AddMinutes(1))).ConfigureAwait(false);
+        await repository.AddAsync(ContentPolicyDecision.Create(
+            takenDownBookId,
+            ContentPolicyAction.Takedown,
+            "admin-1",
+            "待核实授权",
+            T0)).ConfigureAwait(false);
+
+        var latest = await repository
+            .ListLatestForBooksAsync([restoredBookId, takenDownBookId, Guid.NewGuid()])
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(2, latest.Count);
+        Assert.AreEqual(
+            ContentPolicyAction.Restore,
+            latest.Single(decision => decision.CanonicalBookId == restoredBookId).Action);
+        Assert.AreEqual(
+            ContentPolicyAction.Takedown,
+            latest.Single(decision => decision.CanonicalBookId == takenDownBookId).Action);
+    }
+
     private static ContentDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<ContentDbContext>()

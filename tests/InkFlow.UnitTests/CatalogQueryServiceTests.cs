@@ -187,6 +187,26 @@ public sealed class CatalogQueryServiceTests
     }
 
     [TestMethod]
+    public async Task ListBooks_Uses_Bulk_Takedown_Read()
+    {
+        var books = new InMemoryBookRepository();
+        await books.AddAsync(CreateBook("书A", "作者A", withChapters: false));
+        await books.AddAsync(CreateBook("书B", "作者B", withChapters: false));
+        var policy = new RecordingContentPolicyReader();
+
+        var service = new CatalogQueryService(
+            books,
+            new InMemoryVersionRepository(),
+            policy);
+
+        var list = await service.ListBooksAsync(2);
+
+        Assert.AreEqual(2, list.Count);
+        Assert.AreEqual(1, policy.BulkCalls);
+        Assert.AreEqual(0, policy.SingleCalls);
+    }
+
+    [TestMethod]
     public async Task GetChapterContent_Returns_Current_Version_Paragraphs()
     {
         var books = new InMemoryBookRepository();
@@ -320,6 +340,28 @@ public sealed class CatalogQueryServiceTests
             Guid canonicalBookId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(canonicalBookId == takenDownBookId);
+    }
+
+    private sealed class RecordingContentPolicyReader : IContentPolicyReader
+    {
+        public int BulkCalls { get; private set; }
+        public int SingleCalls { get; private set; }
+
+        public Task<bool> IsTakedownAsync(
+            Guid canonicalBookId,
+            CancellationToken cancellationToken = default)
+        {
+            SingleCalls++;
+            return Task.FromResult(false);
+        }
+
+        public Task<IReadOnlySet<Guid>> ListTakedownBookIdsAsync(
+            IReadOnlyCollection<Guid> canonicalBookIds,
+            CancellationToken cancellationToken = default)
+        {
+            BulkCalls++;
+            return Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
+        }
     }
 
     private sealed class SelectingVersionService(

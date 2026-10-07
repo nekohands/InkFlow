@@ -22,6 +22,29 @@ public sealed class ContentPolicyService(
         return latest?.Action == ContentPolicyAction.Takedown;
     }
 
+    public async Task<IReadOnlySet<Guid>> ListTakedownBookIdsAsync(
+        IReadOnlyCollection<Guid> canonicalBookIds,
+        CancellationToken cancellationToken = default)
+    {
+        var safeIds = canonicalBookIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        if (safeIds.Length == 0)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var latest = await repository
+            .ListLatestForBooksAsync(safeIds, cancellationToken)
+            .ConfigureAwait(false);
+
+        return latest
+            .Where(decision => decision.Action == ContentPolicyAction.Takedown)
+            .Select(decision => decision.CanonicalBookId)
+            .ToHashSet();
+    }
+
     public async Task<ContentPolicyCommandResult> TakedownAsync(
         Guid canonicalBookId,
         string actorId,

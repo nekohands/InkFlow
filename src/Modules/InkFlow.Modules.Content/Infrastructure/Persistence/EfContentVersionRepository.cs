@@ -252,6 +252,32 @@ public sealed class EfContentPolicyRepository(ContentDbContext db) : IContentPol
         return entity is null ? null : ToDomain(entity);
     }
 
+    public async Task<IReadOnlyList<ContentPolicyDecision>> ListLatestForBooksAsync(
+        IReadOnlyCollection<Guid> canonicalBookIds,
+        CancellationToken cancellationToken = default)
+    {
+        var safeIds = canonicalBookIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        if (safeIds.Length == 0)
+        {
+            return [];
+        }
+
+        var entities = await db.PolicyDecisions
+            .AsNoTracking()
+            .Where(x => safeIds.Contains(x.CanonicalBookId))
+            .Where(decision => !db.PolicyDecisions.Any(other =>
+                other.CanonicalBookId == decision.CanonicalBookId &&
+                (other.CreatedAt > decision.CreatedAt ||
+                 (other.CreatedAt == decision.CreatedAt && other.Id > decision.Id))))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entities.Select(ToDomain).ToList();
+    }
+
     public async Task<IReadOnlyList<ContentPolicyDecision>> ListLatestAsync(
         bool takenDownOnly,
         int limit,

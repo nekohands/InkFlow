@@ -92,4 +92,23 @@ public sealed class CanonicalBookRepositoryTests
         var missing = await repo.GetAsync(Guid.NewGuid()).ConfigureAwait(false);
         Assert.IsNull(missing);
     }
+
+    [TestMethod]
+    public async Task ListSummaries_Returns_Chapter_Counts_And_Respects_Limit()
+    {
+        var repo = CreateRepository();
+        var book = CanonicalBook.Create("摘要书", "作者", T0.AddDays(1));
+        book.AddChapter(0, "第一章", T0.AddDays(1));
+        book.AddChapter(1, "第二章", T0.AddDays(1));
+
+        await repo.AddAsync(book).ConfigureAwait(false);
+
+        var summaries = await repo.ListSummariesAsync(100).ConfigureAwait(false);
+        var summary = summaries.Single(item => item.Id == book.Id);
+        Assert.AreEqual("摘要书", summary.Title);
+        Assert.AreEqual(2, summary.ChapterCount);
+
+        var limited = await repo.ListSummariesAsync(1).ConfigureAwait(false);
+        Assert.AreEqual(1, limited.Count);
+    }
 }

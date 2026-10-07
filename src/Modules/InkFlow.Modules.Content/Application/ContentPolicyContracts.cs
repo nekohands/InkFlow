@@ -8,6 +8,22 @@ public interface IContentPolicyReader
     Task<bool> IsTakedownAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default);
+
+    async Task<IReadOnlySet<Guid>> ListTakedownBookIdsAsync(
+        IReadOnlyCollection<Guid> canonicalBookIds,
+        CancellationToken cancellationToken = default)
+    {
+        var takenDown = new HashSet<Guid>();
+        foreach (var bookId in canonicalBookIds.Where(id => id != Guid.Empty).Distinct())
+        {
+            if (await IsTakedownAsync(bookId, cancellationToken).ConfigureAwait(false))
+            {
+                takenDown.Add(bookId);
+            }
+        }
+
+        return takenDown;
+    }
 }
 
 /// <summary>政策决策的追加式持久化端口。</summary>
@@ -21,6 +37,23 @@ public interface IContentPolicyRepository
         bool takenDownOnly,
         int limit,
         CancellationToken cancellationToken = default);
+
+    async Task<IReadOnlyList<ContentPolicyDecision>> ListLatestForBooksAsync(
+        IReadOnlyCollection<Guid> canonicalBookIds,
+        CancellationToken cancellationToken = default)
+    {
+        var latest = new List<ContentPolicyDecision>();
+        foreach (var bookId in canonicalBookIds.Where(id => id != Guid.Empty).Distinct())
+        {
+            var decision = await GetLatestAsync(bookId, cancellationToken).ConfigureAwait(false);
+            if (decision is not null)
+            {
+                latest.Add(decision);
+            }
+        }
+
+        return latest;
+    }
 
     Task AddAsync(
         ContentPolicyDecision decision,

@@ -460,9 +460,11 @@ public static class DeveloperEndpointMapping
                 return quotaResult;
             }
 
-            var books = await catalog.SearchBooksAsync(q ?? string.Empty, ct).ConfigureAwait(false);
+            var books = await catalog
+                .SearchBooksAsync(q ?? string.Empty, boundedLimit, ct)
+                .ConfigureAwait(false);
             DeveloperEndpointResults.NoStore(httpContext);
-            return Results.Ok(books.Take(boundedLimit).Select(ToResponse));
+            return Results.Ok(books.Select(ToResponse));
         });
 
         developer.MapGet("/books", async (
@@ -501,9 +503,9 @@ public static class DeveloperEndpointMapping
                 return quotaResult;
             }
 
-            var books = await catalog.ListBooksAsync(ct).ConfigureAwait(false);
+            var books = await catalog.ListBooksAsync(boundedLimit, ct).ConfigureAwait(false);
             DeveloperEndpointResults.NoStore(httpContext);
-            return Results.Ok(books.Take(boundedLimit).Select(ToResponse));
+            return Results.Ok(books.Select(ToResponse));
         });
 
         developer.MapGet("/books/{bookId:guid}", async (

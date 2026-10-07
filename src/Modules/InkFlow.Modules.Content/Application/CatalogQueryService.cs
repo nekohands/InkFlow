@@ -41,13 +41,14 @@ public sealed class CatalogQueryService(
         var summaries = await bookRepository
             .ListSummariesAsync(Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
             .ConfigureAwait(false);
+        var takenDownBookIds = await policyReader
+            .ListTakedownBookIdsAsync(summaries.Select(book => book.Id).ToArray(), cancellationToken)
+            .ConfigureAwait(false);
 
         var items = new List<BookListItem>(summaries.Count);
         foreach (var book in summaries)
         {
-            if (await policyReader
-                .IsTakedownAsync(book.Id, cancellationToken)
-                .ConfigureAwait(false))
+            if (takenDownBookIds.Contains(book.Id))
             {
                 continue;
             }
