@@ -41,6 +41,9 @@ public static class LibraryMapper
 
 public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalBookRepository
 {
+    private const string MatchWhitespaceCharacters =
+        "\u0009\u000A\u000B\u000C\u000D\u0020\u0085\u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000";
+
     public async Task AddAsync(CanonicalBook book, CancellationToken cancellationToken = default)
     {
         db.Books.Add(LibraryMapper.ToEntity(book));
@@ -157,12 +160,19 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
         var normalizedTitle = Normalize(title);
         var normalizedAuthor = Normalize(author);
 
-        var entities = await db.Books
-            .ToListAsync(cancellationToken)
+        // Normalize in PostgreSQL so matching does not materialize every canonical book.
+        var entity = await db.Books
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "library"."books"
+                WHERE lower(translate("Title", {MatchWhitespaceCharacters}, '')) = {normalizedTitle}
+                  AND lower(translate("Author", {MatchWhitespaceCharacters}, '')) = {normalizedAuthor}
+                ORDER BY "CreatedAt", "Id"
+                LIMIT 1
+                """)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
-
-        var entity = entities.FirstOrDefault(e =>
-            Normalize(e.Title) == normalizedTitle && Normalize(e.Author) == normalizedAuthor);
 
         return entity is null ? null : LibraryMapper.ToDomain(entity, []);
     }

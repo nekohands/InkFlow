@@ -69,7 +69,19 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Accepted（5.62，Private book optimistic concurrency）。当前无 In Progress 工作包。最近完成：[Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)；前一包为：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
+当前状态：In Progress（5.63，Canonical match query bounding）。最近完成：[Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)；前一包为：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
+
+当前工作包（5.63，2026-10-08）：
+
+```text
+Name: Canonical match query bounding
+Objective / user outcome: Canonical book matching no longer materializes every canonical book for a normalized title/author lookup.
+In scope: PostgreSQL-backed FindByTitleAuthorAsync, parameterized normalized predicates, deterministic first-match ordering, focused PostgreSQL regression.
+Non-goals: matching-policy redesign, public API/Legado contract changes, schema/migration changes, duplicate cleanup, full-text search, UI.
+Acceptance: whitespace/case semantics and stable BookId preserved; miss does not load the full table; SQL is parameterized and bounded with LIMIT 1.
+Verification: focused PostgreSQL test, Restore/Release Build, Unit/Architecture/Contract, migration model check, remote CI/Docker/Security.
+Boundary: local Testcontainers may remain BLOCKED by the unavailable Docker named pipe; .workbuddy-ai/ is preserved and untracked.
+```
 
 最近完成工作包（5.62，2026-10-08，`Accepted`）：
 

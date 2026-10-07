@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.62 Private book optimistic concurrency 已 Accepted；当前无 In Progress 工作包；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.63 Canonical match query bounding In Progress；5.62 Private book optimistic concurrency 已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -188,6 +188,12 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 测试：红态后聚焦 adapter/HTTP bounds `13/13`；全量 Unit `595/595`、Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；迁移模型 `11/11`，`wsl.exe bash -n scripts/verify-migrations.sh` PASS。Windows 本机 Integration 实际尝试但因 `npipe://./pipe/docker_engine` 不可用 BLOCKED。
 - 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
 - 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
+
+### 5.63 Canonical match query bounding 交接（本轮，2026-10-08，In Progress）
+
+- Intake：5.56 已记录 `FindByTitleAuthorAsync` 全表加载为独立性能缺口。本包限定在 Library 的 PostgreSQL 匹配读路径，不改变 Book Matcher v1 归一化语义、稳定 BookId 或公共 API/Legado Contract。
+- 计划：用参数化 PostgreSQL 归一化谓词、确定性排序和 `LIMIT 1` 替代全表物化；新增真实 PostgreSQL SQL/行为回归。无 Schema/Migration、UI、Source 或身份策略改动。
+- 状态：Intake 已定义，代码与验证进行中；本机 Docker named pipe 仍可能阻塞 Integration，远端 CI 提供 PostgreSQL/runtime 证据。
 
 ### 5.62 Private book optimistic concurrency 交接（本轮，2026-10-08，Accepted）
 

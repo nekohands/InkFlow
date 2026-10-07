@@ -1,7 +1,9 @@
+using System.Data.Common;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Testcontainers.PostgreSql;
 using DotNet.Testcontainers.Images;
@@ -124,5 +126,54 @@ public sealed class CanonicalBookRepositoryTests
 
         Assert.AreEqual(1, matches.Count);
         Assert.AreEqual(target.Id, matches[0].Id);
+    }
+
+    [TestMethod]
+    public async Task FindByTitleAuthor_Uses_Bounded_Normalized_Query()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var target = CanonicalBook.Create("目标\u00A0书", "作\u2003者", T0.AddDays(3));
+        await repo.AddAsync(target).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        var loaded = await repo
+            .FindByTitleAuthorAsync("目 标书", "作者")
+            .ConfigureAwait(false);
+
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual(target.Id, loaded.Id);
+        var command = capture.Commands.Single(text =>
+            text.Contains("translate", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(command.Contains("LIMIT 1", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static (EfCanonicalBookRepository Repository, SqlCaptureInterceptor Capture)
+        CreateRepositoryWithCapture()
+    {
+        var capture = new SqlCaptureInterceptor();
+        var options = new DbContextOptionsBuilder<LibraryDbContext>()
+            .UseNpgsql(_container!.GetConnectionString())
+            .AddInterceptors(capture)
+            .Options;
+
+        var db = new LibraryDbContext(options);
+        db.Database.Migrate();
+        capture.Commands.Clear();
+        return (new EfCanonicalBookRepository(db), capture);
+    }
+
+    private sealed class SqlCaptureInterceptor : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command.CommandText);
+            return new ValueTask<InterceptionResult<DbDataReader>>(result);
+        }
     }
 }

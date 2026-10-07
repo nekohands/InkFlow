@@ -23,7 +23,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: None. 5.62 [Private book optimistic concurrency](work-packages/2026-10-08-private-book-optimistic-concurrency.md) is Accepted. The slice adds a monotonic private-book Version and owner-scoped conditional metadata updates; stale PUT versions map to 409. It does not redesign concurrency for other aggregates.
+Active work package: 5.63 [Canonical match query bounding](work-packages/2026-10-08-canonical-match-query-bound.md) is In Progress. The slice removes full-table materialization from the PostgreSQL title/author matcher without changing matching semantics or public contracts. 5.62 [Private book optimistic concurrency](work-packages/2026-10-08-private-book-optimistic-concurrency.md) is Accepted.
 Last completed: private book optimistic concurrency (5.62) — Accepted; exact SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` passed CI `37655196433`, Docker `37655726362`, and Security `37655196520`.
 Previous: code adapter response and regex bounds (5.61) — Accepted
 Shared streaming response reads reject oversized bodies before decode/parse; Kanunu8 regex timeouts and adapter regression tests are covered by local gates and remote CI/Docker/Security GREEN at `0d7d5ce`.
