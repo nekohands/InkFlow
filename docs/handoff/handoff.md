@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.59 Catalog 查询分页/N+1 收敛进行中；`a700977`、`771f027`、`c0d79df` 已完成实现，本地逻辑门禁通过，Windows PostgreSQL Integration 因 Docker Engine BLOCKED，CI 尚未触发；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.59 Catalog 查询分页/N+1 收敛已 Accepted；`a700977`、`771f027`、`c0d79df` 已完成实现，本地逻辑门禁通过，远端 CI/Docker/Security GREEN；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-07；dev 骨架重建更新：2026-08-25
 
@@ -165,13 +165,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 门禁：本机 Unit 587/587、Architecture 1/1、Contract 12/12、Release Build 0 warnings / 0 errors；无 Schema/Migration 变更。远端 `1658b87` 的 [CI 37478901744](https://github.com/nekohands/InkFlow/actions/runs/37478901744)、[Docker 37478902070](https://github.com/nekohands/InkFlow/actions/runs/37478902070)、[Security 37478901915](https://github.com/nekohands/InkFlow/actions/runs/37478901915) 均 success。
 - 边界：单条 Handler 超过完整租约时长的中途续约未实现（幂等消费兜底），已记录。
 
-### 5.59 Catalog 查询分页与 N+1 收敛交接（本轮，2026-10-07，In Progress）
+### 5.59 Catalog 查询分页与 N+1 收敛交接（本轮，2026-10-07，Accepted）
 
 - 代码：`ICanonicalBookRepository.ListSummariesAsync`/`SearchSummariesAsync` 与 `EfCanonicalBookRepository` 提供有界书目摘要、书名/作者简单查询和章节数；`IContentPolicyReader.ListTakedownBookIdsAsync`/`EfContentPolicyRepository` 提供按 BookId 批量读取最新策略；`CatalogQueryService` 使用摘要与批量策略，Developer `/search`、`/books` 把既有 `limit` 下推。
 - 兼容：仓储和策略端口保留默认逐项回退供测试替身；生产 EF 实现覆写为投影/批量查询。BookId/ChapterId、Content Policy 下架过滤、Developer API `1..100` limit 和响应形状保持不变；无 Schema/Migration 变更。
-- 验证：聚焦 Unit `CatalogQueryServiceTests` `11/11 PASS`；全量 Unit `590/590`、Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；新增真实 PostgreSQL 摘要/搜索/策略用例已编译，但本机 Testcontainers 启动因 Docker named pipe 不可用 `BLOCKED`，Docker CLI/Runtime 与 CI 尚未完成。
+- 验证：聚焦 Unit `CatalogQueryServiceTests` `11/11 PASS`；全量 Unit `590/590`、Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；本机 Testcontainers 启动因 Docker named pipe 不可用 `BLOCKED`，但远端 CI `37621536608`、Docker `37621536753`、Security `37621536604` 均对 `9783b7d` `success`，含 PostgreSQL/Runtime 验证。
 - 当前 Commit：`c0d79df`（实现代码基线；文档收口 `ed73a37`；前置候选 `a700977`、`771f027`）。分支 `dev`，工作树仅保留 `.workbuddy-ai/` 用户未跟踪目录，未加入代码提交。
-- 下一步：推送 `dev`，读取 CI/Docker/Security 三个工作流；失败必须按根因修复并回归。
+- 下一步：下一工作包重新 intake；游标续页、全文检索与 UI 改造不属于本包。
 
 ## 5. 关键架构不变量
 

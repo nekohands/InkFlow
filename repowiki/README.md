@@ -23,10 +23,11 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: [catalog query pagination and N+1 reduction](work-packages/2026-10-07-catalog-query-pagination.md)
-— bounded Canonical summaries, bulk Content Policy reads, and Developer catalog
-limit forwarding; no cursor API or schema change.
-Last completed: batch lease renewal (5.58) — `OutboxDispatcher` and
+Active work package: Intake required — 5.59 [catalog query pagination and N+1 reduction](work-packages/2026-10-07-catalog-query-pagination.md) is Accepted with local and remote gates green. Next candidates are optimistic concurrency, adapter regex/read bounds, and Entitlement actor validation.
+Last completed: catalog query pagination and N+1 reduction (5.59) — bounded
+Canonical summaries, bulk Content Policy reads, Developer catalog limit
+forwarding, and no cursor API or schema change. Previous: batch lease renewal
+(5.58) — `OutboxDispatcher` and
 `InboxConsumerPump` renew the remaining claimed batch before each message via
 `ExtendLeaseBatchAsync` (owner- and terminal-state-guarded UPDATE; default
 no-op fallback is for test doubles only). Batch work slower than the lease no

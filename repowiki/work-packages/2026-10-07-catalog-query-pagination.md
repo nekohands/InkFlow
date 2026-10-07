@@ -27,12 +27,12 @@ Verification plan:
   - [x] diff/secrets/scope audit
   - [x] build: `dotnet restore InkFlow.sln`; `dotnet build InkFlow.sln -c Release --no-restore` (environment may require the documented restore workaround)
   - [x] tests: focused CatalogQueryService `11/11`; full Unit `590/590`, Architecture `1/1`, Contract `12/12`
-  - [ ] runtime/integration: real PostgreSQL repository projection/policy regressions; Docker/Compose only if available
+  - [x] runtime/integration: real PostgreSQL repository projection/policy regressions; Docker/Compose only if available
   - [x] security/architecture: policy filtering, stable IDs, no secret/logging changes, Architecture tests
   - [x] project-defined gates/phase exit: record as applicable; no phase exit change
   - [x] manual/real-environment acceptance: N/A for this backend-only bounded query slice
-  - [ ] CI: target commit's required CI/Docker/Security jobs
-Documentation/state updates: update Developer API contract note, Progress, Handoff, and this record with evidence.
+  - [x] CI: target commit's required CI/Docker/Security jobs
+Documentation/state updates: updated Developer API contract note, Progress, Handoff, and this record with evidence.
 Affected Wiki pages and source/test evidence: repowiki/README.md; this work package; CatalogQueryService; repository contracts and tests.
 Affected Chinese human pages: docs/architecture/developer-api.md; docs/roadmap/progress.md; docs/handoff/handoff.md.
 ```
@@ -44,36 +44,36 @@ Surface | Required check | Evidence source | Command/evidence | Result | Notes
 Build/restore | Release restore/build | local | `dotnet restore InkFlow.sln`; `dotnet build InkFlow.sln -c Release --no-restore` | PASS | 0 warnings, 0 errors.
 Logic/parser | Catalog bounded list/search regression | local | focused Catalog `11/11`; Unit `590/590` | PASS | Includes search-after-filter and bulk policy regressions.
 Boundary | Module dependency rules | local | Architecture `1/1` | PASS | No dependency direction change.
-Persistence/infra | Summary/policy projection | CI/local Docker | focused PostgreSQL tests | BLOCKED | Tests compile; Testcontainers cannot connect to `npipe://./pipe/docker_engine`.
+Persistence/infra | Summary/policy projection | CI/local Docker | focused PostgreSQL tests; CI `37621536608` | PASS | Local Testcontainers is blocked by `npipe://./pipe/docker_engine`; remote CI covered PostgreSQL.
 External contract | Developer catalog limit | local/CI | Contract `12/12` | PASS | Existing response and limit contract preserved.
-Runtime/business path | API/catalog smoke | CI or available runtime | `docker compose -f docker-compose.build.yml config --quiet` | BLOCKED | Docker CLI is unavailable on this host; no runtime claim.
+Runtime/business path | API/catalog smoke | CI or available runtime | Docker `37621536753`; CI `37621536608` | PASS | Local Docker CLI is unavailable; remote Docker/Runtime smoke passed.
 Manual/real environment | Device/live source | N/A | backend-only slice | N/A | Not affected.
 UI/browser | Reader visual/accessibility | N/A | backend-only slice | N/A | No UI change planned.
 Security | Policy visibility and secret scan | local/CI | diff review and unchanged auth/permission surface | PASS | No new credential, token, cookie, or permission path.
-Project-defined gate/state | Catalog review item | local/CI | work package and handoff evidence | PARTIAL | Local gates complete; Docker and remote CI remain.
+Project-defined gate/state | Catalog review item | local/CI | work package and handoff evidence | PASS | Review item implemented; no phase exit change.
 Documentation/state | Progress/Handoff/contract/Wiki | local | updated pages and links | PASS | Documentation closeout `ed73a37` included.
-CI | Required jobs for target commit | CI | push pending | NOT TRIGGERED | Do not report GREEN before required workflows finish.
+CI | Required jobs for target commit | CI | CI `37621536608`; Docker `37621536753`; Security `37621536604` | GREEN | All three workflows passed for `9783b7d`.
 RepoWiki sync | Wiki/source/human agreement and links | local | source/docs cross-check and `git diff --check` | PASS | Wiki remains the AI source of truth.
 ```
 
 ## Delivery Record
 
 ```text
-Work package: In Progress
+Work package: Accepted
 Implementation: `a700977`, `771f027`, `c0d79df`
-Acceptance: PARTIAL — local logic and contract gates pass; PostgreSQL/runtime/CI evidence remains.
+Acceptance: PASS — local logic/contract gates and remote PostgreSQL/runtime evidence pass.
 Build: PASS — Release build 0 warnings, 0 errors.
-Tests: PARTIAL — Unit `590/590`, Architecture `1/1`, Contract `12/12`; PostgreSQL-focused tests BLOCKED by Docker named pipe.
-Runtime: BLOCKED — Docker CLI/Engine unavailable on this host.
-Security: PASS — no new credential, permission, or logging surface; diff reviewed.
-Project-defined gates/phase exit: PARTIAL — review item implemented; no phase exit change.
-CI: NOT TRIGGERED — candidate is ready to push.
+Tests: PASS — Unit `590/590`, Architecture `1/1`, Contract `12/12`; remote CI validate passed with PostgreSQL/runtime smoke.
+Runtime: PASS — remote Docker/Runtime gates passed; local Docker CLI/Engine remains unavailable.
+Security: PASS — local diff review and remote Security workflow `37621536604` passed.
+Project-defined gates/phase exit: PASS — review item implemented; no phase exit change.
+CI: GREEN — CI `37621536608`, Docker `37621536753`, Security `37621536604`.
 Findings: CatalogQueryService had 3N+1 reads, Developer catalog applied limit after full loading, and search could apply limit before matching candidates.
 Fixed: bounded Canonical summaries, bulk latest Content Policy reads, query-bound Developer limits, and provider-side simple search filtering with literal LIKE escaping.
-Remaining risks/blockers: Windows Docker availability, PostgreSQL/Runtime evidence, and remote CI jobs.
-Commit/PR: `a700977`, `771f027`, `c0d79df`, `ed73a37` (local candidate; no PR).
+Remaining risks/blockers: None for this work package; local Windows Docker remains unavailable, and cursor/full-text-search work is an explicit follow-up scope.
+Commit/PR: `a700977`, `771f027`, `c0d79df`, `ed73a37`, `9783b7d` (pushed to `dev`; no PR).
 Documentation/state sync: Developer API, Progress, Handoff, RepoWiki index, and this record updated.
 RepoWiki sync: PASS (scope, source changes, evidence, and human-facing pages agree).
-Evidence limitations: Testcontainers could not start because `npipe://./pipe/docker_engine` is unavailable; no CI has run before push.
-Next step: push `dev`, then read the required CI/Docker/Security jobs and return to any failed root cause.
+Evidence limitations: local Testcontainers could not start because `npipe://./pipe/docker_engine` is unavailable; remote CI supplied the required PostgreSQL/Runtime evidence.
+Next step: start intake for the next candidate work package.
 ```
