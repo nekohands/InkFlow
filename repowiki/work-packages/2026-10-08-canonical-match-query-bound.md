@@ -1,6 +1,6 @@
 # Canonical match query bounding
 
-Status: In Progress
+Status: Accepted
 Name: Canonical match query bounding
 Objective / user outcome: Canonical book matching no longer materializes every canonical book when resolving a normalized title/author pair.
 In scope: PostgreSQL-backed `FindByTitleAuthorAsync`, parameterized normalized predicates, deterministic first-match ordering, and focused PostgreSQL regression coverage.
@@ -10,13 +10,13 @@ Affected contracts/data/permissions/architecture: Library persistence read path 
 
 Acceptance criteria:
 
-- [ ] Matching still ignores whitespace and case and returns the existing stable `BookId`.
-- [ ] A miss returns `null` without materializing the full `library.books` table.
-- [ ] The production PostgreSQL query uses parameterized normalized predicates and `LIMIT 1` with deterministic ordering.
-- [ ] Focused PostgreSQL regression and the applicable Release/Architecture/Unit/Contract/migration checks pass.
+- [x] Matching still ignores whitespace and case and returns the existing stable `BookId`.
+- [x] A miss returns `null` without materializing the full `library.books` table.
+- [x] The production PostgreSQL query uses parameterized normalized predicates and `LIMIT 1` with deterministic ordering.
+- [x] Focused PostgreSQL regression and the applicable Release/Architecture/Unit/Contract/migration checks pass.
 
 Risks and invariants: PostgreSQL expression syntax is provider-specific and must remain parameterized. The query must not create or merge Canonical identities, change title/author normalization, or expose source/private data.
 
-Verification plan: focused `CanonicalBookRepositoryTests`; `dotnet restore InkFlow.sln`; Release build; Unit, Architecture and Contract tests; migration model check; local Integration attempt (expected Docker named-pipe blocker on this host); remote CI/Docker/Security gates.
+Verification evidence: `dotnet restore InkFlow.sln`; Release solution build passed with 0 warnings / 0 errors; Unit `597/597`; Architecture `1/1`; Contract `12/12`; Windows migration model check `11/11`. The focused local PostgreSQL Integration attempt was BLOCKED by the unavailable Docker named pipe. Exact implementation SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` passed CI `37661014830`, Docker `37661014858`, and Security `37661014826`, including PostgreSQL/runtime smoke. The first candidate's fixture collision was isolated in `2f20125`; no production behavior change was required.
 
 Delivery boundary: no schema/migration, API, Legado, UI, or source-runtime changes. `.workbuddy-ai/` remains user-owned and untracked.

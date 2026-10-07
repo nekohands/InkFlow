@@ -23,8 +23,8 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: 5.63 [Canonical match query bounding](work-packages/2026-10-08-canonical-match-query-bound.md) is In Progress. The slice removes full-table materialization from the PostgreSQL title/author matcher without changing matching semantics or public contracts. 5.62 [Private book optimistic concurrency](work-packages/2026-10-08-private-book-optimistic-concurrency.md) is Accepted.
-Last completed: private book optimistic concurrency (5.62) — Accepted; exact SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` passed CI `37655196433`, Docker `37655726362`, and Security `37655196520`.
+Active work package: None. 5.63 [Canonical match query bounding](work-packages/2026-10-08-canonical-match-query-bound.md) is Accepted; it removes full-table materialization from the PostgreSQL title/author matcher without changing matching semantics or public contracts. 5.62 [Private book optimistic concurrency](work-packages/2026-10-08-private-book-optimistic-concurrency.md) remains Accepted.
+Last completed: canonical match query bounding (5.63) — Accepted; exact SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` passed CI `37661014830`, Docker `37661014858`, and Security `37661014826`.
 Previous: code adapter response and regex bounds (5.61) — Accepted
 Shared streaming response reads reject oversized bodies before decode/parse; Kanunu8 regex timeouts and adapter regression tests are covered by local gates and remote CI/Docker/Security GREEN at `0d7d5ce`.
 Previous: entitlement actor validation (5.60) — Administrator enforcement at the Billing service boundary, stable forbidden mapping,

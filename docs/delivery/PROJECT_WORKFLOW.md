@@ -69,9 +69,9 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.63，Canonical match query bounding）。最近完成：[Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)；前一包为：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
+当前状态：Accepted（5.63，Canonical match query bounding）；当前无 In Progress 工作包。前一包为：[Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)，再前一包为：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
 
-当前工作包（5.63，2026-10-08）：
+最近完成工作包（5.63，2026-10-08，Accepted）：
 
 ```text
 Name: Canonical match query bounding
@@ -79,7 +79,8 @@ Objective / user outcome: Canonical book matching no longer materializes every c
 In scope: PostgreSQL-backed FindByTitleAuthorAsync, parameterized normalized predicates, deterministic first-match ordering, focused PostgreSQL regression.
 Non-goals: matching-policy redesign, public API/Legado contract changes, schema/migration changes, duplicate cleanup, full-text search, UI.
 Acceptance: whitespace/case semantics and stable BookId preserved; miss does not load the full table; SQL is parameterized and bounded with LIMIT 1.
-Verification: focused PostgreSQL test, Restore/Release Build, Unit/Architecture/Contract, migration model check, remote CI/Docker/Security.
+Status: Accepted.
+Verification: Restore/Release Build 0 warnings / 0 errors; Unit 597/597; Architecture 1/1; Contract 12/12; Windows migration model check 11/11; focused local PostgreSQL Integration BLOCKED by unavailable Docker named pipe. Exact SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` passed CI 37661014830, Docker 37661014858, and Security 37661014826.
 Boundary: local Testcontainers may remain BLOCKED by the unavailable Docker named pipe; .workbuddy-ai/ is preserved and untracked.
 ```
 

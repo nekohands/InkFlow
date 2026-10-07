@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.63 Canonical match query bounding In Progress；5.62 Private book optimistic concurrency 已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.63 Canonical match query bounding 已 Accepted；当前无 In Progress 工作包；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -141,13 +141,15 @@ Phase 1A 自动化工作包状态：
 - 远端：`d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime 验证。
 - 边界：本机 Billing Testcontainers 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包需重新 intake，候选为乐观并发和适配器正则/读取边界。
 
-### 5.63 Canonical match query bounding（本轮，2026-10-08，In Progress）
+### 5.63 Canonical match query bounding（本轮，2026-10-08，Accepted）
 
 - Intake：5.56 已明确 `FindByTitleAuthorAsync` 会把 `library.books` 全表物化后再执行 Book Matcher v1 的归一化比较；本包只收敛该 PostgreSQL 读路径。
 - 范围：使用参数化 PostgreSQL 归一化谓词、确定性首条排序和 `LIMIT 1`；保持去空白/忽略大小写语义、稳定 BookId、测试替身和所有公开契约不变。
 - 非目标：不增加 Schema/Migration，不改变匹配政策，不清理重复正典，不引入全文检索、分页 API 或 UI。
-- 验收：匹配/未命中回归；SQL 不再全表物化且有 `LIMIT 1`；适用 Build/Test/迁移模型/远端门禁通过后再收口。
-- 当前状态：Intake 已定义，代码与验证进行中。
+- 验收：匹配/未命中回归；SQL 不再全表物化且有 `LIMIT 1`；参数化谓词、确定性排序和原有去空白/忽略大小写语义保持不变。
+- 实现：Npgsql 读路径改为参数化 PostgreSQL `translate` 归一化谓词，按 `CreatedAt, Id` 确定性排序并 `LIMIT 1`；增加真实 PostgreSQL SQL/行为回归，未改 Schema、Migration 或公开契约。
+- 本地验证：Restore/Release Build 0 warnings / 0 errors；Unit `597/597`、Architecture `1/1`、Contract `12/12`；Windows 迁移模型检查 `11/11`。聚焦 PostgreSQL Integration 本机因 Docker named pipe 不可用而 BLOCKED。
+- 远端：精确 SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` 的 [CI 37661014830](https://github.com/nekohands/InkFlow/actions/runs/37661014830)、[Docker 37661014858](https://github.com/nekohands/InkFlow/actions/runs/37661014858)、[Security 37661014826](https://github.com/nekohands/InkFlow/actions/runs/37661014826) 均 success，含 PostgreSQL/runtime smoke；首个候选的测试夹具碰撞已由 `2f20125` 隔离修复。
 
 ### 5.62 Private book optimistic concurrency（本轮，2026-10-08，Accepted）
 
