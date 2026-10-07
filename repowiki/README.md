@@ -23,7 +23,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: Intake required — 5.60 [Entitlement actor validation](work-packages/2026-10-07-entitlement-actor-validation.md) is Accepted. The service boundary now requires an active Administrator before assignment; no route, payload, schema, or migration change was introduced. Local logic gates and remote CI/Docker/Security are green; local Testcontainers remains blocked by the unavailable Docker named pipe. Remaining candidates are optimistic concurrency and adapter regex/read bounds.
+Active work package: In Progress — 5.61 [Code adapter response and regex bounds](work-packages/2026-10-08-code-adapter-bounds.md). The slice bounds custom Kanunu8/17K response reads with the existing SourceRuleExecutionLimits and gives Kanunu8 static regexes a finite timeout; no public adapter, schema, or migration change is planned. Previous 5.60 [entitlement actor validation](work-packages/2026-10-07-entitlement-actor-validation.md) is Accepted with local and remote gates green. Remaining candidate: optimistic concurrency.
 Last completed: entitlement actor validation (5.60) — active
 Administrator enforcement at the Billing service boundary, stable forbidden mapping,
 and no route/payload/schema/migration change. Previous: catalog query pagination and N+1 reduction (5.59) — bounded

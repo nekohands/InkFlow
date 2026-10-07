@@ -69,8 +69,8 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Intake required（5.60 已 Accepted，Entitlement actor validation）。最近工作包：[Entitlement actor validation](../../repowiki/work-packages/2026-10-07-entitlement-actor-validation.md)。
-本包只在 Billing 应用服务边界补充活跃 Administrator 操作者校验，并保持既有管理员策略、请求形状、审计和数据模型；不引入角色策略重做、乐观并发、适配器边界、Schema 或 Migration 变化。实现 `d0413f2`，本地 Unit/Architecture/Contract 与迁移检查通过，远端 CI/Docker/Security 全部 GREEN。
+当前状态：In Progress（5.61，Code adapter response and regex bounds）。最近工作包：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
+本包复用既有 SourceRuleExecutionLimits，为 Kanunu8/17K 自定义适配器补齐响应体上限，并为 Kanunu8 静态正则设置有限超时；不引入公共适配器契约、乐观并发、Schema 或 Migration 变化。前一包 5.60 已 Accepted，远端 CI/Docker/Security 全部 GREEN。
 
 最近完成工作包（5.60，2026-10-07，`Accepted` 级证据）：
 
