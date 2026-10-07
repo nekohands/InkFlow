@@ -23,7 +23,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: None — 5.61 [Code adapter response and regex bounds](work-packages/2026-10-08-code-adapter-bounds.md) is Accepted. The slice bounds custom Kanunu8/17K response reads with the existing SourceRuleExecutionLimits and gives Kanunu8 static regexes the configured finite timeout; no public adapter, schema, or migration change was made. Next candidate: optimistic concurrency, requiring fresh intake.
+Active work package: In Progress — 5.62 [Private book optimistic concurrency](work-packages/2026-10-08-private-book-optimistic-concurrency.md). The slice adds a monotonic private-book Version and owner-scoped conditional metadata updates; stale PUT versions map to 409. It does not redesign concurrency for other aggregates.
 Last completed: code adapter response and regex bounds (5.61) — Accepted
 Shared streaming response reads reject oversized bodies before decode/parse; Kanunu8 regex timeouts and adapter regression tests are covered by local gates and remote CI/Docker/Security GREEN at `0d7d5ce`.
 Previous: entitlement actor validation (5.60) — Administrator enforcement at the Billing service boundary, stable forbidden mapping,

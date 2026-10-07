@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.61 Code adapter response and regex bounds 已 Accepted；代码提交 `0d7d5ce`，本地 Build/逻辑/迁移门禁通过，远端 CI/Docker/Security GREEN；历史记录见 `progress-history.md`。
+- 文档状态：5.62 Private book optimistic concurrency In Progress；5.61 Code adapter response and regex bounds 已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -140,6 +140,13 @@ Phase 1A 自动化工作包状态：
 - 测试：先建立红态回归，再实现并验证；聚焦 Commercial/Identity `18/18`、全量 Unit `592/592`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`；Windows 迁移模型检查 11/11，脚本语法 PASS。
 - 远端：`d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime 验证。
 - 边界：本机 Billing Testcontainers 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包需重新 intake，候选为乐观并发和适配器正则/读取边界。
+
+### 5.62 Private book optimistic concurrency（本轮，2026-10-08，In Progress）
+
+- Intake：将“乐观并发”收窄为 Private Library 私有书目元数据更新；`PrivateBook` 增加从 1 开始的单调 `Version`，PUT 提交当前版本，过期版本返回 409；不扩展到 Canonical/Source/Identity/Reading 等其他聚合。
+- 当前缺口：`PrivateLibraryService.UpdateAsync` 先读取，`EfPrivateBookRepository.SaveAsync` 按用户/书 ID 无条件回写，存在并发元数据静默覆盖。
+- 验收与验证计划：版本化响应/请求、原子 UserId+BookId+Version 条件更新、过期写不改数据、两个真实 PostgreSQL 并发写仅一个成功；随后执行 Restore/Release Build、Unit、Architecture、Contract、迁移、远端 CI/Docker/Security。
+- 状态：仅完成 intake，代码、测试、Runtime 和 CI 均 NOT RUN；本机 Docker named pipe 仍可能导致 Testcontainers BLOCKED，需由远端 CI 提供 PostgreSQL/runtime 证据。
 
 ### 5.61 Code adapter response and regex bounds（本轮，2026-10-08，Accepted）
 
