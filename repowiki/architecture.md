@@ -40,6 +40,11 @@ Parent/root index: [README.md](README.md)
   `scripts/verify-migrations.sh` fail-closes on model drift for all 11 DbContexts.
 - Crawler tasks live in PostgreSQL; the Crawler executes and reports but never
   owns Canonical matching or final content selection.
+- Private Library records are scoped by authenticated \`UserId\` and use an
+  independent \`PrivateBookId\`; \`PrivateBookView.Version\` starts at 1 and
+  increments on metadata updates. PUT writes are guarded atomically by
+  \`UserId + PrivateBookId + expected Version\`; stale versions return the stable
+  private-book conflict instead of overwriting newer metadata.
 
 ## Source runtime constraints
 

@@ -68,11 +68,12 @@ public sealed class PrivateLibraryService(
         Guid privateBookId,
         string? title,
         string? author,
+        long expectedVersion,
         CancellationToken cancellationToken = default)
     {
-        if (userId == Guid.Empty || privateBookId == Guid.Empty)
+        if (userId == Guid.Empty || privateBookId == Guid.Empty || expectedVersion < 1)
         {
-            return NotFound<PrivateBookView>();
+            return Invalid<PrivateBookView>();
         }
 
         var book = await repository.GetAsync(userId, privateBookId, cancellationToken)
@@ -80,6 +81,11 @@ public sealed class PrivateLibraryService(
         if (book is null)
         {
             return NotFound<PrivateBookView>();
+        }
+
+        if (book.Version != expectedVersion)
+        {
+            return Conflict<PrivateBookView>();
         }
 
         try
@@ -91,12 +97,27 @@ public sealed class PrivateLibraryService(
             return Invalid<PrivateBookView>();
         }
 
-        if (!await repository.SaveAsync(book, cancellationToken).ConfigureAwait(false))
+        var saveStatus = await repository
+            .SaveAsync(book, expectedVersion, cancellationToken)
+            .ConfigureAwait(false);
+        if (saveStatus == PrivateBookSaveStatus.NotFound)
         {
             return NotFound<PrivateBookView>();
         }
 
-        return Success(ToView(book));
+        if (saveStatus == PrivateBookSaveStatus.Conflict)
+        {
+            return Conflict<PrivateBookView>();
+        }
+
+        return Success(ToView(PrivateBook.Rehydrate(
+            book.UserId,
+            book.Id,
+            book.Title,
+            book.Author,
+            book.CreatedAt,
+            book.UpdatedAt,
+            checked(book.Version + 1))));
     }
 
     public async Task<PrivateLibraryResultStatus> DeleteAsync(
@@ -116,7 +137,7 @@ public sealed class PrivateLibraryService(
     }
 
     private static PrivateBookView ToView(PrivateBook book) =>
-        new(book.Id, book.Title, book.Author, book.CreatedAt, book.UpdatedAt);
+        new(book.Id, book.Title, book.Author, book.CreatedAt, book.UpdatedAt, book.Version);
 
     private static PrivateLibraryOperationResult<T> Success<T>(T value) =>
         new(PrivateLibraryResultStatus.Success, value);
@@ -126,4 +147,7 @@ public sealed class PrivateLibraryService(
 
     private static PrivateLibraryOperationResult<T> Invalid<T>() =>
         new(PrivateLibraryResultStatus.InvalidRequest, default);
+
+    private static PrivateLibraryOperationResult<T> Conflict<T>() =>
+        new(PrivateLibraryResultStatus.Conflict, default);
 }

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.Features;
 namespace InkFlow.Api;
 
 public sealed record PrivateBookRequest(string? Title, string? Author);
+public sealed record PrivateBookUpdateRequest(string? Title, string? Author, long? Version);
 
 public static class PrivateLibraryEndpointResults
 {
@@ -23,6 +24,7 @@ public static class PrivateLibraryEndpointResults
             PrivateLibraryResultStatus.Success when result.Value is not null =>
                 onSuccess?.Invoke(result.Value) ?? Results.Ok(result.Value),
             PrivateLibraryResultStatus.NotFound => Results.NotFound(),
+            PrivateLibraryResultStatus.Conflict => Results.Conflict(new { error = "private_book_version_conflict" }),
             _ => Results.BadRequest(new { error = "invalid_request" }),
         };
 
@@ -259,7 +261,7 @@ public static class PrivateLibraryEndpointMapping
 
         privateLibrary.MapPut("/books/{privateBookId:guid}", async (
             Guid privateBookId,
-            PrivateBookRequest? request,
+            PrivateBookUpdateRequest? request,
             ClaimsPrincipal principal,
             IPrivateLibraryService library,
             CancellationToken ct) =>
@@ -269,7 +271,7 @@ public static class PrivateLibraryEndpointMapping
                 return Results.Unauthorized();
             }
 
-            if (request is null)
+            if (request is null || request.Version is null || request.Version < 1)
             {
                 return Results.BadRequest(new { error = "invalid_request" });
             }
@@ -279,6 +281,7 @@ public static class PrivateLibraryEndpointMapping
                     privateBookId,
                     request.Title,
                     request.Author,
+                    request.Version.Value,
                     ct)
                 .ConfigureAwait(false);
             return PrivateLibraryEndpointResults.FromOperation(result);

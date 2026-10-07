@@ -258,17 +258,18 @@ public sealed class PrivateBookImportTests
                 .Take(limit)
                 .ToList());
 
-        public Task<bool> SaveAsync(
+        public Task<PrivateBookSaveStatus> SaveAsync(
             PrivateBook book,
+            long expectedVersion,
             CancellationToken cancellationToken = default)
         {
             if (!books.ContainsKey((book.UserId, book.Id)))
             {
-                return Task.FromResult(false);
+                return Task.FromResult(PrivateBookSaveStatus.NotFound);
             }
 
             books[(book.UserId, book.Id)] = book;
-            return Task.FromResult(true);
+            return Task.FromResult(PrivateBookSaveStatus.Saved);
         }
 
         public Task<bool> DeleteAsync(

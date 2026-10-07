@@ -14,6 +14,7 @@ public sealed class PrivateBook
     public string? Author { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
+    public long Version { get; private set; }
 
     private PrivateBook() { }
 
@@ -35,6 +36,7 @@ public sealed class PrivateBook
             Author = normalizedAuthor,
             CreatedAt = now,
             UpdatedAt = now,
+            Version = 1,
         };
     }
 
@@ -44,12 +46,18 @@ public sealed class PrivateBook
         string title,
         string? author,
         DateTimeOffset createdAt,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        long version = 1)
     {
         ValidateUserId(userId);
         if (id == Guid.Empty)
         {
             throw new ArgumentException("private book id must not be empty.", nameof(id));
+        }
+
+        if (version < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(version), "private book version must be positive.");
         }
 
         return new PrivateBook
@@ -60,6 +68,7 @@ public sealed class PrivateBook
             Author = NormalizeOptional(author, MaxAuthorLength, nameof(author)),
             CreatedAt = createdAt,
             UpdatedAt = updatedAt,
+            Version = version,
         };
     }
 

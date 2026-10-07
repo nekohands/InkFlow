@@ -49,7 +49,8 @@ public sealed class PrivateLibraryContractTests
                 "私有书",
                 "作者",
                 DateTimeOffset.Parse("2026-08-28T00:00:00Z"),
-                DateTimeOffset.Parse("2026-08-28T00:00:00Z")),
+                DateTimeOffset.Parse("2026-08-28T00:00:00Z"),
+                1),
             2);
 
         using var document = JsonDocument.Parse(
@@ -60,6 +61,7 @@ public sealed class PrivateLibraryContractTests
         var book = root.GetProperty("book");
         Assert.IsTrue(book.TryGetProperty("privateBookId", out _));
         Assert.AreEqual("私有书", book.GetProperty("title").GetString());
+        Assert.AreEqual(1, book.GetProperty("version").GetInt64());
         Assert.IsFalse(book.TryGetProperty("bookId", out _));
     }
 }

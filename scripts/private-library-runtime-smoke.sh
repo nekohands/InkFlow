@@ -19,6 +19,7 @@ imported_book_id=""
 epub_book_id=""
 duplicate_book_id=""
 deleted_book_id=""
+book_version=""
 
 fail() {
   printf 'private-library-runtime-smoke: %s\n' "$1" >&2
@@ -269,14 +270,20 @@ if ! "$jq_bin" -e \
   "$work_dir/detail.json" >/dev/null; then
   fail 'created private book detail does not match the owner contract'
 fi
+book_version="$("$jq_bin" -er '.version' "$work_dir/detail.json")"
+if ! [[ "$book_version" =~ ^[1-9][0-9]*$ ]]; then
+  fail 'created private book detail does not expose a positive version'
+fi
 
 updated_payload="$("$jq_bin" -nc \
   --arg title 'CI Private Book Updated' \
   --arg author 'CI Runtime Updated' \
-  '{title: $title, author: $author}')"
+  --argjson version "$book_version" \
+  '{title: $title, author: $author, version: $version}')"
 put_json "/api/v1/me/private-library/books/$book_id" "$token_a" "$updated_payload" "$work_dir/update.json"
 if ! "$jq_bin" -e \
-  '.privateBookId != null and .title == "CI Private Book Updated" and .author == "CI Runtime Updated"' \
+  --argjson expected_version "$((book_version + 1))" \
+  '.privateBookId != null and .title == "CI Private Book Updated" and .author == "CI Runtime Updated" and .version == $expected_version' \
   "$work_dir/update.json" >/dev/null; then
   fail 'private book update did not persist the editable metadata'
 fi

@@ -33,6 +33,17 @@ public sealed class PrivateLibraryEndpointTests
     }
 
     [TestMethod]
+    public void Version_Conflict_Is_Mapped_To_Conflict()
+    {
+        var result = PrivateLibraryEndpointResults.FromOperation(
+            new InkFlow.Modules.Library.Application.PrivateLibraryOperationResult<string>(
+                InkFlow.Modules.Library.Application.PrivateLibraryResultStatus.Conflict,
+                null));
+
+        Assert.AreEqual(StatusCodes.Status409Conflict, ((IStatusCodeHttpResult)result).StatusCode);
+    }
+
+    [TestMethod]
     public void Oversized_Import_Is_Mapped_To_Payload_Too_Large()
     {
         var result = PrivateLibraryEndpointResults.FromContentOperation(

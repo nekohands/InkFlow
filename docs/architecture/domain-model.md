@@ -68,7 +68,7 @@ SourceChapter 属于 SourceBook。通过 ChapterMapping 与 CanonicalChapter 建
 
 PrivateBook 是单一 User 所有的私有书目元数据，使用独立的 PrivateBookId；它不是 CanonicalBook，也不拥有公共 BookId/ChapterId 的语义。
 
-私有书目查询和变更必须以认证主体 UserId 为范围。PrivateBook v1 覆盖书目元数据，PrivateChapter/PrivateContentDocument v2 覆盖私有阅读正文与 TXT/EPUB 导入导出；发布为公共 Canonical 内容仍需另行建模。
+私有书目查询和变更必须以认证主体 UserId 为范围；元数据聚合携带从 1 开始递增的 \`Version\`，写入必须以 UserId、PrivateBookId 和期望 Version 做原子条件更新，过期写入不能覆盖较新编辑。PrivateBook v1 覆盖书目元数据，PrivateChapter/PrivateContentDocument v2 覆盖私有阅读正文与 TXT/EPUB 导入导出；发布为公共 Canonical 内容仍需另行建模。
 
 ### PrivateChapter / PrivateContentDocument
 

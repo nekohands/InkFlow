@@ -7,7 +7,8 @@ public sealed record PrivateBookView(
     string Title,
     string? Author,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    long Version);
 
 public enum PrivateLibraryResultStatus
 {
@@ -17,11 +18,19 @@ public enum PrivateLibraryResultStatus
     UnsupportedFormat = 4,
     FileTooLarge = 5,
     InvalidFile = 6,
+    Conflict = 7,
 }
 
 public sealed record PrivateLibraryOperationResult<T>(
     PrivateLibraryResultStatus Status,
     T? Value);
+
+public enum PrivateBookSaveStatus
+{
+    Saved = 1,
+    NotFound = 2,
+    Conflict = 3,
+}
 
 /// <summary>私有书目仓储：每个读取和变更都显式按 UserId 限定。</summary>
 public interface IPrivateBookRepository
@@ -38,7 +47,10 @@ public interface IPrivateBookRepository
         int limit,
         CancellationToken cancellationToken = default);
 
-    Task<bool> SaveAsync(PrivateBook book, CancellationToken cancellationToken = default);
+    Task<PrivateBookSaveStatus> SaveAsync(
+        PrivateBook book,
+        long expectedVersion,
+        CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(
         Guid userId,
@@ -85,6 +97,7 @@ public interface IPrivateLibraryService
         Guid privateBookId,
         string? title,
         string? author,
+        long expectedVersion,
         CancellationToken cancellationToken = default);
 
     Task<PrivateLibraryResultStatus> DeleteAsync(

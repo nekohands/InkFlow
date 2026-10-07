@@ -26,6 +26,7 @@ public sealed class PrivateBookEntity
     public string? Author { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public long Version { get; set; }
 }
 
 public sealed class PrivateChapterEntity

@@ -17,7 +17,7 @@
 13. Published Source Rule、Parser/Normalizer Algorithm Version 不可变；修改产生新版本。
 14. Source URL 不是业务主键；优先保留外部稳定 ID，并维护历史 URL。
 15. EF Core、Redis、ASP.NET 等基础设施依赖不得进入纯 Domain 模型。
-16. PrivateBook、PrivateChapter 和私有正文必须与 CanonicalBook/CanonicalChapter/ContentVersion 使用独立身份，并且所有私有数据访问都必须绑定认证主体 UserId；TXT/EPUB 导入失败不得留下部分私有书籍。
+16. PrivateBook、PrivateChapter 和私有正文必须与 CanonicalBook/CanonicalChapter/ContentVersion 使用独立身份，并且所有私有数据访问都必须绑定认证主体 UserId；PrivateBook 元数据写入必须以 UserId、PrivateBookId 和期望 Version 原子条件更新，过期写入不得覆盖较新编辑；TXT/EPUB 导入失败不得留下部分私有书籍。
 17. Authoritative Data 与 Projection/Cache/Search Index 分离，Derived Data 必须可重建。
 18. Developer API Key 原文只在签发/轮换响应中出现一次；持久化只保存 Prefix、不可逆摘要和生命周期/Scope 元数据，应用撤销必须使其密钥失效。
 19. Developer API 只读已落库公共 Canonical 数据；不得触发第三方抓取、读取 Private Library 或提供管理写入；公共 API、Developer API 和 Personal Legado 的认证/授权边界必须独立。

@@ -58,25 +58,41 @@ public sealed class EfPrivateBookRepository(LibraryDbContext db) : IPrivateBookR
         return entities.Select(ToDomain).ToList();
     }
 
-    public async Task<bool> SaveAsync(
+    public async Task<PrivateBookSaveStatus> SaveAsync(
         PrivateBook book,
+        long expectedVersion,
         CancellationToken cancellationToken = default)
     {
-        var entity = await db.PrivateBooks
-            .SingleOrDefaultAsync(
-                candidate => candidate.UserId == book.UserId && candidate.Id == book.Id,
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (entity is null)
+        if (expectedVersion < 1)
         {
-            return false;
+            return PrivateBookSaveStatus.Conflict;
         }
 
-        entity.Title = book.Title;
-        entity.Author = book.Author;
-        entity.UpdatedAt = book.UpdatedAt;
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return true;
+        var nextVersion = checked(expectedVersion + 1);
+        var affected = await db.PrivateBooks
+            .Where(candidate => candidate.UserId == book.UserId &&
+                                candidate.Id == book.Id &&
+                                candidate.Version == expectedVersion)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(candidate => candidate.Title, book.Title)
+                    .SetProperty(candidate => candidate.Author, book.Author)
+                    .SetProperty(candidate => candidate.UpdatedAt, book.UpdatedAt)
+                    .SetProperty(candidate => candidate.Version, nextVersion),
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (affected == 1)
+        {
+            return PrivateBookSaveStatus.Saved;
+        }
+
+        return await db.PrivateBooks
+            .AnyAsync(
+                candidate => candidate.UserId == book.UserId && candidate.Id == book.Id,
+                cancellationToken)
+            .ConfigureAwait(false)
+            ? PrivateBookSaveStatus.Conflict
+            : PrivateBookSaveStatus.NotFound;
     }
 
     public async Task<bool> DeleteAsync(
@@ -142,6 +158,7 @@ public sealed class EfPrivateBookRepository(LibraryDbContext db) : IPrivateBookR
         Author = book.Author,
         CreatedAt = book.CreatedAt,
         UpdatedAt = book.UpdatedAt,
+        Version = book.Version,
     };
 
     private static PrivateBook ToDomain(PrivateBookEntity entity) =>
@@ -151,7 +168,8 @@ public sealed class EfPrivateBookRepository(LibraryDbContext db) : IPrivateBookR
             entity.Title,
             entity.Author,
             entity.CreatedAt,
-            entity.UpdatedAt);
+            entity.UpdatedAt,
+            entity.Version);
 
     private static PrivateChapterEntity ToEntity(PrivateChapter chapter) => new()
     {

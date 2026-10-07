@@ -23,11 +23,39 @@ public sealed class PrivateLibraryServiceTests
             UserId,
             created.Value!.PrivateBookId,
             "新书名",
-            "作者");
+            "作者",
+            created.Value.Version);
 
         Assert.AreEqual(PrivateLibraryResultStatus.Success, updated.Status);
         Assert.AreEqual("新书名", updated.Value!.Title);
+        Assert.AreEqual(2L, updated.Value.Version);
         Assert.AreEqual(UserId, repository.LastReadUserId);
+    }
+
+    [TestMethod]
+    public async Task Stale_Version_Is_Rejected_Without_Mutating_Book()
+    {
+        var repository = new InMemoryPrivateBookRepository();
+        var service = new PrivateLibraryService(repository, new FixedClock(T0));
+        var created = await service.CreateAsync(UserId, "私有书", null);
+
+        var current = await service.UpdateAsync(
+            UserId,
+            created.Value!.PrivateBookId,
+            "当前版本",
+            null,
+            created.Value.Version);
+        Assert.AreEqual(PrivateLibraryResultStatus.Success, current.Status);
+
+        var stale = await service.UpdateAsync(
+            UserId,
+            created.Value.PrivateBookId,
+            "过期版本",
+            null,
+            created.Value.Version);
+
+        Assert.AreEqual(PrivateLibraryResultStatus.Conflict, stale.Status);
+        Assert.AreEqual("当前版本", (await service.GetAsync(UserId, created.Value.PrivateBookId))!.Title);
     }
 
     [TestMethod]
@@ -40,7 +68,7 @@ public sealed class PrivateLibraryServiceTests
         var otherUser = Guid.CreateVersion7();
 
         Assert.IsNull(await service.GetAsync(otherUser, bookId));
-        var updated = await service.UpdateAsync(otherUser, bookId, "越权", null);
+        var updated = await service.UpdateAsync(otherUser, bookId, "越权", null, 1);
         Assert.AreEqual(PrivateLibraryResultStatus.NotFound, updated.Status);
         Assert.AreEqual(
             PrivateLibraryResultStatus.NotFound,
@@ -105,17 +133,30 @@ public sealed class PrivateLibraryServiceTests
             return Task.FromResult(result);
         }
 
-        public Task<bool> SaveAsync(
+        public Task<PrivateBookSaveStatus> SaveAsync(
             PrivateBook book,
+            long expectedVersion,
             CancellationToken cancellationToken = default)
         {
-            if (!_books.ContainsKey((book.UserId, book.Id)))
+            if (!_books.TryGetValue((book.UserId, book.Id), out var existing))
             {
-                return Task.FromResult(false);
+                return Task.FromResult(PrivateBookSaveStatus.NotFound);
             }
 
-            _books[(book.UserId, book.Id)] = book;
-            return Task.FromResult(true);
+            if (existing.Version != expectedVersion)
+            {
+                return Task.FromResult(PrivateBookSaveStatus.Conflict);
+            }
+
+            _books[(book.UserId, book.Id)] = PrivateBook.Rehydrate(
+                book.UserId,
+                book.Id,
+                book.Title,
+                book.Author,
+                book.CreatedAt,
+                book.UpdatedAt,
+                book.Version + 1);
+            return Task.FromResult(PrivateBookSaveStatus.Saved);
         }
 
         public Task<bool> DeleteAsync(

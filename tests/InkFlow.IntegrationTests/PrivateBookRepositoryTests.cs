@@ -1,4 +1,5 @@
 using DotNet.Testcontainers.Images;
+using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Library.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,11 @@ public sealed class PrivateBookRepositoryTests
 
         CollectionAssert.Contains(tables.ToList(), "private_books");
         CollectionAssert.Contains(tables.ToList(), "private_chapters");
+        var columns = await db.Database.SqlQuery<string>(
+                $"SELECT column_name AS \"Value\" FROM information_schema.columns WHERE table_schema = 'library' AND table_name = 'private_books'")
+            .ToListAsync()
+            .ConfigureAwait(false);
+        CollectionAssert.Contains(columns.ToList(), "Version");
         Assert.IsFalse((await db.Database.GetPendingMigrationsAsync().ConfigureAwait(false)).Any());
     }
 
@@ -73,15 +79,46 @@ public sealed class PrivateBookRepositoryTests
         await repository.AddAsync(book).ConfigureAwait(false);
 
         book.UpdateMetadata("新名", "作者", T0.AddMinutes(1));
-        Assert.IsFalse(await repository.SaveAsync(
-            PrivateBook.Rehydrate(userB, book.Id, "越权", null, T0, T0.AddMinutes(1)))
+        Assert.AreEqual(
+            PrivateBookSaveStatus.NotFound,
+            await repository.SaveAsync(
+                PrivateBook.Rehydrate(userB, book.Id, "越权", null, T0, T0.AddMinutes(1)),
+                book.Version)
             .ConfigureAwait(false));
-        Assert.IsTrue(await repository.SaveAsync(book).ConfigureAwait(false));
+        Assert.AreEqual(
+            PrivateBookSaveStatus.Saved,
+            await repository.SaveAsync(book, book.Version).ConfigureAwait(false));
         Assert.AreEqual("新名", (await repository.GetAsync(userA, book.Id).ConfigureAwait(false))!.Title);
 
         Assert.IsFalse(await repository.DeleteAsync(userB, book.Id).ConfigureAwait(false));
         Assert.IsTrue(await repository.DeleteAsync(userA, book.Id).ConfigureAwait(false));
         Assert.IsNull(await repository.GetAsync(userA, book.Id).ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task Stale_Metadata_Save_Is_Rejected_And_Does_Not_Overwrite_Newer_Edit()
+    {
+        await using var db = CreateDb();
+        var repository = new EfPrivateBookRepository(db);
+        var userId = Guid.CreateVersion7();
+        var book = PrivateBook.Create(userId, "旧名", null, T0);
+        await repository.AddAsync(book).ConfigureAwait(false);
+
+        var winner = (await repository.GetAsync(userId, book.Id).ConfigureAwait(false))!;
+        var stale = (await repository.GetAsync(userId, book.Id).ConfigureAwait(false))!;
+        winner.UpdateMetadata("新名", null, T0.AddMinutes(1));
+        stale.UpdateMetadata("过期名", null, T0.AddMinutes(2));
+
+        Assert.AreEqual(
+            PrivateBookSaveStatus.Saved,
+            await repository.SaveAsync(winner, winner.Version).ConfigureAwait(false));
+        Assert.AreEqual(
+            PrivateBookSaveStatus.Conflict,
+            await repository.SaveAsync(stale, stale.Version).ConfigureAwait(false));
+
+        var reloaded = (await repository.GetAsync(userId, book.Id).ConfigureAwait(false))!;
+        Assert.AreEqual("新名", reloaded.Title);
+        Assert.AreEqual(2L, reloaded.Version);
     }
 
     [TestMethod]

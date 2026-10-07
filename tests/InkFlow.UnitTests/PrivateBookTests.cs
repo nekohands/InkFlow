@@ -19,6 +19,7 @@ public sealed class PrivateBookTests
         Assert.AreEqual("作者", book.Author);
         Assert.AreEqual(T0, book.CreatedAt);
         Assert.AreEqual(T0, book.UpdatedAt);
+        Assert.AreEqual(1L, book.Version);
     }
 
     [TestMethod]

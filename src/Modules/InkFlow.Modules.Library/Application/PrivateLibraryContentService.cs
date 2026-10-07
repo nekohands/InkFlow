@@ -732,7 +732,7 @@ public sealed class PrivateLibraryContentService(
     }
 
     private static PrivateBookView ToView(PrivateBook book) =>
-        new(book.Id, book.Title, book.Author, book.CreatedAt, book.UpdatedAt);
+        new(book.Id, book.Title, book.Author, book.CreatedAt, book.UpdatedAt, book.Version);
 
     private static PrivateChapterView ToView(PrivateChapter chapter) =>
         new(chapter.Id, chapter.Index, chapter.Title, chapter.ParagraphCount, chapter.CreatedAt);
