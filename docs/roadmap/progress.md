@@ -290,7 +290,7 @@ Official Source
   5.1 已接入最多 8 步的同源串行 PreRequests 与临时响应变量，复用请求/字节/结果/时间/Session 预算，5.6 已补齐无 Session 主请求最终响应的同源门禁；
   secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话、动态多请求/分支/递归预算仍待后续工程工作包。
 - Worker 任务已具备过期租约恢复、跨进程原子领取、持久化退避调度、单任务异常重试和失败结构化观测基线；TOC 联动正文抓取的事件触发闭环、抓取→发布桥与上游修订重扫已落地（见 4.x 各工作包）。告警快照、阈值、历史/去重、恢复状态、内部保留清理和历史页展示已落地，外部告警路由、生产通知治理和完整运维闭环仍待后续 Operations/Crawling 工作包。
-- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA Service Worker/离线壳已在 4.82 通过 localhost 安全上下文自动验收；真实安装、账户/跨设备体验、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。Identity 令牌重放检测、族吊销与会话/令牌保留清理已接线（5.54）；API 宿主全局异常处理中间件（审查项 H1）待实现。
+- 用户身份的基础认证/授权与受保护 Repair 入口已落地；Reading State v1 后端、Reader/PWA 用户状态 v1（账户/书架/历史/进度/偏好接入、公开安装壳）、Personal Legado Token v1、Web Reader v1 和 Private Library v1/v2 自动化基础已落地。PWA Service Worker/离线壳已在 4.82 通过 localhost 安全上下文自动验收；真实安装、账户/跨设备体验、私有内容真实账户/文件端到端验收和公共路径隔离验收仍未完成。Identity 令牌重放检测、族吊销与会话/令牌保留清理已接线（5.54）；API 宿主全局异常处理中间件已在 5.55 完成，响应不泄露异常细节。
 - Developer API / Plan / Entitlement / Billing v1 已实现候选基线；Organization、支付、OAuth、sandbox、Community Marketplace 和管理型 Developer API 尚未实现。
 
 ## 7. 当前阻塞
