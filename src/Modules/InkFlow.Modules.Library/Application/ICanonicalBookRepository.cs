@@ -2,6 +2,12 @@ using InkFlow.Modules.Library.Domain;
 
 namespace InkFlow.Modules.Library.Application;
 
+public sealed record CanonicalBookSummary(
+    Guid Id,
+    string Title,
+    string Author,
+    int ChapterCount);
+
 /// <summary>正典书籍仓储契约。实现负责聚合与实体的映射及章节增量持久化。</summary>
 public interface ICanonicalBookRepository
 {
@@ -29,6 +35,26 @@ public interface ICanonicalBookRepository
 
     /// <summary>全部书目(不含章节,供列表页使用)。</summary>
     Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>有界读取书目列表摘要；生产实现应在单个投影查询中计算章节数。</summary>
+    async Task<IReadOnlyList<CanonicalBookSummary>> ListSummariesAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var books = await ListAsync(cancellationToken).ConfigureAwait(false);
+        var summaries = new List<CanonicalBookSummary>(Math.Min(Math.Max(limit, 1), 100));
+        foreach (var book in books.Take(Math.Clamp(limit, 1, 100)))
+        {
+            var full = await GetAsync(book.Id, cancellationToken).ConfigureAwait(false);
+            summaries.Add(new CanonicalBookSummary(
+                book.Id,
+                book.Title,
+                book.Author,
+                full?.Chapters.Count ?? 0));
+        }
+
+        return summaries;
+    }
 
     /// <summary>
     /// 按归一化的书名+作者查找已有正典书(Book Matcher v1 的同书识别依据);

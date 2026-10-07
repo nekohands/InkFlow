@@ -97,6 +97,25 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
             .ToList();
     }
 
+    public async Task<IReadOnlyList<CanonicalBookSummary>> ListSummariesAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 100);
+        return await db.Books
+            .AsNoTracking()
+            .OrderBy(b => b.CreatedAt)
+            .ThenBy(b => b.Id)
+            .Select(b => new CanonicalBookSummary(
+                b.Id,
+                b.Title,
+                b.Author,
+                db.Chapters.Count(c => c.BookId == b.Id)))
+            .Take(safeLimit)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<CanonicalBook?> FindByTitleAuthorAsync(
         string title, string author, CancellationToken cancellationToken = default)
     {

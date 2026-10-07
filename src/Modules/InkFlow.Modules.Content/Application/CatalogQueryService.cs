@@ -27,13 +27,23 @@ public sealed class CatalogQueryService(
     IContentPolicyReader policyReader,
     IContentSelectionService? selectionService = null)
 {
-    public async Task<IReadOnlyList<BookListItem>> ListBooksAsync(CancellationToken cancellationToken = default)
-    {
-        var books = await bookRepository.ListAsync(cancellationToken).ConfigureAwait(false);
+    public const int DefaultPageSize = 100;
+    public const int MaxPageSize = 100;
 
-        // 列表页不含章节,章节数以聚合当前状态为准(v1 简化:逐本加载)。
-        var items = new List<BookListItem>(books.Count);
-        foreach (var book in books)
+    public Task<IReadOnlyList<BookListItem>> ListBooksAsync(
+        CancellationToken cancellationToken = default) =>
+        ListBooksAsync(DefaultPageSize, cancellationToken);
+
+    public async Task<IReadOnlyList<BookListItem>> ListBooksAsync(
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var summaries = await bookRepository
+            .ListSummariesAsync(Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = new List<BookListItem>(summaries.Count);
+        foreach (var book in summaries)
         {
             if (await policyReader
                 .IsTakedownAsync(book.Id, cancellationToken)
@@ -42,8 +52,7 @@ public sealed class CatalogQueryService(
                 continue;
             }
 
-            var full = await bookRepository.GetAsync(book.Id, cancellationToken).ConfigureAwait(false);
-            items.Add(new BookListItem(book.Id, book.Title, book.Author, full?.Chapters.Count ?? 0));
+            items.Add(new BookListItem(book.Id, book.Title, book.Author, book.ChapterCount));
         }
 
         return items;
@@ -55,10 +64,17 @@ public sealed class CatalogQueryService(
     /// 数据一律来自已落库 Canonical 数据——本服务不负责触发来源发现,
     /// 发现编排由调用方(BookDiscoveryService)先行完成。
     /// </summary>
+    public Task<IReadOnlyList<BookListItem>> SearchBooksAsync(
+        string query,
+        CancellationToken cancellationToken = default) =>
+        SearchBooksAsync(query, DefaultPageSize, cancellationToken);
+
     public async Task<IReadOnlyList<BookListItem>> SearchBooksAsync(
-        string query, CancellationToken cancellationToken = default)
+        string query,
+        int limit,
+        CancellationToken cancellationToken = default)
     {
-        var books = await ListBooksAsync(cancellationToken).ConfigureAwait(false);
+        var books = await ListBooksAsync(limit, cancellationToken).ConfigureAwait(false);
 
         var keyword = query?.Trim() ?? string.Empty;
         if (keyword.Length == 0)

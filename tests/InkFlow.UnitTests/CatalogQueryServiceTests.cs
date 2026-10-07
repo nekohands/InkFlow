@@ -16,6 +16,8 @@ public sealed class CatalogQueryServiceTests
     private sealed class InMemoryBookRepository : ICanonicalBookRepository
     {
         public Dictionary<Guid, CanonicalBook> Store { get; } = new();
+        public int FullBookReads { get; private set; }
+        public int LastSummaryLimit { get; private set; }
 
         public Task AddAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
@@ -24,10 +26,28 @@ public sealed class CatalogQueryServiceTests
         }
 
         public Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default)
-            => Task.FromResult(Store.TryGetValue(id, out var book) ? book : null);
+        {
+            FullBookReads++;
+            return Task.FromResult(Store.TryGetValue(id, out var book) ? book : null);
+        }
 
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CanonicalBook>>(Store.Values.ToList());
+
+        public Task<IReadOnlyList<CanonicalBookSummary>> ListSummariesAsync(
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            LastSummaryLimit = limit;
+            return Task.FromResult<IReadOnlyList<CanonicalBookSummary>>(Store.Values
+                .Take(limit)
+                .Select(book => new CanonicalBookSummary(
+                    book.Id,
+                    book.Title,
+                    book.Author,
+                    book.Chapters.Count))
+                .ToList());
+        }
 
 
         public Task<CanonicalBook?> FindByTitleAuthorAsync(string title, string author, CancellationToken cancellationToken = default)
@@ -145,6 +165,25 @@ public sealed class CatalogQueryServiceTests
         Assert.AreEqual(2, list.Count);
         Assert.AreEqual(1, list.Single(b => b.Title == "书A").ChapterCount);
         Assert.AreEqual(0, list.Single(b => b.Title == "书B").ChapterCount);
+    }
+
+    [TestMethod]
+    public async Task ListBooks_Applies_Bounded_Limit()
+    {
+        var books = new InMemoryBookRepository();
+        await books.AddAsync(CreateBook("书A", "作者A", withChapters: false));
+        await books.AddAsync(CreateBook("书B", "作者B", withChapters: false));
+
+        var service = new CatalogQueryService(
+            books,
+            new InMemoryVersionRepository(),
+            new AllowAllContentPolicyReader());
+
+        var list = await service.ListBooksAsync(1);
+
+        Assert.AreEqual(1, list.Count);
+        Assert.AreEqual(1, books.LastSummaryLimit);
+        Assert.AreEqual(0, books.FullBookReads);
     }
 
     [TestMethod]
