@@ -1,7 +1,7 @@
 # InkFlow 项目工作流档案
 
 Status: Active profile
-Last reviewed: 2026-10-02
+Last reviewed: 2026-10-07
 Owner: InkFlow maintainers
 
 本文件是唯一的操作型工作流 profile。项目自身的强制工程规范仍以
@@ -69,8 +69,23 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.60，Entitlement actor validation）。最近工作包：[Entitlement actor validation](../../repowiki/work-packages/2026-10-07-entitlement-actor-validation.md)。
-本包只在 Billing 应用服务边界补充活跃 Administrator 操作者校验，并保持既有管理员策略、请求形状、审计和数据模型；不引入角色策略重做、乐观并发、适配器边界、Schema 或 Migration 变化。前一包 5.59 已 Accepted，远端 CI/Docker/Security 全部 GREEN。
+当前状态：Intake required（5.60 已 Accepted，Entitlement actor validation）。最近工作包：[Entitlement actor validation](../../repowiki/work-packages/2026-10-07-entitlement-actor-validation.md)。
+本包只在 Billing 应用服务边界补充活跃 Administrator 操作者校验，并保持既有管理员策略、请求形状、审计和数据模型；不引入角色策略重做、乐观并发、适配器边界、Schema 或 Migration 变化。实现 `d0413f2`，本地 Unit/Architecture/Contract 与迁移检查通过，远端 CI/Docker/Security 全部 GREEN。
+
+最近完成工作包（5.60，2026-10-07，`Accepted` 级证据）：
+
+```text
+Name: Entitlement actor validation
+Objective / user outcome: 直接调用 Billing entitlement assignment service 也只能由 active Administrator 执行
+In scope: Billing actor-status port + Identity composition adapter + service guard + stable 403 mapping + regression tests
+Non-goals: role policy redesign, token/session redesign, optimistic concurrency, adapter bounds, plan/quota changes, Schema/Migration
+Acceptance criteria（全部满足）:
+  - happy path: active Administrator assignment remains valid with existing reason/audit behavior
+  - error path: empty/unknown/inactive/non-Administrator actor is rejected before assignment persistence and maps to 403
+  - regression: route, payload, target/plan lookup, authentication, and data model remain unchanged
+Evidence: Restore/Release Build 0 warnings/0 errors；Unit 592/592、Architecture 1/1、Contract 12/12；migration 11/11；remote CI/Docker/Security GREEN at d0413f2 (37638597477/37638597479/37638597492)
+Boundary: local Testcontainers BLOCKED by unavailable Docker named pipe；remote CI supplied PostgreSQL/runtime evidence；real-account/manual Release Candidate gates remain pending
+```
 
 最近完成工作包（5.58，2026-10-06，`Accepted` 级证据）：
 

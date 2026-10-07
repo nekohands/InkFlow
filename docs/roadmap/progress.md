@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.59 Catalog 查询分页/N+1 收敛已 Accepted；代码候选提交为 `a700977`、`771f027`、`c0d79df`、`9783b7d`，本地逻辑门禁通过，远端 CI/Docker/Security GREEN；历史记录见 `progress-history.md`。
+- 文档状态：5.60 Entitlement actor validation 已 Accepted；实现提交 `d0413f2`，本地逻辑/迁移门禁通过，远端 CI/Docker/Security GREEN；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-07
 
 ## 1. 总体状态
@@ -132,6 +132,14 @@ Phase 1A 自动化工作包状态：
 - 测试：Unit 新增有界列表、无完整聚合读取、批量策略读取与搜索候选顺序回归，聚焦 `CatalogQueryServiceTests` `11/11`、全量 Unit `590/590`；Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；本机 Testcontainers 因 `npipe://./pipe/docker_engine` 不可用，但远端 CI `37621536608` 完成 PostgreSQL/Runtime 验证。
 - 代码候选：`a700977`（有界摘要读取）、`771f027`（批量策略与 limit 下推）、`c0d79df`（搜索先匹配后限量）；无 Schema/Migration 变更。
 - 结论：远端 CI `37621536608`、Docker `37621536753`、Security `37621536604` 均对 `9783b7d` 成功；5.59 已 Accepted。下一工作包重新 intake，游标续页与全文检索仍是明确非目标。
+
+### 5.60 Entitlement actor validation（本轮，2026-10-07，Accepted）
+
+- 缺口：`EntitlementService.AssignAsync` 原先只拒绝空 `actorId`；虽然 API 路由已有 Administrator policy，直接调用应用服务仍可传入任意非空操作者。
+- 实现：Billing 新增 `IsActiveAdministratorAsync` 端口；服务在目标用户/计划仓储读取和赋值持久化前检查操作者；API 组合适配器从 Identity 用户记录派生 active Administrator；不符合条件统一返回 `403 entitlement_management_forbidden`。既有路由、载荷、reason、命令审计和数据模型不变。
+- 测试：先建立红态回归，再实现并验证；聚焦 Commercial/Identity `18/18`、全量 Unit `592/592`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`；Windows 迁移模型检查 11/11，脚本语法 PASS。
+- 远端：`d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime 验证。
+- 边界：本机 Billing Testcontainers 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包需重新 intake，候选为乐观并发和适配器正则/读取边界。
 
 ## 5. Phase 1A 核心验收链路
 

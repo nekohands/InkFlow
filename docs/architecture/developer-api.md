@@ -34,6 +34,13 @@ Lifecycle limits are enforced by the PostgreSQL persistence boundary: one user m
 | `GET` | `/api/v1/admin/plans` | Administrator | List built-in plans |
 | `PUT` | `/api/v1/admin/users/{userId}/entitlement` | Administrator | Append a plan assignment with reason |
 
+Entitlement assignment keeps the Administrator policy at the API boundary and also
+checks the actor at the Billing service boundary. The actor must resolve to an
+active Identity user with the Administrator role; otherwise the service returns
+`403 entitlement_management_forbidden` before target/plan lookup or assignment
+persistence. The existing route, request shape, reason requirement, and command
+audit behavior are unchanged.
+
 ## Read-only catalog endpoints
 
 | Method | Path | Weight |
