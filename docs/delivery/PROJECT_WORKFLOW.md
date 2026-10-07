@@ -69,8 +69,8 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Accepted（5.59，远端 CI/Docker/Security 全部 GREEN）。最近工作包：[Catalog query pagination and N+1 reduction](../../repowiki/work-packages/2026-10-07-catalog-query-pagination.md)。
-该包已把 Catalog 列表/搜索限制在有界摘要查询，并把 Content Policy 读取合并为批量查询；不引入游标续页、全文检索或公共身份变化。下一工作包需重新 intake。
+当前状态：In Progress（5.60，Entitlement actor validation）。最近工作包：[Entitlement actor validation](../../repowiki/work-packages/2026-10-07-entitlement-actor-validation.md)。
+本包只在 Billing 应用服务边界补充活跃 Administrator 操作者校验，并保持既有管理员策略、请求形状、审计和数据模型；不引入角色策略重做、乐观并发、适配器边界、Schema 或 Migration 变化。前一包 5.59 已 Accepted，远端 CI/Docker/Security 全部 GREEN。
 
 最近完成工作包（5.58，2026-10-06，`Accepted` 级证据）：
 

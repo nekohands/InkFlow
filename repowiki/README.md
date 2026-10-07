@@ -23,7 +23,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: Intake required — 5.59 [catalog query pagination and N+1 reduction](work-packages/2026-10-07-catalog-query-pagination.md) is Accepted with local and remote gates green. Next candidates are optimistic concurrency, adapter regex/read bounds, and Entitlement actor validation.
+Active work package: In Progress — 5.60 [Entitlement actor validation](work-packages/2026-10-07-entitlement-actor-validation.md). The service boundary is being tightened so only an active Administrator can append a plan assignment; no route, payload, schema, or migration change is planned. Previous 5.59 [catalog query pagination and N+1 reduction](work-packages/2026-10-07-catalog-query-pagination.md) is Accepted with local and remote gates green. Remaining candidates are optimistic concurrency and adapter regex/read bounds.
 Last completed: catalog query pagination and N+1 reduction (5.59) — bounded
 Canonical summaries, bulk Content Policy reads, Developer catalog limit
 forwarding, and no cursor API or schema change. Previous: batch lease renewal
