@@ -5,9 +5,9 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.60 Entitlement actor validation 已 Accepted；实现 `d0413f2`，本地逻辑/迁移门禁通过，远端 CI/Docker/Security GREEN；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.61 Code adapter response and regex bounds 已 Accepted；代码 `0d7d5ce`，本地 Build/逻辑/迁移门禁通过，远端 CI/Docker/Security GREEN；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-10-07；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -180,6 +180,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 测试：先红后绿的 actor 回归；聚焦 Commercial/Identity `18/18`、Unit `592/592`、Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；迁移模型 11/11，`bash -n` PASS。
 - 门禁：远端 `d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime；本机 Testcontainers 因 Docker named pipe 不可用 BLOCKED。
 - 工作树：实现与文档均已推送 `dev`；`.workbuddy-ai/` 仍为用户未跟踪目录，未加入任何提交。下一步工作包必须重新 intake，候选为乐观并发和适配器正则/无界读取收敛。
+
+### 5.61 Code adapter response and regex bounds 交接（本轮，2026-10-08，Accepted）
+
+- 代码：Sources Application 新增共享 `SourceResponseReader`，对 `Content-Length` 和未知长度流执行 `MaxBytes` fail-closed 读取；ProductionSafeSourceHttpClient、Kanunu8、17K 均在解码/解析前复用。Kanunu8 的 HTML 正则按同一 `SourceRuleExecutionLimits.MaxRegexTime` 构造，超时返回失败/空结果，不返回部分结果。
+- 兼容/安全：`ISourceAdapter` 方法、来源 ID、GB18030/JSON 成功解析、SSRF/allowed-host/identifier/VIP 边界不变；无 Schema/Migration、公共契约或日志/凭据变化。
+- 测试：红态后聚焦 adapter/HTTP bounds `13/13`；全量 Unit `595/595`、Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；迁移模型 `11/11`，`wsl.exe bash -n scripts/verify-migrations.sh` PASS。Windows 本机 Integration 实际尝试但因 `npipe://./pipe/docker_engine` 不可用 BLOCKED。
+- 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
+- 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
 
 ## 5. 关键架构不变量
 

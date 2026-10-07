@@ -1,7 +1,7 @@
 # InkFlow 项目工作流档案
 
 Status: Active profile
-Last reviewed: 2026-10-07
+Last reviewed: 2026-10-08
 Owner: InkFlow maintainers
 
 本文件是唯一的操作型工作流 profile。项目自身的强制工程规范仍以
@@ -69,8 +69,21 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.61，Code adapter response and regex bounds）。最近工作包：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
-本包复用既有 SourceRuleExecutionLimits，为 Kanunu8/17K 自定义适配器补齐响应体上限，并为 Kanunu8 静态正则设置有限超时；不引入公共适配器契约、乐观并发、Schema 或 Migration 变化。前一包 5.60 已 Accepted，远端 CI/Docker/Security 全部 GREEN。
+当前状态：Accepted（5.61，Code adapter response and regex bounds）。最近工作包：[Code adapter response and regex bounds](../../repowiki/work-packages/2026-10-08-code-adapter-bounds.md)。
+本包复用既有 SourceRuleExecutionLimits，为 Kanunu8/17K 自定义适配器补齐响应体上限，并为 Kanunu8 静态正则设置配置化有限超时；不引入公共适配器契约、乐观并发、Schema 或 Migration 变化。远端 CI/Docker/Security 全部 GREEN。
+
+最近完成工作包（5.61，2026-10-08，`Accepted` 级证据）：
+
+```text
+Name: Code adapter response and regex bounds
+Objective / user outcome: 可信 CodeAdapter 不再无界读取响应体或执行无超时静态正则
+In scope: shared streaming HttpContent reader; ProductionSafeSourceHttpClient reuse; Kanunu8/17K MaxBytes; Kanunu8 configured MaxRegexTime; focused regressions and source-runtime docs
+Non-goals: Rule DSL redesign, new adapters, host/retry policy, public ISourceAdapter contract, Schema/Migration, live-source acceptance
+Acceptance: Kanunu8 GB18030 and 17K JSON fixtures remain valid; oversized responses fail before decode/parse; regex timeout is finite and no partial result escapes; SSRF/host/VIP/identity boundaries unchanged
+Evidence: Restore/Release Build 0 warnings/0 errors；focused 13/13、Unit 595/595、Architecture 1/1、Contract 12/12；migration 11/11；local Integration attempted but BLOCKED by unavailable Docker named pipe
+CI: `0d7d5ce` 的 CI 37650394342、Docker 37650394297、Security 37650394257 均 GREEN 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke
+Boundary: no Schema/Migration or phase-exit change; real upstream/live-source and Release Candidate manual acceptance remain pending
+```
 
 最近完成工作包（5.60，2026-10-07，`Accepted` 级证据）：
 

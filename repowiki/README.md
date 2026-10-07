@@ -23,9 +23,10 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: In Progress — 5.61 [Code adapter response and regex bounds](work-packages/2026-10-08-code-adapter-bounds.md). The slice bounds custom Kanunu8/17K response reads with the existing SourceRuleExecutionLimits and gives Kanunu8 static regexes a finite timeout; no public adapter, schema, or migration change is planned. Previous 5.60 [entitlement actor validation](work-packages/2026-10-07-entitlement-actor-validation.md) is Accepted with local and remote gates green. Remaining candidate: optimistic concurrency.
-Last completed: entitlement actor validation (5.60) — active
-Administrator enforcement at the Billing service boundary, stable forbidden mapping,
+Active work package: None — 5.61 [Code adapter response and regex bounds](work-packages/2026-10-08-code-adapter-bounds.md) is Accepted. The slice bounds custom Kanunu8/17K response reads with the existing SourceRuleExecutionLimits and gives Kanunu8 static regexes the configured finite timeout; no public adapter, schema, or migration change was made. Next candidate: optimistic concurrency, requiring fresh intake.
+Last completed: code adapter response and regex bounds (5.61) — Accepted
+Shared streaming response reads reject oversized bodies before decode/parse; Kanunu8 regex timeouts and adapter regression tests are covered by local gates and remote CI/Docker/Security GREEN at `0d7d5ce`.
+Previous: entitlement actor validation (5.60) — Administrator enforcement at the Billing service boundary, stable forbidden mapping,
 and no route/payload/schema/migration change. Previous: catalog query pagination and N+1 reduction (5.59) — bounded
 Canonical summaries, bulk Content Policy reads, Developer catalog limit
 forwarding, and no cursor API or schema change. Previous: batch lease renewal

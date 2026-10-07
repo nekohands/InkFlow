@@ -5,8 +5,8 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.60 Entitlement actor validation 已 Accepted；实现提交 `d0413f2`，本地逻辑/迁移门禁通过，远端 CI/Docker/Security GREEN；历史记录见 `progress-history.md`。
-- 最后更新日期：2026-10-07
+- 文档状态：5.61 Code adapter response and regex bounds 已 Accepted；代码提交 `0d7d5ce`，本地 Build/逻辑/迁移门禁通过，远端 CI/Docker/Security GREEN；历史记录见 `progress-history.md`。
+- 最后更新日期：2026-10-08
 
 ## 1. 总体状态
 
@@ -140,6 +140,16 @@ Phase 1A 自动化工作包状态：
 - 测试：先建立红态回归，再实现并验证；聚焦 Commercial/Identity `18/18`、全量 Unit `592/592`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`；Windows 迁移模型检查 11/11，脚本语法 PASS。
 - 远端：`d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime 验证。
 - 边界：本机 Billing Testcontainers 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包需重新 intake，候选为乐观并发和适配器正则/读取边界。
+
+### 5.61 Code adapter response and regex bounds（本轮，2026-10-08，Accepted）
+
+- 缺口：可信 `Kanunu8` CodeAdapter 使用 `GetByteArrayAsync`，静态 HTML 提取正则没有有限超时；`17K` CodeAdapter 使用 `ReadAsStringAsync`，未复用 RuleAdapter 的响应体字节上限，存在解码/解析前的无界内存与 CPU 风险。
+- 实现：Sources Application 新增共享 `SourceResponseReader`，保留 `Content-Length` 预检并对未知长度流式 fail-closed；ProductionSafeSourceHttpClient、Kanunu8、17K 均在解码/解析前复用 `MaxBytes`。Kanunu8 正则使用同一注册策略的 `MaxRegexTime`，超时返回失败/空结果，不泄漏部分结果；保留 SSRF、allowed-host、identifier、VIP 和既有 `ISourceAdapter` 合约。
+- 测试：先建立红态构造器/边界回归，再实现；聚焦 adapter/HTTP bounds `13/13`、全量 Unit `595/595`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`；Windows 迁移模型检查 `11/11`，`wsl.exe bash -n scripts/verify-migrations.sh` PASS。
+- 本机 Integration：实际执行 `124` 项，`8 passed / 3 skipped / 113 failed`；失败均由 Docker Engine `npipe://./pipe/docker_engine` 不可用触发，记录为环境 BLOCKED，不作为代码失败结论。
+- 安全/文档：staged diff/敏感模式扫描 PASS；同步 `docs/architecture/source-runtime.md`、`repowiki/architecture.md`、工作包、工作流档案和本页/交接页；无 Schema/Migration、公共适配器契约或阶段退出变化。
+- 远端：代码候选 `0d7d5ce` 已推送 `dev`；[CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 为 `0d7d5ce426b0b42840505168bedf07aa2367df2a`，含 PostgreSQL/runtime/Compose smoke。
+- 边界：本机 Docker runtime/Testcontainers 仍 BLOCKED；未运行真实外部来源，未使用真实账户、生产令牌或 Cookie；下一工作包需重新 intake，候选为乐观并发。
 
 ## 5. Phase 1A 核心验收链路
 
