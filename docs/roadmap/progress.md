@@ -5,8 +5,8 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.58 Inbox/Outbox 批次租约续约已实现并通过全部 Gate（`1658b87` 三 workflow GREEN）；历史记录见 `progress-history.md`。
-- 最后更新日期：2026-10-06
+- 文档状态：5.59 Catalog 查询分页/N+1 收敛进行中；代码候选提交为 `a700977`、`771f027`、`c0d79df`，本地逻辑门禁通过，Windows PostgreSQL Integration 因 Docker Engine BLOCKED，CI 尚未触发；历史记录见 `progress-history.md`。
+- 最后更新日期：2026-10-07
 
 ## 1. 总体状态
 
@@ -124,6 +124,14 @@ Phase 1A 自动化工作包状态：
 - 测试：单元新增 dispatcher/pump 续约接线断言（每条消息前一次续约、ids/owner/时长正确）；集成（真实 PostgreSQL）新增两条——Inbox/Outbox 各验证"原租约过期后经续约不可被其他 owner 领取 + 终态行不参与续约"。候选 `e2b4e6a` CI RED 暴露 Outbox 领取无类型过滤会捞到共享容器中此前用例的遗留行，测试断言收窄到本用例消息后修复（`1658b87`）。
 - 验证：本机 Release Build 0 warnings / 0 errors；Unit 587/587、Architecture 1/1、Contract 12/12 PASS；无 Schema/Migration 变更。远端提交 `1658b87` 的 [CI 37478901744](https://github.com/nekohands/InkFlow/actions/runs/37478901744)、[Docker 37478902070](https://github.com/nekohands/InkFlow/actions/runs/37478902070)、[Security 37478901915](https://github.com/nekohands/InkFlow/actions/runs/37478901915) 均 success（含真实 PostgreSQL Integration 与 Runtime smoke）。
 - 边界：单条 Handler 执行超过完整租约时长的中途续约本轮未实现（仍由幂等消费兜底），已记录为后续可选加固。
+
+### 5.59 Catalog 查询分页与 N+1 收敛（本轮，2026-10-07，In Progress）
+
+- 缺口：`CatalogQueryService.ListBooksAsync` 原先先全量读取书目，再逐本读取 Content Policy 和完整章节聚合，Developer API 又在全部加载后才 `Take(limit)`，形成 `3N+1` 读取和无效放大。
+- 实现：Library 增加有界 `CanonicalBookSummary` 投影，EF 在单个查询中返回书名、作者和章节数；Content Policy 增加按给定 BookId 批量读取最新决策，EF 单查询完成当前状态派生；Catalog 列表/搜索默认有界，Developer `limit` 下推到服务/仓储边界，响应字段和下架语义不变。
+- 测试：Unit 新增有界列表、无完整聚合读取、批量策略读取与搜索候选顺序回归，聚焦 `CatalogQueryServiceTests` `11/11`、全量 Unit `590/590`；Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；Integration 新增摘要/搜索/策略真实 PostgreSQL 回归，但本机 Testcontainers 因 `npipe://./pipe/docker_engine` 不可用 BLOCKED。
+- 代码候选：`a700977`（有界摘要读取）、`771f027`（批量策略与 limit 下推）、`c0d79df`（搜索先匹配后限量）；无 Schema/Migration 变更。
+- 待完成：可用 Docker/VM 的 PostgreSQL/Runtime 验证、候选提交远端 CI、文档收口提交；在这些证据完成前不得标记 Accepted/Completed。
 
 ## 5. Phase 1A 核心验收链路
 

@@ -23,10 +23,9 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: Intake required — next candidates are the review's
-medium-severity items (optimistic concurrency tokens, catalog query pagination,
-adapter regex timeouts, EntitlementService actor check; see profile Work
-Package).
+Active work package: [catalog query pagination and N+1 reduction](work-packages/2026-10-07-catalog-query-pagination.md)
+— bounded Canonical summaries, bulk Content Policy reads, and Developer catalog
+limit forwarding; no cursor API or schema change.
 Last completed: batch lease renewal (5.58) — `OutboxDispatcher` and
 `InboxConsumerPump` renew the remaining claimed batch before each message via
 `ExtendLeaseBatchAsync` (owner- and terminal-state-guarded UPDATE; default

@@ -69,9 +69,8 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Intake required（无进行中工作包）。下一候选为 2026-09-11 审查中危项
-（乐观并发令牌、Catalog 查询分页/N+1、适配器正则超时/无界读取、EntitlementService
-actor 校验），开工前先填：目标/用户结果、范围与非目标、验收条件（正常/错误/回归）。
+当前状态：In Progress。当前工作包：[Catalog query pagination and N+1 reduction](../../repowiki/work-packages/2026-10-07-catalog-query-pagination.md)。
+目标是把 Catalog 列表/搜索限制在有界摘要查询，并把 Content Policy 读取合并为批量查询；不引入游标续页、全文检索或公共身份变化。
 
 最近完成工作包（5.58，2026-10-06，`Accepted` 级证据）：
 

@@ -44,7 +44,7 @@ Lifecycle limits are enforced by the PostgreSQL persistence boundary: one user m
 | `GET` | `/api/developer/v1/books/{bookId}/chapters` | 1 |
 | `GET` | `/api/developer/v1/chapters/{chapterId}/content` | 5 |
 
-`limit` is bounded to 1–100. Content is returned from the current stored Canonical version and is subject to Content Policy. Responses use `Cache-Control: private, no-store` because access is key- and quota-scoped.
+`limit` is bounded to 1–100 and is applied at the stored Canonical summary query before response mapping; Content Policy filtering may therefore return fewer than the requested limit. Content is returned from the current stored Canonical version and is subject to Content Policy. Responses use `Cache-Control: private, no-store` because access is key- and quota-scoped.
 
 ## Quota and errors
 
