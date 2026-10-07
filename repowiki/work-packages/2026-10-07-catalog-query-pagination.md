@@ -51,7 +51,7 @@ Manual/real environment | Device/live source | N/A | backend-only slice | N/A | 
 UI/browser | Reader visual/accessibility | N/A | backend-only slice | N/A | No UI change planned.
 Security | Policy visibility and secret scan | local/CI | diff review and unchanged auth/permission surface | PASS | No new credential, token, cookie, or permission path.
 Project-defined gate/state | Catalog review item | local/CI | work package and handoff evidence | PARTIAL | Local gates complete; Docker and remote CI remain.
-Documentation/state | Progress/Handoff/contract/Wiki | local | updated pages and links | PASS | Final commit hash to be filled after docs commit.
+Documentation/state | Progress/Handoff/contract/Wiki | local | updated pages and links | PASS | Documentation closeout `ed73a37` included.
 CI | Required jobs for target commit | CI | push pending | NOT TRIGGERED | Do not report GREEN before required workflows finish.
 RepoWiki sync | Wiki/source/human agreement and links | local | source/docs cross-check and `git diff --check` | PASS | Wiki remains the AI source of truth.
 ```
@@ -71,9 +71,9 @@ CI: NOT TRIGGERED — candidate is ready to push.
 Findings: CatalogQueryService had 3N+1 reads, Developer catalog applied limit after full loading, and search could apply limit before matching candidates.
 Fixed: bounded Canonical summaries, bulk latest Content Policy reads, query-bound Developer limits, and provider-side simple search filtering with literal LIKE escaping.
 Remaining risks/blockers: Windows Docker availability, PostgreSQL/Runtime evidence, and remote CI jobs.
-Commit/PR: `a700977`, `771f027`, `c0d79df`; docs closeout commit pending.
+Commit/PR: `a700977`, `771f027`, `c0d79df`, `ed73a37` (local candidate; no PR).
 Documentation/state sync: Developer API, Progress, Handoff, RepoWiki index, and this record updated.
 RepoWiki sync: PASS (scope, source changes, evidence, and human-facing pages agree).
 Evidence limitations: Testcontainers could not start because `npipe://./pipe/docker_engine` is unavailable; no CI has run before push.
-Next step: commit the documentation closeout, push `dev`, then read the required CI/Docker/Security jobs and return to any failed root cause.
+Next step: push `dev`, then read the required CI/Docker/Security jobs and return to any failed root cause.
 ```

@@ -131,7 +131,7 @@ Phase 1A 自动化工作包状态：
 - 实现：Library 增加有界 `CanonicalBookSummary` 投影，EF 在单个查询中返回书名、作者和章节数；Content Policy 增加按给定 BookId 批量读取最新决策，EF 单查询完成当前状态派生；Catalog 列表/搜索默认有界，Developer `limit` 下推到服务/仓储边界，响应字段和下架语义不变。
 - 测试：Unit 新增有界列表、无完整聚合读取、批量策略读取与搜索候选顺序回归，聚焦 `CatalogQueryServiceTests` `11/11`、全量 Unit `590/590`；Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；Integration 新增摘要/搜索/策略真实 PostgreSQL 回归，但本机 Testcontainers 因 `npipe://./pipe/docker_engine` 不可用 BLOCKED。
 - 代码候选：`a700977`（有界摘要读取）、`771f027`（批量策略与 limit 下推）、`c0d79df`（搜索先匹配后限量）；无 Schema/Migration 变更。
-- 待完成：可用 Docker/VM 的 PostgreSQL/Runtime 验证、候选提交远端 CI、文档收口提交；在这些证据完成前不得标记 Accepted/Completed。
+- 待完成：可用 Docker/VM 的 PostgreSQL/Runtime 验证、候选提交远端 CI；在这些证据完成前不得标记 Accepted/Completed。
 
 ## 5. Phase 1A 核心验收链路
 
