@@ -132,12 +132,15 @@ public sealed class CanonicalBookRepositoryTests
     public async Task FindByTitleAuthor_Uses_Bounded_Normalized_Query()
     {
         var (repo, capture) = CreateRepositoryWithCapture();
-        var target = CanonicalBook.Create("目标\u00A0书", "作\u2003者", T0.AddDays(3));
+        var target = CanonicalBook.Create(
+            "Canonical Match\u00A0Book",
+            "Canonical Match\u2003Author",
+            T0.AddDays(3));
         await repo.AddAsync(target).ConfigureAwait(false);
         capture.Commands.Clear();
 
         var loaded = await repo
-            .FindByTitleAuthorAsync("目 标书", "作者")
+            .FindByTitleAuthorAsync("canonicalmatchbook", "canonicalmatchauthor")
             .ConfigureAwait(false);
 
         Assert.IsNotNull(loaded);
