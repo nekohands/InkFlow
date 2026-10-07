@@ -150,6 +150,24 @@ public sealed class CatalogQueryServiceTests
     }
 
     [TestMethod]
+    public async Task Search_Applies_Limit_After_Matching_Candidates()
+    {
+        var books = new InMemoryBookRepository();
+        await books.AddAsync(CreateBook("不匹配", "作者", withChapters: false));
+        await books.AddAsync(CreateBook("目标书", "作者", withChapters: false));
+
+        var service = new CatalogQueryService(
+            books,
+            new InMemoryVersionRepository(),
+            new AllowAllContentPolicyReader());
+
+        var hits = await service.SearchBooksAsync("目标", 1);
+
+        Assert.AreEqual(1, hits.Count);
+        Assert.AreEqual("目标书", hits[0].Title);
+    }
+
+    [TestMethod]
     public async Task ListBooks_Returns_All_Books_With_Chapter_Counts()
     {
         var books = new InMemoryBookRepository();

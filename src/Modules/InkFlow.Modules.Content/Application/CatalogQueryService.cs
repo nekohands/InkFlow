@@ -41,27 +41,12 @@ public sealed class CatalogQueryService(
         var summaries = await bookRepository
             .ListSummariesAsync(Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
             .ConfigureAwait(false);
-        var takenDownBookIds = await policyReader
-            .ListTakedownBookIdsAsync(summaries.Select(book => book.Id).ToArray(), cancellationToken)
-            .ConfigureAwait(false);
-
-        var items = new List<BookListItem>(summaries.Count);
-        foreach (var book in summaries)
-        {
-            if (takenDownBookIds.Contains(book.Id))
-            {
-                continue;
-            }
-
-            items.Add(new BookListItem(book.Id, book.Title, book.Author, book.ChapterCount));
-        }
-
-        return items;
+        return await MapVisibleBooksAsync(summaries, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 按关键词过滤落库正典书目:书名或作者大小写不敏感包含匹配(v1 内存过滤;
-    /// 全文检索属后续阶段)。空白关键词返回全部书目(浏览语义)。
+    /// 按关键词过滤落库正典书目:书名或作者大小写不敏感包含匹配(v1 简单查询过滤;
+    /// 全文检索属后续阶段)。空白关键词返回有界书目列表(浏览语义)。
     /// 数据一律来自已落库 Canonical 数据——本服务不负责触发来源发现,
     /// 发现编排由调用方(BookDiscoveryService)先行完成。
     /// </summary>
@@ -75,18 +60,31 @@ public sealed class CatalogQueryService(
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var books = await ListBooksAsync(limit, cancellationToken).ConfigureAwait(false);
-
         var keyword = query?.Trim() ?? string.Empty;
-        if (keyword.Length == 0)
+        var summaries = await bookRepository
+            .SearchSummariesAsync(keyword, Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
+            .ConfigureAwait(false);
+        return await MapVisibleBooksAsync(summaries, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyList<BookListItem>> MapVisibleBooksAsync(
+        IReadOnlyList<CanonicalBookSummary> summaries,
+        CancellationToken cancellationToken)
+    {
+        var takenDownBookIds = await policyReader
+            .ListTakedownBookIdsAsync(summaries.Select(book => book.Id).ToArray(), cancellationToken)
+            .ConfigureAwait(false);
+
+        var items = new List<BookListItem>(summaries.Count);
+        foreach (var book in summaries)
         {
-            return books;
+            if (!takenDownBookIds.Contains(book.Id))
+            {
+                items.Add(new BookListItem(book.Id, book.Title, book.Author, book.ChapterCount));
+            }
         }
 
-        return books
-            .Where(b => b.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                        || b.Author.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        return items;
     }
 
     public async Task<BookDetail?> GetBookAsync(Guid bookId, CancellationToken cancellationToken = default)

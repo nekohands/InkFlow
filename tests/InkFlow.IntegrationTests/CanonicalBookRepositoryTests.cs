@@ -111,4 +111,18 @@ public sealed class CanonicalBookRepositoryTests
         var limited = await repo.ListSummariesAsync(1).ConfigureAwait(false);
         Assert.AreEqual(1, limited.Count);
     }
+
+    [TestMethod]
+    public async Task SearchSummaries_Filters_Before_Applying_Limit()
+    {
+        var repo = CreateRepository();
+        await repo.AddAsync(CanonicalBook.Create("不匹配", "作者", T0.AddDays(2))).ConfigureAwait(false);
+        var target = CanonicalBook.Create("目标书", "作者", T0.AddDays(2));
+        await repo.AddAsync(target).ConfigureAwait(false);
+
+        var matches = await repo.SearchSummariesAsync("目标", 1).ConfigureAwait(false);
+
+        Assert.AreEqual(1, matches.Count);
+        Assert.AreEqual(target.Id, matches[0].Id);
+    }
 }

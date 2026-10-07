@@ -101,9 +101,28 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var safeLimit = Math.Clamp(limit, 1, 100);
-        return await db.Books
-            .AsNoTracking()
+        return await BuildSummaryQuery()
+            .Take(Math.Clamp(limit, 1, 100))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<CanonicalBookSummary>> SearchSummariesAsync(
+        string query,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var keyword = query.Trim();
+        var books = db.Books.AsNoTracking();
+        if (keyword.Length > 0)
+        {
+            var pattern = $"%{EscapeLikePattern(keyword)}%";
+            books = books.Where(book =>
+                EF.Functions.ILike(book.Title, pattern, "\\") ||
+                EF.Functions.ILike(book.Author, pattern, "\\"));
+        }
+
+        return await books
             .OrderBy(b => b.CreatedAt)
             .ThenBy(b => b.Id)
             .Select(b => new CanonicalBookSummary(
@@ -111,10 +130,25 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
                 b.Title,
                 b.Author,
                 db.Chapters.Count(c => c.BookId == b.Id)))
-            .Take(safeLimit)
+            .Take(Math.Clamp(limit, 1, 100))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
+
+    private IQueryable<CanonicalBookSummary> BuildSummaryQuery() => db.Books
+        .AsNoTracking()
+        .OrderBy(b => b.CreatedAt)
+        .ThenBy(b => b.Id)
+        .Select(b => new CanonicalBookSummary(
+            b.Id,
+            b.Title,
+            b.Author,
+            db.Chapters.Count(c => c.BookId == b.Id)));
+
+    private static string EscapeLikePattern(string value) => value
+        .Replace("\\", "\\\\", StringComparison.Ordinal)
+        .Replace("%", "\\%", StringComparison.Ordinal)
+        .Replace("_", "\\_", StringComparison.Ordinal);
 
     public async Task<CanonicalBook?> FindByTitleAuthorAsync(
         string title, string author, CancellationToken cancellationToken = default)

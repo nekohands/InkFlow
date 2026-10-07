@@ -56,6 +56,28 @@ public interface ICanonicalBookRepository
         return summaries;
     }
 
+    /// <summary>按书名或作者筛选有界书目摘要；生产实现应在查询中完成筛选。</summary>
+    async Task<IReadOnlyList<CanonicalBookSummary>> SearchSummariesAsync(
+        string query,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var keyword = query.Trim();
+        var summaries = await ListSummariesAsync(
+            keyword.Length == 0 ? limit : 100,
+            cancellationToken).ConfigureAwait(false);
+        if (keyword.Length == 0)
+        {
+            return summaries;
+        }
+
+        return summaries
+            .Where(book => book.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                          || book.Author.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            .Take(Math.Clamp(limit, 1, 100))
+            .ToList();
+    }
+
     /// <summary>
     /// 按归一化的书名+作者查找已有正典书(Book Matcher v1 的同书识别依据);
     /// 未命中返回 null。
