@@ -358,7 +358,7 @@ public sealed class SourceRepositoryTests
         await repo.AddAsync(source).ConfigureAwait(false);
 
         capture.Commands.Clear();
-        var page = await repo.ListPageAsync(null, 2).ConfigureAwait(false);
+        var page = await repo.ListPageAsync(null, 1000).ConfigureAwait(false);
 
         var entry = page.Sources.Single(value => value.Id == source.Id);
         Assert.AreEqual(source.BaseUrl, entry.BaseUrl);
