@@ -1,5 +1,7 @@
 using InkFlow.BuildingBlocks.Observability;
 using InkFlow.Modules.Crawling.Domain;
+using Microsoft.Extensions.DependencyInjection;
+using System.Runtime.ExceptionServices;
 
 namespace InkFlow.Modules.Crawling.Application;
 
@@ -13,7 +15,9 @@ public sealed class CrawlerTaskProcessor(
     TimeProvider clock,
     RetryPolicy retryPolicy,
     CrawlerFailureReporter failureReporter,
-    CollectionRunService? collectionRuns = null) : ICrawlerTaskProcessor
+    CollectionRunService? collectionRuns = null,
+    TimeSpan? leaseDuration = null,
+    IServiceScopeFactory? scopeFactory = null) : ICrawlerTaskProcessor
 {
     public async Task ProcessAsync(
         CrawlerTask task,
@@ -47,9 +51,12 @@ public sealed class CrawlerTaskProcessor(
                 await collectionRuns.MarkWorkStartedAsync(runId, cancellationToken).ConfigureAwait(false);
             }
 
-            var outcome = await executor
-                .ExecuteAsync(task, cancellationToken)
+            var outcome = await ExecuteWithLeaseHeartbeatAsync(task, cancellationToken)
                 .ConfigureAwait(false);
+            if (outcome is null)
+            {
+                return;
+            }
 
             var runStatus = await GetRunStatusAsync(task, cancellationToken).ConfigureAwait(false);
             if (runStatus is CollectionRunStatus.Cancelled or
@@ -111,6 +118,118 @@ public sealed class CrawlerTaskProcessor(
             await ReconcileRunAsync(task, cancellationToken)
                 .ConfigureAwait(false);
         }
+    }
+
+    private async Task<CrawlOutcome?> ExecuteWithLeaseHeartbeatAsync(
+        CrawlerTask task,
+        CancellationToken cancellationToken)
+    {
+        var duration = leaseDuration ?? CrawlerTaskExecutionDefaults.LeaseDuration;
+        var interval = TimeSpan.FromTicks(Math.Max(TimeSpan.TicksPerMillisecond, duration.Ticks / 2));
+        using var stopHeartbeat = new CancellationTokenSource();
+        using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var heartbeatCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            stopHeartbeat.Token);
+        var heartbeat = RenewLeaseUntilStoppedAsync(
+            task,
+            interval,
+            heartbeatCancellation.Token,
+            executionCancellation,
+            duration);
+
+        CrawlOutcome? outcome = null;
+        Exception? executionException = null;
+        try
+        {
+            try
+            {
+                outcome = await executor
+                    .ExecuteAsync(task, executionCancellation.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                executionException = exception;
+            }
+        }
+        finally
+        {
+            stopHeartbeat.Cancel();
+        }
+
+        var leaseHeld = await heartbeat.ConfigureAwait(false);
+        if (!leaseHeld ||
+            (executionException is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+        {
+            return null;
+        }
+
+        if (executionException is not null)
+        {
+            ExceptionDispatchInfo.Capture(executionException).Throw();
+        }
+
+        return outcome;
+    }
+
+    private async Task<bool> RenewLeaseUntilStoppedAsync(
+        CrawlerTask task,
+        TimeSpan interval,
+        CancellationToken cancellationToken,
+        CancellationTokenSource executionCancellation,
+        TimeSpan duration)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(interval);
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (!await TryRenewLeaseAsync(task, duration, cancellationToken).ConfigureAwait(false))
+                {
+                    executionCancellation.Cancel();
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return true;
+        }
+        catch (Exception)
+        {
+            executionCancellation.Cancel();
+            return false;
+        }
+    }
+
+    private async Task<bool> TryRenewLeaseAsync(
+        CrawlerTask task,
+        TimeSpan duration,
+        CancellationToken cancellationToken)
+    {
+        if (scopeFactory is null)
+        {
+            return await tasks
+                .TryRenewLeaseAsync(
+                    task,
+                    clock.GetUtcNow().ToUniversalTime(),
+                    duration,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        using var scope = scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ICrawlerTaskRepository>();
+        return await repository
+            .TryRenewLeaseAsync(
+                task,
+                clock.GetUtcNow().ToUniversalTime(),
+                duration,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async Task<bool> ShouldCancelTaskAsync(

@@ -104,6 +104,25 @@ public sealed class CrawlerTask
         Touch(now);
     }
 
+    public void RenewLease(DateTimeOffset now, TimeSpan leaseDuration)
+    {
+        if (leaseDuration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration), "lease duration must be positive.");
+        }
+
+        if (Status is not (CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) ||
+            string.IsNullOrWhiteSpace(LeaseOwner) ||
+            LeaseExpiresAt is not { } expiry ||
+            expiry <= now)
+        {
+            throw new InvalidOperationException($"crawler task {Id} has no active lease to renew.");
+        }
+
+        LeaseExpiresAt = now + leaseDuration;
+        Touch(now);
+    }
+
     public void Complete(DateTimeOffset now)
     {
         EnsureTransition(CrawlerTaskStatus.Completed);

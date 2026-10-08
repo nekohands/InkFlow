@@ -717,6 +717,73 @@ public sealed class CrawlerTaskRepositoryTests
     }
 
     [TestMethod]
+    public async Task TryRenewLease_Requires_Current_Owner_And_Durable_Unexpired_Lease()
+    {
+        var source = CreateContext();
+        await using var sourceDb = source.Db;
+        var task = CrawlerTask.Create(
+            Payload($"renew-{Guid.NewGuid():N}"),
+            maxAttempts: 2,
+            T0);
+        await source.Repo.AddAsync(task).ConfigureAwait(false);
+
+        var leased = await source.Repo
+            .TryLeaseAsync(task.Id, T0, "worker-a", TimeSpan.FromSeconds(30))
+            .ConfigureAwait(false);
+        Assert.IsNotNull(leased);
+
+        await using var renewalDb = CreateContext().Db;
+        var renewalRepo = new EfCrawlerTaskRepository(
+            renewalDb,
+            new EfTransactionalOutboxWriter());
+        var renewed = await renewalRepo
+            .TryRenewLeaseAsync(leased!, T0.AddSeconds(10), TimeSpan.FromMinutes(1))
+            .ConfigureAwait(false);
+        Assert.IsTrue(renewed);
+
+        var persisted = await renewalRepo.GetAsync(task.Id).ConfigureAwait(false);
+        Assert.AreEqual(T0.AddSeconds(10).AddMinutes(1), persisted!.LeaseExpiresAt);
+
+        var wrongOwner = CrawlerTask.Rehydrate(
+            persisted.Id,
+            persisted.Payload,
+            persisted.Status,
+            persisted.AttemptCount,
+            persisted.MaxAttempts,
+            "worker-b",
+            persisted.LeaseExpiresAt,
+            persisted.CreatedAt,
+            persisted.UpdatedAt);
+        Assert.IsFalse(
+            await renewalRepo
+                .TryRenewLeaseAsync(wrongOwner, T0.AddSeconds(20), TimeSpan.FromMinutes(1))
+                .ConfigureAwait(false));
+
+        await renewalDb.Database
+            .ExecuteSqlInterpolatedAsync($"""
+                UPDATE "crawler"."tasks"
+                SET "LeaseExpiresAt" = {T0.AddSeconds(5)}
+                WHERE "Id" = {task.Id}
+                """)
+            .ConfigureAwait(false);
+
+        var staleSnapshot = CrawlerTask.Rehydrate(
+            persisted.Id,
+            persisted.Payload,
+            persisted.Status,
+            persisted.AttemptCount,
+            persisted.MaxAttempts,
+            "worker-a",
+            T0.AddMinutes(1),
+            persisted.CreatedAt,
+            persisted.UpdatedAt);
+        Assert.IsFalse(
+            await renewalRepo
+                .TryRenewLeaseAsync(staleSnapshot, T0.AddSeconds(10), TimeSpan.FromMinutes(1))
+                .ConfigureAwait(false));
+    }
+
+    [TestMethod]
     public async Task Save_Persists_Status_Transitions()
     {
         var (_, repo) = CreateContext();

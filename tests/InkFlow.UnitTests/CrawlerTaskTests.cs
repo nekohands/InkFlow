@@ -183,6 +183,29 @@ public sealed class CrawlerTaskTests
     }
 
     [TestMethod]
+    public void RenewLease_Extends_An_Active_Lease_And_Rejects_Expired_Or_Terminal_Tasks()
+    {
+        var task = NewTask();
+        task.Lease("w", T0, TimeSpan.FromMinutes(1));
+        task.MarkRunning(T0.AddSeconds(1));
+
+        var renewedAt = T0.AddSeconds(30);
+        task.RenewLease(renewedAt, TimeSpan.FromMinutes(2));
+
+        Assert.AreEqual(renewedAt.AddMinutes(2), task.LeaseExpiresAt);
+        Assert.AreEqual(renewedAt, task.UpdatedAt);
+
+        var expired = NewTask();
+        expired.Lease("w", T0, TimeSpan.FromMinutes(1));
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => expired.RenewLease(T0.AddMinutes(1), TimeSpan.FromMinutes(1)));
+
+        task.Complete(renewedAt.AddSeconds(1));
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => task.RenewLease(renewedAt.AddSeconds(2), TimeSpan.FromMinutes(1)));
+    }
+
+    [TestMethod]
     public void RetryPolicy_Backoff_Grows_And_Is_Capped()
     {
         var policy = new RetryPolicy { BaseDelay = TimeSpan.FromSeconds(4), MaxDelay = TimeSpan.FromSeconds(30) };

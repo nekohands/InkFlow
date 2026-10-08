@@ -284,6 +284,49 @@ public sealed class EfCrawlerTaskRepository(
         return true;
     }
 
+    public async Task<bool> TryRenewLeaseAsync(
+        CrawlerTask task,
+        DateTimeOffset now,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (leaseDuration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration), "lease duration must be positive.");
+        }
+
+        if (task.Status is not (CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) ||
+            task.LeaseOwner is not { Length: > 0 } owner ||
+            task.LeaseExpiresAt is not { } expiry ||
+            expiry <= now)
+        {
+            return false;
+        }
+
+        now = now.ToUniversalTime();
+        var leaseExpiresAt = now + leaseDuration;
+        var affected = await db.Database
+            .ExecuteSqlInterpolatedAsync($"""
+                UPDATE "crawler"."tasks"
+                SET "LeaseExpiresAt" = {leaseExpiresAt},
+                    "UpdatedAt" = {now}
+                WHERE "Id" = {task.Id}
+                  AND "LeaseOwner" = {owner}
+                  AND "Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
+                  AND "LeaseExpiresAt" > {now}
+                """, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (affected != 1)
+        {
+            return false;
+        }
+
+        task.RenewLease(now, leaseDuration);
+        return true;
+    }
+
     public async Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
         var entity = await db.Tasks.FindAsync([task.Id], cancellationToken).ConfigureAwait(false)

@@ -23,7 +23,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: None. 5.63 [Canonical match query bounding](work-packages/2026-10-08-canonical-match-query-bound.md) is Accepted; it removes full-table materialization from the PostgreSQL title/author matcher without changing matching semantics or public contracts. 5.62 [Private book optimistic concurrency](work-packages/2026-10-08-private-book-optimistic-concurrency.md) remains Accepted.
+Active work package: 5.64 [Crawler handler lease renewal](work-packages/2026-10-08-crawler-handler-lease-renewal.md) — In Progress. It closes the recorded single-handler lease-expiry gap with an owner/status/expiry-guarded PostgreSQL renewal and an independent-scope processor heartbeat; no schema, public contract, or retry-policy redesign. 5.63 [Canonical match query bounding](work-packages/2026-10-08-canonical-match-query-bound.md) remains Accepted.
 Last completed: canonical match query bounding (5.63) — Accepted; exact SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` passed CI `37661014830`, Docker `37661014858`, and Security `37661014826`.
 Previous: code adapter response and regex bounds (5.61) — Accepted
 Shared streaming response reads reject oversized bodies before decode/parse; Kanunu8 regex timeouts and adapter regression tests are covered by local gates and remote CI/Docker/Security GREEN at `0d7d5ce`.

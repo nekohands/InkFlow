@@ -125,10 +125,55 @@ public sealed class CrawlerTaskProcessorTests
         Assert.AreEqual(0, taskRepository.SaveCount);
     }
 
+    [TestMethod]
+    public async Task Long_Execution_Renews_Lease_And_Completes()
+    {
+        var task = LeaseTask(maxAttempts: 2);
+        var repository = new InMemoryTaskRepository();
+        var executor = new BlockingExecutor();
+        var processor = CreateProcessor(
+            repository,
+            executor,
+            leaseDuration: TimeSpan.FromMilliseconds(50));
+
+        var processing = processor.ProcessAsync(task);
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await repository.RenewalAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        executor.Complete(CrawlOutcome.Ok());
+        await processing;
+
+        Assert.IsTrue(repository.RenewalCount > 0);
+        Assert.AreEqual(CrawlerTaskStatus.Completed, task.Status);
+    }
+
+    [TestMethod]
+    public async Task Lost_Lease_Cancels_Execution_Without_Persisting_A_Terminal_Result()
+    {
+        var task = LeaseTask(maxAttempts: 2);
+        var repository = new InMemoryTaskRepository { RenewLease = false };
+        var executor = new BlockingExecutor();
+        var processor = CreateProcessor(
+            repository,
+            executor,
+            leaseDuration: TimeSpan.FromMilliseconds(50));
+
+        var processing = processor.ProcessAsync(task);
+
+        await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await repository.RenewalAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await processing;
+
+        Assert.IsTrue(await executor.CancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.AreEqual(CrawlerTaskStatus.Running, task.Status);
+        Assert.AreEqual(1, repository.SaveCount);
+    }
+
     private static CrawlerTaskProcessor CreateProcessor(
         InMemoryTaskRepository repository,
         ICrawlerTaskExecutor executor,
-        CollectionRunService? collectionRuns = null) =>
+        CollectionRunService? collectionRuns = null,
+        TimeSpan? leaseDuration = null) =>
         new(
             executor,
             repository,
@@ -137,7 +182,8 @@ public sealed class CrawlerTaskProcessorTests
             new CrawlerFailureReporter(
                 Array.Empty<ICrawlerFailureSink>(),
                 NullLogger<CrawlerFailureReporter>.Instance),
-            collectionRuns);
+            collectionRuns,
+            leaseDuration: leaseDuration);
 
     private static CrawlerTask LeaseTask(int maxAttempts)
     {
@@ -178,11 +224,45 @@ public sealed class CrawlerTaskProcessorTests
             throw new InvalidOperationException(marker);
     }
 
+    private sealed class BlockingExecutor : ICrawlerTaskExecutor
+    {
+        public TaskCompletionSource<bool> Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> CancellationObserved { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private TaskCompletionSource<CrawlOutcome> Completion { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<CrawlOutcome> ExecuteAsync(
+            CrawlerTask task,
+            CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult(true);
+            using var registration = cancellationToken.Register(() =>
+            {
+                CancellationObserved.TrySetResult(true);
+                Completion.TrySetCanceled(cancellationToken);
+            });
+            return await Completion.Task.ConfigureAwait(false);
+        }
+
+        public void Complete(CrawlOutcome outcome) => Completion.TrySetResult(outcome);
+    }
+
     private sealed class InMemoryTaskRepository : ICrawlerTaskRepository
     {
         public int SaveCount { get; private set; }
 
+        public int RenewalCount { get; private set; }
+
+        public TaskCompletionSource<bool> RenewalAttempted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public bool RejectStart { get; init; }
+
+        public bool RenewLease { get; init; } = true;
 
         public List<DeadLetterTask> DeadLetters { get; } = [];
 
@@ -213,6 +293,23 @@ public sealed class CrawlerTaskProcessorTests
             TimeSpan leaseDuration,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<CrawlerTask?>(null);
+
+        public Task<bool> TryRenewLeaseAsync(
+            CrawlerTask task,
+            DateTimeOffset now,
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken = default)
+        {
+            RenewalCount++;
+            RenewalAttempted.TrySetResult(true);
+            if (!RenewLease)
+            {
+                return Task.FromResult(false);
+            }
+
+            task.RenewLease(now, leaseDuration);
+            return Task.FromResult(true);
+        }
 
         public Task<CrawlerTask?> TryLeaseAsync(
             Guid taskId,

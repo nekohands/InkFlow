@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.63 Canonical match query bounding 已 Accepted；当前无 In Progress 工作包；历史记录见 `progress-history.md`。
+- 文档状态：5.64 Crawler handler lease renewal In Progress；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -140,6 +140,14 @@ Phase 1A 自动化工作包状态：
 - 测试：先建立红态回归，再实现并验证；聚焦 Commercial/Identity `18/18`、全量 Unit `592/592`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`；Windows 迁移模型检查 11/11，脚本语法 PASS。
 - 远端：`d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime 验证。
 - 边界：本机 Billing Testcontainers 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包需重新 intake，候选为乐观并发和适配器正则/读取边界。
+
+### 5.64 Crawler handler lease renewal（本轮，2026-10-08，In Progress）
+
+- 缺口（5.58 已明确记录）：Crawler Task 创建事件/轮询领取使用两分钟租约，但单条 Handler 执行超过完整租约时长没有中途续约；仅靠 Inbox 幂等会让另一个 Worker 在执行中回收同一任务，放大重复抓取竞态。
+- Intake：本包限定为 `CrawlerTask` active lease 的 owner/status/expiry 条件续约、独立 DI scope 的 Processor heartbeat 与 lease-loss cancellation；不改变任务重试预算、公共契约、Schema/Migration 或真实来源策略。
+- 验收：未过期的当前 owner 可获得新 expiry；过期、终态或 owner 不匹配不续约；长 Handler 在半租约前续约并正常完成；续约丢失时取消 executor 且不以旧 owner 写入成功/失败终态。
+- 验证计划：先建立 Domain/Processor 红态回归，再执行 focused/全量 Unit、Architecture、真实 PostgreSQL Integration、Release Build、11 contexts migration model check、security/diff audit 与 exact-SHA CI/Docker/Security。
+- 状态：代码尚未实现；工作包文档已建立，证据待收集。
 
 ### 5.63 Canonical match query bounding（本轮，2026-10-08，Accepted）
 

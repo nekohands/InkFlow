@@ -51,6 +51,30 @@ public interface ICrawlerTaskRepository
         return true;
     }
 
+    /// <summary>
+    /// 仅续约仍由当前任务对象持有且尚未过期的租约。生产实现必须以任务 ID、owner、状态和当前
+    /// expiry 条件原子更新；默认实现仅为测试替身提供兼容回退。
+    /// </summary>
+    async Task<bool> TryRenewLeaseAsync(
+        CrawlerTask task,
+        DateTimeOffset now,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (task.Status is not (CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) ||
+            task.LeaseOwner is null ||
+            task.LeaseExpiresAt is not { } expiry ||
+            expiry <= now)
+        {
+            return false;
+        }
+
+        task.RenewLease(now, leaseDuration);
+        await SaveAsync(task, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
     /// <summary>把聚合的当前状态写回存储。</summary>
     Task SaveAsync(CrawlerTask task, CancellationToken cancellationToken = default);
 
