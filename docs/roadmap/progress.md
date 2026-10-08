@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.65 Rule selector execution deadline fencing 已 Accepted；当前无 In Progress 工作包；历史记录见 `progress-history.md`。
+- 文档状态：5.66 Discovery search budget fencing In Progress；5.65 Rule selector execution deadline fencing 已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -47,6 +47,14 @@ Phase 1A 自动化工作包状态：
 
 
 > 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。
+### 5.66 Discovery search budget fencing（本轮，2026-10-08，In Progress）
+
+- 缺口：`BookDiscoveryService` 只处理空查询，不限制查询长度、逐源命中处理量或总正典发现结果；用户触发搜索会把适配器返回的全部命中逐条导入与匹配。
+- Intake：本包限定在 Crawling 发现编排边界加入查询/工作量上限，并通过既有 `warnings` 报告截断；不改 `ISourceAdapter`、公共 API/Legado JSON、目录分页、Source Runtime parser/HTTP 预算、Schema/Migration、权限或重试策略。
+- 验收：超长查询在列出来源/调用适配器前返回稳定 warning；逐源命中和总正典结果均有界；空查询、正常归并、幂等与调用方取消语义保持不变。
+- 验证计划：BookDiscoveryService 红绿回归、完整 Unit/Architecture/Contract、Release Restore/Build、迁移模型检查、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 状态：In Progress；截断结果显式 warning，Source registry cardinality 与真实来源/Release Candidate 人工验收继续作为独立边界。
+
 ### 5.65 Rule selector execution deadline fencing（本轮，2026-10-08，Accepted）
 
 - 缺口：`RuleAdapter` 的 `MaxExecutionTime` 取消令牌已约束 HTTP 与 Credential Provider，但字段、分页和响应变量选择器，以及 `RuleBasedSourceAdapter` 在分页响应收集后的 Search/TOC 列表绑定边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。

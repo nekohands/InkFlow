@@ -57,6 +57,11 @@ Parent/root index: [README.md](README.md)
   binding; selector work that crosses the execution deadline fails closed and
   never returns partial values or pages. Credentials travel by reference only
   (`CredentialReference`), never in task payloads.
+- `BookDiscoveryService` adds a caller-side search fence: trimmed keywords are
+  limited to 256 UTF-16 characters, each source contributes at most 100 hits to
+  import/matching, and discovery returns at most 100 merged canonical books.
+  Truncation is reported through the existing stable `DiscoveryOutcome.Warnings`
+  without changing the public or Legado JSON shape.
 - Trusted Kanunu8/17K CodeAdapters use the same `SourceRuleExecutionLimits`:
   `SourceResponseReader` rejects oversized bodies before decode/parse, and
   Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.

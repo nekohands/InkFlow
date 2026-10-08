@@ -23,7 +23,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: None. 5.65 [Rule selector execution deadline fencing](work-packages/2026-10-08-rule-selector-execution-deadline.md) is Accepted; it closes the selector-side execution-budget gap without adding selector syntax, dynamic orchestration, schema, or public contract changes. 5.64 [Crawler handler lease renewal](work-packages/2026-10-08-crawler-handler-lease-renewal.md) remains Accepted.
+Active work package: 5.66 [Discovery search budget fencing](work-packages/2026-10-08-discovery-search-budget.md) is In Progress; it bounds user-triggered discovery at the query and orchestration boundaries without changing public contracts or schema. 5.65 [Rule selector execution deadline fencing](work-packages/2026-10-08-rule-selector-execution-deadline.md) is Accepted; it closes the selector-side execution-budget gap without adding selector syntax, dynamic orchestration, schema, or public contract changes. 5.64 [Crawler handler lease renewal](work-packages/2026-10-08-crawler-handler-lease-renewal.md) remains Accepted.
 Last completed: rule selector execution deadline fencing (5.65) — Accepted; exact SHA `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` passed CI `37710808321`, Docker `37710808308`, and Security `37710808245`.
 Previous: code adapter response and regex bounds (5.61) — Accepted
 Shared streaming response reads reject oversized bodies before decode/parse; Kanunu8 regex timeouts and adapter regression tests are covered by local gates and remote CI/Docker/Security GREEN at `0d7d5ce`.

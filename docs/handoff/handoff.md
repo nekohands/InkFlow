@@ -189,6 +189,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
 - 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
 
+### 5.66 Discovery search budget fencing 交接（本轮，2026-10-08，In Progress）
+
+- 缺口：`BookDiscoveryService` 只有空查询短路，没有查询长度、逐源命中处理量或总正典发现结果边界；搜索会把适配器返回的全部命中逐条导入/匹配。
+- 目标：在已有 Crawling 编排边界加入固定查询与工作量上限；超限通过既有 `DiscoveryOutcome.Warnings` 返回稳定、非敏感提示，不改变公共响应形状。
+- 范围边界：仅修改发现服务及其离线回归/相关文档；不改 `ISourceAdapter`、公共 API/Legado JSON、目录分页、Source Runtime parser/HTTP 预算、Schema/Migration、权限、重试策略或真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 当前状态：Intake 完成，代码与回归尚未完成；下一步先建立超长查询、逐源命中与总结果上限的红灯，再实现最小根因修复。
+
 ### 5.65 Rule selector execution deadline fencing 交接（本轮，2026-10-08，Accepted）
 
 - 缺口：`RuleAdapter` 已为 HTTP 与 Credential Provider 创建 `MaxExecutionTime` 取消令牌，但字段、分页和响应变量的选择器，以及 `RuleBasedSourceAdapter` 的 Search/TOC 列表绑定边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。

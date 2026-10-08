@@ -107,6 +107,12 @@ Header 基线；持久化 Session，以及动态多请求/递归执行所需的 
 均在同一有界执行期间完成；选择器或列表聚合跨过 MaxExecutionTime 时 fail-closed，不返回
 超时后的 values、ResponseBodies 或部分条目，调用方主动取消仍向上传播。
 
+来源发现编排另在 `BookDiscoveryService` 边界限制 trim 后关键词最多 256 个 UTF-16
+字符、逐源最多处理 100 个搜索命中、总共最多归并 100 个正典结果；任一结果边界截断
+时通过既有 `DiscoveryOutcome.Warnings` 返回稳定提示。该调用方预算不改变
+`ISourceAdapter` 或公共/Legado JSON 形状，适配器自身的 HTTP/规则响应预算仍是更低层的
+网络与内存边界。
+
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。

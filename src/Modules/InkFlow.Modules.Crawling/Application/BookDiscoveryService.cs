@@ -13,7 +13,7 @@ public sealed record DiscoveredBook(
     bool AlreadyInLibrary);
 
 /// <summary>
-/// 来源搜索发现的编排结果。Warnings 保留逐源失败阶段的稳定提示,保证发现过程可解释，
+/// 来源搜索发现的编排结果。Warnings 保留逐源失败阶段和结果截断的稳定提示,保证发现过程可解释，
 /// 同时不把底层异常细节返回给调用方。
 /// </summary>
 public sealed record DiscoveryOutcome(
@@ -24,7 +24,7 @@ public sealed record DiscoveryOutcome(
 }
 
 /// <summary>
-/// 搜索发现编排:对每个已登记且 Search 能力健康的来源执行关键词搜索,
+/// 搜索发现编排:对每个已登记且 Search 能力健康的来源执行有界关键词搜索,
 /// 命中后幂等导入来源书目(BookInfo upsert)并走 v1 匹配
 /// (Confirmed 幂等 / 同名同作者挂接既有正典书 / 新建),最后按正典书归并。
 /// 失败隔离:单来源异常只产生 warning,不影响其他来源的命中。
@@ -38,6 +38,10 @@ public sealed class BookDiscoveryService(
     CanonicalBookMatchingService matching,
     ISourceHealthReader? healthReader = null)
 {
+    public const int MaxQueryLength = 256;
+    public const int MaxSourceHits = 100;
+    public const int MaxDiscoveredBooks = 100;
+
     public async Task<DiscoveryOutcome> DiscoverAsync(
         string query, CancellationToken cancellationToken = default)
     {
@@ -47,13 +51,25 @@ public sealed class BookDiscoveryService(
             return DiscoveryOutcome.Empty();
         }
 
+        if (keyword.Length > MaxQueryLength)
+        {
+            return new DiscoveryOutcome([], ["search: query exceeds maximum length."]);
+        }
+
         var allSources = await sources.ListAsync(cancellationToken).ConfigureAwait(false);
         var warnings = new List<string>();
         var byCanonical = new Dictionary<Guid, DiscoveredBook>();
         var newlyCreated = new HashSet<Guid>();
+        var totalTruncated = false;
 
         foreach (var source in allSources)
         {
+            if (byCanonical.Count >= MaxDiscoveredBooks)
+            {
+                warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
+                break;
+            }
+
             try
             {
                 if (!source.IsEnabled)
@@ -95,8 +111,22 @@ public sealed class BookDiscoveryService(
                     continue;
                 }
 
+                if (hits.Count > MaxSourceHits)
+                {
+                    warnings.Add(
+                        $"search: source '{source.Id}' results truncated at {MaxSourceHits}.");
+                    hits = hits.Take(MaxSourceHits).ToArray();
+                }
+
                 foreach (var hit in hits)
                 {
+                    if (byCanonical.Count >= MaxDiscoveredBooks)
+                    {
+                        warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
+                        totalTruncated = true;
+                        break;
+                    }
+
                     var import = await catalog
                         .ImportBookInfoAsync(source.Id, hit.ExternalBookId, cancellationToken)
                         .ConfigureAwait(false);
@@ -143,6 +173,11 @@ public sealed class BookDiscoveryService(
                             [source.Id],
                             AlreadyInLibrary: !newlyCreated.Contains(match.Book.Id));
                     }
+                }
+
+                if (totalTruncated)
+                {
+                    break;
                 }
             }
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)

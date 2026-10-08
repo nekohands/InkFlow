@@ -183,6 +183,96 @@ public sealed class BookDiscoveryServiceTests
         Assert.AreEqual(0, probe.CallCount, "空查询不得触达任何来源");
     }
 
+    [TestMethod]
+    public async Task Overlong_Query_Returns_Warning_Without_Touching_Sources()
+    {
+        var probe = new RecordingAdapter("probe-source", []);
+        var sources = new InMemorySources();
+        sources.Store.Add(Source.Create("probe-source", "探针来源",
+            "https://probe.example.com", T0));
+
+        var service = BuildService(
+            sources, new InMemorySourceBooks(), new InMemoryCanonicalRepo(), new InMemoryCandidates(),
+            ("probe-source", probe));
+
+        var outcome = await service.DiscoverAsync(
+            new string('词', BookDiscoveryService.MaxQueryLength + 1));
+
+        Assert.AreEqual(0, outcome.Books.Count);
+        CollectionAssert.AreEqual(
+            new[] { "search: query exceeds maximum length." },
+            outcome.Warnings.ToArray());
+        Assert.AreEqual(0, sources.ListCallCount, "超长查询不得列出来源");
+        Assert.AreEqual(0, probe.CallCount, "超长查询不得触达任何来源");
+    }
+
+    [TestMethod]
+    public async Task Source_Hits_Are_Bounded_With_Stable_Warning()
+    {
+        var sourceBooks = new InMemorySourceBooks();
+        var hits = Enumerable.Range(0, BookDiscoveryService.MaxSourceHits + 1)
+            .Select(index => new SourceSearchResult(
+                $"book-{index}", $"书-{index}", $"作者-{index}"))
+            .ToArray();
+        var harness = CreateHarness(
+            sourceBooks, new InMemoryCanonicalRepo(), new InMemoryCandidates(),
+            new SourceSpec("bounded-source", hits));
+
+        var outcome = await harness.Service.DiscoverAsync("词");
+
+        Assert.AreEqual(BookDiscoveryService.MaxSourceHits, outcome.Books.Count);
+        Assert.AreEqual(BookDiscoveryService.MaxSourceHits, sourceBooks.Store.Count);
+        StringAssert.Contains(
+            outcome.Warnings.Single(w => w.Contains("bounded-source", StringComparison.Ordinal)),
+            $"results truncated at {BookDiscoveryService.MaxSourceHits}.");
+    }
+
+    [TestMethod]
+    public async Task Total_Discovery_Results_Are_Bounded_With_Stable_Warning()
+    {
+        var sourceBooks = new InMemorySourceBooks();
+        var hitsPerSource = BookDiscoveryService.MaxDiscoveredBooks / 2 + 1;
+        var sourceA = Enumerable.Range(0, hitsPerSource)
+            .Select(index => new SourceSearchResult(
+                $"a-{index}", $"甲-{index}", $"作者甲-{index}"))
+            .ToArray();
+        var sourceB = Enumerable.Range(0, hitsPerSource)
+            .Select(index => new SourceSearchResult(
+                $"b-{index}", $"乙-{index}", $"作者乙-{index}"))
+            .ToArray();
+        var harness = CreateHarness(
+            sourceBooks, new InMemoryCanonicalRepo(), new InMemoryCandidates(),
+            new SourceSpec("source-a", sourceA),
+            new SourceSpec("source-b", sourceB));
+
+        var outcome = await harness.Service.DiscoverAsync("词");
+
+        Assert.AreEqual(BookDiscoveryService.MaxDiscoveredBooks, outcome.Books.Count);
+        StringAssert.Contains(
+            outcome.Warnings.Single(),
+            $"results truncated at {BookDiscoveryService.MaxDiscoveredBooks}.");
+    }
+
+    [TestMethod]
+    public async Task Caller_Cancellation_Still_Propagates()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var harness = CreateHarness(
+            new InMemorySourceBooks(), new InMemoryCanonicalRepo(), new InMemoryCandidates(),
+            new SourceSpec("cancelled-source", SearchThrows: new OperationCanceledException()));
+
+        try
+        {
+            await harness.Service.DiscoverAsync("词", cancellation.Token);
+            Assert.Fail("caller cancellation must propagate");
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected: caller cancellation must not be downgraded to a warning.
+        }
+    }
+
     private sealed record SourceSpec(
         string Id,
         IReadOnlyList<SourceSearchResult>? Hits = null,
@@ -321,6 +411,7 @@ public sealed class BookDiscoveryServiceTests
     private sealed class InMemorySources : ISourceRepository
     {
         public List<Source> Store { get; } = [];
+        public int ListCallCount { get; private set; }
 
         public Task AddAsync(Source source, CancellationToken cancellationToken = default)
         {
@@ -331,8 +422,11 @@ public sealed class BookDiscoveryServiceTests
         public Task<Source?> GetAsync(string sourceId, CancellationToken cancellationToken = default) =>
             Task.FromResult<Source?>(Store.FirstOrDefault(s => s.Id == sourceId));
 
-        public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<Source>>(Store.ToList());
+        public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default)
+        {
+            ListCallCount++;
+            return Task.FromResult<IReadOnlyList<Source>>(Store.ToList());
+        }
 
         public Task SaveAsync(Source source, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
