@@ -1,7 +1,9 @@
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Data.Common;
 using Testcontainers.PostgreSql;
 using DotNet.Testcontainers.Images;
 
@@ -121,6 +123,41 @@ public sealed class SourceBookRepositoryTests
     }
 
     [TestMethod]
+    public async Task GetChapter_Uses_Bounded_Point_Query_And_Enforces_Book_Identity()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var book = NewBook($"point-{Guid.NewGuid():N}");
+        book.SyncChapters([("ch-001", "第一章"), ("ch-002", "第二章")], T0);
+        await repo.AddAsync(book).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        var loaded = await repo
+            .GetChapterAsync("example-source", book.ExternalBookId, "ch-002")
+            .ConfigureAwait(false);
+
+        Assert.IsTrue(loaded.BookExists);
+        Assert.IsNotNull(loaded.Chapter);
+        Assert.AreEqual("ch-002", loaded.Chapter.ExternalChapterId);
+        Assert.AreEqual("第二章", loaded.Chapter.Title);
+
+        var wrongBook = await repo
+            .GetChapterAsync("example-source", "missing-book", "ch-002")
+            .ConfigureAwait(false);
+        Assert.IsFalse(wrongBook.BookExists);
+        Assert.IsNull(wrongBook.Chapter);
+
+        var missingChapter = await repo
+            .GetChapterAsync("example-source", book.ExternalBookId, "missing-chapter")
+            .ConfigureAwait(false);
+        Assert.IsTrue(missingChapter.BookExists);
+        Assert.IsNull(missingChapter.Chapter);
+
+        var command = capture.Commands.Last(text =>
+            text.Contains("source_chapters", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(command.Contains("LIMIT 1", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     public async Task Chapter_Sync_Persists_Incrementally_And_Idempotently()
     {
         var repo = CreateRepository();
@@ -144,5 +181,35 @@ public sealed class SourceBookRepositoryTests
         await repo.SaveAsync(reloaded).ConfigureAwait(false);
         var final = (await repo.GetAsync("example-source", "20002").ConfigureAwait(false))!;
         Assert.AreEqual(2, final.Chapters.Count);
+    }
+
+    private static (EfSourceBookRepository Repository, SqlCaptureInterceptor Capture)
+        CreateRepositoryWithCapture()
+    {
+        var capture = new SqlCaptureInterceptor();
+        var options = new DbContextOptionsBuilder<SourcesDbContext>()
+            .UseNpgsql(_container!.GetConnectionString())
+            .AddInterceptors(capture)
+            .Options;
+
+        var db = new SourcesDbContext(options);
+        db.Database.Migrate();
+        capture.Commands.Clear();
+        return (new EfSourceBookRepository(db), capture);
+    }
+
+    private sealed class SqlCaptureInterceptor : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command.CommandText);
+            return new ValueTask<InterceptionResult<DbDataReader>>(result);
+        }
     }
 }

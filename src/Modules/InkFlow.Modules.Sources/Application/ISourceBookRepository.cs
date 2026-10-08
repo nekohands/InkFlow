@@ -9,6 +9,8 @@ public sealed record SourceBookPage(
     SourceBookScanCursor? NextCursor,
     bool HasMore);
 
+public sealed record SourceChapterLookup(bool BookExists, SourceChapter? Chapter);
+
 /// <summary>来源侧书目仓储契约。</summary>
 public interface ISourceBookRepository
 {
@@ -16,6 +18,19 @@ public interface ISourceBookRepository
 
     /// <summary>按 (sourceId, externalBookId) 定位并加载聚合（含全部章节）。</summary>
     Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default);
+
+    /// <summary>按来源书身份读取目标章节；结果保留书不存在与章节不存在的区别。</summary>
+    async Task<SourceChapterLookup> GetChapterAsync(
+        string sourceId,
+        string externalBookId,
+        string externalChapterId,
+        CancellationToken cancellationToken = default)
+    {
+        var book = await GetAsync(sourceId, externalBookId, cancellationToken).ConfigureAwait(false);
+        return new(
+            book is not null,
+            book?.Chapters.FirstOrDefault(chapter => chapter.ExternalChapterId == externalChapterId));
+    }
 
     /// <summary>全部已导入书目(不含章节);定时扫描和健康探针必须使用有界查询。</summary>
     Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default);

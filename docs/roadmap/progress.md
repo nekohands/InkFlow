@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.72 Reader chapter metadata point lookup Accepted；5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.73 Source content chapter metadata point lookup In Progress；5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -44,6 +44,17 @@ Phase 1A 自动化工作包状态：
 13. ✅ Web Reader 最小纵向体验（自动化基线已完成）。
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
+
+### 5.73 Source content chapter metadata point lookup（本轮，2026-10-08，In Progress）
+
+- 缺口：`SourceContentService.FetchChapterContentAsync` 在触网前调用 `ISourceBookRepository.GetAsync`，EF 会为定位一个外部章节 ID 物化整本来源书的章节集合；章节规模增长会放大正文抓取前的数据库行数和内存。
+- Intake：新增同时表达书存在状态与目标章节的来源章节点查找，正文路径只读取目标章节元数据；保留 `GetAsync` 给目录、同步和其他完整聚合调用方。
+- 范围边界：不改公共 API/Legado、Source Adapter、正文/FetchArtifact 语义、缺书/缺章错误文本、Schema/Migration、缓存、durable cursor、HTTP/重试预算或 `.workbuddy-ai/`。
+- 验收：正文抓取不再为章节定位调用完整书聚合；缺书和缺章继续返回各自稳定错误；EF 查询按来源书身份和外部章节 ID 有界定位一行并传播取消。
+- 验证计划：先补 SourceContentService focused 红绿回归和 PostgreSQL 点查询/跨书回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 实现：`ISourceBookRepository.GetChapterAsync` 返回保留书存在状态的 `SourceChapterLookup`；EF 以来源书身份和外部章节 ID 做 `AsNoTracking` 左连接点查询；`SourceContentService.FetchChapterContentAsync` 改用点查，缺书/缺章错误与触网前置顺序保持不变。
+- 本地验证：TDD 红态为缺少 `SourceChapterLookup` 的预期编译失败；focused `SourceContentServiceTests` `8/8`；Unit `622/622`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、PowerShell 迁移模型 `11/11`、`bash -n scripts/verify-migrations.sh`、`git diff --check` 与 added-line secret audit PASS。完整 Solution Test 的 Integration 为 `8 passed / 3 skipped / 122 blocked`，均在类初始化因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 点查询回归已编译但未取得本机容器证据。
+- 状态：候选实现待提交/推送；远端 CI、Docker、Security 门禁尚未触发。
 
 ### 5.72 Reader chapter metadata point lookup（本轮，2026-10-08，Accepted）
 

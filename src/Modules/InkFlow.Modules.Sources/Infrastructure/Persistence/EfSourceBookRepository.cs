@@ -35,6 +35,30 @@ public sealed class EfSourceBookRepository(SourcesDbContext db) : ISourceBookRep
         return ToDomain(entity, chapters);
     }
 
+    public async Task<SourceChapterLookup> GetChapterAsync(
+        string sourceId,
+        string externalBookId,
+        string externalChapterId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await (
+            from book in db.SourceBooks.AsNoTracking()
+            where book.SourceId == sourceId && book.ExternalBookId == externalBookId
+            join chapter in db.SourceChapters.AsNoTracking()
+                    .Where(chapter => chapter.ExternalChapterId == externalChapterId)
+                on book.Id equals chapter.SourceBookId into matchingChapters
+            from chapter in matchingChapters.DefaultIfEmpty()
+            select new { BookId = book.Id, Chapter = chapter })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return result is null
+            ? new SourceChapterLookup(false, null)
+            : new SourceChapterLookup(
+                true,
+                result.Chapter is null ? null : ToDomain(result.Chapter));
+    }
+
     public async Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
     {
         var entities = await db.SourceBooks
@@ -170,4 +194,7 @@ public sealed class EfSourceBookRepository(SourcesDbContext db) : ISourceBookRep
             entity.CreatedAt,
             entity.UpdatedAt,
             chapters.Select(c => new SourceChapter(c.Id, c.SourceBookId, c.ExternalChapterId, c.ChapterIndex, c.Title)));
+
+    private static SourceChapter ToDomain(SourceChapterEntity entity) =>
+        new(entity.Id, entity.SourceBookId, entity.ExternalChapterId, entity.ChapterIndex, entity.Title);
 }

@@ -13,6 +13,8 @@ public sealed class SourceContentServiceTests
     {
         public SourceBook? Book { get; set; } =
             SourceBook.Create("example-source", "10001", "剑来", "烽火戏诸侯", T0);
+        public int FullBookReads { get; private set; }
+        public int ChapterMetadataReads { get; private set; }
 
         public Task AddAsync(SourceBook book, CancellationToken cancellationToken = default)
         {
@@ -21,7 +23,27 @@ public sealed class SourceContentServiceTests
         }
 
         public Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default)
-            => Task.FromResult(Book is not null && Book.SourceId == sourceId && Book.ExternalBookId == externalBookId ? Book : null);
+        {
+            FullBookReads++;
+            return Task.FromResult(Book is not null && Book.SourceId == sourceId && Book.ExternalBookId == externalBookId ? Book : null);
+        }
+
+        public Task<SourceChapterLookup> GetChapterAsync(
+            string sourceId,
+            string externalBookId,
+            string externalChapterId,
+            CancellationToken cancellationToken = default)
+        {
+            ChapterMetadataReads++;
+            if (Book is null || Book.SourceId != sourceId || Book.ExternalBookId != externalBookId)
+            {
+                return Task.FromResult(new SourceChapterLookup(false, null));
+            }
+
+            return Task.FromResult(new SourceChapterLookup(
+                true,
+                Book.Chapters.FirstOrDefault(chapter => chapter.ExternalChapterId == externalChapterId)));
+        }
 
         public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<SourceBook>>(Book is null ? [] : [Book]);
@@ -127,6 +149,48 @@ public sealed class SourceContentServiceTests
         Assert.IsTrue(outcome.IsSuccess, string.Join("; ", outcome.Errors));
         Assert.IsFalse(outcome.Unchanged);
         Assert.AreEqual(1, artifacts.Store.Count);
+    }
+
+    [TestMethod]
+    public async Task Chapter_Fetch_Uses_Point_Metadata_Read_Without_Full_Book_Read()
+    {
+        var books = new InMemoryBookRepository();
+        books.Book!.SyncChapters([("ch-001", "第一章")], T0);
+        var artifacts = new InMemoryArtifactRepository();
+        var adapter = new FixedAdapter("<p>第一章正文</p>");
+        var service = new SourceContentService(
+            new FixedAdapterFactory(adapter),
+            books,
+            artifacts,
+            TimeProvider.System);
+
+        var outcome = await service.FetchChapterContentAsync("example-source", "10001", "ch-001");
+
+        Assert.IsTrue(outcome.IsSuccess, string.Join("; ", outcome.Errors));
+        Assert.AreEqual(1, books.ChapterMetadataReads);
+        Assert.AreEqual(0, books.FullBookReads);
+    }
+
+    [TestMethod]
+    public async Task Missing_Book_And_Chapter_Keep_Distinct_Catalog_Errors()
+    {
+        var books = new InMemoryBookRepository { Book = null };
+        var artifacts = new InMemoryArtifactRepository();
+        var adapter = new FixedAdapter("<p>不会请求</p>");
+        var service = new SourceContentService(
+            new FixedAdapterFactory(adapter),
+            books,
+            artifacts,
+            TimeProvider.System);
+
+        var missingBook = await service.FetchChapterContentAsync("example-source", "10001", "ch-001");
+        Assert.IsFalse(missingBook.IsSuccess);
+        StringAssert.Contains(missingBook.Errors[0], "has not been imported");
+
+        books.Book = SourceBook.Create("example-source", "10001", "剑来", "烽火戏诸侯", T0);
+        var missingChapter = await service.FetchChapterContentAsync("example-source", "10001", "ghost-chapter");
+        Assert.IsFalse(missingChapter.IsSuccess);
+        StringAssert.Contains(missingChapter.Errors[0], "not part of book");
     }
 
     [TestMethod]

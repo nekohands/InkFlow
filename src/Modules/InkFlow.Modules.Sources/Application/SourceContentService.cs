@@ -59,17 +59,16 @@ public sealed class SourceContentService(
             return ContentFetchOutcome.Fail([$"source '{sourceId}' does not exist or has no adapter."]);
         }
 
-        var book = await sourceBookRepository
-            .GetAsync(sourceId, externalBookId, cancellationToken)
+        var lookup = await sourceBookRepository
+            .GetChapterAsync(sourceId, externalBookId, externalChapterId, cancellationToken)
             .ConfigureAwait(false);
-        if (book is null)
+        if (!lookup.BookExists)
         {
             return ContentFetchOutcome.Fail(
                 [$"catalog: book '{sourceId}/{externalBookId}' has not been imported."]);
         }
 
-        var chapter = book.Chapters.FirstOrDefault(c => c.ExternalChapterId == externalChapterId);
-        if (chapter is null)
+        if (lookup.Chapter is null)
         {
             return ContentFetchOutcome.Fail(
                 [$"catalog: chapter '{externalChapterId}' is not part of book '{sourceId}/{externalBookId}'."]);
