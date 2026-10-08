@@ -1,6 +1,6 @@
 # Work Package 5.74 — Reading history chapter metadata point lookup
 
-Status: In Progress
+Status: Accepted
 
 ## Objective
 
@@ -53,5 +53,34 @@ cover that gap.
 
 ## Evidence
 
-Implementation, test, and delivery evidence will be appended here before
-closeout.
+Implementation: `ICanonicalBookRepository.GetSummaryAsync` adds a bounded
+`CanonicalBookSummary` projection; the EF implementation filters the book
+before projecting and counts chapters with a correlated query. The history
+path now uses the summary and existing `GetChapterAsync`, preserving missing,
+takedown, order, metadata, and cancellation behavior. Full aggregate reads
+remain for intentional callers.
+
+Local verification: TDD red first failed on the full-book read counter; the
+focused regression then passed `1/1`, and all `ReadingStateTests` passed `8/8`.
+Restore and tool restore passed; Unit `623/623`, Architecture `1/1`, and
+Contract `12/12` passed; Release Build passed with `0 warnings / 0 errors`;
+the migration model check passed `11/11`; `wsl.exe bash -n
+scripts/verify-migrations.sh` passed; `git diff --check` and the added-line
+secret audit passed. The full local Integration run was `8 passed / 3 skipped
+/ 123 blocked` because Windows Docker Engine does not expose
+`npipe://./pipe/docker_engine`; the focused PostgreSQL regression was likewise
+compiled but locally blocked by that named pipe.
+
+Remote verification: implementation candidate
+`4e918c1df43367a8ed52d9e52d2170c6782266b3` passed exact-head CI
+`37744554098`, Docker `37744554120`, and Security `37744554105`. CI covered
+migrations, full tests with PostgreSQL, Compose/runtime smoke, SLO, Redis,
+backup/restore, and diagnostics; Docker built/scanned/published the four
+business images and verified Compose images; Security passed SBOM, filesystem,
+NuGet, and CodeQL checks. The first CI attempt hit a transient external
+registry authorization error; its failed job was rerun on the same SHA and
+finished GREEN.
+
+Status: Accepted. No public contract, schema/migration, cache, or
+`.workbuddy-ai/` change; the local Docker limitation remains an environment
+boundary and remote CI supplies the PostgreSQL/runtime evidence.

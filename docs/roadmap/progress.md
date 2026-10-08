@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.74 Reading history chapter metadata point lookup In Progress；5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.74 Reading history chapter metadata point lookup Accepted；5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；当前无活动工作包，历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,14 +45,17 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.74 Reading history chapter metadata point lookup（本轮，2026-10-08，In Progress）
+### 5.74 Reading history chapter metadata point lookup（本轮，2026-10-08，Accepted）
 
 - 缺口：`ReadingStateService.ListHistoryAsync` 已将历史记录限制为有界条目，但每条记录仍通过 `ICanonicalBookRepository.GetAsync` 物化整本 `CanonicalBook`，只为取得书名、作者和一个章节元数据；章节规模增长会放大历史列表的数据库行数和内存。
 - Intake：复用现有 `CanonicalBookSummary` 和 `GetChapterAsync`，新增按书 ID 的有界摘要点读；历史路径先保持现有可见性/撤下策略，再点读目标章节，保留缺失项跳过、顺序和响应字段。
 - 范围边界：不改公共 Reading/Legado 响应、历史上限、撤下策略、写路径、Shelf/Progress 路径、完整聚合调用方、Schema/Migration、缓存、正文选择或 `.workbuddy-ai/`。
 - 验收：历史列表不再调用完整 `GetAsync`；生产 EF 使用书籍摘要和目标章节的有界投影；缺书、缺章、跨书和撤下语义不变；取消正确传播。
 - 验证计划：先补 ReadingState focused 红绿回归和 PostgreSQL 点查询/身份回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
-- 状态：In Progress；实现与门禁证据待补。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-reading-history-chapter-metadata-point-lookup.md)。
+- 实现：`ICanonicalBookRepository.GetSummaryAsync` 复用 `CanonicalBookSummary`；EF 先按书 ID 过滤再投影摘要与相关章节计数；`ReadingStateService.ListHistoryAsync` 改用摘要和既有 `GetChapterAsync`，保留缺失、撤下、顺序、元数据和取消语义，完整 `GetAsync` 继续服务有意需要聚合的调用方。
+- 本地验证：TDD 红态先以完整书读取计数器失败；focused 回归 `1/1`、全部 `ReadingStateTests` `8/8`；Unit `623/623`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`wsl.exe bash -n scripts/verify-migrations.sh`、`git diff --check` 和 added-line secret audit 均 PASS。完整本机 Integration 为 `8 passed / 3 skipped / 123 blocked`，原因是 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译，远端 CI 通过，本机聚焦运行同样受该 named pipe 阻塞。
+- 门禁：实现候选 SHA `4e918c1df43367a8ed52d9e52d2170c6782266b3` 的 [CI 37744554098](https://github.com/nekohands/InkFlow/actions/runs/37744554098)、[Docker 37744554120](https://github.com/nekohands/InkFlow/actions/runs/37744554120)、[Security 37744554105](https://github.com/nekohands/InkFlow/actions/runs/37744554105) 均 success 且 head SHA 一致。CI 的迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 通过；Docker 四业务镜像构建/扫描/发布及 Compose 镜像验证通过；Security 的 SBOM/Filesystem/NuGet/CodeQL 通过。CI 首次尝试仅因外部 registry 鉴权瞬态失败，原运行同 SHA 重跑后 GREEN。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化；本机 Docker named pipe 是环境限制，远端容器证据已补足。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-reading-history-chapter-metadata-point-lookup.md)。
 
 ### 5.73 Source content chapter metadata point lookup（本轮，2026-10-08，Accepted）
 

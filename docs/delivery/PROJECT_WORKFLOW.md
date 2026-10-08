@@ -69,9 +69,9 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.74 Reading history chapter metadata point lookup In Progress；5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.74 Reading history chapter metadata point lookup Accepted；5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted；当前无活动工作包。
 
-当前工作包如下：
+最近接受工作包如下：
 
 ```text
 Name: Reading history chapter metadata point lookup
@@ -79,9 +79,9 @@ Objective / user outcome: 阅读历史只读取每条历史记录所需的书籍
 In scope: `ICanonicalBookRepository` summary point projection, `ReadingStateService.ListHistoryAsync`, focused Unit/PostgreSQL regressions, and delivery/Wiki documentation.
 Non-goals: no public Reading/Legado response, history limit, takedown policy, shelf/progress/write path, full aggregate callers, Schema/Migration, cache, content selection, or `.workbuddy-ai/`.
 Acceptance: history fields/order/missing/takedown/cancellation semantics remain stable; production EF does not call full `GetAsync` for one history row; summary/chapter reads are bounded by book/chapter identity.
-Status: In Progress.
-Verification: planned TDD red/green ReadingState regression; focused/full Unit, Architecture, Contract, Restore/Release Build, migration model, script, applicable Integration/Runtime, diff/secret audit, and exact-head CI/Docker/Security.
-Delivery: pending implementation and remote evidence.
+Status: Accepted.
+Verification: TDD red/green ReadingState regression; focused/full Unit, Architecture, Contract, Restore/Release Build, migration model, script, applicable Integration/Runtime, diff/secret audit, and exact-head CI/Docker/Security completed.
+Delivery: implementation SHA `4e918c1df43367a8ed52d9e52d2170c6782266b3` passed exact-head CI `37744554098`, Docker `37744554120`, and Security `37744554105`; local PostgreSQL/Compose evidence was blocked only by the Windows Docker named pipe and is covered by remote CI.
 Boundary: `GetAsync` remains the full aggregate read for catalog, shelf, synchronization, and other intentional aggregate callers; this package only fences the bounded reading-history read.
 ```
 
