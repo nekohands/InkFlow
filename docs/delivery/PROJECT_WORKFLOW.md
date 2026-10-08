@@ -69,7 +69,7 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.64，Crawler handler lease renewal）；前一包为 Accepted 的 [Canonical match query bounding](../../repowiki/work-packages/2026-10-08-canonical-match-query-bound.md)，再前一包为 [Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)。
+当前状态：Accepted（5.64，Crawler handler lease renewal）；当前无 In Progress 工作包。前一包为 [Canonical match query bounding](../../repowiki/work-packages/2026-10-08-canonical-match-query-bound.md)，再前一包为 [Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)。
 
 当前工作包：
 
@@ -79,8 +79,10 @@ Objective / user outcome: 单条 Crawler handler 超过初始租约时仍保持�
 In scope: CrawlerTask lease renewal domain rule; PostgreSQL 条件续约；CrawlerTaskProcessor heartbeat 与 lease-loss cancellation；Unit/PostgreSQL regression。
 Non-goals: Inbox/Outbox 批次续约、公共 API/Legado、Schema/Migration、重试策略重设计、并发调度和真实来源验收。
 Acceptance: active unexpired owner can renew; expired/terminal/other-owner cannot; long handler renews before expiry and completes; lease loss cancels execution without terminal persistence under stale ownership.
-Status: In Progress; evidence not yet collected.
+Status: Accepted.
 Verification: focused red/green tests, Release Build, Unit, Architecture, PostgreSQL Integration, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
+Evidence: Restore/Release Build 0 warnings / 0 errors; focused CrawlerTask Unit 21/21; full Unit 600/600; Architecture 1/1; Contract 12/12; PowerShell migration model check 11/11; local PostgreSQL Integration BLOCKED by unavailable Docker named pipe; remote PostgreSQL/runtime, Docker, and Security GREEN.
+CI: exact SHA `11a493a2da72dba38072cad1cbc142711654fc0d` passed CI `37707275909`, Docker `37707275881`, and Security `37707275873`.
 Boundary: production heartbeat uses an independent DI scope; `.workbuddy-ai/` remains untracked and untouched.
 ```
 

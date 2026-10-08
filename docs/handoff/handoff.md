@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.64 Crawler handler lease renewal In Progress；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.64 Crawler handler lease renewal 已 Accepted；当前无 In Progress 工作包；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -189,13 +189,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
 - 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
 
-### 5.64 Crawler handler lease renewal 交接（本轮，2026-10-08，In Progress）
+### 5.64 Crawler handler lease renewal 交接（本轮，2026-10-08，Accepted）
 
 - 缺口：5.58 的 Inbox/Outbox 批次续约只覆盖批次中逐条处理前的剩余消息；单条 Crawler Handler 超过完整任务租约时仍可能被其他 Worker 回收。
 - 目标：为 `CrawlerTask` 增加 PostgreSQL owner/status/expiry 条件续约；`CrawlerTaskProcessor` 用独立 DI scope 做 heartbeat，续约丢失时取消 executor，不再用旧 owner 持久化终态。
 - 范围边界：不改 Inbox/Outbox 批次续约、重试预算、公共 API/Legado、Schema/Migration、并发调度或真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
-- 当前证据：尚未实现；先红后绿的 Domain/Processor 回归与 PostgreSQL owner/expiry 回归待执行。
-- 下一步：补红测，落地最小 Domain/Repository/Processor 变更，然后执行完整本地门禁并推送 exact-SHA CI/Docker/Security。
+- 实现：`CrawlerTask.RenewLease`、`ICrawlerTaskRepository.TryRenewLeaseAsync` 和 EF owner/status/expiry 条件 UPDATE；Processor 以独立 DI scope 做 heartbeat，续约丢失时取消 executor，不再用旧 owner 持久化成功/失败终态。
+- 验收：active current owner 在半租约前可续约并完成；owner 不匹配、数据库已过期或终态任务不续约；续约丢失不写终态；既有成功、重试、死信、取消和父运行路径保持通过。
+- 验证：Restore/Release Build 0 warnings / 0 errors；聚焦 CrawlerTask `21/21`、Unit `600/600`、Architecture `1/1`、Contract `12/12`、迁移模型 `11/11`。本机 PostgreSQL Integration 与 Docker runtime 因 `npipe://./pipe/docker_engine` 不可用 BLOCKED；远端 PostgreSQL/runtime 通过。
+- 门禁：精确 SHA `11a493a2da72dba38072cad1cbc142711654fc0d` 的 [CI 37707275909](https://github.com/nekohands/InkFlow/actions/runs/37707275909)、[Docker 37707275881](https://github.com/nekohands/InkFlow/actions/runs/37707275881)、[Security 37707275873](https://github.com/nekohands/InkFlow/actions/runs/37707275873) 均 success。
+- 边界：本机 Docker/Testcontainers、WSL 内 shell migration wrapper（缺 dotnet）、真实来源/账户、阅读 3.0/MuMu、生产 OTLP/SLO 等 Release Candidate 验收仍独立待定；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 下一步：重新 intake 下一项有明确证据缺口的工作包。
 
 ### 5.63 Canonical match query bounding 交接（本轮，2026-10-08，Accepted）
 
