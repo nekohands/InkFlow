@@ -135,6 +135,11 @@ chapter-free 查询。无匹配时继续静默跳过；该边界只约束样本�
 仍保留给目录同步、匹配、章节映射和其他需要聚合不变量的调用方；该投影不改变任务载荷、健康、
 FetchArtifact 新鲜度、去重或 collection-run 语义，也不新增 Schema/Migration。
 
+正典书匹配只需来源书的标题和作者作为匹配键；`CanonicalBookMatchingService` 使用
+`ISourceBookRepository.GetMetadataAsync` 的 `source_books` 标量投影，不得为匹配临界区物化章节集合。
+缺书仍走既有失败分支，完整 `GetAsync` 继续保留给目录同步、写入、章节映射和其他需要聚合不变量的调用方；
+该投影不改变匹配锁、归一化、候选或公共 Contract 语义，也不新增 Schema/Migration。
+
 定时健康探针按 `(SourceId, Capability)` 对 `Unhealthy` 能力行做稳定 keyset 分页，单批最多读取
 100 行加一条 look-ahead；Scheduler 仅在批次成功后推进进程内游标，末页重置。页面可包含冷却期未满
 的行，因此 100 行是候选读取与探针 fan-out 上限，不是数据库 due 过滤；游标不持久化，重启会从首批

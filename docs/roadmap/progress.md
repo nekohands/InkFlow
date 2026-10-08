@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.75 Content-fetch chapter ID projection Accepted；5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；当前无活动工作包，历史记录见 `progress-history.md`。
+- 文档状态：5.76 Matching source-book metadata projection In Progress；5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -44,6 +44,15 @@ Phase 1A 自动化工作包状态：
 13. ✅ Web Reader 最小纵向体验（自动化基线已完成）。
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
+
+### 5.76 Matching source-book metadata projection（本轮，2026-10-08，In Progress）
+
+- 缺口：`CanonicalBookMatchingService.CreateOrMatchAsync` 只需要来源书的 `Title`/`Author` 作为匹配键，但当前调用 `ISourceBookRepository.GetAsync` 并物化全部章节；章节规模增长会放大匹配临界区前的数据库行数和内存。
+- Intake：新增按来源书身份读取书名/作者的标量投影，保留缺书分支；匹配路径只消费投影，完整聚合继续留给写入、目录同步、章节映射等调用方。
+- 范围边界：不改确认候选快路径、匹配锁、标题/作者归一化、候选创建、目录同步、章节映射、正文抓取、公共 API/Legado、Schema/Migration、缓存、HTTP/重试预算或 `.workbuddy-ai/`。
+- 验收：匹配结果、缺书错误、幂等、同名同作者复用、确认候选和取消语义不变；生产路径不调用完整 `GetAsync`，EF 只读取 `source_books` 的标题和作者，并传播取消。
+- 验证计划：先补 CanonicalBookMatching focused 红绿读取计数回归和 PostgreSQL 投影/缺失回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 状态：In Progress；实现与门禁证据待补。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-matching-source-book-metadata-projection.md)。
 
 ### 5.75 Content-fetch chapter ID projection（本轮，2026-10-08，Accepted）
 

@@ -41,11 +41,11 @@ public sealed class CanonicalBookMatchingService(
             return await ResolveConfirmedAsync(existing, cancellationToken).ConfigureAwait(false);
         }
 
-        var sourceBook = await sourceBookRepository
-            .GetAsync(sourceId, externalBookId, cancellationToken)
+        var sourceMetadata = await sourceBookRepository
+            .GetMetadataAsync(sourceId, externalBookId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (sourceBook is null)
+        if (sourceMetadata is null)
         {
             return new MatchOutcome(false, null, false,
             [
@@ -57,7 +57,7 @@ public sealed class CanonicalBookMatchingService(
         // 否则会为同一本书创建重复正典身份。作用域在单个事务内持有 (title, author)
         // 互斥锁；锁内复查候选（另一并发请求可能已完成整段流程）后再创建/挂接。
         await using var scope = await canonicalBookRepository
-            .BeginTitleAuthorScopeAsync(sourceBook.Title, sourceBook.Author, cancellationToken)
+            .BeginTitleAuthorScopeAsync(sourceMetadata.Title, sourceMetadata.Author, cancellationToken)
             .ConfigureAwait(false);
 
         var raced = await matchCandidateRepository
@@ -71,7 +71,7 @@ public sealed class CanonicalBookMatchingService(
 
         // 同书自动挂接:另一来源已导入的同名同作者书 → 复用其正典书(BookId 不变)。
         var sameCanonical = await canonicalBookRepository
-            .FindByTitleAuthorAsync(sourceBook.Title, sourceBook.Author, cancellationToken)
+            .FindByTitleAuthorAsync(sourceMetadata.Title, sourceMetadata.Author, cancellationToken)
             .ConfigureAwait(false);
 
         CanonicalBook book;
@@ -83,7 +83,7 @@ public sealed class CanonicalBookMatchingService(
         }
         else
         {
-            book = CanonicalBook.Create(sourceBook.Title, sourceBook.Author, Clock.GetUtcNow());
+            book = CanonicalBook.Create(sourceMetadata.Title, sourceMetadata.Author, Clock.GetUtcNow());
             await canonicalBookRepository.AddAsync(book, cancellationToken).ConfigureAwait(false);
             newlyCreated = true;
         }

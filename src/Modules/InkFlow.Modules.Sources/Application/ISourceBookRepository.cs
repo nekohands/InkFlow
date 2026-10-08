@@ -11,6 +11,8 @@ public sealed record SourceBookPage(
 
 public sealed record SourceChapterLookup(bool BookExists, SourceChapter? Chapter);
 
+public sealed record SourceBookMetadata(string Title, string Author);
+
 /// <summary>来源侧书目仓储契约。</summary>
 public interface ISourceBookRepository
 {
@@ -18,6 +20,16 @@ public interface ISourceBookRepository
 
     /// <summary>按 (sourceId, externalBookId) 定位并加载聚合（含全部章节）。</summary>
     Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default);
+
+    /// <summary>按来源书身份读取匹配所需的书名和作者，不加载章节集合。</summary>
+    async Task<SourceBookMetadata?> GetMetadataAsync(
+        string sourceId,
+        string externalBookId,
+        CancellationToken cancellationToken = default)
+    {
+        var book = await GetAsync(sourceId, externalBookId, cancellationToken).ConfigureAwait(false);
+        return book is null ? null : new SourceBookMetadata(book.Title, book.Author);
+    }
 
     /// <summary>按来源书身份读取按目录顺序排列的外部章节 ID，不加载书籍聚合。</summary>
     async Task<IReadOnlyList<string>> ListChapterIdsAsync(

@@ -54,6 +54,10 @@ public sealed class CanonicalBookMatchingServiceTests
 
     private sealed class InMemorySourceBookRepository : ISourceBookRepository
     {
+        public int FullBookReadCount { get; private set; }
+
+        public int MetadataReadCount { get; private set; }
+
         public SourceBook? Book { get; set; } =
             SourceBook.Create("example-source", "10001", "剑来", "烽火戏诸侯", T0);
 
@@ -64,7 +68,22 @@ public sealed class CanonicalBookMatchingServiceTests
         }
 
         public Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default)
-            => Task.FromResult(Book is not null && Book.SourceId == sourceId && Book.ExternalBookId == externalBookId ? Book : null);
+        {
+            FullBookReadCount++;
+            return Task.FromResult(Book is not null && Book.SourceId == sourceId && Book.ExternalBookId == externalBookId ? Book : null);
+        }
+
+        public Task<SourceBookMetadata?> GetMetadataAsync(
+            string sourceId,
+            string externalBookId,
+            CancellationToken cancellationToken = default)
+        {
+            MetadataReadCount++;
+            return Task.FromResult<SourceBookMetadata?>(
+                Book is not null && Book.SourceId == sourceId && Book.ExternalBookId == externalBookId
+                    ? new SourceBookMetadata(Book.Title, Book.Author)
+                    : null);
+        }
 
         public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<SourceBook>>(Book is null ? [] : [Book]);
@@ -77,13 +96,16 @@ public sealed class CanonicalBookMatchingServiceTests
     {
         var books = new InMemoryBookRepository();
         var candidates = new InMemoryCandidateRepository();
-        var service = new CanonicalBookMatchingService(new InMemorySourceBookRepository(), books, candidates);
+        var sourceBooks = new InMemorySourceBookRepository();
+        var service = new CanonicalBookMatchingService(sourceBooks, books, candidates);
 
         var outcome = await service.CreateOrMatchAsync("example-source", "10001");
 
         Assert.IsTrue(outcome.IsSuccess);
         Assert.IsTrue(outcome.NewlyCreated);
         Assert.AreEqual("剑来", outcome.Book!.Title);
+        Assert.AreEqual(0, sourceBooks.FullBookReadCount);
+        Assert.AreEqual(1, sourceBooks.MetadataReadCount);
 
         // 候选已确认且指向新正典书
         var candidate = await candidates.FindForSourceBookAsync("example-source", "10001");

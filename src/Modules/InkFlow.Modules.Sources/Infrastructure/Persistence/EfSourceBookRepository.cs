@@ -35,6 +35,19 @@ public sealed class EfSourceBookRepository(SourcesDbContext db) : ISourceBookRep
         return ToDomain(entity, chapters);
     }
 
+    public async Task<SourceBookMetadata?> GetMetadataAsync(
+        string sourceId,
+        string externalBookId,
+        CancellationToken cancellationToken = default)
+    {
+        return await db.SourceBooks
+            .AsNoTracking()
+            .Where(book => book.SourceId == sourceId && book.ExternalBookId == externalBookId)
+            .Select(book => new SourceBookMetadata(book.Title, book.Author))
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<string>> ListChapterIdsAsync(
         string sourceId,
         string externalBookId,

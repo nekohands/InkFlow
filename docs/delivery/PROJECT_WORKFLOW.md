@@ -69,25 +69,31 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.75 Content-fetch chapter ID projection Accepted；5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted；当前无活动工作包。
+当前状态：5.76 Matching source-book metadata projection In Progress；5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+
+当前工作包如下：
+
+```text
+Name: Matching source-book metadata projection
+Objective / user outcome: 正典书匹配只读取来源书标题和作者，不因取得匹配键物化整本来源书。
+In scope: `ISourceBookRepository.GetMetadataAsync`, `CanonicalBookMatchingService.CreateOrMatchAsync`, focused Unit/PostgreSQL regressions, Source Runtime and delivery/Wiki documentation.
+Non-goals: no confirmed-candidate resolution, match locking, title/author normalization, candidate writes, catalog sync, chapter mapping, source content fetch, public Reading/Legado API, Schema/Migration, cache, HTTP/retry budget, full aggregate callers, or `.workbuddy-ai/`.
+Acceptance: matching, missing-book, idempotency, same-title/author reuse, confirmed-candidate, and cancellation semantics remain stable; production EF does not call full `GetAsync` and reads only `source_books` title/author fields.
+Status: In Progress.
+Verification: planned TDD red/green CanonicalBookMatching regression; focused/full Unit, Architecture, Contract, Restore/Release Build, migration model, script, applicable Integration/Runtime, diff/secret audit, and exact-head CI/Docker/Security.
+Delivery: pending implementation and remote evidence.
+Boundary: `GetAsync` remains the full aggregate read for catalog sync, chapter mapping, writes, and other intentional aggregate callers; this package only fences the matching metadata read.
+```
 
 最近接受工作包如下：
 
 ```text
 Name: Content-fetch chapter ID projection
 Objective / user outcome: 内容抓取联动只读取来源书按目录顺序排列的外部章节 ID，不因判断待抓章节物化整本来源书。
-In scope: `ISourceBookRepository.ListChapterIdsAsync`, `ContentFetchChainService.EnqueuePendingContentFetchesAsync`, focused Unit/PostgreSQL regressions, Source Runtime and delivery/Wiki documentation.
-Non-goals: no SourceCatalog directory sync, chapter mapping, source content fetch, task payload, health/freshness/dedupe semantics, public Reading/Legado API, Schema/Migration, cache, HTTP/retry budget, full aggregate callers, or `.workbuddy-ai/`.
-Acceptance: enqueue order and new/stale/force-refresh/missing/empty/health/collection-run semantics remain stable; production EF does not call full `GetAsync`; projected IDs are ordered by persisted chapter index and cancellation propagates.
 Status: Accepted.
-Verification: TDD counter red/green; focused ContentFetchChainServiceTests 10/10; Unit 623/623; Architecture 1/1; Contract 12/12; Restore/tool restore; Release Build 0 warnings / 0 errors; migration model 11/11; full local Integration 8 passed / 3 skipped / 124 Docker-blocked; diff/secret audit PASS; exact-head CI/Docker/Security GREEN.
-Delivery: implementation SHA `523a305f735fda252dbfcb27dc560f39c930b604` passed CI `37748826161`, Docker `37748826364`, and Security `37748826225`; CI supplied migrations, PostgreSQL/Redis, runtime smoke, SLO, backup/restore, and diagnostics. Local PostgreSQL evidence was blocked by the Windows Docker named pipe; remote CI covered the projection regression.
-Boundary: `GetAsync` remains the full aggregate read for catalog sync, matching, chapter mapping, and other intentional aggregate callers; this package only fences the content-fetch enqueue read.
-```
+Evidence: TDD counter red/green; focused ContentFetchChainServiceTests 10/10; Unit 623/623; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model 11/11; full local Integration 8 passed / 3 skipped / 124 Docker-blocked. Final implementation SHA `523a305f735fda252dbfcb27dc560f39c930b604` passed CI `37748826161`, Docker `37748826364`, and Security `37748826225`; local PostgreSQL was blocked by the Windows Docker named pipe and remote CI supplied that evidence.
+Boundary: `GetAsync` remains the full aggregate read for catalog sync, chapter mapping, writes, and other intentional aggregate callers; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
 
-最近接受工作包如下：
-
-```text
 Name: Scheduled update-scan page/fan-out fencing
 Objective / user outcome: 定时追更扫描按有限页读取来源书目并限制每轮 TOC 入队量；连续调度在进程内推进游标，不因书目增长形成无界读取或 fan-out。
 Status: Accepted.

@@ -205,6 +205,49 @@ public sealed class SourceBookRepositoryTests
     }
 
     [TestMethod]
+    public async Task GetMetadata_Projects_Book_Fields_Without_Loading_Chapters()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var book = NewBook($"metadata-{Guid.NewGuid():N}");
+        book.SyncChapters([("ch-001", "第一章")], T0);
+        await repo.AddAsync(book).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        var metadata = await repo
+            .GetMetadataAsync("example-source", book.ExternalBookId)
+            .ConfigureAwait(false);
+
+        Assert.IsNotNull(metadata);
+        Assert.AreEqual(book.Title, metadata.Title);
+        Assert.AreEqual(book.Author, metadata.Author);
+        Assert.AreEqual(1, capture.Commands.Count);
+        var command = capture.Commands.Single();
+        Assert.IsTrue(command.Contains("source_books", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(command.Contains("Title", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(command.Contains("Author", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(command.Contains("source_chapters", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(command.Contains("ChapterIndex", StringComparison.OrdinalIgnoreCase));
+
+        var missing = await repo
+            .GetMetadataAsync("example-source", "missing-book")
+            .ConfigureAwait(false);
+        Assert.IsNull(missing);
+
+        try
+        {
+            await repo.GetMetadataAsync(
+                "example-source",
+                book.ExternalBookId,
+                new CancellationToken(canceled: true));
+            Assert.Fail("A canceled token must cancel the metadata projection.");
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected: the repository must pass cancellation to EF Core.
+        }
+    }
+
+    [TestMethod]
     public async Task Chapter_Sync_Persists_Incrementally_And_Idempotently()
     {
         var repo = CreateRepository();
