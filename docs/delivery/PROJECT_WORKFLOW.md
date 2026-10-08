@@ -69,7 +69,7 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.69，Health-probe sample lookup fencing）。5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：Accepted（5.69，Health-probe sample lookup fencing）。5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前工作包如下：
 
@@ -79,9 +79,9 @@ Objective / user outcome: 主动 Toc 健康探针按来源过滤且只读取一�
 In scope: ISourceBookRepository source-filtered first-book query, HealthProbeService Toc sample lookup, focused Unit/PostgreSQL regressions, source-runtime and delivery docs.
 Non-goals: unhealthy-health candidate paging, Schema/Migration, public API/Legado JSON, source adapter/HTTP budgets, scheduler interval, retry policy, other repository callers, live-source acceptance.
 Acceptance: due Toc probe never calls ListAllAsync; production SQL filters SourceId, orders by `(CreatedAt, Id)`, and takes at most one chapter-free book; no-sample, empty/non-empty Toc, health recording, cancellation, and stable failure reasons remain unchanged.
-Status: In Progress.
-Verification: planned focused HealthProbeService/repository regressions, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
-Delivery: not yet committed or pushed.
+Status: Accepted.
+Verification: focused HealthProbeService `6/6` and affected EndToEnd `1/1`; Unit `616/616`; Architecture `1/1`; Contract `12/12`; Release Restore/Build `0 warnings / 0 errors`; migration model check `11/11`; migration shell syntax, diff checks, and secret audit PASS. Local Integration `8 passed / 3 skipped / 118 blocked` by unavailable Windows Docker named pipe; exact implementation SHA `62331b47f1e1efd2d4080477b45e15661567e79f` passed CI `37724656744`, Docker `37724656752`, and Security `37724656807` with matching head SHA.
+Delivery: implementation candidate `62331b47f1e1efd2d4080477b45e15661567e79f` pushed to `origin/dev`; documentation closeout is delivered as a separate commit and re-gated independently.
 Boundary: one imported book remains the Toc probe sample; this package bounds selection but does not add rotation or page the unhealthy health candidate list; `.workbuddy-ai/` remains untracked and untouched.
 ```
 

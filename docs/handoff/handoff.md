@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.69 Health-probe sample lookup fencing In Progress；5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.69 Health-probe sample lookup fencing Accepted；5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；下一工作包重新 intake；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -73,14 +73,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ## 4. 下一工作包
 
-### 5.69 Health-probe sample lookup fencing 交接（本轮，2026-10-08，In Progress）
+### 5.69 Health-probe sample lookup fencing 交接（本轮，2026-10-08，Accepted）
 
 - 目标：主动 Toc 健康探针按来源过滤并只读取一本确定性样本书，避免每次巡检通过 `ListAllAsync` 全量物化来源书目。
 - 范围：`ISourceBookRepository` 增加 source-filtered first-book 查询；`HealthProbeService` 使用该查询；补充 focused Unit/PostgreSQL 回归并同步 Source Runtime/交付文档。
 - 非目标：unhealthy 健康候选分页、Schema/Migration、公共 API/Legado JSON、Source Adapter/HTTP budget、Scheduler interval、重试策略、其他仓储调用方和真实来源验收。
 - 验收：Toc 探针不调用 `ListAllAsync`；生产 SQL 按 `SourceId` 过滤、按 `(CreatedAt, Id)` 排序并 `LIMIT 1`；无样本、空/非空目录、健康上报、取消和稳定失败原因保持不变。
-- 当前状态：已完成 intake，尚未实现、提交或推送；`.workbuddy-ai/` 保持未跟踪且未触碰。
-- 验证计划：focused HealthProbeService/repository 回归、Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 和精确 SHA 的 CI/Docker/Security。
+- 当前状态：实现候选 `62331b47f1e1efd2d4080477b45e15661567e79f` 已推送 `origin/dev`；Toc 探针已改为有界 source-filtered first-book 查询，文档 closeout 另行提交并重新门禁。
+- 验证：HealthProbeService `6/6`、受影响 EndToEnd `1/1`、Unit `616/616`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法与 diff/secret audit PASS。Integration 本机 `8 passed / 3 skipped / 118 blocked`，原因是 Windows Docker named pipe 不可用。
+- 门禁：精确 SHA `62331b47f1e1efd2d4080477b45e15661567e79f` 的 [CI 37724656744](https://github.com/nekohands/InkFlow/actions/runs/37724656744)、[Docker 37724656752](https://github.com/nekohands/InkFlow/actions/runs/37724656752)、[Security 37724656807](https://github.com/nekohands/InkFlow/actions/runs/37724656807) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
+- 下一步：5.69 已 Accepted；重新 intake 下一个有证据的最小工作包。样本轮换、unhealthy health 候选分页、真实来源/生产凭据和其他 Release Candidate 人工验收继续保持独立边界；`.workbuddy-ai/` 保持未跟踪且未触碰。
 
 **当前状态（2026-09-01 更新）**：Phase 1A 的自动化链路与 kanunu8 真实源验证已通过；Legado 真机导入/阅读和真实追更仍待人工验收。Phase 1B 已完成确定性双来源自动化切源基线（含 Capability Health v1），但尚未宣称完成真实故障切源验收。Worker 已具备过期租约恢复、跨进程原子领取和持久化重试退避调度；Crawler 死信受控重放基线已补齐，Identity 基础认证/授权与受保护 Repair/replay 入口也已落地，Reading State v1 用户状态后端、Personal Legado Token v1、Web Reader v1、Reader/PWA 用户状态 v1 和 Private Library v1/v2（书目、私有章节、TXT/EPUB 导入导出）自动化基础已接入，真实账户/文件验收仍待推进，公开修复中心仍待后续安全/运维工作。CI Security Scan 基线 v1 已落地并通过远端 CI、四镜像发布前扫描和报告归档；来源级资源授权 v1 已落地并通过自动化/远端验证，生产安全治理、更广泛资源/组织权限、外部告警路由和备份治理仍待后续工作。Developer API / Commercial Foundation v1 已完成候选实现；5.13 又在源码构建 Compose 中通过 Free 配额超额 `429/Retry-After`、跨账户独立配额和停用用户拒绝自动化 smoke，远端 CI、Docker、Security 门禁均为 GREEN；真实凭据、真实套餐/Provider、生产 PostgreSQL/Redis 和人工验收仍待后续。Operations 告警历史、incident 去重/恢复、保留清理和 Administrator-only 历史读端已补齐；外部通知渠道不在本轮实现。Personal 令牌的阅读 3.0 导入、四步阅读和撤销后失效，以及 Web Reader/PWA 的真实账户、安装/独立窗口、生产 HTTPS、跨设备同步和长时间体验保留为人工验收；PWA Service Worker、壳缓存和 API 不可用时的离线回退已在 4.82 用 localhost 安全上下文自动验收。Source Credential Owner Scope 契约 v1 已接入 Provider、RuleAdapter 与 Worker：Platform/User/Organization 范围被显式区分，来源默认引用固定按 Platform 解析，真实 secret 管理与 Provider 仍待后续。
 
