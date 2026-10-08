@@ -78,12 +78,15 @@ public sealed class SourceCapabilityHealthTests
     {
         var source = Source.Create("official-a", "Official A", "https://official-a.example", T0);
         source.Disable(T0.AddMinutes(1));
+        var repository = new SingleSourceRepository(source);
         var service = new SourceHealthService(
             new InMemoryHealthRepository(),
             new FixedClock(T0),
-            new SingleSourceRepository(source));
+            repository);
 
         Assert.IsFalse(await service.IsAvailableAsync("official-a", SourceCapability.Search));
+        Assert.AreEqual(0, repository.FullReadCount);
+        Assert.AreEqual(1, repository.EnabledReadCount);
     }
 
     [TestMethod]
@@ -275,19 +278,36 @@ public sealed class SourceCapabilityHealthTests
 
     private sealed class SingleSourceRepository(Source source) : ISourceRepository
     {
+        public int FullReadCount { get; private set; }
+        public int EnabledReadCount { get; private set; }
+
         public Task AddAsync(Source value, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
         public Task<Source?> GetAsync(
             string sourceId,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<Source?>(source.Id == sourceId ? source : null);
+            ReadFullAsync(sourceId);
+
+        public Task<bool?> GetEnabledAsync(
+            string sourceId,
+            CancellationToken cancellationToken = default)
+        {
+            EnabledReadCount++;
+            return Task.FromResult<bool?>(source.Id == sourceId ? source.IsEnabled : null);
+        }
 
         public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Source>>([source]);
 
         public Task SaveAsync(Source value, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        private Task<Source?> ReadFullAsync(string sourceId)
+        {
+            FullReadCount++;
+            return Task.FromResult<Source?>(source.Id == sourceId ? source : null);
+        }
     }
 
     [TestMethod]

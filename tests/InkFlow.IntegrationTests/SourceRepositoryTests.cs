@@ -1,7 +1,9 @@
+using System.Data.Common;
 using InkFlow.Modules.Sources.Application;
 using InkFlow.Modules.Sources.Domain;
 using InkFlow.Modules.Sources.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Testcontainers.PostgreSql;
 using DotNet.Testcontainers.Images;
@@ -86,6 +88,21 @@ public sealed class SourceRepositoryTests
             T0,
             defaultCredentialReferenceId);
 
+    private static (EfSourceRepository Repository, SqlCaptureInterceptor Capture)
+        CreateRepositoryWithCapture()
+    {
+        var capture = new SqlCaptureInterceptor();
+        var options = new DbContextOptionsBuilder<SourcesDbContext>()
+            .UseNpgsql(_container!.GetConnectionString())
+            .AddInterceptors(capture)
+            .Options;
+
+        var db = new SourcesDbContext(options);
+        db.Database.Migrate();
+        capture.Commands.Clear();
+        return (new EfSourceRepository(db), capture);
+    }
+
     [TestMethod]
     public async Task Source_With_Rule_Dsl_Roundtrips()
     {
@@ -147,6 +164,43 @@ public sealed class SourceRepositoryTests
         await repo.SaveAsync(disabled).ConfigureAwait(false);
         var enabled = (await repo.GetAsync("source-enabled-roundtrip").ConfigureAwait(false))!;
         Assert.IsTrue(enabled.IsEnabled);
+    }
+
+    [TestMethod]
+    public async Task GetEnabled_Projects_State_Without_Loading_Rule_Dsl()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        await repo.AddAsync(NewSourceWithRules("source-enabled-projection"))
+            .ConfigureAwait(false);
+
+        capture.Commands.Clear();
+        Assert.IsTrue(await repo.GetEnabledAsync("source-enabled-projection").ConfigureAwait(false));
+        var command = capture.Commands.Single();
+        Assert.IsTrue(command.Contains("IsEnabled", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(command.Contains("RuleDslJson", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(command.Contains("DisplayName", StringComparison.OrdinalIgnoreCase));
+
+        var loaded = (await repo.GetAsync("source-enabled-projection").ConfigureAwait(false))!;
+        loaded.Disable(T0.AddMinutes(1));
+        await repo.SaveAsync(loaded).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        Assert.IsFalse(await repo.GetEnabledAsync("source-enabled-projection").ConfigureAwait(false));
+        Assert.IsNull(await repo.GetEnabledAsync("missing-enabled-projection").ConfigureAwait(false));
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var canceled = false;
+        try
+        {
+            await repo.GetEnabledAsync("source-enabled-projection", cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            canceled = true;
+        }
+
+        Assert.IsTrue(canceled, "启用状态投影必须传播取消");
     }
 
     [TestMethod]
@@ -447,5 +501,20 @@ public sealed class SourceRepositoryTests
         Assert.IsNotNull(loaded);
         Assert.AreEqual(8, loaded.ConsecutiveFailures);
         Assert.AreEqual(SourceHealthStatus.Unhealthy, loaded.Status);
+    }
+
+    private sealed class SqlCaptureInterceptor : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command.CommandText);
+            return new ValueTask<InterceptionResult<DbDataReader>>(result);
+        }
     }
 }

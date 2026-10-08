@@ -118,6 +118,18 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
         return entity is null ? null : ToDomain(entity);
     }
 
+    public async Task<bool?> GetEnabledAsync(
+        string sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        return await db.Sources
+            .AsNoTracking()
+            .Where(source => source.Id == sourceId)
+            .Select(source => (bool?)source.IsEnabled)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default)
     {
         var entities = await db.Sources

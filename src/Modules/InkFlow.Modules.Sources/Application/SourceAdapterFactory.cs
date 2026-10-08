@@ -28,15 +28,19 @@ public sealed class SourceAdapterFactory(
 
     public async Task<ISourceAdapter?> GetAdapterAsync(string sourceId, CancellationToken cancellationToken = default)
     {
+        if (_codeAdapters.TryGetValue(sourceId, out var custom))
+        {
+            return await sourceRepository
+                .GetEnabledAsync(sourceId, cancellationToken)
+                .ConfigureAwait(false) is true
+                ? custom
+                : null;
+        }
+
         var source = await sourceRepository.GetAsync(sourceId, cancellationToken).ConfigureAwait(false);
         if (source is null || !source.IsEnabled)
         {
             return null;
-        }
-
-        if (_codeAdapters.TryGetValue(sourceId, out var custom))
-        {
-            return custom;
         }
 
         if (source.RuleDsl is null)

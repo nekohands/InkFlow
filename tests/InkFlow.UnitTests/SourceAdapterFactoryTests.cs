@@ -21,7 +21,8 @@ public sealed class SourceAdapterFactoryTests
         var result = await factory.GetAdapterAsync(codeAdapter.SourceId);
 
         Assert.AreSame(codeAdapter, result);
-        Assert.AreEqual(1, repository.GetCallCount);
+        Assert.AreEqual(0, repository.GetCallCount);
+        Assert.AreEqual(1, repository.GetEnabledCallCount);
     }
 
     [TestMethod]
@@ -65,6 +66,27 @@ public sealed class SourceAdapterFactoryTests
         Assert.IsNull(result);
     }
 
+    [TestMethod]
+    public async Task Disabled_Or_Missing_Code_Source_Uses_Only_Enabled_State()
+    {
+        var source = Source.Create(
+            "disabled-code",
+            "禁用代码来源",
+            "https://disabled-code.example",
+            T0);
+        source.Disable(T0.AddMinutes(1));
+        var repository = new TrackingSourceRepository(source);
+        var factory = CreateFactory(repository, [
+            new StubAdapter("disabled-code"),
+            new StubAdapter("missing-code"),
+        ]);
+
+        Assert.IsNull(await factory.GetAdapterAsync("disabled-code"));
+        Assert.IsNull(await factory.GetAdapterAsync("missing-code"));
+        Assert.AreEqual(0, repository.GetCallCount);
+        Assert.AreEqual(2, repository.GetEnabledCallCount);
+    }
+
     private static SourceAdapterFactory CreateFactory(
         TrackingSourceRepository repository,
         IEnumerable<ISourceAdapter>? codeAdapters = null)
@@ -94,6 +116,7 @@ public sealed class SourceAdapterFactoryTests
         private readonly Source? _source = source;
 
         public int GetCallCount { get; private set; }
+        public int GetEnabledCallCount { get; private set; }
 
         public Task AddAsync(Source source, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -105,6 +128,15 @@ public sealed class SourceAdapterFactoryTests
             GetCallCount++;
             return Task.FromResult<Source?>(
                 _source?.Id == sourceId ? _source : null);
+        }
+
+        public Task<bool?> GetEnabledAsync(
+            string sourceId,
+            CancellationToken cancellationToken = default)
+        {
+            GetEnabledCallCount++;
+            return Task.FromResult<bool?>(
+                _source?.Id == sourceId ? _source.IsEnabled : null);
         }
 
         public Task<IReadOnlyList<Source>> ListAsync(

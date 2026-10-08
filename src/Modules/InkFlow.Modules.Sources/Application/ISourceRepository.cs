@@ -16,6 +16,15 @@ public interface ISourceRepository
 
     Task<Source?> GetAsync(string sourceId, CancellationToken cancellationToken = default);
 
+    /// <summary>只读取来源是否存在及启用状态，不加载 Rule DSL。</summary>
+    async Task<bool?> GetEnabledAsync(
+        string sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var source = await GetAsync(sourceId, cancellationToken).ConfigureAwait(false);
+        return source?.IsEnabled;
+    }
+
     /// <summary>全部已登记来源(含规则文档),供显式全量快照调用方使用。</summary>
     Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default);
 

@@ -28,8 +28,8 @@ public sealed class SourceHealthService(
         CancellationToken cancellationToken = default)
     {
         if (sourceRepository is not null &&
-            await sourceRepository.GetAsync(sourceId, cancellationToken).ConfigureAwait(false)
-                is { IsEnabled: false })
+            await sourceRepository.GetEnabledAsync(sourceId, cancellationToken)
+                .ConfigureAwait(false) is false)
         {
             return false;
         }

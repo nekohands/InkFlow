@@ -25,6 +25,11 @@
 `IsEnabled` 生命周期开关，默认为 `true`；来源被运营侧停用后，不再参与地址解析、搜索、追更调度或
 Worker 执行，重新启用只恢复执行资格，不清除各项 Capability Health 事实。
 
+来源健康门控和已注册 CodeAdapter 的资格检查使用 `ISourceRepository.GetEnabledAsync` 的标量投影：
+`null` 表示来源不存在，`false` 表示已停用，`true` 表示可执行；生产 EF 只读取 `sources.IsEnabled`，
+不为高频检查加载或反序列化 Rule DSL。RuleBased Adapter 仍使用完整 `GetAsync` 读取规则文档，
+因此不增加第二次查询，也不改变来源分派语义。
+
 当前已落地的 Capability Health v1 保持在 `sources.capability_health`，以
 `(SourceId, Capability)` 为复合键。`Unknown`、`Healthy`、`Degraded` 默认仍可用；
 同一能力连续 3 次失败进入 `Unhealthy` 并暂时退出调度/正文候选，`Disabled` 支持运营侧主动停用，
