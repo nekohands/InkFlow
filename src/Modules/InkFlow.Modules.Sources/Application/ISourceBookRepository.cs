@@ -19,6 +19,16 @@ public interface ISourceBookRepository
     /// <summary>按 (sourceId, externalBookId) 定位并加载聚合（含全部章节）。</summary>
     Task<SourceBook?> GetAsync(string sourceId, string externalBookId, CancellationToken cancellationToken = default);
 
+    /// <summary>按来源书身份读取按目录顺序排列的外部章节 ID，不加载书籍聚合。</summary>
+    async Task<IReadOnlyList<string>> ListChapterIdsAsync(
+        string sourceId,
+        string externalBookId,
+        CancellationToken cancellationToken = default)
+    {
+        var book = await GetAsync(sourceId, externalBookId, cancellationToken).ConfigureAwait(false);
+        return book?.Chapters.Select(chapter => chapter.ExternalChapterId).ToList() ?? [];
+    }
+
     /// <summary>按来源书身份读取目标章节；结果保留书不存在与章节不存在的区别。</summary>
     async Task<SourceChapterLookup> GetChapterAsync(
         string sourceId,

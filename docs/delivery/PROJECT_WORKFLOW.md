@@ -69,20 +69,20 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.74 Reading history chapter metadata point lookup Accepted；5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted；当前无活动工作包。
+当前状态：5.75 Content-fetch chapter ID projection In Progress；5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
-最近接受工作包如下：
+当前工作包如下：
 
 ```text
-Name: Reading history chapter metadata point lookup
-Objective / user outcome: 阅读历史只读取每条历史记录所需的书籍摘要和目标章节元数据，不因章节定位一次性物化整本正典书。
-In scope: `ICanonicalBookRepository` summary point projection, `ReadingStateService.ListHistoryAsync`, focused Unit/PostgreSQL regressions, and delivery/Wiki documentation.
-Non-goals: no public Reading/Legado response, history limit, takedown policy, shelf/progress/write path, full aggregate callers, Schema/Migration, cache, content selection, or `.workbuddy-ai/`.
-Acceptance: history fields/order/missing/takedown/cancellation semantics remain stable; production EF does not call full `GetAsync` for one history row; summary/chapter reads are bounded by book/chapter identity.
-Status: Accepted.
-Verification: TDD red/green ReadingState regression; focused/full Unit, Architecture, Contract, Restore/Release Build, migration model, script, applicable Integration/Runtime, diff/secret audit, and exact-head CI/Docker/Security completed.
-Delivery: implementation SHA `4e918c1df43367a8ed52d9e52d2170c6782266b3` passed exact-head CI `37744554098`, Docker `37744554120`, and Security `37744554105`; local PostgreSQL/Compose evidence was blocked only by the Windows Docker named pipe and is covered by remote CI.
-Boundary: `GetAsync` remains the full aggregate read for catalog, shelf, synchronization, and other intentional aggregate callers; this package only fences the bounded reading-history read.
+Name: Content-fetch chapter ID projection
+Objective / user outcome: 内容抓取联动只读取来源书按目录顺序排列的外部章节 ID，不因判断待抓章节物化整本来源书。
+In scope: `ISourceBookRepository.ListChapterIdsAsync`, `ContentFetchChainService.EnqueuePendingContentFetchesAsync`, focused Unit/PostgreSQL regressions, Source Runtime and delivery/Wiki documentation.
+Non-goals: no SourceCatalog directory sync, chapter mapping, source content fetch, task payload, health/freshness/dedupe semantics, public Reading/Legado API, Schema/Migration, cache, HTTP/retry budget, full aggregate callers, or `.workbuddy-ai/`.
+Acceptance: enqueue order and new/stale/force-refresh/missing/empty/health/collection-run semantics remain stable; production EF does not call full `GetAsync`; projected IDs are ordered by persisted chapter index and cancellation propagates.
+Status: In Progress.
+Verification: planned TDD red/green ContentFetchChain regression; focused/full Unit, Architecture, Contract, Restore/Release Build, migration model, script, applicable Integration/Runtime, diff/secret audit, and exact-head CI/Docker/Security.
+Delivery: pending implementation and remote evidence.
+Boundary: `GetAsync` remains the full aggregate read for catalog sync, matching, chapter mapping, and other intentional aggregate callers; this package only fences the content-fetch enqueue read.
 ```
 
 最近接受工作包如下：

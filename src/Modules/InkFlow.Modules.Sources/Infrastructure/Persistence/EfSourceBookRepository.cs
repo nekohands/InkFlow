@@ -35,6 +35,22 @@ public sealed class EfSourceBookRepository(SourcesDbContext db) : ISourceBookRep
         return ToDomain(entity, chapters);
     }
 
+    public async Task<IReadOnlyList<string>> ListChapterIdsAsync(
+        string sourceId,
+        string externalBookId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (
+                from book in db.SourceBooks.AsNoTracking()
+                where book.SourceId == sourceId && book.ExternalBookId == externalBookId
+                join chapter in db.SourceChapters.AsNoTracking()
+                    on book.Id equals chapter.SourceBookId
+                orderby chapter.ChapterIndex
+                select chapter.ExternalChapterId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<SourceChapterLookup> GetChapterAsync(
         string sourceId,
         string externalBookId,

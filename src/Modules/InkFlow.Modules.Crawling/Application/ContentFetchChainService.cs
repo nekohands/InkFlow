@@ -42,11 +42,11 @@ public sealed class ContentFetchChainService(
         string? credentialReferenceId = null,
         Guid? runId = null)
     {
-        var book = await sourceBooks
-            .GetAsync(sourceId, externalBookId, cancellationToken)
+        var chapterIds = await sourceBooks
+            .ListChapterIdsAsync(sourceId, externalBookId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (book is null || book.Chapters.Count == 0)
+        if (chapterIds.Count == 0)
         {
             return 0;
         }
@@ -58,7 +58,6 @@ public sealed class ContentFetchChainService(
             return 0;
         }
 
-        var chapterIds = book.Chapters.Select(c => c.ExternalChapterId).ToArray();
         var now = clock.GetUtcNow();
 
         var fetched = await fetchArtifacts
@@ -71,7 +70,7 @@ public sealed class ContentFetchChainService(
 
         var enqueued = 0;
         var forceRefresh = runId is not null;
-        foreach (var chapter in book.Chapters)
+        foreach (var id in chapterIds)
         {
             if (runId is { } activeRunId && collectionRuns is not null &&
                 !await collectionRuns
@@ -81,7 +80,6 @@ public sealed class ContentFetchChainService(
                 break;
             }
 
-            var id = chapter.ExternalChapterId;
             var neverFetched = !fetched.Contains(id);
             var stale = fetched.Contains(id) && !fresh.Contains(id);
             if (!forceRefresh && !neverFetched && !stale)

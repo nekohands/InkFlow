@@ -21,6 +21,8 @@ public sealed class ContentFetchChainServiceTests
 
         Assert.AreEqual(3, enqueued);
         Assert.AreEqual(3, harness.Tasks.Store.Count);
+        Assert.AreEqual(0, harness.SourceBooks.FullBookReadCount);
+        Assert.AreEqual(1, harness.SourceBooks.ChapterIdProjectionReadCount);
         CollectionAssert.AreEqual(
             new[] { "c1", "c2", "c3" },
             harness.Tasks.Store.Select(t => t.Payload.Variables["chapterId"]).ToArray());
@@ -191,22 +193,24 @@ public sealed class ContentFetchChainServiceTests
         var artifacts = new InMemoryArtifacts();
         var conflicts = new HashSet<string>(StringComparer.Ordinal);
         var tasks = new RecordingTaskRepository(conflicts);
+        var sourceBooks = new SingleBookRepository(book);
         var service = new ContentFetchChainService(
-            new SingleBookRepository(book),
+            sourceBooks,
             artifacts,
             tasks,
             new FixedClock(T0),
             unavailableSources is null ? null : new FixedHealthReader(unavailableSources),
             staleAfter);
 
-        return new Harness(service, tasks, artifacts, conflicts);
+        return new Harness(service, tasks, artifacts, conflicts, sourceBooks);
     }
 
     private sealed record Harness(
         ContentFetchChainService Service,
         RecordingTaskRepository Tasks,
         InMemoryArtifacts Artifacts,
-        HashSet<string> Conflicts);
+        HashSet<string> Conflicts,
+        SingleBookRepository SourceBooks);
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
@@ -224,17 +228,38 @@ public sealed class ContentFetchChainServiceTests
 
     private sealed class SingleBookRepository(SourceBook? book) : ISourceBookRepository
     {
+        public int FullBookReadCount { get; private set; }
+
+        public int ChapterIdProjectionReadCount { get; private set; }
+
         public Task AddAsync(SourceBook book, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<SourceBook?> GetAsync(
             string sourceId,
             string externalBookId,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(book is not null &&
-                            book.SourceId == sourceId &&
-                            book.ExternalBookId == externalBookId
+            CancellationToken cancellationToken = default)
+        {
+            FullBookReadCount++;
+            return Task.FromResult(book is not null &&
+                                  book.SourceId == sourceId &&
+                                  book.ExternalBookId == externalBookId
                 ? book
                 : null);
+        }
+
+        public Task<IReadOnlyList<string>> ListChapterIdsAsync(
+            string sourceId,
+            string externalBookId,
+            CancellationToken cancellationToken = default)
+        {
+            ChapterIdProjectionReadCount++;
+            var ids = book is not null &&
+                      book.SourceId == sourceId &&
+                      book.ExternalBookId == externalBookId
+                ? book.Chapters.Select(chapter => chapter.ExternalChapterId).ToList()
+                : [];
+            return Task.FromResult<IReadOnlyList<string>>(ids);
+        }
 
         public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SourceBook>>(book is null ? [] : [book]);

@@ -158,6 +158,53 @@ public sealed class SourceBookRepositoryTests
     }
 
     [TestMethod]
+    public async Task ListChapterIds_Projects_Ordered_Ids_Without_Loading_Aggregate()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var book = NewBook($"ids-{Guid.NewGuid():N}");
+        book.SyncChapters([("ch-001", "第一章"), ("ch-002", "第二章")], T0);
+        await repo.AddAsync(book).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        var ids = await repo
+            .ListChapterIdsAsync("example-source", book.ExternalBookId)
+            .ConfigureAwait(false);
+
+        CollectionAssert.AreEqual(new[] { "ch-001", "ch-002" }, ids.ToArray());
+        Assert.AreEqual(1, capture.Commands.Count);
+        var command = capture.Commands.Single();
+        Assert.IsTrue(command.Contains("source_chapters", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(command.Contains("ExternalChapterId", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(command.Contains("Title", StringComparison.OrdinalIgnoreCase));
+
+        var emptyBook = NewBook($"empty-{Guid.NewGuid():N}");
+        await repo.AddAsync(emptyBook).ConfigureAwait(false);
+        capture.Commands.Clear();
+        var empty = await repo
+            .ListChapterIdsAsync("example-source", emptyBook.ExternalBookId)
+            .ConfigureAwait(false);
+        var missing = await repo
+            .ListChapterIdsAsync("example-source", "missing-book")
+            .ConfigureAwait(false);
+
+        Assert.AreEqual(0, empty.Count);
+        Assert.AreEqual(0, missing.Count);
+
+        try
+        {
+            await repo.ListChapterIdsAsync(
+                "example-source",
+                book.ExternalBookId,
+                new CancellationToken(canceled: true));
+            Assert.Fail("A canceled token must cancel the chapter ID projection.");
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected: the repository must pass cancellation to EF Core.
+        }
+    }
+
+    [TestMethod]
     public async Task Chapter_Sync_Persists_Incrementally_And_Idempotently()
     {
         var repo = CreateRepository();
