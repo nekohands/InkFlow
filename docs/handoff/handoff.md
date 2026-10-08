@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.78 Source registry page projection Accepted；当前无活动工作包。5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.79 Legado TOC canonical chapter projection Accepted；当前无活动工作包。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -72,6 +72,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ```
 
 ## 4. 最近完成工作包
+
+### 5.79 Legado TOC canonical chapter projection 交接（本轮，2026-10-08，Accepted）
+
+- 目标：Legado TOC 只读取正典书可见性和章节元数据，不因目录请求物化完整 `CanonicalBook` 聚合。
+- 范围：`CanonicalChapterSummary`、`ListChapterSummariesAsync` 的兼容接口与 EF 投影、`CatalogQueryService.GetChapterListAsync`、Legado TOC 调用方及 Unit/PostgreSQL 回归。
+- 非目标：不改公共 Legado JSON/URL、BookId/ChapterId、书籍详情完整读取、章节正文点查、Content 选择、Schema/Migration、缓存、权限或 `.workbuddy-ai/`。
+- 验收：撤下、缺书、目录顺序、章节字段、稳定身份和 URL 语义保持；生产查询只投影 `Id`/`ChapterIndex`/`Title` 并按 `(ChapterIndex, Id)` 排序；完整 `GetBookAsync` 保留给详情等聚合调用方。
+- 实现：TOC 先走 `GetSummaryAsync`，再走 `ListChapterSummariesAsync`；生产 EF 使用 `AsNoTracking` 标量投影；旧 test double 通过默认回退兼容；新增 full-read 计数和 SQL 形状回归。
+- 本地验证：focused Catalog/Legado `23/23`、Unit `625/625`、Architecture `1/1`、Contract `12/12`；Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法、diff/secret audit 通过。新增 PostgreSQL focused Integration 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- 门禁：实现 SHA `c0aefc08682e9ed1bb22b201ec16b4c5a9b7ba10` 的 [CI 37768061749](https://github.com/nekohands/InkFlow/actions/runs/37768061749)、[Docker 37768061718](https://github.com/nekohands/InkFlow/actions/runs/37768061718)、[Security 37768061741](https://github.com/nekohands/InkFlow/actions/runs/37768061741) 均 success 且 head SHA 一致；远端提供迁移、全量测试、Runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 证据。
+- 当前状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化。当前无活动工作包，下一项重新 intake；工作包明细见 `../../repowiki/work-packages/2026-10-08-legado-toc-chapter-projection.md`。
 
 ### 5.78 Source registry page projection 交接（本轮，2026-10-08，Accepted）
 

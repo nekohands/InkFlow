@@ -69,11 +69,21 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.78 Source registry page projection 已 Accepted；当前无活动工作包。5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.79 Legado TOC canonical chapter projection 已 Accepted；当前无活动工作包。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 最近接受工作包如下：
 
 ```text
+Name: Legado TOC canonical chapter projection
+Objective / user outcome: Legado TOC 只读取 canonical book visibility 和 chapter metadata，不物化完整 `CanonicalBook` 聚合。
+In scope: `CanonicalChapterSummary`, `ListChapterSummariesAsync`, EF scalar projection, `CatalogQueryService.GetChapterListAsync`, Legado TOC consumer, compatibility fallback, and Unit/PostgreSQL regression.
+Non-goals: no public Legado JSON/URL change, BookId/ChapterId change, book-detail aggregate change, chapter-content lookup change, Content selection, Schema/Migration, cache, permissions, or `.workbuddy-ai/`.
+Acceptance: takedown/missing-book semantics, chapter fields/order, stable IDs/URLs, and cancellation remain stable; production SQL projects only `Id`, `ChapterIndex`, and `Title`, ordered by `(ChapterIndex, Id)`; full `GetBookAsync` remains for explicit aggregate callers.
+Status: Accepted.
+Verification: focused Catalog/Legado `23/23`; Unit `625/625`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; migration model `11/11`; script syntax, diff, and secret audit passed; focused PostgreSQL Integration BLOCKED by the Windows Docker named pipe.
+Delivery: implementation SHA `c0aefc08682e9ed1bb22b201ec16b4c5a9b7ba10`; exact-head CI `37768061749`, Docker `37768061718`, and Security `37768061741` all GREEN.
+Boundary: no public Contract, Schema/Migration, cache, or `.workbuddy-ai/` change; local Docker/Testcontainers and real-source/manual Legado acceptance remain independent boundaries.
+
 Name: Source registry page projection
 Objective / user outcome: 来源注册表分页不再加载或反序列化完整 Source Rule DSL；搜索发现和直链解析只读取 `Id`、`BaseUrl`、`IsEnabled`。
 In scope: `SourcePageEntry`, EF `ListPageAsync` scalar projection, discovery/direct URL consumers, compatibility fallback, and SQL-shape regression.
