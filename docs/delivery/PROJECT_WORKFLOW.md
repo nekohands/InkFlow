@@ -69,25 +69,30 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Accepted（5.67，Source list-result budget fencing）。当前无活动工作包；5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：In Progress（5.68，Scheduled update-scan page/fan-out fencing）。5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前工作包如下：
 
 ```text
-Name: Source list-result budget fencing
-Objective / user outcome: Rule/Code Source 的 Search/TOC 列表结果受到有限条目预算保护；超限 fail-closed，不把部分列表写入来源书目或正典链路。
-In scope: SourceRuleExecutionLimits MaxResultItems, RuleBased/Kanunu8/17K list projection, SourceCatalogService TOC defense-in-depth, focused regressions, source-runtime and delivery docs.
-Non-goals: ISourceAdapter/public API/Legado JSON, pagination semantics, source registry paging, HTTP/body/time/regex budgets, chapter IDs/history, schema/migration, permissions, retry policy, live-source acceptance.
-Acceptance: normal results and stable IDs/order remain unchanged; over-limit Search/TOC results fail closed without partial output; catalog rejects over-limit TOC before persistence; cancellation and existing error/health behavior remain unchanged.
-Status: Accepted.
-Verification: focused adapter/catalog red/green tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
-Boundary: default item ceiling is 10,000 and configurable only through the existing validated execution limits; no public contract or schema change; .workbuddy-ai/ remains untracked and untouched.
-Evidence: focused adapter/catalog tests 25/25; Unit 615/615; Architecture 1/1; Contract 12/12; Release Build 0 warnings/0 errors; migration model check 11/11; local Integration 8 passed / 3 skipped / 116 blocked by unavailable Windows Docker named pipe. Implementation SHA `2853c5e71cb321284113637042a7a91b224b069f` passed CI `37717734392`, Docker `37717734423`, and Security `37717734362`.
+Name: Scheduled update-scan page/fan-out fencing
+Objective / user outcome: 定时追更扫描按有限页读取来源书目并限制每轮 TOC 入队量；连续调度在进程内推进游标，不因书目增长形成无界读取或 fan-out。
+In scope: ISourceBookRepository keyset page, UpdateScanService batch/cursor, Scheduler in-process cursor, focused Unit/PostgreSQL regressions, source-runtime and delivery docs.
+Non-goals: persistent scheduler cursor, Schema/Migration, public API/Legado JSON, source registry policy, worker queue redesign, task dedupe/retry policy, source adapter behavior, live-source acceptance.
+Acceptance: each tick processes at most 100 books; `(CreatedAt, Id)` cursor advances without skip/duplicate and resets at end; health skip, atomic dedupe, normal cancellation and task contracts remain unchanged; production SQL path does not call ListAllAsync.
+Status: In Progress.
+Verification: red/green UpdateScanService and repository page tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
+Boundary: cursor is intentionally in-memory and restart may revisit the first page; durable cursor/multi-scheduler coordination is a separate boundary; no public contract or schema change; .workbuddy-ai/ remains untracked and untouched.
 ```
 
 最近接受工作包如下：
 
 ```text
+Name: Source list-result budget fencing
+Objective / user outcome: Rule/Code Source 的 Search/TOC 列表结果受到有限条目预算保护；超限 fail-closed，不把部分列表写入来源书目或正典链路。
+Status: Accepted.
+Evidence: focused adapter/catalog tests 25/25; Unit 615/615; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model check 11/11; local Integration 8 passed / 3 skipped / 116 blocked by unavailable Windows Docker named pipe. Implementation SHA `2853c5e71cb321284113637042a7a91b224b069f` passed CI `37717734392`, Docker `37717734423`, and Security `37717734362`.
+Boundary: default item ceiling is 10,000; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
+
 Name: Discovery search budget fencing
 Objective / user outcome: 用户触发的来源发现受到查询长度、逐源命中数和总正典结果数边界保护；截断通过既有 warnings 可解释。
 In scope: BookDiscoveryService query/work fences, stable truncation warnings, offline regressions, source-runtime and delivery docs.

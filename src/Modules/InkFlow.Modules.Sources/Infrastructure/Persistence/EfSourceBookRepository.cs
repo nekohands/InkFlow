@@ -49,6 +49,47 @@ public sealed class EfSourceBookRepository(SourcesDbContext db) : ISourceBookRep
             .ToList();
     }
 
+    public async Task<SourceBookPage> ListPageAsync(
+        SourceBookScanCursor? after,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 1000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        }
+
+        var query = db.SourceBooks.AsNoTracking();
+        if (after is not null)
+        {
+            query = query.Where(b =>
+                b.CreatedAt > after.CreatedAt ||
+                (b.CreatedAt == after.CreatedAt && b.Id.CompareTo(after.Id) > 0));
+        }
+
+        var entities = await query
+            .OrderBy(b => b.CreatedAt)
+            .ThenBy(b => b.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var hasMore = entities.Count > limit;
+        if (hasMore)
+        {
+            entities.RemoveAt(limit);
+        }
+
+        var books = entities
+            .Select(e => SourceBook.Rehydrate(
+                e.Id, e.SourceId, e.ExternalBookId, e.Title, e.Author,
+                e.CreatedAt, e.UpdatedAt, []))
+            .ToList();
+        var nextCursor = hasMore
+            ? new SourceBookScanCursor(entities[^1].CreatedAt, entities[^1].Id)
+            : null;
+        return new SourceBookPage(books, nextCursor, hasMore);
+    }
+
     public async Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default)
     {
         var entity = await db.SourceBooks.FindAsync([book.Id], cancellationToken).ConfigureAwait(false)

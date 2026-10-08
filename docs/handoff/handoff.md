@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.67 Source list-result budget fencing Accepted；当前无活动工作包；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.68 Scheduled update-scan page/fan-out fencing In Progress；5.67 Source list-result budget fencing Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -198,6 +198,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 实现：查询长度上限 256、逐源命中上限 100、总正典发现结果上限 100；截断通过稳定 warnings 报告，不改变公共响应、适配器、Schema/Migration。
 - 门禁：候选 SHA `193722cffb726c7338128be1f66111369b48a8a9` 的 [CI 37715153756](https://github.com/nekohands/InkFlow/actions/runs/37715153756)、[Docker 37715153801](https://github.com/nekohands/InkFlow/actions/runs/37715153801)、[Security 37715153778](https://github.com/nekohands/InkFlow/actions/runs/37715153778) 均 success 且 head SHA 一致。
 - 下一步：当前无活动工作包；重新 intake 下一个有证据的最小工作包。Source registry cardinality、真实来源、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定；`.workbuddy-ai/` 保持未跟踪且未触碰。
+
+### 5.68 Scheduled update-scan page/fan-out fencing 交接（本轮，2026-10-08，In Progress）
+
+- 缺口：`UpdateScanService` 通过 `ListAllAsync` 一次性物化全部 `SourceBook`，随后逐本创建追更任务；书库增长会放大内存峰值和单轮调度 fan-out。
+- 目标：改为 `(CreatedAt, Id)` 有序 keyset 分页，每轮最多 100 本；调度器在进程内保留游标并在末页重置，继续复用健康检查、任务去重和取消语义。
+- 范围边界：不持久化游标、不新增 Schema/Migration、不改变 `ISourceAdapter`、公共 API/Legado、Source registry、Worker 队列、重试策略或其他 `ListAllAsync` 调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 当前状态：Intake 完成，代码与回归尚未开始。验收要求单轮不超过 100 本、游标无跳过/重复且末页重置，生产 scheduled scan 不再物化完整书库；先执行 UpdateScanService/EF repository 红绿回归，再执行完整本地门禁和精确 SHA CI/Docker/Security。
 
 ### 5.67 Source list-result budget fencing 交接（本轮，2026-10-08，Accepted）
 

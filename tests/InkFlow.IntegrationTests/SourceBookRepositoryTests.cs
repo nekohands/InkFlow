@@ -46,6 +46,40 @@ public sealed class SourceBookRepositoryTests
         SourceBook.Create("example-source", externalId, "剑来", "烽火戏诸侯", T0);
 
     [TestMethod]
+    public async Task List_Page_Uses_Stable_Keyset_Cursor()
+    {
+        var repo = CreateRepository();
+        var sourceId = $"page-source-{Guid.NewGuid():N}";
+        var createdAt = new DateTimeOffset(1900, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var books = Enumerable.Range(1, 3)
+            .Select(index => SourceBook.Create(
+                sourceId,
+                $"book-{index}",
+                $"书 {index}",
+                "作者",
+                createdAt))
+            .ToArray();
+
+        foreach (var book in books)
+        {
+            await repo.AddAsync(book).ConfigureAwait(false);
+        }
+
+        var first = await repo.ListPageAsync(null, 2).ConfigureAwait(false);
+        var second = await repo.ListPageAsync(first.NextCursor, 2).ConfigureAwait(false);
+
+        Assert.AreEqual(2, first.Books.Count);
+        Assert.IsTrue(first.HasMore);
+        Assert.IsNotNull(first.NextCursor);
+        Assert.AreEqual(1, second.Books.Count);
+        Assert.IsFalse(second.HasMore);
+        Assert.IsNull(second.NextCursor);
+        CollectionAssert.AreEquivalent(
+            books.Select(book => book.ExternalBookId).ToArray(),
+            first.Books.Concat(second.Books).Select(book => book.ExternalBookId).ToArray());
+    }
+
+    [TestMethod]
     public async Task Book_With_Chapters_Roundtrips()
     {
         var repo = CreateRepository();

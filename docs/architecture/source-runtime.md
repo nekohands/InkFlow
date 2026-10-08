@@ -119,6 +119,11 @@ Header 基线；持久化 Session，以及动态多请求/递归执行所需的 
 再做同一上限的持久化前检查，避免超限章节进入 `SourceBook`。该条目预算不改变
 `ISourceAdapter` 方法签名或公共 JSON，也不替代响应字节和执行时间预算。
 
+定时追更扫描不再为每轮调度物化全部 `SourceBook`：`UpdateScanService` 按
+`(CreatedAt, Id)` 使用稳定 keyset 游标读取书目页，每轮最多处理 100 本；Scheduler
+仅在批次成功后保留进程内游标，扫完末页后重置。游标不持久化，也不新增 Schema/Migration；
+进程重启会从首批重新扫描，任务去重和来源健康门控仍是最终防线。
+
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。

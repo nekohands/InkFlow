@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.67 Source list-result budget fencing Accepted；当前无活动工作包；历史记录见 `progress-history.md`。
+- 文档状态：5.68 Scheduled update-scan page/fan-out fencing In Progress；5.67 Source list-result budget fencing Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -47,6 +47,15 @@ Phase 1A 自动化工作包状态：
 
 
 > 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。
+### 5.68 Scheduled update-scan page/fan-out fencing（本轮，2026-10-08，In Progress）
+
+- 缺口：`UpdateScanService` 通过 `ListAllAsync` 一次性物化全部 `SourceBook`，随后逐本创建追更任务；书库规模增长会同时放大内存峰值和单轮调度 fan-out。
+- Intake：本包将 scheduled update-scan 改为 `(CreatedAt, Id)` 有序 keyset 分页，每轮最多扫描 100 本；调度器在进程内保留游标，扫完后重置，并保留既有健康检查、任务去重和取消语义。
+- 范围边界：不持久化游标、不新增 Schema/Migration、不改变 `ISourceAdapter`、公共 API/Legado、Source registry、Worker 队列、重试策略或其他 `ListAllAsync` 调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：单轮不超过 100 本；跨轮游标确定性推进且无跳过/重复，末页后重置；健康不可用、冲突任务和取消语义保持；生产查询不再为 scheduled scan 物化完整书库。
+- 验证计划：先补 UpdateScanService 红绿回归和 PostgreSQL repository keyset 回归，再执行 Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 状态：Intake 已完成，代码与回归尚未开始；候选改动仍限于 scheduled scan 读取/调度边界。
+
 ### 5.67 Source list-result budget fencing（本轮，2026-10-08，Accepted）
 
 - 缺口：`SourceRuleExecutionLimits` 已限制请求、响应字节、时间、选择器和结果字节，但 Rule/Code Source 的 Search/TOC 投影仍没有条目数量上限；`SourceCatalogService` 也会接受任意 adapter 返回的完整 TOC 后再同步。

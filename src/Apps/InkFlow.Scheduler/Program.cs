@@ -77,6 +77,7 @@ internal sealed class UpdateScanBackgroundService(
     IServiceScopeFactory scopeFactory) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(30);
+    private SourceBookScanCursor? _cursor;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -89,8 +90,13 @@ internal sealed class UpdateScanBackgroundService(
             {
                 using var scope = scopeFactory.CreateScope();
                 var scanner = ActivatorUtilities.CreateInstance<UpdateScanService>(scope.ServiceProvider);
-                var count = await scanner.EnqueueTocScansAsync(stoppingToken).ConfigureAwait(false);
-                Console.WriteLine($"update scan enqueued {count} toc task(s).");
+                var batch = await scanner
+                    .EnqueueTocScanBatchAsync(_cursor, stoppingToken)
+                    .ConfigureAwait(false);
+                _cursor = batch.HasMore ? batch.NextCursor : null;
+                Console.WriteLine(
+                    $"update scan enqueued {batch.EnqueuedCount} toc task(s); " +
+                    $"scanned {batch.ScannedCount} book(s), hasMore={batch.HasMore}.");
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

@@ -67,6 +67,7 @@ Parent/root index: [README.md](README.md)
   than return partial lists when the item budget is crossed; `SourceCatalogService`
   repeats the TOC count check before persistence for any adapter. This does not
   change `ISourceAdapter`, public/Legado JSON, pagination, schema, or migrations.
+- Scheduled update scans page `SourceBook` rows by the stable `(CreatedAt, Id)` keyset and process at most 100 books per scheduler tick. The scheduler keeps the cursor in memory only, advances it after a successful batch, and resets it after the last page; restart replay is bounded by the existing task dedupe gate. No cursor persistence, schema, or migration is part of this boundary.
 - Trusted Kanunu8/17K CodeAdapters use the same `SourceRuleExecutionLimits`:
   `SourceResponseReader` rejects oversized bodies before decode/parse, and
   Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.

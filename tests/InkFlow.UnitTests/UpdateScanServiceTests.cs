@@ -71,6 +71,35 @@ public sealed class UpdateScanServiceTests
         Assert.AreEqual("book-1", tasks.Store.Single().Payload.Variables["bookId"]);
     }
 
+    [TestMethod]
+    public async Task Update_Scan_Batches_And_Advances_Stable_Cursor()
+    {
+        var books = Enumerable.Range(0, UpdateScanService.MaxBooksPerRun + 1)
+            .Select(index => SourceBook.Create(
+                "paged-source",
+                $"book-{index}",
+                $"第 {index} 本",
+                "作者",
+                T0.AddSeconds(index)))
+            .ToArray();
+        var tasks = new InMemoryTaskRepository();
+        var scanner = new UpdateScanService(
+            new InMemorySourceBookRepository(books),
+            tasks,
+            new FixedClock(T0));
+
+        var first = await scanner.EnqueueTocScanBatchAsync();
+        var second = await scanner.EnqueueTocScanBatchAsync(first.NextCursor);
+
+        Assert.AreEqual(UpdateScanService.MaxBooksPerRun, first.ScannedCount);
+        Assert.IsTrue(first.HasMore);
+        Assert.IsNotNull(first.NextCursor);
+        Assert.AreEqual(1, second.ScannedCount);
+        Assert.IsFalse(second.HasMore);
+        Assert.IsNull(second.NextCursor);
+        Assert.AreEqual(UpdateScanService.MaxBooksPerRun + 1, tasks.Store.Count);
+    }
+
     private sealed class InMemorySourceBookRepository(params SourceBook[] books) : ISourceBookRepository
     {
         private readonly IReadOnlyList<SourceBook> _books = books;
@@ -88,6 +117,36 @@ public sealed class UpdateScanServiceTests
         public Task<IReadOnlyList<SourceBook>> ListAllAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult(_books);
+
+        public Task<SourceBookPage> ListPageAsync(
+            SourceBookScanCursor? after,
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var query = _books
+                .OrderBy(book => book.CreatedAt)
+                .ThenBy(book => book.Id)
+                .AsEnumerable();
+            if (after is not null)
+            {
+                query = query.Where(book =>
+                    book.CreatedAt > after.CreatedAt ||
+                    (book.CreatedAt == after.CreatedAt && book.Id.CompareTo(after.Id) > 0));
+            }
+
+            var page = query.Take(limit + 1).ToList();
+            var hasMore = page.Count > limit;
+            if (hasMore)
+            {
+                page.RemoveAt(limit);
+            }
+
+            var nextCursor = hasMore
+                ? new SourceBookScanCursor(page[^1].CreatedAt, page[^1].Id)
+                : null;
+            return Task.FromResult(new SourceBookPage(page, nextCursor, hasMore));
+        }
 
         public Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
