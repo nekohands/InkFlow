@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.75 Content-fetch chapter ID projection In Progress；5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.75 Content-fetch chapter ID projection Accepted；5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；当前无活动工作包，历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,14 +45,16 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.75 Content-fetch chapter ID projection（本轮，2026-10-08，In Progress）
+### 5.75 Content-fetch chapter ID projection（本轮，2026-10-08，Accepted）
 
 - 缺口：`ContentFetchChainService.EnqueuePendingContentFetchesAsync` 只需要来源书按目录顺序排列的 `ExternalChapterId`，但当前调用 `ISourceBookRepository.GetAsync` 并物化完整 `SourceBook` 及所有章节标题；章节规模增长会放大追更联动前的数据库行数和内存。
 - Intake：新增按来源书身份读取外部章节 ID 的投影查询，保留目录顺序与缺书/空目录返回 `0` 的语义；正文任务链只消费该投影，完整聚合继续留给写入、匹配、映射等调用方。
 - 范围边界：不改 SourceCatalog 目录同步、章节映射、SourceContent 正文抓取、任务载荷、健康门控、FetchArtifact 新鲜度、去重/run gate、公共 API/Legado、Schema/Migration、缓存、HTTP/重试预算或 `.workbuddy-ai/`。
 - 验收：内容入队的 new/stale/force-refresh、顺序、健康/缺书/空书、去重和 collection-run 语义不变；生产路径不调用完整 `GetAsync`，EF 只投影按 `ChapterIndex` 排序的外部章节 ID；取消向下传播。
-- 验证计划：先补 ContentFetchChain focused 红绿计数回归和 PostgreSQL 投影/排序/缺失回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
-- 状态：In Progress；实现与门禁证据待补。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-content-fetch-chapter-id-projection.md)。
+- 实现：新增 `ISourceBookRepository.ListChapterIdsAsync` 及 EF `AsNoTracking` 身份 join/标量投影，按持久化 `ChapterIndex` 排序；`ContentFetchChainService` 只消费章节 ID，完整 `GetAsync` 保留给其他聚合调用方；取消令牌向下传递，任务链语义不变。
+- 本地验证：TDD 红态先证明内容入队仍调用完整书读取，修复后 focused counter `1/1`、`ContentFetchChainServiceTests` `10/10`；Unit `623/623`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`git diff --check` 与 added-line secret audit PASS。完整本机 Integration 为 `8 passed / 3 skipped / 124 blocked`，阻塞原因为 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译，远端 CI 通过。
+- 门禁：候选 SHA `523a305f735fda252dbfcb27dc560f39c930b604` 的 CI `37748826161`、Docker `37748826364`、Security `37748826225` 均与 head SHA 一致并 GREEN；CI 的迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 通过，Docker 与 Security 完整门禁通过。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化；当前无活动工作包。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-content-fetch-chapter-id-projection.md)。
 
 ### 5.74 Reading history chapter metadata point lookup（本轮，2026-10-08，Accepted）
 

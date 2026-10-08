@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.75 Content-fetch chapter ID projection In Progress；5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.75 Content-fetch chapter ID projection Accepted；5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；当前无活动工作包，历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -73,14 +73,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ## 4. 最近完成工作包
 
-### 5.75 Content-fetch chapter ID projection 交接（本轮，2026-10-08，In Progress）
+### 5.75 Content-fetch chapter ID projection 交接（本轮，2026-10-08，Accepted）
 
 - 目标：内容抓取联动只读取来源书按目录顺序排列的外部章节 ID，不因判断待抓章节物化整本 `SourceBook` 聚合。
 - 范围：`ISourceBookRepository.ListChapterIdsAsync` 及 EF 投影、`ContentFetchChainService.EnqueuePendingContentFetchesAsync`、Unit/PostgreSQL 回归和交付/Wiki 文档。
 - 非目标：不改目录同步、章节映射、正文抓取、任务载荷、健康/新鲜度/去重语义、公共 API/Legado、Schema/Migration、缓存、HTTP/重试预算或 `.workbuddy-ai/`。
 - 验收：入队顺序、new/stale/force-refresh、缺书/空书、健康门控、collection-run 和原子去重保持；生产路径不调用完整 `GetAsync`，只读取有序外部章节 ID，并传播取消。
 - 验证计划：TDD 红绿、Unit/Architecture/Contract、Restore/Release Build、迁移模型、脚本语法、适用 Integration/Runtime、diff/secret audit、精确 SHA CI/Docker/Security。
-- 当前状态：In Progress；实现和验证尚未完成。工作包明细见 `../repowiki/work-packages/2026-10-08-content-fetch-chapter-id-projection.md`。
+- 实现：新增 `ListChapterIdsAsync` 兼容回退和生产 EF 标量投影，按 `ChapterIndex` 保持目录顺序；内容抓取联动不再调用完整 `GetAsync`，取消令牌继续向下传递，原有新章/过期/强制刷新、健康、去重和 collection-run 语义保持。
+- 本地验证：TDD counter 红绿、focused `ContentFetchChainServiceTests` `10/10`、Unit `623/623`、Architecture `1/1`、Contract `12/12`、Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`git diff --check` 和 added-line secret audit PASS；完整本机 Integration `8 passed / 3 skipped / 124 blocked`，Docker named pipe `npipe://./pipe/docker_engine` 不可用，新增 PostgreSQL 回归已编译。
+- 门禁：实现 SHA `523a305f735fda252dbfcb27dc560f39c930b604` 的 [CI 37748826161](https://github.com/nekohands/InkFlow/actions/runs/37748826161)、[Docker 37748826364](https://github.com/nekohands/InkFlow/actions/runs/37748826364)、[Security 37748826225](https://github.com/nekohands/InkFlow/actions/runs/37748826225) 均与 head SHA 一致并 GREEN；CI 迁移、全量测试、Compose/runtime、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 全部通过。
+- 当前状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化。当前无活动工作包，下一项需重新 intake；工作包明细见 `../repowiki/work-packages/2026-10-08-content-fetch-chapter-id-projection.md`。
 
 ### 5.74 Reading history chapter metadata point lookup 交接（本轮，2026-10-08，Accepted）
 

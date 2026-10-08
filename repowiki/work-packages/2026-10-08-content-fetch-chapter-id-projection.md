@@ -1,6 +1,6 @@
 # Work Package 5.75 — Content-fetch chapter ID projection
 
-Status: In Progress
+Status: Accepted
 
 ## Objective
 
@@ -55,5 +55,31 @@ Windows Docker Engine named pipe limitation; remote CI must cover that gap.
 
 ## Evidence
 
-Implementation, test, and delivery evidence will be appended here before
-closeout.
+TDD red/green: the focused Unit counter first observed one full aggregate read;
+after the change `Chapters_Without_Artifacts_Are_Enqueued_In_Toc_Order` passed
+with zero full-book reads and one chapter-ID projection. The focused
+`ContentFetchChainServiceTests` class passed 10/10 and the full Unit suite
+passed 623/623.
+
+The production EF implementation uses one `AsNoTracking` join/projection,
+orders by persisted `ChapterIndex`, returns zero rows for missing/empty books,
+and forwards cancellation. The PostgreSQL regression also asserts scalar SQL
+projection without the chapter `Title` column; its local execution was blocked
+by the Windows Docker Engine named pipe, while remote CI exercised it.
+
+Local gates: restore and tool restore PASS; Release build PASS with 0 warnings /
+0 errors; Architecture 1/1; Contract 12/12; migration model 11/11; full
+Integration 8 passed / 3 skipped / 124 blocked by unavailable
+`npipe://./pipe/docker_engine`; `git diff --check` and added-line secret audit
+PASS. The focused PostgreSQL test compiled but was locally BLOCKED by the same
+Docker endpoint.
+
+Implementation candidate `523a305f735fda252dbfcb27dc560f39c930b604` passed exact-
+head CI `37748826161`, Docker `37748826364`, and Security `37748826225`; CI
+passed migrations, full tests, Compose/runtime smoke, SLO, Redis, PostgreSQL
+backup/restore, and diagnostics; Docker and Security passed their complete
+build/scan gates.
+
+Status: Accepted. No public contract, Schema/Migration, cache, or `.workbuddy-ai/`
+change; `GetAsync` remains the intentional full aggregate path for other
+callers.
