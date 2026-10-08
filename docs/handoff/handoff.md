@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.64 Crawler handler lease renewal 已 Accepted；当前无 In Progress 工作包；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.65 Rule selector execution deadline fencing In Progress；5.64 Crawler handler lease renewal 已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -188,6 +188,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 测试：红态后聚焦 adapter/HTTP bounds `13/13`；全量 Unit `595/595`、Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；迁移模型 `11/11`，`wsl.exe bash -n scripts/verify-migrations.sh` PASS。Windows 本机 Integration 实际尝试但因 `npipe://./pipe/docker_engine` 不可用 BLOCKED。
 - 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
 - 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
+
+### 5.65 Rule selector execution deadline fencing 交接（本轮，2026-10-08，In Progress）
+
+- 缺口：`RuleAdapter` 已为 HTTP 与 Credential Provider 创建 `MaxExecutionTime` 取消令牌，但字段、分页和响应变量的选择器边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
+- 目标：在既有 selector/extraction 边界加入 fail-closed deadline fencing，内部预算到期不返回 values、ResponseBodies 或部分结果；调用方主动取消仍保持原有传播语义。
+- 范围边界：不增加选择器语法、动态多请求/分支/递归、`MaxDepth`、公共 API/Legado、Schema/Migration、凭据存储、重试策略或真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 当前状态：已完成 intake，待先写红态回归；实现、全量验证和远端门禁尚未开始。
+- 下一步：补充确定性 Source unit regression，随后按工作流执行 Restore/Build/Test/安全审查和精确 SHA CI/Docker/Security。
 
 ### 5.64 Crawler handler lease renewal 交接（本轮，2026-10-08，Accepted）
 

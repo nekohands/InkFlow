@@ -23,7 +23,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: None. 5.64 [Crawler handler lease renewal](work-packages/2026-10-08-crawler-handler-lease-renewal.md) is Accepted; it closes the single-handler lease-expiry gap with an owner/status/expiry-guarded PostgreSQL renewal and an independent-scope processor heartbeat, without schema, public contract, or retry-policy redesign. 5.63 [Canonical match query bounding](work-packages/2026-10-08-canonical-match-query-bound.md) remains Accepted.
+Active work package: 5.65 [Rule selector execution deadline fencing](work-packages/2026-10-08-rule-selector-execution-deadline.md) is In Progress; it closes the selector-side execution-budget gap without adding selector syntax, dynamic orchestration, schema, or public contract changes. 5.64 [Crawler handler lease renewal](work-packages/2026-10-08-crawler-handler-lease-renewal.md) remains Accepted.
 Last completed: crawler handler lease renewal (5.64) — Accepted; exact SHA `11a493a2da72dba38072cad1cbc142711654fc0d` passed CI `37707275909`, Docker `37707275881`, and Security `37707275873`.
 Previous: code adapter response and regex bounds (5.61) — Accepted
 Shared streaming response reads reject oversized bodies before decode/parse; Kanunu8 regex timeouts and adapter regression tests are covered by local gates and remote CI/Docker/Security GREEN at `0d7d5ce`.

@@ -69,9 +69,23 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Accepted（5.64，Crawler handler lease renewal）；当前无 In Progress 工作包。前一包为 [Canonical match query bounding](../../repowiki/work-packages/2026-10-08-canonical-match-query-bound.md)，再前一包为 [Private book optimistic concurrency](../../repowiki/work-packages/2026-10-08-private-book-optimistic-concurrency.md)。
+当前状态：In Progress（5.65，Rule selector execution deadline fencing）。5.64 Crawler handler lease renewal 已 Accepted；前一包为 [Canonical match query bounding](../../repowiki/work-packages/2026-10-08-canonical-match-query-bound.md)。
 
 当前工作包：
+
+```text
+Name: Rule selector execution deadline fencing
+Objective / user outcome: RuleAdapter 在选择器/字段提取超过 MaxExecutionTime 后 fail-closed，不返回超时后的值或部分页面结果。
+In scope: RuleAdapter selector/extraction cancellation boundaries; field, pagination, and response-variable regression tests; source-runtime and delivery docs.
+Non-goals: selector syntax, dynamic multi-request/branch/recursive execution, MaxDepth, public API/Legado, Schema/Migration, credential storage, retry policy, and live-source acceptance.
+Acceptance: internal deadline expiry returns the stable time-budget error with no values/bodies; normal fields, pagination, and derived variables are fenced; caller cancellation still propagates; existing valid source behavior remains unchanged.
+Status: In Progress.
+Verification: focused red/green Source unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
+Evidence: intake only; implementation and gates pending.
+Boundary: local Docker/Testcontainers and live-source checks remain independent environment/manual boundaries; `.workbuddy-ai/` remains untracked and untouched.
+```
+
+Last accepted work package:
 
 ```text
 Name: Crawler handler lease renewal
