@@ -126,6 +126,31 @@ public sealed class ReadingStateTests
     }
 
     [TestMethod]
+    public async Task History_Uses_Point_Metadata_Reads_Without_Full_Book_Read()
+    {
+        var book = CreateBook();
+        var repository = new InMemoryReadingRepository();
+        repository.AddHistory(ReadingHistoryEntry.Create(
+            UserA,
+            book.Id,
+            book.Chapters[1].Id,
+            T0));
+        var books = new InMemoryBooks(book);
+        var service = CreateService(repository, books);
+
+        var history = await service.ListHistoryAsync(UserA, 100);
+
+        Assert.AreEqual(1, history.Count);
+        Assert.AreEqual(book.Title, history[0].Title);
+        Assert.AreEqual(book.Author, history[0].Author);
+        Assert.AreEqual(book.Chapters[1].Title, history[0].ChapterTitle);
+        Assert.AreEqual(book.Chapters[1].Index, history[0].ChapterIndex);
+        Assert.AreEqual(0, books.FullBookReadCount);
+        Assert.AreEqual(1, books.SummaryReadCount);
+        Assert.AreEqual(1, books.ChapterReadCount);
+    }
+
+    [TestMethod]
     public async Task Takedown_Hides_Book_And_Blocks_User_State_Writes()
     {
         var book = CreateBook();
@@ -206,6 +231,9 @@ public sealed class ReadingStateTests
         public int LastShelfLimit { get; private set; }
         public int LastHistoryLimit { get; private set; }
 
+        public void AddHistory(ReadingHistoryEntry entry) =>
+            _history[(entry.UserId, entry.CanonicalBookId, entry.CanonicalChapterId)] = entry;
+
         public Task<BookshelfEntry?> GetShelfEntryAsync(Guid userId, Guid canonicalBookId, CancellationToken cancellationToken = default) =>
             Task.FromResult(_shelf.GetValueOrDefault((userId, canonicalBookId)));
 
@@ -267,11 +295,41 @@ public sealed class ReadingStateTests
 
     private sealed class InMemoryBooks(CanonicalBook book) : ICanonicalBookRepository
     {
+        public int FullBookReadCount { get; private set; }
+        public int SummaryReadCount { get; private set; }
+        public int ChapterReadCount { get; private set; }
+
         public Task AddAsync(CanonicalBook value, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult<CanonicalBook?>(id == book.Id ? book : null);
+        public Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            FullBookReadCount++;
+            return Task.FromResult<CanonicalBook?>(id == book.Id ? book : null);
+        }
+
+        public Task<CanonicalBookSummary?> GetSummaryAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            SummaryReadCount++;
+            return Task.FromResult<CanonicalBookSummary?>(
+                id == book.Id
+                    ? new CanonicalBookSummary(book.Id, book.Title, book.Author, book.Chapters.Count)
+                    : null);
+        }
+
+        public Task<CanonicalChapter?> GetChapterAsync(
+            Guid bookId,
+            Guid chapterId,
+            CancellationToken cancellationToken = default)
+        {
+            ChapterReadCount++;
+            return Task.FromResult<CanonicalChapter?>(
+                bookId == book.Id
+                    ? book.Chapters.FirstOrDefault(chapter => chapter.Id == chapterId)
+                    : null);
+        }
 
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<CanonicalBook>>([book]);

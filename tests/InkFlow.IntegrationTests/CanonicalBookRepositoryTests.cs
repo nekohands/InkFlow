@@ -90,6 +90,33 @@ public sealed class CanonicalBookRepositoryTests
     }
 
     [TestMethod]
+    public async Task GetSummary_Uses_Bounded_Point_Query_And_Returns_Chapter_Count()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var book = CanonicalBook.Create("摘要点查书", "作者", T0.AddMinutes(2));
+        book.AddChapter(0, "第一章", T0.AddMinutes(2));
+        book.AddChapter(1, "第二章", T0.AddMinutes(2));
+
+        await repo.AddAsync(book).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        var summary = await repo.GetSummaryAsync(book.Id).ConfigureAwait(false);
+
+        Assert.IsNotNull(summary);
+        Assert.AreEqual(book.Id, summary.Id);
+        Assert.AreEqual(book.Title, summary.Title);
+        Assert.AreEqual(book.Author, summary.Author);
+        Assert.AreEqual(2, summary.ChapterCount);
+        Assert.AreEqual(1, capture.Commands.Count);
+        Assert.IsTrue(capture.Commands[0].Contains("LIMIT 1", StringComparison.OrdinalIgnoreCase));
+
+        capture.Commands.Clear();
+        Assert.IsNull(await repo.GetSummaryAsync(Guid.NewGuid()).ConfigureAwait(false));
+        Assert.AreEqual(1, capture.Commands.Count);
+        Assert.IsTrue(capture.Commands[0].Contains("LIMIT 1", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     public async Task Save_Appends_New_Chapters_Without_Touching_Old_Ones()
     {
         var repo = CreateRepository();

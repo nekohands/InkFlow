@@ -68,6 +68,16 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
         return LibraryMapper.ToDomain(bookEntity, chapters);
     }
 
+    public async Task<CanonicalBookSummary?> GetSummaryAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return await BuildSummaryQuery()
+            .Where(book => book.Id == id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<CanonicalChapter?> GetChapterAsync(
         Guid bookId,
         Guid chapterId,

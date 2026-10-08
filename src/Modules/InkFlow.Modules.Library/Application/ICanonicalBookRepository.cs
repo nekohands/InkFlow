@@ -15,6 +15,17 @@ public interface ICanonicalBookRepository
 
     Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>按书籍 ID 读取轻量书籍摘要，不加载章节集合。</summary>
+    async Task<CanonicalBookSummary?> GetSummaryAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var book = await GetAsync(id, cancellationToken).ConfigureAwait(false);
+        return book is null
+            ? null
+            : new CanonicalBookSummary(book.Id, book.Title, book.Author, book.Chapters.Count);
+    }
+
     /// <summary>按书籍和章节稳定 ID 读取单章目录元数据，不加载整本书聚合。</summary>
     async Task<CanonicalChapter?> GetChapterAsync(
         Guid bookId,

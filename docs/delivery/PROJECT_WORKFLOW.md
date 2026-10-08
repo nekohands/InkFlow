@@ -69,20 +69,20 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.73 Source content chapter metadata point lookup Accepted；5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted；当前无活动工作包，下一项重新 intake。
+当前状态：5.74 Reading history chapter metadata point lookup In Progress；5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前工作包如下：
 
 ```text
-Name: Source content chapter metadata point lookup
-Objective / user outcome: 来源正文抓取只读取目标章节元数据，不因章节定位一次性物化整本来源书的章节集合。
-In scope: `ISourceBookRepository` chapter lookup result, EF bounded query, `SourceContentService` pre-network path, focused Unit/PostgreSQL regressions, and delivery/Wiki documentation.
-Non-goals: no public API/Legado JSON, Source Adapter/content semantics, full `GetAsync` aggregate callers, Schema/Migration, cache, durable cursor, HTTP/retry budget, or live-source acceptance change.
-Acceptance: the content path does not call full-book `GetAsync` for chapter metadata; missing-book and missing-chapter errors remain distinct and stable; the point query returns at most one matching row and propagates cancellation.
-Status: Accepted.
-Verification: TDD red/green SourceContentService regression; focused `SourceContentServiceTests` 8/8; Unit 622/622; Architecture 1/1; Contract 12/12; Restore/tool restore; Release Build 0 warnings / 0 errors; migration model 11/11; `bash -n`; diff/secret audit. Full Solution Test Integration was 8 passed / 3 skipped / 122 blocked by unavailable Windows Docker named pipe; the PostgreSQL regression compiled but did not run locally.
-Delivery: candidate SHA `5892eca6d754ba53d3a6d496b4d37cb69e387643` passed exact-head CI `37739646911`, Docker `37739647011`, and Security `37739647021`; CI runtime/PostgreSQL/Redis/diagnostics and Docker Compose image verification passed, and Security SBOM/Filesystem/NuGet/CodeQL passed. The closeout documentation commit is the next pushed SHA and must receive its own exact-head gates.
-Boundary: `GetAsync` remains the full aggregate read for catalog/synchronization callers; this package only fences single-chapter source-content metadata lookup.
+Name: Reading history chapter metadata point lookup
+Objective / user outcome: 阅读历史只读取每条历史记录所需的书籍摘要和目标章节元数据，不因章节定位一次性物化整本正典书。
+In scope: `ICanonicalBookRepository` summary point projection, `ReadingStateService.ListHistoryAsync`, focused Unit/PostgreSQL regressions, and delivery/Wiki documentation.
+Non-goals: no public Reading/Legado response, history limit, takedown policy, shelf/progress/write path, full aggregate callers, Schema/Migration, cache, content selection, or `.workbuddy-ai/`.
+Acceptance: history fields/order/missing/takedown/cancellation semantics remain stable; production EF does not call full `GetAsync` for one history row; summary/chapter reads are bounded by book/chapter identity.
+Status: In Progress.
+Verification: planned TDD red/green ReadingState regression; focused/full Unit, Architecture, Contract, Restore/Release Build, migration model, script, applicable Integration/Runtime, diff/secret audit, and exact-head CI/Docker/Security.
+Delivery: pending implementation and remote evidence.
+Boundary: `GetAsync` remains the full aggregate read for catalog, shelf, synchronization, and other intentional aggregate callers; this package only fences the bounded reading-history read.
 ```
 
 最近接受工作包如下：

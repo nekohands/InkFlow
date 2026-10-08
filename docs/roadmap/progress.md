@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.73 Source content chapter metadata point lookup Accepted；5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.74 Reading history chapter metadata point lookup In Progress；5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,7 +45,16 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.73 Source content chapter metadata point lookup（本轮，2026-10-08，In Progress）
+### 5.74 Reading history chapter metadata point lookup（本轮，2026-10-08，In Progress）
+
+- 缺口：`ReadingStateService.ListHistoryAsync` 已将历史记录限制为有界条目，但每条记录仍通过 `ICanonicalBookRepository.GetAsync` 物化整本 `CanonicalBook`，只为取得书名、作者和一个章节元数据；章节规模增长会放大历史列表的数据库行数和内存。
+- Intake：复用现有 `CanonicalBookSummary` 和 `GetChapterAsync`，新增按书 ID 的有界摘要点读；历史路径先保持现有可见性/撤下策略，再点读目标章节，保留缺失项跳过、顺序和响应字段。
+- 范围边界：不改公共 Reading/Legado 响应、历史上限、撤下策略、写路径、Shelf/Progress 路径、完整聚合调用方、Schema/Migration、缓存、正文选择或 `.workbuddy-ai/`。
+- 验收：历史列表不再调用完整 `GetAsync`；生产 EF 使用书籍摘要和目标章节的有界投影；缺书、缺章、跨书和撤下语义不变；取消正确传播。
+- 验证计划：先补 ReadingState focused 红绿回归和 PostgreSQL 点查询/身份回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 状态：In Progress；实现与门禁证据待补。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-reading-history-chapter-metadata-point-lookup.md)。
+
+### 5.73 Source content chapter metadata point lookup（本轮，2026-10-08，Accepted）
 
 - 缺口：`SourceContentService.FetchChapterContentAsync` 在触网前调用 `ISourceBookRepository.GetAsync`，EF 会为定位一个外部章节 ID 物化整本来源书的章节集合；章节规模增长会放大正文抓取前的数据库行数和内存。
 - Intake：新增同时表达书存在状态与目标章节的来源章节点查找，正文路径只读取目标章节元数据；保留 `GetAsync` 给目录、同步和其他完整聚合调用方。
@@ -55,7 +64,7 @@ Phase 1A 自动化工作包状态：
 - 实现：`ISourceBookRepository.GetChapterAsync` 返回保留书存在状态的 `SourceChapterLookup`；EF 以来源书身份和外部章节 ID 做 `AsNoTracking` 左连接点查询；`SourceContentService.FetchChapterContentAsync` 改用点查，缺书/缺章错误与触网前置顺序保持不变。
 - 本地验证：TDD 红态为缺少 `SourceChapterLookup` 的预期编译失败；focused `SourceContentServiceTests` `8/8`；Unit `622/622`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、PowerShell 迁移模型 `11/11`、`bash -n scripts/verify-migrations.sh`、`git diff --check` 与 added-line secret audit PASS。完整 Solution Test 的 Integration 为 `8 passed / 3 skipped / 122 blocked`，均在类初始化因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 点查询回归已编译但未取得本机容器证据。
 - 门禁：候选 SHA `5892eca6d754ba53d3a6d496b4d37cb69e387643` 的 [CI 37739646911](https://github.com/nekohands/InkFlow/actions/runs/37739646911)、[Docker 37739647011](https://github.com/nekohands/InkFlow/actions/runs/37739647011)、[Security 37739647021](https://github.com/nekohands/InkFlow/actions/runs/37739647021) 均 success 且 head SHA 一致；CI 的迁移、全量测试、Compose、Reader/Legado/Source smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 通过，Docker 四镜像与发布 Compose 镜像验证通过，Security 的 SBOM/Filesystem/NuGet/CodeQL 通过。
-- 状态：Accepted；本机完整 Integration 仍有 122 项因 Windows Docker named pipe 不可用而 blocked，远端门禁补足 PostgreSQL/runtime 证据；无公共 Contract、Schema/Migration、缓存或 durable cursor 变化；`.workbuddy-ai/` 保持未跟踪且未触碰。当前无活动工作包，下一项重新 intake。
+- 状态：Accepted；本机完整 Integration 仍有 122 项因 Windows Docker named pipe 不可用而 blocked，远端门禁补足 PostgreSQL/runtime 证据；无公共 Contract、Schema/Migration、缓存或 durable cursor 变化；`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包为 5.74 Reading history chapter metadata point lookup。
 
 ### 5.72 Reader chapter metadata point lookup（本轮，2026-10-08，Accepted）
 

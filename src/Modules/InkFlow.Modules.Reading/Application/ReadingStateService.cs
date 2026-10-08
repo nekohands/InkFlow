@@ -106,19 +106,31 @@ public sealed class ReadingStateService(
 
         foreach (var entry in entries)
         {
-            var book = await GetVisibleBookAsync(entry.CanonicalBookId, cancellationToken)
+            var summary = await books
+                .GetSummaryAsync(entry.CanonicalBookId, cancellationToken)
                 .ConfigureAwait(false);
-            var chapter = book?.Chapters.FirstOrDefault(
-                candidate => candidate.Id == entry.CanonicalChapterId);
-            if (book is null || chapter is null)
+            if (summary is null || await contentPolicy
+                .IsTakedownAsync(entry.CanonicalBookId, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                continue;
+            }
+
+            var chapter = await books
+                .GetChapterAsync(
+                    entry.CanonicalBookId,
+                    entry.CanonicalChapterId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (chapter is null)
             {
                 continue;
             }
 
             result.Add(new ReadingHistoryItem(
-                book.Id,
-                book.Title,
-                book.Author,
+                summary.Id,
+                summary.Title,
+                summary.Author,
                 chapter.Id,
                 chapter.Title,
                 chapter.Index,
