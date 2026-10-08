@@ -69,9 +69,9 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.76 Matching source-book metadata projection In Progress；5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.76 Matching source-book metadata projection Accepted；5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted；当前无活动工作包。
 
-当前工作包如下：
+最近接受工作包如下：
 
 ```text
 Name: Matching source-book metadata projection
@@ -79,13 +79,13 @@ Objective / user outcome: 正典书匹配只读取来源书标题和作者，不
 In scope: `ISourceBookRepository.GetMetadataAsync`, `CanonicalBookMatchingService.CreateOrMatchAsync`, focused Unit/PostgreSQL regressions, Source Runtime and delivery/Wiki documentation.
 Non-goals: no confirmed-candidate resolution, match locking, title/author normalization, candidate writes, catalog sync, chapter mapping, source content fetch, public Reading/Legado API, Schema/Migration, cache, HTTP/retry budget, full aggregate callers, or `.workbuddy-ai/`.
 Acceptance: matching, missing-book, idempotency, same-title/author reuse, confirmed-candidate, and cancellation semantics remain stable; production EF does not call full `GetAsync` and reads only `source_books` title/author fields.
-Status: In Progress.
-Verification: planned TDD red/green CanonicalBookMatching regression; focused/full Unit, Architecture, Contract, Restore/Release Build, migration model, script, applicable Integration/Runtime, diff/secret audit, and exact-head CI/Docker/Security.
-Delivery: pending implementation and remote evidence.
+Status: Accepted.
+Verification: TDD red/green; focused CanonicalBookMatching tests `3/3`; Unit `623/623`; Architecture `1/1`; Contract `12/12`; Restore/tool restore; Release Build `0 warnings / 0 errors`; migration model `11/11`; diff/secret audit; exact-head CI/Docker/Security.
+Delivery: implementation SHA `835e0914b84469581f1d2a21a33fa9a65fac09f6`; CI `37753946308`, Docker `37753946459`, and Security `37753946140` all GREEN with matching head SHA. Local Integration `8 passed / 3 skipped / 125 Docker-blocked`; remote CI supplied PostgreSQL/runtime evidence.
 Boundary: `GetAsync` remains the full aggregate read for catalog sync, chapter mapping, writes, and other intentional aggregate callers; this package only fences the matching metadata read.
 ```
 
-最近接受工作包如下：
+此前已接受工作包如下：
 
 ```text
 Name: Content-fetch chapter ID projection

@@ -1,6 +1,6 @@
 # Work Package 5.76 — Matching source-book metadata projection
 
-Status: In Progress
+Status: Accepted
 
 ## Objective
 
@@ -53,5 +53,27 @@ limitation; remote CI must cover that gap.
 
 ## Evidence
 
-Implementation, test, and delivery evidence will be appended here before
-closeout.
+- Implementation candidate `835e0914b84469581f1d2a21a33fa9a65fac09f6` adds
+  `SourceBookMetadata`, a compatibility fallback plus production EF
+  `source_books` scalar projection, and routes
+  `CanonicalBookMatchingService.CreateOrMatchAsync` through the metadata read;
+  full aggregate reads remain for intentional callers.
+- TDD red first failed the full-read counter (`expected 0, actual 1`); focused
+  `CanonicalBookMatchingServiceTests` then passed `3/3`, and full Unit passed
+  `623/623`.
+- Architecture passed `1/1`; Contract passed `12/12`; Restore/tool restore,
+  Release Build (`0 warnings / 0 errors`), migration model check (`11/11`),
+  `git diff --check`, and the secret audit (`0` pattern hits) passed.
+- The focused PostgreSQL projection regression compiled but could not execute;
+  full local Integration was `8 passed / 3 skipped / 125 blocked` because the
+  Windows Docker Engine endpoint `npipe://./pipe/docker_engine` was unavailable.
+- Exact-head remote gates for the implementation candidate were all GREEN:
+  [CI 37753946308](https://github.com/nekohands/InkFlow/actions/runs/37753946308),
+  [Docker 37753946459](https://github.com/nekohands/InkFlow/actions/runs/37753946459),
+  and [Security 37753946140](https://github.com/nekohands/InkFlow/actions/runs/37753946140).
+  CI migration, full tests, Compose/runtime smoke, SLO, Redis, PostgreSQL
+  backup/restore, and diagnostics all passed; Docker and Security completed
+  their full gates.
+- No public Contract, Schema/Migration, cache, or `.workbuddy-ai/` change was
+  made. Documentation closeout was pushed separately and re-gated at its final
+  head; the known local Docker limitation remains the only local blocker.

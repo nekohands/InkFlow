@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.76 Matching source-book metadata projection In Progress；5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.76 Matching source-book metadata projection Accepted；5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；当前无活动工作包，历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,14 +45,16 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.76 Matching source-book metadata projection（本轮，2026-10-08，In Progress）
+### 5.76 Matching source-book metadata projection（本轮，2026-10-08，Accepted）
 
 - 缺口：`CanonicalBookMatchingService.CreateOrMatchAsync` 只需要来源书的 `Title`/`Author` 作为匹配键，但当前调用 `ISourceBookRepository.GetAsync` 并物化全部章节；章节规模增长会放大匹配临界区前的数据库行数和内存。
 - Intake：新增按来源书身份读取书名/作者的标量投影，保留缺书分支；匹配路径只消费投影，完整聚合继续留给写入、目录同步、章节映射等调用方。
 - 范围边界：不改确认候选快路径、匹配锁、标题/作者归一化、候选创建、目录同步、章节映射、正文抓取、公共 API/Legado、Schema/Migration、缓存、HTTP/重试预算或 `.workbuddy-ai/`。
 - 验收：匹配结果、缺书错误、幂等、同名同作者复用、确认候选和取消语义不变；生产路径不调用完整 `GetAsync`，EF 只读取 `source_books` 的标题和作者，并传播取消。
-- 验证计划：先补 CanonicalBookMatching focused 红绿读取计数回归和 PostgreSQL 投影/缺失回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
-- 状态：In Progress；实现与门禁证据待补。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-matching-source-book-metadata-projection.md)。
+- 实现：新增 `SourceBookMetadata`、兼容旧 test double 的默认回退和 EF `source_books` 标量投影；`CanonicalBookMatchingService.CreateOrMatchAsync` 只读取匹配所需的 Title/Author，完整 `GetAsync` 保留给确认候选及其他明确需要聚合的调用方；新增 Unit 读取计数和 PostgreSQL 投影/缺失/取消回归。
+- 本地验证：TDD 红态先证明匹配路径仍调用完整书读取（`expected 0, actual 1`），修复后 focused `CanonicalBookMatchingServiceTests` `3/3`、Unit `623/623`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`git diff --check` 和 secret audit `0` hits PASS。完整本机 Integration 为 `8 passed / 3 skipped / 125 blocked`，新增 PostgreSQL 回归已编译但执行受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用阻塞。
+- 门禁：实现 SHA `835e0914b84469581f1d2a21a33fa9a65fac09f6` 的 [CI 37753946308](https://github.com/nekohands/InkFlow/actions/runs/37753946308)、[Docker 37753946459](https://github.com/nekohands/InkFlow/actions/runs/37753946459)、[Security 37753946140](https://github.com/nekohands/InkFlow/actions/runs/37753946140) 均与 head SHA 一致并 GREEN；CI 迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 全部通过，Docker 与 Security 完整门禁通过。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化；当前无活动工作包，下一项重新 intake。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-matching-source-book-metadata-projection.md)。
 
 ### 5.75 Content-fetch chapter ID projection（本轮，2026-10-08，Accepted）
 
