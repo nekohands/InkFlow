@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.65 Rule selector execution deadline fencing In Progress；5.64 Crawler handler lease renewal 已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.65 Rule selector execution deadline fencing 已 Accepted；当前无 In Progress 工作包；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
