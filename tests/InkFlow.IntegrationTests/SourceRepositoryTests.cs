@@ -290,25 +290,29 @@ public sealed class SourceRepositoryTests
     public async Task ListUnhealthyPage_Uses_Stable_Keyset_And_Lookahead()
     {
         var repo = CreateHealthRepository();
-        var healthy = SourceCapabilityHealth.Create("health-page-a", SourceCapability.Toc, T0);
+        var healthy = SourceCapabilityHealth.Create("zzzz-health-page-a", SourceCapability.Toc, T0);
         healthy.RecordSuccess(T0.AddMinutes(1));
 
         foreach (var row in new[]
         {
-            CreateUnhealthy("health-page-a", SourceCapability.Search),
-            CreateUnhealthy("health-page-a", SourceCapability.Content),
-            CreateUnhealthy("health-page-b", SourceCapability.Search),
-            CreateUnhealthy("health-page-c", SourceCapability.Search),
+            CreateUnhealthy("zzzz-health-page-a", SourceCapability.Search),
+            CreateUnhealthy("zzzz-health-page-a", SourceCapability.Content),
+            CreateUnhealthy("zzzz-health-page-b", SourceCapability.Search),
+            CreateUnhealthy("zzzz-health-page-c", SourceCapability.Search),
             healthy,
         })
         {
             await repo.AddAsync(row).ConfigureAwait(false);
         }
 
-        var first = await repo.ListUnhealthyPageAsync(null, 2).ConfigureAwait(false);
+        var first = await repo
+            .ListUnhealthyPageAsync(
+                new SourceHealthScanCursor("zzzz-health-page-0", SourceCapability.Update),
+                2)
+            .ConfigureAwait(false);
 
         CollectionAssert.AreEqual(
-            new[] { "health-page-a/Search", "health-page-a/Content" },
+            new[] { "zzzz-health-page-a/Search", "zzzz-health-page-a/Content" },
             first.Health.Select(row => $"{row.SourceId}/{row.Capability}").ToArray());
         Assert.IsTrue(first.HasMore);
         Assert.IsNotNull(first.NextCursor);
@@ -318,7 +322,7 @@ public sealed class SourceRepositoryTests
             .ConfigureAwait(false);
 
         CollectionAssert.AreEqual(
-            new[] { "health-page-b/Search", "health-page-c/Search" },
+            new[] { "zzzz-health-page-b/Search", "zzzz-health-page-c/Search" },
             second.Health.Select(row => $"{row.SourceId}/{row.Capability}").ToArray());
         Assert.IsFalse(second.HasMore);
         Assert.IsNull(second.NextCursor);
