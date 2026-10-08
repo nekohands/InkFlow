@@ -4,8 +4,10 @@ namespace InkFlow.Modules.Sources.Application;
 
 public sealed record SourceScanCursor(string Id);
 
+public sealed record SourcePageEntry(string Id, string BaseUrl, bool IsEnabled);
+
 public sealed record SourcePage(
-    IReadOnlyList<Source> Sources,
+    IReadOnlyList<SourcePageEntry> Sources,
     SourceScanCursor? NextCursor,
     bool HasMore);
 
@@ -52,6 +54,7 @@ public interface ISourceRepository
             .Where(source => after is null ||
                 string.Compare(source.Id, after.Id, StringComparison.Ordinal) > 0)
             .Take(limit + 1)
+            .Select(source => new SourcePageEntry(source.Id, source.BaseUrl, source.IsEnabled))
             .ToList();
         var hasMore = entries.Count > limit;
         if (hasMore)

@@ -156,20 +156,24 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
             query = query.Where(source => source.Id.CompareTo(after.Id) > 0);
         }
 
-        var entities = await query
+        var entries = await query
             .OrderBy(source => source.Id)
             .Take(limit + 1)
+            .Select(source => new SourcePageEntry(
+                source.Id,
+                source.BaseUrl,
+                source.IsEnabled))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        var hasMore = entities.Count > limit;
+        var hasMore = entries.Count > limit;
         if (hasMore)
         {
-            entities.RemoveAt(limit);
+            entries.RemoveAt(limit);
         }
 
         return new SourcePage(
-            entities.Select(ToDomain).ToList(),
-            hasMore ? new SourceScanCursor(entities[^1].Id) : null,
+            entries,
+            hasMore ? new SourceScanCursor(entries[^1].Id) : null,
             hasMore);
     }
 

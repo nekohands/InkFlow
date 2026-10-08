@@ -149,7 +149,12 @@ public sealed class SourceBookUrlResolverTests
             }
 
             return Task.FromResult(new SourcePage(
-                entries,
+                entries
+                    .Select(source => new SourcePageEntry(
+                        source.Id,
+                        source.BaseUrl,
+                        source.IsEnabled))
+                    .ToList(),
                 hasMore ? new SourceScanCursor(entries[^1].Id) : null,
                 hasMore));
         }

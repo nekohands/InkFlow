@@ -350,6 +350,27 @@ public sealed class SourceRepositoryTests
     }
 
     [TestMethod]
+    public async Task ListPage_Projects_Scan_Fields_Without_Loading_Rule_Dsl()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var source = NewSourceWithRules("page-projection-source");
+        source.Disable(T0.AddMinutes(1));
+        await repo.AddAsync(source).ConfigureAwait(false);
+
+        capture.Commands.Clear();
+        var page = await repo.ListPageAsync(null, 2).ConfigureAwait(false);
+
+        var entry = page.Sources.Single(value => value.Id == source.Id);
+        Assert.AreEqual(source.BaseUrl, entry.BaseUrl);
+        Assert.IsFalse(entry.IsEnabled);
+        var command = capture.Commands.Single();
+        StringAssert.Contains(command, "BaseUrl");
+        StringAssert.Contains(command, "IsEnabled");
+        Assert.IsFalse(command.Contains("RuleDslJson", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(command.Contains("DisplayName", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     public async Task Capability_Health_Roundtrips_Status_And_Evidence()
     {
         var repo = CreateHealthRepository();

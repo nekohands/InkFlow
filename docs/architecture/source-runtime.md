@@ -151,10 +151,11 @@ FetchArtifact 新鲜度、去重或 collection-run 语义，也不新增 Schema/
 重扫，也不新增 Schema/Migration。
 
 搜索发现和人工输入的直链解析按 `Source.Id` 对来源注册表做稳定 keyset 分页，单次最多读取 100 个
-来源加一条 look-ahead；`BookDiscoveryService` 与 `SourceBookUrlResolver` 逐页消费，不再通过
-`ListAsync` 一次性物化所有来源及规则文档。页查询只限制内存中的单页，不改变来源顺序、禁用来源过滤、
-适配器解析、搜索结果或 URL 解析语义；Operations Center 等显式全量快照仍可使用 `ListAsync`。该游标
-只存在于当前请求，不持久化，也不新增 Schema/Migration。
+来源加一条 look-ahead；`BookDiscoveryService` 与 `SourceBookUrlResolver` 逐页消费轻量页项，页项
+只投影 `Id`、`BaseUrl` 和 `IsEnabled`，不得读取或反序列化 `RuleDslJson`。这不改变来源顺序、
+禁用来源过滤、适配器解析、搜索结果或 URL 解析语义；`GetAsync` 仍留给规则执行和其他完整聚合调用，
+Operations Center 等显式全量快照仍可使用 `ListAsync`。该游标只存在于当前请求，不持久化，也不新增
+Schema/Migration。
 
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
