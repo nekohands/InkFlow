@@ -10,7 +10,7 @@ Related contracts: [ReadingStateService.cs](../../src/Modules/InkFlow.Modules.Re
 
 ```text
 ID: 5.81
-Status/phase: Implemented / locally validated; exact-SHA CI pending
+Status/phase: Accepted; implementation SHA `e85dbc143fb6b7d20030403239aceedb34ec43d9` and exact-head CI/Docker/Security GREEN
 Owner: InkFlow maintainers
 Authorization/scope: user continuation request “循环推进”; source, tests, RepoWiki and current Chinese delivery records on dev; no .workbuddy-ai/ mutation.
 
@@ -42,6 +42,8 @@ Affected invariants/decision records: stable BookId/ChapterId; canonical content
 Affected project-defined gates or phase/release exit criteria: Reading state automation and Release Candidate runtime/CI regression; real account/device acceptance remains outside this package.
 Blocker handoff: local PostgreSQL/Testcontainers and Compose runtime may remain BLOCKED by Windows Docker named pipe; owner InkFlow maintainers; recheck when Docker Engine is available; remote CI must supply the corresponding integration/runtime evidence.
 
+Delivery evidence: implementation SHA `e85dbc143fb6b7d20030403239aceedb34ec43d9` passed CI `37775920297`, Docker `37775919950`, and Security `37775919947` with the exact head SHA; CI supplied migration, full test, Compose/runtime, SLO, Redis, PostgreSQL backup/restore, and diagnostics evidence. The current record is the synchronized documentation closeout; final docs-head gates are re-run after this push.
+
 Verification plan:
   - [x] TDD red/green focused ReadingStateTests with full-read counters; RED failed with 5 full reads, GREEN passed
   - [x] diff/scope/secret audit; bounded-read audit and added-line secret audit passed
@@ -50,7 +52,7 @@ Verification plan:
   - [x] ReadingState focused `9/9`, Unit `627/627`, Architecture `1/1`, Contract `12/12`
   - [x] Windows `dotnet-ef` migration model verification `11/11`; WSL wrapper syntax passed but WSL lacks dotnet
   - [ ] focused PostgreSQL Integration; BLOCKED by `npipe://./pipe/docker_engine` unavailable
-  - [ ] exact target-SHA CI, Docker and Security; pending candidate commit
+  - [x] exact target-SHA CI `e85dbc143fb6b7d20030403239aceedb34ec43d9`: CI `37775920297`, Docker `37775919950`, Security `37775919947` all GREEN
   - [x] RepoWiki, architecture, progress, handoff and workflow records synchronized; `.workbuddy-ai/` remains untracked and untouched
 
 Documentation/state updates: RepoWiki index/current state, this work package, docs/delivery/PROJECT_WORKFLOW.md, docs/roadmap/progress.md, docs/handoff/handoff.md; architecture.md/repowiki/architecture.md only if final verified read boundary needs a rule.
@@ -59,15 +61,15 @@ Documentation/state updates: RepoWiki index/current state, this work package, do
 ## Verification Matrix
 
 ```text
-Surface | Required check | Authority | Result before candidate commit
+Surface | Required check | Authority | Result
 Scope/read path | CodeGraph + targeted source/test review | repo source and tests | PASS
 Logic/regression | focused ReadingStateTests red/green + full Unit | dotnet test | PASS (9/9; 627/627)
 Build | Release restore/build | dotnet CLI | PASS (0 warnings / 0 errors)
 Boundary | Architecture tests | dotnet test | PASS (1/1)
 Persistence/infra | migration model + focused Integration | project verifier/Testcontainers | PARTIAL (11/11 model; Integration BLOCKED by Windows Docker)
 External contract | Contract tests | dotnet test | PASS (12/12)
-Runtime | Compose/reader/account smoke as applicable | CI runtime | PENDING candidate SHA
-Security | secret/diff audit and Security workflow | git/CI | PARTIAL (local audits PASS; CI pending)
-Documentation | RepoWiki/docs agreement | source + link audit | IN PROGRESS (implementation state synchronized; closeout pending)
-CI | exact target SHA workflows | GitHub Actions | NOT TRIGGERED; candidate commit pending
+Runtime | Compose/reader/account smoke as applicable | CI runtime | PASS (CI `37775920297`)
+Security | secret/diff audit and Security workflow | git/CI | PASS (local audits; Security `37775919947`)
+Documentation | RepoWiki/docs agreement | source + link audit | PASS (candidate and closeout records synchronized)
+CI | exact target SHA workflows | GitHub Actions | PASS (CI `37775920297`; Docker `37775919950`; Security `37775919947`)
 ```
