@@ -49,10 +49,10 @@ Phase 1A 自动化工作包状态：
 > 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。
 ### 5.65 Rule selector execution deadline fencing（本轮，2026-10-08，In Progress）
 
-- 缺口：`RuleAdapter` 的 `MaxExecutionTime` 取消令牌已约束 HTTP 与 Credential Provider，但字段、分页和响应变量选择器边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
+- 缺口：`RuleAdapter` 的 `MaxExecutionTime` 取消令牌已约束 HTTP 与 Credential Provider，但字段、分页和响应变量选择器，以及 `RuleBasedSourceAdapter` 在分页响应收集后的 Search/TOC 列表绑定边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
 - Intake：本包只在既有选择器/提取边界加入 deadline fencing；不增加选择器语法、动态多请求/分支/递归、`MaxDepth`、公共契约、Schema/Migration、凭据存储或重试策略。
-- 验收：内部预算过期返回稳定 `execution: time budget exceeded.` 且不暴露 values/bodies；字段、分页和派生变量均受保护；调用方取消继续传播；正常 Source fixture 语义不变。
-- 状态：已完成 intake，待先写红态回归再实现；本地 Docker、真实来源和 Release Candidate 人工验收不属于本包。
+- 验收：内部预算过期返回稳定 `execution: time budget exceeded.` 且不暴露 values/bodies；字段、分页、派生变量和 Search/TOC 列表绑定均受保护；调用方取消继续传播；正常 Source fixture 语义不变。
+- 状态：实现与本地门禁已完成；Unit 605/605、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；精确 SHA CI/Docker/Security 待推送，真实来源和 Release Candidate 人工验收不属于本包。
 
 ### 5.50 已停止任务重试/取消与已取消任务清理（本轮，2026-09-03）
 

@@ -103,6 +103,10 @@ MaxResultSize，以及调用方临时请求模板变量上下文的数量、名�
 Header 基线；持久化 Session，以及动态多请求/递归执行所需的 MaxRedirects/MaxDepth 策略仍需后续运行时工作包和独立回归，
 不能仅凭离线选择器测试将规则标记为 Published 或宣称真实来源可用。
 
+字段、分页 continuation、响应派生变量以及 RuleBasedSourceAdapter 的 Search/TOC 列表绑定
+均在同一有界执行期间完成；选择器或列表聚合跨过 MaxExecutionTime 时 fail-closed，不返回
+超时后的 values、ResponseBodies 或部分条目，调用方主动取消仍向上传播。
+
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。

@@ -18,7 +18,8 @@ after the execution budget and still produce a successful result.
 ## Scope
 
 - `InkFlow.Modules.Sources.Application.RuleAdapter` extraction and selector
-  cancellation boundaries.
+  cancellation boundaries, plus `RuleBasedSourceAdapter` Search/TOC list
+  binding after paginated response collection.
 - Existing source selector/adapter unit regressions covering ordinary extraction,
   pagination, and derived variables.
 - Source runtime documentation and current delivery records.
@@ -40,7 +41,7 @@ after the execution budget and still produce a successful result.
 2. Internal deadline expiry returns the existing stable
    `execution: time budget exceeded.` error without response bodies or values.
 3. The same fencing applies to normal fields, pagination continuation selectors,
-   and response-derived variables.
+   response-derived variables, and Search/TOC list binding.
 4. External caller cancellation remains propagated and existing valid selector,
    pagination, credential, and regex behavior remains unchanged.
 
@@ -60,3 +61,15 @@ depend on a real source or Docker.
   diff/security review, and exact-SHA CI/Docker/Security gates.
 - Local Docker/Testcontainers and live-source checks remain environment/manual
   boundaries and must be reported explicitly.
+
+## Current evidence (2026-10-08)
+
+- Implementation: `RuleAdapter` fences field, pagination-selector, and
+  response-variable extraction; `RuleBasedSourceAdapter` fences Search/TOC
+  list binding and preserves caller cancellation propagation.
+- Local gates: Release restore/build passed with 0 warnings and 0 errors;
+  Unit `605/605`, Architecture `1/1`, Contract `12/12`, and 11-context
+  migration model check passed; diff/secret audit passed.
+- Integration: `8 passed / 3 skipped / 116 blocked` because Testcontainers
+  could not connect to `npipe://./pipe/docker_engine` on this Windows host.
+- Remote exact-SHA CI/Docker/Security gates: pending candidate commit and push.

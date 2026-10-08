@@ -191,11 +191,11 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ### 5.65 Rule selector execution deadline fencing 交接（本轮，2026-10-08，In Progress）
 
-- 缺口：`RuleAdapter` 已为 HTTP 与 Credential Provider 创建 `MaxExecutionTime` 取消令牌，但字段、分页和响应变量的选择器边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
-- 目标：在既有 selector/extraction 边界加入 fail-closed deadline fencing，内部预算到期不返回 values、ResponseBodies 或部分结果；调用方主动取消仍保持原有传播语义。
+- 缺口：`RuleAdapter` 已为 HTTP 与 Credential Provider 创建 `MaxExecutionTime` 取消令牌，但字段、分页和响应变量的选择器，以及 `RuleBasedSourceAdapter` 的 Search/TOC 列表绑定边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
+- 目标：在既有 selector/extraction/list-binding 边界加入 fail-closed deadline fencing，内部预算到期不返回 values、ResponseBodies 或部分结果；调用方主动取消仍保持原有传播语义。
 - 范围边界：不增加选择器语法、动态多请求/分支/递归、`MaxDepth`、公共 API/Legado、Schema/Migration、凭据存储、重试策略或真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
-- 当前状态：已完成 intake，待先写红态回归；实现、全量验证和远端门禁尚未开始。
-- 下一步：补充确定性 Source unit regression，随后按工作流执行 Restore/Build/Test/安全审查和精确 SHA CI/Docker/Security。
+- 当前状态：实现与本地门禁已完成；Unit 605/605、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；精确 SHA 远端门禁待推送。
+- 下一步：创建 candidate commit 并推送 `origin/dev`，核对同一 SHA 的 CI/Docker/Security；通过后补齐 Accepted closeout 和远端 runtime 证据。
 
 ### 5.64 Crawler handler lease renewal 交接（本轮，2026-10-08，Accepted）
 

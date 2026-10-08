@@ -142,512 +142,529 @@ public sealed class RuleAdapter
         using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         executionCancellation.CancelAfter(_limits.MaxExecutionTime);
 
-        // 只有请求结构、SSRF 和执行预算都通过后才解析 secret，减少不必要的敏感材料驻留。
-        var credentialResolution = await ResolveCredentialAsync(
-                executionContext,
-                cancellationToken,
-                executionCancellation.Token)
-            .ConfigureAwait(false);
-        if (credentialResolution.Error is not null)
+        try
         {
-            return RuleExecutionResult.Fail([credentialResolution.Error]);
-        }
+            // 只有请求结构、SSRF 和执行预算都通过后才解析 secret，减少不必要的敏感材料驻留。
+            var credentialResolution = await ResolveCredentialAsync(
+                    executionContext,
+                    cancellationToken,
+                    executionCancellation.Token)
+                .ConfigureAwait(false);
+            if (credentialResolution.Error is not null)
+            {
+                return RuleExecutionResult.Fail([credentialResolution.Error]);
+            }
 
-        var cookieJar = rule.Session is null ? null : new RuleCookieJar(rule.Session);
-        var requestCount = 0;
-        long responseBytes = 0;
+            var cookieJar = rule.Session is null ? null : new RuleCookieJar(rule.Session);
+            var requestCount = 0;
+            long responseBytes = 0;
 
-        for (var preIndex = 0; preIndex < preRequests.Count; preIndex++)
-        {
-            var step = preRequests[preIndex];
-            SourceHttpRequest? preparedStepRequest;
-            if (preIndex == 0)
+            for (var preIndex = 0; preIndex < preRequests.Count; preIndex++)
+            {
+                var step = preRequests[preIndex];
+                SourceHttpRequest? preparedStepRequest;
+                if (preIndex == 0)
+                {
+                    if (!TryApplyCredential(
+                            firstRequest!,
+                            credentialResolution.Credential,
+                            out preparedStepRequest,
+                            out var firstCredentialError))
+                    {
+                        return RuleExecutionResult.Fail([firstCredentialError]);
+                    }
+                }
+                else
+                {
+                    var stepBuildErrors = TryBuildRequest(
+                        step.Request,
+                        rule.Capability,
+                        baseUrl,
+                        continuationVariables,
+                        null,
+                        null,
+                        out var stepRequest);
+                    if (stepBuildErrors.Count > 0)
+                    {
+                        return RuleExecutionResult.Fail(stepBuildErrors);
+                    }
+
+                    if (!TryValidateInitialRequest(
+                            stepRequest!,
+                            sourceOrigin,
+                            out var stepRequestError))
+                    {
+                        return RuleExecutionResult.Fail([stepRequestError]);
+                    }
+
+                    if (!TryApplyCredential(
+                            stepRequest!,
+                            credentialResolution.Credential,
+                            out preparedStepRequest,
+                            out var stepCredentialError))
+                    {
+                        return RuleExecutionResult.Fail([stepCredentialError]);
+                    }
+                }
+
+                if (requestCount >= _limits.MaxRequests)
+                {
+                    return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+                }
+
+                if (preparedStepRequest!.FormBody is not null &&
+                    Encoding.UTF8.GetByteCount(preparedStepRequest.FormBody) > _limits.MaxBytes)
+                {
+                    return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
+                }
+
+                requestCount++;
+                SourceHttpResponse stepResponse;
+                try
+                {
+                    var requestToSend = preparedStepRequest;
+                    if (cookieJar is not null &&
+                        Uri.TryCreate(preparedStepRequest.Url, UriKind.Absolute, out var requestUri))
+                    {
+                        requestToSend = preparedStepRequest with
+                        {
+                            CookieHeader = cookieJar.BuildCookieHeader(requestUri),
+                        };
+                    }
+
+                    stepResponse = await _httpClient
+                        .SendAsync(requestToSend, executionCancellation.Token)
+                        .WaitAsync(executionCancellation.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
+                {
+                    return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
+                }
+                catch (SourceResponseTooLargeException)
+                {
+                    return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+                }
+                catch
+                {
+                    return RuleExecutionResult.Fail(["http: transport failure."]);
+                }
+
+                if (!stepResponse.IsSuccess)
+                {
+                    return RuleExecutionResult.Fail(
+                        [$"http: upstream returned status {stepResponse.StatusCode}."]);
+                }
+
+                responseBytes += Encoding.UTF8.GetByteCount(stepResponse.Body);
+                if (responseBytes > _limits.MaxBytes)
+                {
+                    return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+                }
+
+                if (!TryValidateResponseOrigin(
+                        preparedStepRequest,
+                        stepResponse,
+                        sourceOrigin,
+                        "pre-request",
+                        out var stepResponseOriginError))
+                {
+                    return RuleExecutionResult.Fail([stepResponseOriginError]);
+                }
+
+                if (!TryAcceptResponseCookies(
+                        cookieJar,
+                        preparedStepRequest,
+                        stepResponse,
+                        sourceOrigin,
+                        out var stepSessionError))
+                {
+                    return RuleExecutionResult.Fail([stepSessionError]);
+                }
+
+                var stepVariableErrors = TryBuildResponseVariables(
+                    step.ResponseVariables,
+                    $"rules[{rule.Capability}] preRequests[{preIndex}].responseVariables",
+                    stepResponse.Body,
+                    continuationVariables,
+                    executionCancellation.Token,
+                    out var updatedVariables);
+                if (stepVariableErrors.Count > 0)
+                {
+                    return RuleExecutionResult.Fail(stepVariableErrors);
+                }
+
+                continuationVariables = updatedVariables!;
+            }
+
+            SourceHttpRequest? preparedMainRequest;
+            if (preRequests.Count == 0)
             {
                 if (!TryApplyCredential(
                         firstRequest!,
                         credentialResolution.Credential,
-                        out preparedStepRequest,
-                        out var firstCredentialError))
+                        out preparedMainRequest,
+                        out var mainCredentialError))
                 {
-                    return RuleExecutionResult.Fail([firstCredentialError]);
+                    return RuleExecutionResult.Fail([mainCredentialError]);
                 }
             }
             else
             {
-                var stepBuildErrors = TryBuildRequest(
-                    step.Request,
+                var mainBuildErrors = TryBuildRequest(
+                    rule.Request,
                     rule.Capability,
                     baseUrl,
                     continuationVariables,
-                    null,
-                    null,
-                    out var stepRequest);
-                if (stepBuildErrors.Count > 0)
+                    initialParameterName,
+                    initialParameterValue,
+                    out var mainRequest);
+                if (mainBuildErrors.Count > 0)
                 {
-                    return RuleExecutionResult.Fail(stepBuildErrors);
+                    return RuleExecutionResult.Fail(mainBuildErrors);
                 }
 
                 if (!TryValidateInitialRequest(
-                        stepRequest!,
+                        mainRequest!,
                         sourceOrigin,
-                        out var stepRequestError))
+                        out var mainRequestError))
                 {
-                    return RuleExecutionResult.Fail([stepRequestError]);
+                    return RuleExecutionResult.Fail([mainRequestError]);
                 }
 
                 if (!TryApplyCredential(
-                        stepRequest!,
+                        mainRequest!,
                         credentialResolution.Credential,
-                        out preparedStepRequest,
-                        out var stepCredentialError))
+                        out preparedMainRequest,
+                        out var mainCredentialError))
                 {
-                    return RuleExecutionResult.Fail([stepCredentialError]);
+                    return RuleExecutionResult.Fail([mainCredentialError]);
                 }
             }
 
-            if (requestCount >= _limits.MaxRequests)
-            {
-                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
-            }
+            var currentRequest = preparedMainRequest!;
+            var pageBodies = new List<string>();
+            var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
 
-            if (preparedStepRequest!.FormBody is not null &&
-                Encoding.UTF8.GetByteCount(preparedStepRequest.FormBody) > _limits.MaxBytes)
+            for (var page = 1; ; page++)
             {
-                return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
-            }
-
-            requestCount++;
-            SourceHttpResponse stepResponse;
-            try
-            {
-                var requestToSend = preparedStepRequest;
-                if (cookieJar is not null &&
-                    Uri.TryCreate(preparedStepRequest.Url, UriKind.Absolute, out var requestUri))
+                if (requestCount >= _limits.MaxRequests)
                 {
-                    requestToSend = preparedStepRequest with
+                    return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+                }
+
+                if (pagination is not null && page > pagination.MaxPages)
+                {
+                    return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
+                }
+
+                if (pagination?.Mode == RulePaginationMode.NextLink &&
+                    !visitedUrls.Add(currentRequest.Url))
+                {
+                    return RuleExecutionResult.Fail(["pagination: next-link cycle detected."]);
+                }
+
+                if (currentRequest.FormBody is not null &&
+                    Encoding.UTF8.GetByteCount(currentRequest.FormBody) > _limits.MaxBytes)
+                {
+                    return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
+                }
+
+                requestCount++;
+                SourceHttpResponse response;
+                try
+                {
+                    var requestToSend = currentRequest;
+                    if (cookieJar is not null &&
+                        Uri.TryCreate(currentRequest.Url, UriKind.Absolute, out var requestUri))
                     {
-                        CookieHeader = cookieJar.BuildCookieHeader(requestUri),
-                    };
-                }
-
-                stepResponse = await _httpClient
-                    .SendAsync(requestToSend, executionCancellation.Token)
-                    .WaitAsync(executionCancellation.Token)
-                    .ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
-            {
-                return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
-            }
-            catch (SourceResponseTooLargeException)
-            {
-                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
-            }
-            catch
-            {
-                return RuleExecutionResult.Fail(["http: transport failure."]);
-            }
-
-            if (!stepResponse.IsSuccess)
-            {
-                return RuleExecutionResult.Fail(
-                    [$"http: upstream returned status {stepResponse.StatusCode}."]);
-            }
-
-            responseBytes += Encoding.UTF8.GetByteCount(stepResponse.Body);
-            if (responseBytes > _limits.MaxBytes)
-            {
-                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
-            }
-
-            if (!TryValidateResponseOrigin(
-                    preparedStepRequest,
-                    stepResponse,
-                    sourceOrigin,
-                    "pre-request",
-                    out var stepResponseOriginError))
-            {
-                return RuleExecutionResult.Fail([stepResponseOriginError]);
-            }
-
-            if (!TryAcceptResponseCookies(
-                    cookieJar,
-                    preparedStepRequest,
-                    stepResponse,
-                    sourceOrigin,
-                    out var stepSessionError))
-            {
-                return RuleExecutionResult.Fail([stepSessionError]);
-            }
-
-            var stepVariableErrors = TryBuildResponseVariables(
-                step.ResponseVariables,
-                $"rules[{rule.Capability}] preRequests[{preIndex}].responseVariables",
-                stepResponse.Body,
-                continuationVariables,
-                out var updatedVariables);
-            if (stepVariableErrors.Count > 0)
-            {
-                return RuleExecutionResult.Fail(stepVariableErrors);
-            }
-
-            continuationVariables = updatedVariables!;
-        }
-
-        SourceHttpRequest? preparedMainRequest;
-        if (preRequests.Count == 0)
-        {
-            if (!TryApplyCredential(
-                    firstRequest!,
-                    credentialResolution.Credential,
-                    out preparedMainRequest,
-                    out var mainCredentialError))
-            {
-                return RuleExecutionResult.Fail([mainCredentialError]);
-            }
-        }
-        else
-        {
-            var mainBuildErrors = TryBuildRequest(
-                rule.Request,
-                rule.Capability,
-                baseUrl,
-                continuationVariables,
-                initialParameterName,
-                initialParameterValue,
-                out var mainRequest);
-            if (mainBuildErrors.Count > 0)
-            {
-                return RuleExecutionResult.Fail(mainBuildErrors);
-            }
-
-            if (!TryValidateInitialRequest(
-                    mainRequest!,
-                    sourceOrigin,
-                    out var mainRequestError))
-            {
-                return RuleExecutionResult.Fail([mainRequestError]);
-            }
-
-            if (!TryApplyCredential(
-                    mainRequest!,
-                    credentialResolution.Credential,
-                    out preparedMainRequest,
-                    out var mainCredentialError))
-            {
-                return RuleExecutionResult.Fail([mainCredentialError]);
-            }
-        }
-
-        var currentRequest = preparedMainRequest!;
-        var pageBodies = new List<string>();
-        var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
-
-        for (var page = 1; ; page++)
-        {
-            if (requestCount >= _limits.MaxRequests)
-            {
-                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
-            }
-
-            if (pagination is not null && page > pagination.MaxPages)
-            {
-                return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
-            }
-
-            if (pagination?.Mode == RulePaginationMode.NextLink &&
-                !visitedUrls.Add(currentRequest.Url))
-            {
-                return RuleExecutionResult.Fail(["pagination: next-link cycle detected."]);
-            }
-
-            if (currentRequest.FormBody is not null &&
-                Encoding.UTF8.GetByteCount(currentRequest.FormBody) > _limits.MaxBytes)
-            {
-                return RuleExecutionResult.Fail(["execution: request exceeded byte budget."]);
-            }
-
-            requestCount++;
-            SourceHttpResponse response;
-            try
-            {
-                var requestToSend = currentRequest;
-                if (cookieJar is not null &&
-                    Uri.TryCreate(currentRequest.Url, UriKind.Absolute, out var requestUri))
-                {
-                    requestToSend = currentRequest with
-                    {
-                        CookieHeader = cookieJar.BuildCookieHeader(requestUri),
-                    };
-                }
-
-                response = await _httpClient
-                    .SendAsync(requestToSend, executionCancellation.Token)
-                    .WaitAsync(executionCancellation.Token)
-                    .ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
-            {
-                return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
-            }
-            catch (SourceResponseTooLargeException)
-            {
-                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
-            }
-            catch
-            {
-                return RuleExecutionResult.Fail(["http: transport failure."]);
-            }
-
-            if (!response.IsSuccess)
-            {
-                return RuleExecutionResult.Fail([$"http: upstream returned status {(int)response.StatusCode}."]);
-            }
-
-            if (!TryValidateResponseOrigin(
-                    currentRequest,
-                    response,
-                    sourceOrigin,
-                    "request",
-                    out var responseOriginError))
-            {
-                return RuleExecutionResult.Fail([responseOriginError]);
-            }
-
-            responseBytes += Encoding.UTF8.GetByteCount(response.Body);
-            if (responseBytes > _limits.MaxBytes)
-            {
-                return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
-            }
-
-            if (cookieJar is not null)
-            {
-                if (!Uri.TryCreate(currentRequest.Url, UriKind.Absolute, out var requestUri))
-                {
-                    return RuleExecutionResult.Fail(["session: request URI is invalid."]);
-                }
-
-                var responseUri = response.ResponseUri ?? requestUri;
-                if (!responseUri.IsAbsoluteUri || !IsSameOrigin(sourceOrigin, responseUri))
-                {
-                    return RuleExecutionResult.Fail(
-                        ["session: response origin changed during redirect."]);
-                }
-
-                var sessionError = cookieJar.Accept(response.SetCookieHeaders, responseUri);
-                if (sessionError is not null)
-                {
-                    return RuleExecutionResult.Fail([sessionError]);
-                }
-            }
-
-            pageBodies.Add(response.Body);
-            if (pagination is null)
-            {
-                return ExtractFields(rule, response.Body);
-            }
-
-            switch (pagination.Mode)
-            {
-                case RulePaginationMode.NextLink:
-                {
-                    var nextLink = _selectorEvaluator.EvaluateFirst(
-                        response.Body,
-                        pagination.NextPageSelector!,
-                        pagination.NextPageAttribute);
-                    if (string.IsNullOrWhiteSpace(nextLink))
-                    {
-                        return CompletePagination(rule, pageBodies);
+                        requestToSend = currentRequest with
+                        {
+                            CookieHeader = cookieJar.BuildCookieHeader(requestUri),
+                        };
                     }
 
-                    if (!TryContinueAfterPage(
-                            page,
-                            requestCount,
-                            pagination,
-                            out var limitError))
-                    {
-                        return RuleExecutionResult.Fail([limitError]);
-                    }
-
-                    if (!TryBuildNextRequest(
-                            currentRequest,
-                            nextLink,
-                            sourceOrigin,
-                            out var nextRequest,
-                            out var nextRequestError))
-                    {
-                        return RuleExecutionResult.Fail([nextRequestError]);
-                    }
-
-                    currentRequest = nextRequest!;
-                    break;
+                    response = await _httpClient
+                        .SendAsync(requestToSend, executionCancellation.Token)
+                        .WaitAsync(executionCancellation.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
+                {
+                    return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
+                }
+                catch (SourceResponseTooLargeException)
+                {
+                    return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+                }
+                catch
+                {
+                    return RuleExecutionResult.Fail(["http: transport failure."]);
                 }
 
-                case RulePaginationMode.PageNumber:
+                if (!response.IsSuccess)
                 {
-                    var hasNextPage = _selectorEvaluator.EvaluateFirst(
-                        response.Body,
-                        pagination.NextPageSelector!,
-                        pagination.NextPageAttribute);
-                    if (string.IsNullOrWhiteSpace(hasNextPage))
+                    return RuleExecutionResult.Fail([$"http: upstream returned status {(int)response.StatusCode}."]);
+                }
+
+                if (!TryValidateResponseOrigin(
+                        currentRequest,
+                        response,
+                        sourceOrigin,
+                        "request",
+                        out var responseOriginError))
+                {
+                    return RuleExecutionResult.Fail([responseOriginError]);
+                }
+
+                responseBytes += Encoding.UTF8.GetByteCount(response.Body);
+                if (responseBytes > _limits.MaxBytes)
+                {
+                    return RuleExecutionResult.Fail(["execution: response exceeded byte budget."]);
+                }
+
+                if (cookieJar is not null)
+                {
+                    if (!Uri.TryCreate(currentRequest.Url, UriKind.Absolute, out var requestUri))
                     {
-                        return CompletePagination(rule, pageBodies);
+                        return RuleExecutionResult.Fail(["session: request URI is invalid."]);
                     }
 
-                    if (!TryContinueAfterPage(
-                            page,
-                            requestCount,
-                            pagination,
-                            out var limitError))
-                    {
-                        return RuleExecutionResult.Fail([limitError]);
-                    }
-
-                    var responseVariableErrors = TryBuildResponseVariables(
-                        rule.ResponseVariables,
-                        $"rules[{rule.Capability}] responseVariables",
-                        response.Body,
-                        continuationVariables,
-                        out var updatedVariables);
-                    if (responseVariableErrors.Count > 0)
-                    {
-                        return RuleExecutionResult.Fail(responseVariableErrors);
-                    }
-
-                    continuationVariables = updatedVariables!;
-
-                    var nextPageValue = (long)pagination.StartPage +
-                        (long)page * pagination.PageStep;
-                    if (nextPageValue > SourceRuleDslValidator.MaxPaginationPageValue)
+                    var responseUri = response.ResponseUri ?? requestUri;
+                    if (!responseUri.IsAbsoluteUri || !IsSameOrigin(sourceOrigin, responseUri))
                     {
                         return RuleExecutionResult.Fail(
-                            ["pagination: generated page value exceeds the allowed range."]);
+                            ["session: response origin changed during redirect."]);
                     }
 
-                    var pageBuildErrors = TryBuildRequest(
-                        rule,
-                        baseUrl,
-                        continuationVariables,
-                        pagination.ParameterName,
-                        nextPageValue.ToString(CultureInfo.InvariantCulture),
-                        out var nextRequest);
-                    if (pageBuildErrors.Count > 0)
+                    var sessionError = cookieJar.Accept(response.SetCookieHeaders, responseUri);
+                    if (sessionError is not null)
                     {
-                        return RuleExecutionResult.Fail(pageBuildErrors);
+                        return RuleExecutionResult.Fail([sessionError]);
                     }
-
-                    if (!TryApplyCredential(
-                            nextRequest!,
-                            credentialResolution.Credential,
-                            out var preparedNextRequest,
-                            out var pageCredentialError))
-                    {
-                        return RuleExecutionResult.Fail([pageCredentialError]);
-                    }
-
-                    if (!TryValidateContinuationRequest(
-                            preparedNextRequest!,
-                            sourceOrigin,
-                            out var continuationError))
-                    {
-                        return RuleExecutionResult.Fail([continuationError]);
-                    }
-
-                    currentRequest = preparedNextRequest!;
-                    break;
                 }
 
-                case RulePaginationMode.Cursor:
+                pageBodies.Add(response.Body);
+                if (pagination is null)
                 {
-                    var rawCursor = _selectorEvaluator.EvaluateFirst(
-                        response.Body,
-                        pagination.CursorSelector!,
-                        pagination.CursorAttribute);
-                    if (string.IsNullOrWhiteSpace(rawCursor))
-                    {
-                        return CompletePagination(rule, pageBodies);
-                    }
-
-                    if (!TryContinueAfterPage(
-                            page,
-                            requestCount,
-                            pagination,
-                            out var limitError))
-                    {
-                        return RuleExecutionResult.Fail([limitError]);
-                    }
-
-                    var responseVariableErrors = TryBuildResponseVariables(
-                        rule.ResponseVariables,
-                        $"rules[{rule.Capability}] responseVariables",
-                        response.Body,
-                        continuationVariables,
-                        out var updatedVariables);
-                    if (responseVariableErrors.Count > 0)
-                    {
-                        return RuleExecutionResult.Fail(responseVariableErrors);
-                    }
-
-                    continuationVariables = updatedVariables!;
-
-                    var cursor = rawCursor.Trim();
-                    if (cursor.Length > SourceRuleDslValidator.MaxPaginationCursorLength ||
-                        cursor.Any(char.IsControl))
-                    {
-                        return RuleExecutionResult.Fail(
-                            ["pagination: cursor value is invalid or too long."]);
-                    }
-
-                    if (!visitedCursors.Add(cursor))
-                    {
-                        return RuleExecutionResult.Fail(["pagination: cursor cycle detected."]);
-                    }
-
-                    var cursorBuildErrors = TryBuildRequest(
-                        rule,
-                        baseUrl,
-                        continuationVariables,
-                        pagination.ParameterName,
-                        cursor,
-                        out var nextRequest);
-                    if (cursorBuildErrors.Count > 0)
-                    {
-                        return RuleExecutionResult.Fail(cursorBuildErrors);
-                    }
-
-                    if (!TryApplyCredential(
-                            nextRequest!,
-                            credentialResolution.Credential,
-                            out var preparedNextRequest,
-                            out var cursorCredentialError))
-                    {
-                        return RuleExecutionResult.Fail([cursorCredentialError]);
-                    }
-
-                    if (!TryValidateContinuationRequest(
-                            preparedNextRequest!,
-                            sourceOrigin,
-                            out var continuationError))
-                    {
-                        return RuleExecutionResult.Fail([continuationError]);
-                    }
-
-                    currentRequest = preparedNextRequest!;
-                    break;
+                    return ExtractFields(rule, response.Body, executionCancellation.Token);
                 }
 
-                default:
-                    return RuleExecutionResult.Fail(["pagination: mode is not supported."]);
+                switch (pagination.Mode)
+                {
+                    case RulePaginationMode.NextLink:
+                        {
+                            var nextLink = EvaluateFirst(
+                                response.Body,
+                                pagination.NextPageSelector!,
+                                pagination.NextPageAttribute,
+                                executionCancellation.Token);
+                            if (string.IsNullOrWhiteSpace(nextLink))
+                            {
+                                return CompletePagination(rule, pageBodies, executionCancellation.Token);
+                            }
+
+                            if (!TryContinueAfterPage(
+                                    page,
+                                    requestCount,
+                                    pagination,
+                                    out var limitError))
+                            {
+                                return RuleExecutionResult.Fail([limitError]);
+                            }
+
+                            if (!TryBuildNextRequest(
+                                    currentRequest,
+                                    nextLink,
+                                    sourceOrigin,
+                                    out var nextRequest,
+                                    out var nextRequestError))
+                            {
+                                return RuleExecutionResult.Fail([nextRequestError]);
+                            }
+
+                            currentRequest = nextRequest!;
+                            break;
+                        }
+
+                    case RulePaginationMode.PageNumber:
+                        {
+                            var hasNextPage = EvaluateFirst(
+                                response.Body,
+                                pagination.NextPageSelector!,
+                                pagination.NextPageAttribute,
+                                executionCancellation.Token);
+                            if (string.IsNullOrWhiteSpace(hasNextPage))
+                            {
+                                return CompletePagination(rule, pageBodies, executionCancellation.Token);
+                            }
+
+                            if (!TryContinueAfterPage(
+                                    page,
+                                    requestCount,
+                                    pagination,
+                                    out var limitError))
+                            {
+                                return RuleExecutionResult.Fail([limitError]);
+                            }
+
+                            var responseVariableErrors = TryBuildResponseVariables(
+                                rule.ResponseVariables,
+                                $"rules[{rule.Capability}] responseVariables",
+                                response.Body,
+                                continuationVariables,
+                                executionCancellation.Token,
+                                out var updatedVariables);
+                            if (responseVariableErrors.Count > 0)
+                            {
+                                return RuleExecutionResult.Fail(responseVariableErrors);
+                            }
+
+                            continuationVariables = updatedVariables!;
+
+                            var nextPageValue = (long)pagination.StartPage +
+                                (long)page * pagination.PageStep;
+                            if (nextPageValue > SourceRuleDslValidator.MaxPaginationPageValue)
+                            {
+                                return RuleExecutionResult.Fail(
+                                    ["pagination: generated page value exceeds the allowed range."]);
+                            }
+
+                            var pageBuildErrors = TryBuildRequest(
+                                rule,
+                                baseUrl,
+                                continuationVariables,
+                                pagination.ParameterName,
+                                nextPageValue.ToString(CultureInfo.InvariantCulture),
+                                out var nextRequest);
+                            if (pageBuildErrors.Count > 0)
+                            {
+                                return RuleExecutionResult.Fail(pageBuildErrors);
+                            }
+
+                            if (!TryApplyCredential(
+                                    nextRequest!,
+                                    credentialResolution.Credential,
+                                    out var preparedNextRequest,
+                                    out var pageCredentialError))
+                            {
+                                return RuleExecutionResult.Fail([pageCredentialError]);
+                            }
+
+                            if (!TryValidateContinuationRequest(
+                                    preparedNextRequest!,
+                                    sourceOrigin,
+                                    out var continuationError))
+                            {
+                                return RuleExecutionResult.Fail([continuationError]);
+                            }
+
+                            currentRequest = preparedNextRequest!;
+                            break;
+                        }
+
+                    case RulePaginationMode.Cursor:
+                        {
+                            var rawCursor = EvaluateFirst(
+                                response.Body,
+                                pagination.CursorSelector!,
+                                pagination.CursorAttribute,
+                                executionCancellation.Token);
+                            if (string.IsNullOrWhiteSpace(rawCursor))
+                            {
+                                return CompletePagination(rule, pageBodies, executionCancellation.Token);
+                            }
+
+                            if (!TryContinueAfterPage(
+                                    page,
+                                    requestCount,
+                                    pagination,
+                                    out var limitError))
+                            {
+                                return RuleExecutionResult.Fail([limitError]);
+                            }
+
+                            var responseVariableErrors = TryBuildResponseVariables(
+                                rule.ResponseVariables,
+                                $"rules[{rule.Capability}] responseVariables",
+                                response.Body,
+                                continuationVariables,
+                                executionCancellation.Token,
+                                out var updatedVariables);
+                            if (responseVariableErrors.Count > 0)
+                            {
+                                return RuleExecutionResult.Fail(responseVariableErrors);
+                            }
+
+                            continuationVariables = updatedVariables!;
+
+                            var cursor = rawCursor.Trim();
+                            if (cursor.Length > SourceRuleDslValidator.MaxPaginationCursorLength ||
+                                cursor.Any(char.IsControl))
+                            {
+                                return RuleExecutionResult.Fail(
+                                    ["pagination: cursor value is invalid or too long."]);
+                            }
+
+                            if (!visitedCursors.Add(cursor))
+                            {
+                                return RuleExecutionResult.Fail(["pagination: cursor cycle detected."]);
+                            }
+
+                            var cursorBuildErrors = TryBuildRequest(
+                                rule,
+                                baseUrl,
+                                continuationVariables,
+                                pagination.ParameterName,
+                                cursor,
+                                out var nextRequest);
+                            if (cursorBuildErrors.Count > 0)
+                            {
+                                return RuleExecutionResult.Fail(cursorBuildErrors);
+                            }
+
+                            if (!TryApplyCredential(
+                                    nextRequest!,
+                                    credentialResolution.Credential,
+                                    out var preparedNextRequest,
+                                    out var cursorCredentialError))
+                            {
+                                return RuleExecutionResult.Fail([cursorCredentialError]);
+                            }
+
+                            if (!TryValidateContinuationRequest(
+                                    preparedNextRequest!,
+                                    sourceOrigin,
+                                    out var continuationError))
+                            {
+                                return RuleExecutionResult.Fail([continuationError]);
+                            }
+
+                            currentRequest = preparedNextRequest!;
+                            break;
+                        }
+
+                    default:
+                        return RuleExecutionResult.Fail(["pagination: mode is not supported."]);
+                }
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
+        {
+            return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
         }
     }
 
@@ -767,6 +784,7 @@ public sealed class RuleAdapter
         string prefix,
         string body,
         IReadOnlyDictionary<string, string> currentVariables,
+        CancellationToken executionCancellationToken,
         out Dictionary<string, string>? updatedVariables)
     {
         updatedVariables = null;
@@ -785,24 +803,28 @@ public sealed class RuleAdapter
 
         foreach (var variable in responseVariables)
         {
+            executionCancellationToken.ThrowIfCancellationRequested();
             string? extracted;
             var errorPrefix = $"{prefix}['{variable.Name}']";
 
             if (variable.Selector is { } selector)
             {
-                extracted = _selectorEvaluator.EvaluateFirst(
+                extracted = EvaluateFirst(
                     body,
                     selector,
-                    variable.Attribute);
+                    variable.Attribute,
+                    executionCancellationToken);
             }
             else if (variable.Regex is { } regexSpec)
             {
+                executionCancellationToken.ThrowIfCancellationRequested();
                 extracted = EvaluateRegex(
                     body,
                     regexSpec,
                     errorPrefix,
                     _limits.MaxRegexTime,
                     errors);
+                executionCancellationToken.ThrowIfCancellationRequested();
             }
             else
             {
@@ -826,11 +848,15 @@ public sealed class RuleAdapter
                 };
             }
 
+            executionCancellationToken.ThrowIfCancellationRequested();
+
             // Derived values are transient request context. Reuse the same bounded
             // validation as caller variables before they can reach a continuation URL,
             // header, query, or form value.
             candidate[variable.Name] = extracted;
         }
+
+        executionCancellationToken.ThrowIfCancellationRequested();
 
         if (errors.Count > 0)
         {
@@ -871,9 +897,10 @@ public sealed class RuleAdapter
 
     private RuleExecutionResult CompletePagination(
         CapabilityRule rule,
-        IReadOnlyList<string> pageBodies)
+        IReadOnlyList<string> pageBodies,
+        CancellationToken executionCancellationToken)
     {
-        var extracted = ExtractFields(rule, pageBodies[0]);
+        var extracted = ExtractFields(rule, pageBodies[0], executionCancellationToken);
         return extracted.IsSuccess
             ? extracted with { PageBodies = pageBodies.ToArray() }
             : extracted;
@@ -1263,7 +1290,10 @@ public sealed class RuleAdapter
         name.Equals("cookie", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("set-cookie", StringComparison.OrdinalIgnoreCase);
 
-    private RuleExecutionResult ExtractFields(CapabilityRule rule, string body)
+    private RuleExecutionResult ExtractFields(
+        CapabilityRule rule,
+        string body,
+        CancellationToken executionCancellationToken)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         var errors = new List<string>();
@@ -1271,21 +1301,27 @@ public sealed class RuleAdapter
 
         foreach (var field in rule.Fields)
         {
+            executionCancellationToken.ThrowIfCancellationRequested();
             string? extracted;
 
             if (field.Selector is { } selector)
             {
-                extracted = _selectorEvaluator.EvaluateFirst(
-                    body, selector, field.Attribute);
+                extracted = EvaluateFirst(
+                    body,
+                    selector,
+                    field.Attribute,
+                    executionCancellationToken);
             }
             else if (field.Regex is { } regexSpec)
             {
+                executionCancellationToken.ThrowIfCancellationRequested();
                 extracted = EvaluateRegex(
                     body,
                     regexSpec,
                     $"rules[{rule.Capability}]['{field.Name}']",
                     _limits.MaxRegexTime,
                     errors);
+                executionCancellationToken.ThrowIfCancellationRequested();
             }
             else
             {
@@ -1309,6 +1345,8 @@ public sealed class RuleAdapter
                 };
             }
 
+            executionCancellationToken.ThrowIfCancellationRequested();
+
             var extractedBytes = Encoding.UTF8.GetByteCount(extracted);
             resultBytes += extractedBytes;
             if (resultBytes > _limits.MaxResultSize)
@@ -1320,7 +1358,21 @@ public sealed class RuleAdapter
             values[field.Name] = extracted;
         }
 
+        executionCancellationToken.ThrowIfCancellationRequested();
+
         return errors.Count > 0 ? RuleExecutionResult.Fail(errors) : RuleExecutionResult.Ok(values, body);
+    }
+
+    private string? EvaluateFirst(
+        string body,
+        RuleSelector selector,
+        string? attributeName,
+        CancellationToken executionCancellationToken)
+    {
+        executionCancellationToken.ThrowIfCancellationRequested();
+        var value = _selectorEvaluator.EvaluateFirst(body, selector, attributeName);
+        executionCancellationToken.ThrowIfCancellationRequested();
+        return value;
     }
 
     private static string? EvaluateRegex(

@@ -76,12 +76,12 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 ```text
 Name: Rule selector execution deadline fencing
 Objective / user outcome: RuleAdapter 在选择器/字段提取超过 MaxExecutionTime 后 fail-closed，不返回超时后的值或部分页面结果。
-In scope: RuleAdapter selector/extraction cancellation boundaries; field, pagination, and response-variable regression tests; source-runtime and delivery docs.
+In scope: RuleAdapter selector/extraction cancellation boundaries; RuleBasedSourceAdapter Search/TOC list binding; field, pagination, response-variable, and list-binding regression tests; source-runtime and delivery docs.
 Non-goals: selector syntax, dynamic multi-request/branch/recursive execution, MaxDepth, public API/Legado, Schema/Migration, credential storage, retry policy, and live-source acceptance.
-Acceptance: internal deadline expiry returns the stable time-budget error with no values/bodies; normal fields, pagination, and derived variables are fenced; caller cancellation still propagates; existing valid source behavior remains unchanged.
+Acceptance: internal deadline expiry returns the stable time-budget error with no values/bodies; normal fields, pagination, derived variables, and Search/TOC list binding are fenced; caller cancellation still propagates; existing valid source behavior remains unchanged.
 Status: In Progress.
 Verification: focused red/green Source unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
-Evidence: intake only; implementation and gates pending.
+ Evidence: implementation complete; local Release restore/build passed with 0 warnings/0 errors; Unit 605/605, Architecture 1/1, Contract 12/12, migration model 11/11, and diff/secret audit passed. Integration is 8 passed / 3 skipped / 116 blocked by unavailable Docker named pipe; exact-SHA CI/Docker/Security pending.
 Boundary: local Docker/Testcontainers and live-source checks remain independent environment/manual boundaries; `.workbuddy-ai/` remains untracked and untouched.
 ```
 

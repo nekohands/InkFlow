@@ -414,6 +414,103 @@ public sealed class RuleAdapterTests
     }
 
     [TestMethod]
+    public async Task Execution_Time_Budget_Fails_Closed_When_Field_Extraction_Returns_Late()
+    {
+        var http = new FakeHttpClient();
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (_, _) =>
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(60));
+                return "late-value";
+            },
+        };
+        var limits = new SourceRuleExecutionLimits
+        {
+            MaxExecutionTime = TimeSpan.FromMilliseconds(10),
+        };
+
+        var result = await new RuleAdapter(http, evaluator, limits).ExecuteAsync(
+            SearchRule(),
+            BaseUrl,
+            new Dictionary<string, string> { ["query"] = "q", ["page"] = "1" });
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("time budget exceeded")));
+        Assert.AreEqual(0, result.Values.Count);
+        Assert.AreEqual(0, result.ResponseBodies.Count);
+    }
+
+    [TestMethod]
+    public async Task Caller_Cancellation_During_Field_Extraction_Is_Propagated()
+    {
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (_, _) =>
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(60));
+                return "late-value";
+            },
+        };
+        using var callerCancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(10));
+
+        var propagated = false;
+        try
+        {
+            await new RuleAdapter(new FakeHttpClient(), evaluator).ExecuteAsync(
+                SearchRule(),
+                BaseUrl,
+                new Dictionary<string, string> { ["query"] = "q", ["page"] = "1" },
+                callerCancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            propagated = true;
+        }
+
+        Assert.IsTrue(propagated);
+    }
+
+    [TestMethod]
+    public async Task Execution_Time_Budget_Fails_Closed_When_Response_Variable_Returns_Late()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.BookInfo,
+            RuleRequest.Get("/book/{token}"),
+            [],
+            PreRequests:
+            [
+                new RuleRequestStep(
+                    "bootstrap",
+                    RuleRequest.Get("/bootstrap"),
+                    [new RuleResponseVariable(
+                        "token",
+                        new RuleSelector(SelectorKind.Css, ".token"),
+                        null,
+                        [])]),
+            ]);
+        var http = new FakeHttpClient();
+        var evaluator = new FakeSelectorEvaluator
+        {
+            Handler = (_, _) =>
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(60));
+                return "late-token";
+            },
+        };
+        var limits = new SourceRuleExecutionLimits
+        {
+            MaxExecutionTime = TimeSpan.FromMilliseconds(10),
+        };
+
+        var result = await new RuleAdapter(http, evaluator, limits).ExecuteAsync(rule, BaseUrl);
+
+        Assert.IsFalse(result.IsSuccess);
+        Assert.IsTrue(result.Errors.Any(error => error.Contains("time budget exceeded")));
+        Assert.AreEqual(1, http.CallCount);
+    }
+
+    [TestMethod]
     public async Task Response_Over_Max_Bytes_Fails_Before_Field_Extraction()
     {
         var http = new FakeHttpClient

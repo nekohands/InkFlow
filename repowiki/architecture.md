@@ -53,8 +53,10 @@ Parent/root index: [README.md](README.md)
 - Outbound HTTP passes `SsrfGuard` (literal + DNS) and connection-level
   `SsrfSafeHttpMessageHandler` (same resolved IPs, no proxy, ports 80/443,
   ≤5 redirects); private/loopback/link-local/metadata ranges blocked.
-- Budgets bound requests, bytes, time, regex; credentials travel by reference
-  only (`CredentialReference`), never in task payloads.
+- Budgets bound requests, bytes, time, regex, and response extraction/list
+  binding; selector work that crosses the execution deadline fails closed and
+  never returns partial values or pages. Credentials travel by reference only
+  (`CredentialReference`), never in task payloads.
 - Trusted Kanunu8/17K CodeAdapters use the same `SourceRuleExecutionLimits`:
   `SourceResponseReader` rejects oversized bodies before decode/parse, and
   Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.

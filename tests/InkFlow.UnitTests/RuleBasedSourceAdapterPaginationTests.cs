@@ -25,6 +25,8 @@ public sealed class RuleBasedSourceAdapterPaginationTests
                     "<a class=\"book\" href=\"/book/2\">Two</a><a class=\"next\" href=\"/search?page=3\">Next</a>",
                 "https://books.example.com/search?page=3" =>
                     "<a class=\"book\" href=\"/book/3\">Three</a>",
+                "https://books.example.com/book/1" =>
+                    "<a class=\"chapter\" href=\"/chapter/1\">Chapter</a>",
                 _ => string.Empty,
             };
 
@@ -79,6 +81,27 @@ public sealed class RuleBasedSourceAdapterPaginationTests
             return Task.FromResult(new SourceHttpResponse(
                 response.Length == 0 ? 404 : 200,
                 response));
+        }
+    }
+
+    private sealed class SlowListSelectorEvaluator : ISelectorEvaluator
+    {
+        public string? EvaluateFirst(
+            string documentBody,
+            RuleSelector selector,
+            string? attributeName = null) => null;
+
+        public IReadOnlyList<SelectorElementSnapshot> SelectAll(
+            string documentBody,
+            RuleSelector selector)
+        {
+            Thread.Sleep(TimeSpan.FromMilliseconds(60));
+            return
+            [
+                new SelectorElementSnapshot(
+                    "One",
+                    new Dictionary<string, string> { ["href"] = "/book/1" }),
+            ];
         }
     }
 
@@ -207,5 +230,71 @@ public sealed class RuleBasedSourceAdapterPaginationTests
         CollectionAssert.AreEqual(
             new[] { "1", "2" },
             results.Select(result => result.ExternalBookId).ToArray());
+    }
+
+    [TestMethod]
+    public async Task Search_List_Extraction_Fails_Closed_After_Execution_Deadline()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.book", "href", "/book/", string.Empty));
+        var source = Source.Rehydrate(
+            "slow-list-source",
+            "慢列表来源",
+            "https://books.example.com",
+            new SourceRuleDsl("1", "slow-list-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow);
+        var limits = new SourceRuleExecutionLimits
+        {
+            MaxExecutionTime = TimeSpan.FromMilliseconds(10),
+        };
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(
+                new PagingHttpClient(),
+                new RuleSelectorEvaluator(),
+                limits),
+            new SlowListSelectorEvaluator(),
+            limits);
+
+        var results = await adapter.SearchAsync("keyword");
+
+        Assert.AreEqual(0, results.Count);
+    }
+
+    [TestMethod]
+    public async Task Toc_List_Extraction_Fails_Closed_After_Execution_Deadline()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Toc,
+            RuleRequest.Get("/book/1"),
+            [],
+            List: new RuleListBinding("a.chapter", "href", "/chapter/", string.Empty));
+        var source = Source.Rehydrate(
+            "slow-toc-source",
+            "慢目录来源",
+            "https://books.example.com",
+            new SourceRuleDsl("1", "slow-toc-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow);
+        var limits = new SourceRuleExecutionLimits
+        {
+            MaxExecutionTime = TimeSpan.FromMilliseconds(10),
+        };
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(
+                new PagingHttpClient(),
+                new RuleSelectorEvaluator(),
+                limits),
+            new SlowListSelectorEvaluator(),
+            limits);
+
+        var entries = await adapter.GetTableOfContentsAsync("1");
+
+        Assert.AreEqual(0, entries.Count);
     }
 }

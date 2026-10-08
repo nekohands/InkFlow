@@ -52,50 +52,69 @@ public sealed class RuleBasedSourceAdapter(
             return [];
         }
 
-        var result = await ruleAdapter
-            .ExecuteAsync(
-                rule,
-                source.BaseUrl,
-                new Dictionary<string, string> { ["key"] = keyword },
-                cancellationToken,
-                NormalizeExecutionContext(executionContext))
-            .ConfigureAwait(false);
+        using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        executionCancellation.CancelAfter(_limits.MaxExecutionTime);
 
-        if (!result.IsSuccess)
+        try
+        {
+            var result = await ruleAdapter
+                .ExecuteAsync(
+                    rule,
+                    source.BaseUrl,
+                    new Dictionary<string, string> { ["key"] = keyword },
+                    executionCancellation.Token,
+                    NormalizeExecutionContext(executionContext))
+                .ConfigureAwait(false);
+
+            if (!result.IsSuccess)
+            {
+                return [];
+            }
+
+            var results = new List<SourceSearchResult>();
+            long resultBytes = 0;
+
+            foreach (var body in result.ResponseBodies)
+            {
+                executionCancellation.Token.ThrowIfCancellationRequested();
+                var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
+                executionCancellation.Token.ThrowIfCancellationRequested();
+                foreach (var item in items)
+                {
+                    executionCancellation.Token.ThrowIfCancellationRequested();
+                    var externalId = ExtractExternalId(item, rule.List);
+                    if (string.IsNullOrEmpty(externalId))
+                    {
+                        continue;
+                    }
+
+                    const string unknownAuthor = "未知";
+                    var title = GetItemText(item, rule.List);
+                    executionCancellation.Token.ThrowIfCancellationRequested();
+                    var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
+                        Encoding.UTF8.GetByteCount(title) +
+                        Encoding.UTF8.GetByteCount(unknownAuthor);
+                    if (resultBytes + itemBytes > _limits.MaxResultSize)
+                    {
+                        return [];
+                    }
+
+                    resultBytes += itemBytes;
+                    results.Add(new SourceSearchResult(externalId, title, unknownAuthor));
+                }
+            }
+
+            executionCancellation.Token.ThrowIfCancellationRequested();
+            return results;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
         {
             return [];
         }
-
-        var results = new List<SourceSearchResult>();
-        long resultBytes = 0;
-
-        foreach (var body in result.ResponseBodies)
-        {
-            var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
-            foreach (var item in items)
-            {
-                var externalId = ExtractExternalId(item, rule.List);
-                if (string.IsNullOrEmpty(externalId))
-                {
-                    continue;
-                }
-
-                const string unknownAuthor = "未知";
-                var title = GetItemText(item, rule.List);
-                var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
-                    Encoding.UTF8.GetByteCount(title) +
-                    Encoding.UTF8.GetByteCount(unknownAuthor);
-                if (resultBytes + itemBytes > _limits.MaxResultSize)
-                {
-                    return [];
-                }
-
-                resultBytes += itemBytes;
-                results.Add(new SourceSearchResult(externalId, title, unknownAuthor));
-            }
-        }
-
-        return results;
     }
 
     public Task<SourceBookInfo?> GetBookInfoAsync(
@@ -145,49 +164,68 @@ public sealed class RuleBasedSourceAdapter(
             return [];
         }
 
-        var result = await ExecuteWithVariablesAsync(
-            rule,
-            new Dictionary<string, string> { ["bookId"] = externalBookId },
-            cancellationToken,
-            executionContext).ConfigureAwait(false);
+        using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        executionCancellation.CancelAfter(_limits.MaxExecutionTime);
 
-        if (!result.IsSuccess)
+        try
+        {
+            var result = await ExecuteWithVariablesAsync(
+                rule,
+                new Dictionary<string, string> { ["bookId"] = externalBookId },
+                executionCancellation.Token,
+                executionContext).ConfigureAwait(false);
+
+            if (!result.IsSuccess)
+            {
+                return [];
+            }
+
+            var bodies = result.ResponseBodies;
+
+            var index = 0;
+            var entries = new List<SourceTocEntry>();
+            long resultBytes = 0;
+
+            foreach (var body in bodies)
+            {
+                executionCancellation.Token.ThrowIfCancellationRequested();
+                var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
+                executionCancellation.Token.ThrowIfCancellationRequested();
+                foreach (var item in items)
+                {
+                    executionCancellation.Token.ThrowIfCancellationRequested();
+                    var externalId = ExtractExternalId(item, rule.List);
+                    var title = GetItemText(item, rule.List);
+                    executionCancellation.Token.ThrowIfCancellationRequested();
+
+                    if (string.IsNullOrEmpty(externalId) || string.IsNullOrEmpty(title))
+                    {
+                        continue;
+                    }
+
+                    var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
+                        Encoding.UTF8.GetByteCount(title);
+                    if (resultBytes + itemBytes > _limits.MaxResultSize)
+                    {
+                        return [];
+                    }
+
+                    resultBytes += itemBytes;
+                    entries.Add(new SourceTocEntry(externalId, index++, title));
+                }
+            }
+
+            executionCancellation.Token.ThrowIfCancellationRequested();
+            return entries;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
         {
             return [];
         }
-
-        var bodies = result.ResponseBodies;
-
-        var index = 0;
-        var entries = new List<SourceTocEntry>();
-        long resultBytes = 0;
-
-        foreach (var body in bodies)
-        {
-            var items = selectorEvaluator.SelectAll(body, ToSelector(rule.List));
-            foreach (var item in items)
-            {
-                var externalId = ExtractExternalId(item, rule.List);
-                var title = GetItemText(item, rule.List);
-
-                if (string.IsNullOrEmpty(externalId) || string.IsNullOrEmpty(title))
-                {
-                    continue;
-                }
-
-                var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
-                    Encoding.UTF8.GetByteCount(title);
-                if (resultBytes + itemBytes > _limits.MaxResultSize)
-                {
-                    return [];
-                }
-
-                resultBytes += itemBytes;
-                entries.Add(new SourceTocEntry(externalId, index++, title));
-            }
-        }
-
-        return entries;
     }
 
     public Task<string?> GetChapterContentAsync(
