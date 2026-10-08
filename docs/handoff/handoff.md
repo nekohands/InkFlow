@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.67 Source list-result budget fencing In Progress；5.66 Discovery search budget fencing 已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.67 Source list-result budget fencing Accepted；当前无活动工作包；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -199,13 +199,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 门禁：候选 SHA `193722cffb726c7338128be1f66111369b48a8a9` 的 [CI 37715153756](https://github.com/nekohands/InkFlow/actions/runs/37715153756)、[Docker 37715153801](https://github.com/nekohands/InkFlow/actions/runs/37715153801)、[Security 37715153778](https://github.com/nekohands/InkFlow/actions/runs/37715153778) 均 success 且 head SHA 一致。
 - 下一步：当前无活动工作包；重新 intake 下一个有证据的最小工作包。Source registry cardinality、真实来源、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定；`.workbuddy-ai/` 保持未跟踪且未触碰。
 
-### 5.67 Source list-result budget fencing 交接（本轮，2026-10-08，In Progress）
+### 5.67 Source list-result budget fencing 交接（本轮，2026-10-08，Accepted）
 
 - 缺口：`SourceRuleExecutionLimits` 已限制请求、响应字节、时间、选择器和结果字节，但 Rule/Code Source 的 Search/TOC 投影仍没有条目数量上限；`SourceCatalogService` 也会接受任意 adapter 返回的完整 TOC 后再同步。
 - 目标：复用既有执行预算加入有限 `MaxResultItems`，覆盖 RuleBased、Kanunu8、17K 和通用 TOC 持久化前防线；超限整体 fail-closed，不返回或写入部分列表，不改变 `ISourceAdapter`、公共 API/Legado JSON 或 Schema/Migration。
 - 范围边界：默认上限沿用既有 10,000 章节/包上限；不改分页语义、Source registry paging、HTTP/body/time/regex 预算、章节 ID/历史、权限、重试策略或真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
 - 验收/验证：正常列表、稳定 ID/顺序和调用方取消保持不变；超过预算的 Search/TOC fail-closed；通用 TOC 超限在持久化前返回稳定非敏感错误。先完成 adapter/catalog focused red/green，再执行 Unit/Architecture/Contract、Release Build、migration model、diff/secret、适用 Integration/Runtime 和精确 SHA CI/Docker/Security。
-- 当前状态：Intake 完成，代码与回归尚未开始；下一步先建立 RuleBased、Kanunu8、17K 和 SourceCatalogService 的超限红灯。
+- 实现：`MaxResultItems` 默认 10,000 且沿用既有 limits 校验；RuleBased、Kanunu8、17K 的 Search/TOC 超限整体 fail-closed；SourceCatalogService 在 health success/持久化前增加 10,000 条 TOC 防线。未改 `ISourceAdapter`、公共 API/Legado JSON、Schema/Migration。
+- 当前状态：实现与交付门禁已完成；focused adapter/catalog 25/25、Unit 615/615、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）。
+- 门禁：实现 SHA `2853c5e71cb321284113637042a7a91b224b069f` 的 [CI 37717734392](https://github.com/nekohands/InkFlow/actions/runs/37717734392)、[Docker 37717734423](https://github.com/nekohands/InkFlow/actions/runs/37717734423)、[Security 37717734362](https://github.com/nekohands/InkFlow/actions/runs/37717734362) 均 success，含远端 PostgreSQL/runtime/Compose smoke。
+- 下一步：当前无活动工作包；重新 intake 下一个有证据的最小工作包。Source registry cardinality、真实来源、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定；`.workbuddy-ai/` 保持未跟踪且未触碰。
 
 ### 5.65 Rule selector execution deadline fencing 交接（本轮，2026-10-08，Accepted）
 

@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.67 Source list-result budget fencing In Progress；5.66 Discovery search budget fencing 已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.67 Source list-result budget fencing Accepted；当前无活动工作包；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -47,13 +47,16 @@ Phase 1A 自动化工作包状态：
 
 
 > 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。
-### 5.67 Source list-result budget fencing（本轮，2026-10-08，In Progress）
+### 5.67 Source list-result budget fencing（本轮，2026-10-08，Accepted）
 
 - 缺口：`SourceRuleExecutionLimits` 已限制请求、响应字节、时间、选择器和结果字节，但 Rule/Code Source 的 Search/TOC 投影仍没有条目数量上限；`SourceCatalogService` 也会接受任意 adapter 返回的完整 TOC 后再同步。
 - Intake：本包复用既有执行预算加入有限 `MaxResultItems`，覆盖 RuleBased、Kanunu8、17K 和通用 TOC 同步防线；不改 `ISourceAdapter`、公共 API/Legado JSON、分页语义、Source registry、Schema/Migration、权限或重试策略。
 - 验收：正常列表、稳定 ID/顺序和取消语义不变；超过经验证条目预算时 fail-closed，不返回部分结果；超限 TOC 在持久化前被拒绝并返回稳定非敏感错误。
 - 验证计划：RuleBased/Kanunu8/17K/SourceCatalogService 红绿回归、完整 Unit/Architecture/Contract、Release Restore/Build、迁移模型检查、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
-- 状态：In Progress；默认上限暂定沿用既有 10,000 章节/包上限，真实来源与 Release Candidate 人工验收仍为独立边界。
+- 实现：在既有 `SourceRuleExecutionLimits` 中加入经验证的 `MaxResultItems`（默认 10,000）；RuleBased、Kanunu8、17K 的 Search/TOC 超限整体 fail-closed；`SourceCatalogService` 在 health success 和持久化前拒绝超限 TOC。
+- 验证：focused adapter/catalog 25/25、Unit 615/615、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、迁移模型检查 11/11、diff/secret audit PASS；本机 Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）。
+- 门禁：实现 SHA `2853c5e71cb321284113637042a7a91b224b069f` 的 [CI 37717734392](https://github.com/nekohands/InkFlow/actions/runs/37717734392)、[Docker 37717734423](https://github.com/nekohands/InkFlow/actions/runs/37717734423)、[Security 37717734362](https://github.com/nekohands/InkFlow/actions/runs/37717734362) 均 success，含远端 PostgreSQL/runtime/Compose smoke。
+- 状态：Accepted；默认上限沿用既有 10,000 章节/包上限，Source registry cardinality、真实来源与 Release Candidate 人工验收仍为独立边界；当前无活动工作包。
 
 ### 5.66 Discovery search budget fencing（本轮，2026-10-08，Accepted）
 

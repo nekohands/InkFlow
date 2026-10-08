@@ -1,6 +1,6 @@
 # 5.67 Source list-result budget fencing
 
-Status: In Progress
+Status: Accepted
 
 ## Objective
 
@@ -61,3 +61,27 @@ execution budgets remain separate lower-level defenses.
 - Run applicable Integration/Runtime gates; record the known local Docker
   named-pipe limitation explicitly and verify the candidate SHA in CI/Docker/
   Security before acceptance.
+
+## Implementation
+
+- `SourceRuleExecutionLimits.MaxResultItems` is validated, defaults to 10,000,
+  and fences RuleBased Search/TOC plus Kanunu8 and 17K Search/TOC projections.
+- Over-limit projections return no partial list. `SourceCatalogService` adds a
+  10,000-entry defense-in-depth TOC check before health success or persistence.
+- No `ISourceAdapter`, public API/Legado JSON, schema, or migration change.
+
+## Delivery evidence
+
+- Focused adapter/catalog regressions: 25/25; full Unit: 615/615;
+  Architecture: 1/1; Contract: 12/12.
+- Restore and Release Build: PASS, 0 warnings / 0 errors; migration model
+  check: 11/11; `git diff --check` and diff/secret audit: PASS.
+- Local Integration was attempted: 8 passed / 3 skipped / 116 blocked by the
+  unavailable Windows Docker endpoint `npipe://./pipe/docker_engine`.
+- Candidate implementation SHA `2853c5e71cb321284113637042a7a91b224b069f`
+  passed exact-SHA CI `37717734392`, Docker `37717734423`, and Security
+  `37717734362`, including remote PostgreSQL/runtime/Compose smoke.
+
+Local Docker/Testcontainers and live-source/manual Release Candidate checks
+remain independent environment boundaries; `.workbuddy-ai/` remains untracked
+and untouched.
