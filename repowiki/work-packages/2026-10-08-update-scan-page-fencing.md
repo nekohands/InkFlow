@@ -1,6 +1,6 @@
 # 5.68 Scheduled update-scan page/fan-out fencing
 
-Status: In Progress
+Status: Accepted
 
 ## Objective
 
@@ -58,3 +58,39 @@ work package if restart fairness becomes a measured requirement.
 - Full Unit, Architecture, Contract, Release Restore/Build, migration model
   check, diff/secret audit, applicable Integration/Runtime, and exact-SHA
   CI/Docker/Security verification.
+
+## Implementation
+
+- Added `ISourceBookRepository.ListPageAsync` with a stable `(CreatedAt, Id)`
+  keyset cursor and a bounded EF/PostgreSQL query; the scheduled path no longer
+  calls `ListAllAsync`.
+- `UpdateScanService` and Scheduler process at most 100 books per tick, advance
+  an in-process cursor only after a successful batch, and reset it after the
+  last page. Existing health filtering, atomic task dedupe, and cancellation
+  remain in the same loop.
+- No public adapter/API/Legado contract, Schema, or Migration changed.
+
+## Verification
+
+- Focused `UpdateScanServiceTests` 4/4 and affected EndToEnd scheduler test
+  1/1; Unit 616/616; Architecture 1/1; Contract 12/12.
+- Release restore/build passed with 0 warnings / 0 errors; PowerShell
+  migration model check 11/11; `git diff --check` and secret audit passed.
+- Local Integration was executed: 8 passed / 3 skipped / 117 blocked by the
+  unavailable Windows Docker named pipe `npipe://./pipe/docker_engine`.
+  The PostgreSQL keyset-page regression passed in the remote full test gate.
+
+## Delivery
+
+- Initial implementation SHA `a9686fd114c2704360588b81eb64d9c6f35f9df3`
+  exposed an existing integration-test repository double that still only
+  implemented `ListAllAsync`; follow-up SHA
+  `83f12e8cdc30837ed6a8309e0288829966065eaf` added the bounded test fixture
+  implementation and is the final candidate.
+- Final candidate CI `37721216436`, Docker `37721216460`, and Security
+  `37721216368` all passed with the exact head SHA, including PostgreSQL,
+  runtime, Compose, CodeQL, dependency, image, and filesystem gates.
+- Remaining boundary: the cursor is intentionally in-memory; restart replay
+  and multi-Scheduler coordination would require a separately owned durable
+  cursor design. Real sources and Release Candidate manual acceptance remain
+  independent.

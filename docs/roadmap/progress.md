@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.68 Scheduled update-scan page/fan-out fencing In Progress；5.67 Source list-result budget fencing Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.68 Scheduled update-scan page/fan-out fencing Accepted；当前无活动工作包；5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -47,14 +47,17 @@ Phase 1A 自动化工作包状态：
 
 
 > 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。
-### 5.68 Scheduled update-scan page/fan-out fencing（本轮，2026-10-08，In Progress）
+### 5.68 Scheduled update-scan page/fan-out fencing（本轮，2026-10-08，Accepted）
 
 - 缺口：`UpdateScanService` 通过 `ListAllAsync` 一次性物化全部 `SourceBook`，随后逐本创建追更任务；书库规模增长会同时放大内存峰值和单轮调度 fan-out。
 - Intake：本包将 scheduled update-scan 改为 `(CreatedAt, Id)` 有序 keyset 分页，每轮最多扫描 100 本；调度器在进程内保留游标，扫完后重置，并保留既有健康检查、任务去重和取消语义。
 - 范围边界：不持久化游标、不新增 Schema/Migration、不改变 `ISourceAdapter`、公共 API/Legado、Source registry、Worker 队列、重试策略或其他 `ListAllAsync` 调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
 - 验收：单轮不超过 100 本；跨轮游标确定性推进且无跳过/重复，末页后重置；健康不可用、冲突任务和取消语义保持；生产查询不再为 scheduled scan 物化完整书库。
 - 验证计划：先补 UpdateScanService 红绿回归和 PostgreSQL repository keyset 回归，再执行 Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
-- 状态：Intake 已完成，代码与回归尚未开始；候选改动仍限于 scheduled scan 读取/调度边界。
+- 实现：`ISourceBookRepository.ListPageAsync` 按 `(CreatedAt, Id)` 提供稳定 keyset 页；`UpdateScanService`/Scheduler 每轮最多处理 100 本，成功批次后推进进程内游标，末页重置；保留健康门控、原子去重和取消语义。无公共契约、Schema 或 Migration 变化。
+- 验证：focused UpdateScanService 4/4、受影响 EndToEnd scheduler 1/1、Unit 616/616、Architecture 1/1、Contract 12/12、Release Restore/Build 0 warnings / 0 errors、PowerShell 迁移模型 11/11、diff/secret audit PASS；本机 Integration 8 passed / 3 skipped / 117 blocked（Windows Docker named pipe 不可用）；远端完整测试通过 PostgreSQL keyset 回归及 runtime/Compose 门禁。
+- 门禁：初始实现 SHA `a9686fd114c2704360588b81eb64d9c6f35f9df3` 的 CI 暴露旧测试替身未实现分页契约，已由 `83f12e8cdc30837ed6a8309e0288829966065eaf` 修复；最终 SHA 的 [CI 37721216436](https://github.com/nekohands/InkFlow/actions/runs/37721216436)、[Docker 37721216460](https://github.com/nekohands/InkFlow/actions/runs/37721216460)、[Security 37721216368](https://github.com/nekohands/InkFlow/actions/runs/37721216368) 均 success 且 head SHA 一致。
+- 状态：Accepted；游标刻意只保存在 Scheduler 进程内，重启重扫与多 Scheduler 协调仍是独立边界；真实来源、生产凭据和 Release Candidate 人工验收不属于本包；当前无活动工作包。
 
 ### 5.67 Source list-result budget fencing（本轮，2026-10-08，Accepted）
 

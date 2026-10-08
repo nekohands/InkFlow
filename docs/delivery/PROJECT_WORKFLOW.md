@@ -69,9 +69,9 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.68，Scheduled update-scan page/fan-out fencing）。5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：Accepted（5.68，Scheduled update-scan page/fan-out fencing）。当前无活动工作包；5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
-当前工作包如下：
+当前工作包如下（刚完成）：
 
 ```text
 Name: Scheduled update-scan page/fan-out fencing
@@ -79,14 +79,21 @@ Objective / user outcome: 定时追更扫描按有限页读取来源书目并限
 In scope: ISourceBookRepository keyset page, UpdateScanService batch/cursor, Scheduler in-process cursor, focused Unit/PostgreSQL regressions, source-runtime and delivery docs.
 Non-goals: persistent scheduler cursor, Schema/Migration, public API/Legado JSON, source registry policy, worker queue redesign, task dedupe/retry policy, source adapter behavior, live-source acceptance.
 Acceptance: each tick processes at most 100 books; `(CreatedAt, Id)` cursor advances without skip/duplicate and resets at end; health skip, atomic dedupe, normal cancellation and task contracts remain unchanged; production SQL path does not call ListAllAsync.
-Status: In Progress.
-Verification: red/green UpdateScanService and repository page tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
+Status: Accepted.
+Verification: focused UpdateScanService 4/4 and affected EndToEnd scheduler 1/1; Unit 616/616; Architecture 1/1; Contract 12/12; Release Restore/Build 0 warnings / 0 errors; migration model check 11/11; diff/secret audit PASS; local Integration 8 passed / 3 skipped / 117 blocked by unavailable Windows Docker named pipe; exact-SHA CI/Docker/Security GREEN.
+Delivery: implementation SHA `a9686fd114c2704360588b81eb64d9c6f35f9df3`; final candidate `83f12e8cdc30837ed6a8309e0288829966065eaf` passed CI `37721216436`, Docker `37721216460`, and Security `37721216368` with exact head SHA. Remote full test gate passed the PostgreSQL keyset-page regression and runtime/Compose gates.
 Boundary: cursor is intentionally in-memory and restart may revisit the first page; durable cursor/multi-scheduler coordination is a separate boundary; no public contract or schema change; .workbuddy-ai/ remains untracked and untouched.
 ```
 
 最近接受工作包如下：
 
 ```text
+Name: Scheduled update-scan page/fan-out fencing
+Objective / user outcome: 定时追更扫描按有限页读取来源书目并限制每轮 TOC 入队量；连续调度在进程内推进游标，不因书目增长形成无界读取或 fan-out。
+Status: Accepted.
+Evidence: focused UpdateScanService 4/4 and affected EndToEnd scheduler 1/1; Unit 616/616; Architecture 1/1; Contract 12/12; Release Restore/Build 0 warnings / 0 errors; migration model check 11/11; local Integration 8 passed / 3 skipped / 117 blocked by unavailable Windows Docker named pipe. Final candidate `83f12e8cdc30837ed6a8309e0288829966065eaf` passed CI `37721216436`, Docker `37721216460`, and Security `37721216368`.
+Boundary: max 100 books per tick, stable `(CreatedAt, Id)` keyset, in-process cursor only; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
+
 Name: Source list-result budget fencing
 Objective / user outcome: Rule/Code Source 的 Search/TOC 列表结果受到有限条目预算保护；超限 fail-closed，不把部分列表写入来源书目或正典链路。
 Status: Accepted.
