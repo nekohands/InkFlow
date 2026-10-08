@@ -128,6 +128,39 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
         return entities.Select(ToDomain).ToList();
     }
 
+    public async Task<SourcePage> ListPageAsync(
+        SourceScanCursor? after,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 1000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        }
+
+        var query = db.Sources.AsNoTracking();
+        if (after is not null)
+        {
+            query = query.Where(source => source.Id.CompareTo(after.Id) > 0);
+        }
+
+        var entities = await query
+            .OrderBy(source => source.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var hasMore = entities.Count > limit;
+        if (hasMore)
+        {
+            entities.RemoveAt(limit);
+        }
+
+        return new SourcePage(
+            entities.Select(ToDomain).ToList(),
+            hasMore ? new SourceScanCursor(entities[^1].Id) : null,
+            hasMore);
+    }
+
     public async Task SaveAsync(Source source, CancellationToken cancellationToken = default)
     {
         var entity = await db.Sources.FindAsync([source.Id], cancellationToken).ConfigureAwait(false)

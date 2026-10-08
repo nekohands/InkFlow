@@ -41,6 +41,7 @@ public sealed class BookDiscoveryService(
     public const int MaxQueryLength = 256;
     public const int MaxSourceHits = 100;
     public const int MaxDiscoveredBooks = 100;
+    public const int MaxSourcesPerPage = 100;
 
     public async Task<DiscoveryOutcome> DiscoverAsync(
         string query, CancellationToken cancellationToken = default)
@@ -56,139 +57,155 @@ public sealed class BookDiscoveryService(
             return new DiscoveryOutcome([], ["search: query exceeds maximum length."]);
         }
 
-        var allSources = await sources.ListAsync(cancellationToken).ConfigureAwait(false);
         var warnings = new List<string>();
         var byCanonical = new Dictionary<Guid, DiscoveredBook>();
         var newlyCreated = new HashSet<Guid>();
         var totalTruncated = false;
+        SourceScanCursor? after = null;
 
-        foreach (var source in allSources)
+        while (true)
         {
-            if (byCanonical.Count >= MaxDiscoveredBooks)
+            var page = await sources
+                .ListPageAsync(after, MaxSourcesPerPage, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var source in page.Sources)
             {
-                warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
-                break;
-            }
-
-            try
-            {
-                if (!source.IsEnabled)
+                if (byCanonical.Count >= MaxDiscoveredBooks)
                 {
-                    warnings.Add($"search: source '{source.Id}' skipped (source disabled).");
-                    continue;
+                    warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
+                    totalTruncated = true;
+                    break;
                 }
 
-                if (healthReader is not null && !await healthReader
-                        .IsAvailableAsync(source.Id, SourceCapability.Search, cancellationToken)
-                        .ConfigureAwait(false))
-                {
-                    warnings.Add($"search: source '{source.Id}' skipped (Search capability unavailable).");
-                    continue;
-                }
-
-                var adapter = await adapterFactory
-                    .GetAdapterAsync(source.Id, cancellationToken)
-                    .ConfigureAwait(false);
-                if (adapter is null)
-                {
-                    warnings.Add($"search: source '{source.Id}' skipped (no usable adapter).");
-                    continue;
-                }
-
-                IReadOnlyList<SourceSearchResult> hits;
                 try
                 {
-                    hits = await adapter.SearchAsync(keyword, cancellationToken).ConfigureAwait(false);
+                    if (!source.IsEnabled)
+                    {
+                        warnings.Add($"search: source '{source.Id}' skipped (source disabled).");
+                        continue;
+                    }
+
+                    if (healthReader is not null && !await healthReader
+                            .IsAvailableAsync(source.Id, SourceCapability.Search, cancellationToken)
+                            .ConfigureAwait(false))
+                    {
+                        warnings.Add($"search: source '{source.Id}' skipped (Search capability unavailable).");
+                        continue;
+                    }
+
+                    var adapter = await adapterFactory
+                        .GetAdapterAsync(source.Id, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (adapter is null)
+                    {
+                        warnings.Add($"search: source '{source.Id}' skipped (no usable adapter).");
+                        continue;
+                    }
+
+                    IReadOnlyList<SourceSearchResult> hits;
+                    try
+                    {
+                        hits = await adapter.SearchAsync(keyword, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        warnings.Add(CreateFailureWarning("search", source.Id));
+                        continue;
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        warnings.Add(CreateFailureWarning("search", source.Id));
+                        continue;
+                    }
+
+                    if (hits.Count > MaxSourceHits)
+                    {
+                        warnings.Add(
+                            $"search: source '{source.Id}' results truncated at {MaxSourceHits}.");
+                        hits = hits.Take(MaxSourceHits).ToArray();
+                    }
+
+                    foreach (var hit in hits)
+                    {
+                        if (byCanonical.Count >= MaxDiscoveredBooks)
+                        {
+                            warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
+                            totalTruncated = true;
+                            break;
+                        }
+
+                        var import = await catalog
+                            .ImportBookInfoAsync(source.Id, hit.ExternalBookId, cancellationToken)
+                            .ConfigureAwait(false);
+
+                        if (!import.IsSuccess)
+                        {
+                            warnings.Add($"import: source '{source.Id}' book '{hit.ExternalBookId}': " +
+                                         string.Join("; ", import.Errors));
+                            continue;
+                        }
+
+                        var match = await matching
+                            .CreateOrMatchAsync(source.Id, hit.ExternalBookId, cancellationToken)
+                            .ConfigureAwait(false);
+
+                        if (!match.IsSuccess || match.Book is null)
+                        {
+                            warnings.Add($"match: source '{source.Id}' book '{hit.ExternalBookId}': " +
+                                         string.Join("; ", match.Errors));
+                            continue;
+                        }
+
+                        if (match.NewlyCreated)
+                        {
+                            newlyCreated.Add(match.Book.Id);
+                        }
+
+                        if (byCanonical.TryGetValue(match.Book.Id, out var existing))
+                        {
+                            if (!existing.SourceIds.Contains(source.Id))
+                            {
+                                byCanonical[match.Book.Id] = existing with
+                                {
+                                    SourceIds = [.. existing.SourceIds, source.Id],
+                                };
+                            }
+                        }
+                        else
+                        {
+                            byCanonical[match.Book.Id] = new DiscoveredBook(
+                                match.Book.Id,
+                                match.Book.Title,
+                                match.Book.Author,
+                                [source.Id],
+                                AlreadyInLibrary: !newlyCreated.Contains(match.Book.Id));
+                        }
+                    }
+
+                    if (totalTruncated)
+                    {
+                        break;
+                    }
                 }
                 catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
-                    warnings.Add(CreateFailureWarning("search", source.Id));
-                    continue;
+                    warnings.Add(CreateFailureWarning("discovery", source.Id));
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    warnings.Add(CreateFailureWarning("search", source.Id));
-                    continue;
-                }
-
-                if (hits.Count > MaxSourceHits)
-                {
-                    warnings.Add(
-                        $"search: source '{source.Id}' results truncated at {MaxSourceHits}.");
-                    hits = hits.Take(MaxSourceHits).ToArray();
-                }
-
-                foreach (var hit in hits)
-                {
-                    if (byCanonical.Count >= MaxDiscoveredBooks)
-                    {
-                        warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
-                        totalTruncated = true;
-                        break;
-                    }
-
-                    var import = await catalog
-                        .ImportBookInfoAsync(source.Id, hit.ExternalBookId, cancellationToken)
-                        .ConfigureAwait(false);
-
-                    if (!import.IsSuccess)
-                    {
-                        warnings.Add($"import: source '{source.Id}' book '{hit.ExternalBookId}': " +
-                                     string.Join("; ", import.Errors));
-                        continue;
-                    }
-
-                    var match = await matching
-                        .CreateOrMatchAsync(source.Id, hit.ExternalBookId, cancellationToken)
-                        .ConfigureAwait(false);
-
-                    if (!match.IsSuccess || match.Book is null)
-                    {
-                        warnings.Add($"match: source '{source.Id}' book '{hit.ExternalBookId}': " +
-                                     string.Join("; ", match.Errors));
-                        continue;
-                    }
-
-                    if (match.NewlyCreated)
-                    {
-                        newlyCreated.Add(match.Book.Id);
-                    }
-
-                    if (byCanonical.TryGetValue(match.Book.Id, out var existing))
-                    {
-                        if (!existing.SourceIds.Contains(source.Id))
-                        {
-                            byCanonical[match.Book.Id] = existing with
-                            {
-                                SourceIds = [.. existing.SourceIds, source.Id],
-                            };
-                        }
-                    }
-                    else
-                    {
-                        byCanonical[match.Book.Id] = new DiscoveredBook(
-                            match.Book.Id,
-                            match.Book.Title,
-                            match.Book.Author,
-                            [source.Id],
-                            AlreadyInLibrary: !newlyCreated.Contains(match.Book.Id));
-                    }
-                }
-
-                if (totalTruncated)
-                {
-                    break;
+                    // Import/match/factory/health failures remain isolated to this source.
+                    warnings.Add(CreateFailureWarning("discovery", source.Id));
                 }
             }
-            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+
+            if (totalTruncated || !page.HasMore)
             {
-                warnings.Add(CreateFailureWarning("discovery", source.Id));
+                break;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // Import/match/factory/health failures remain isolated to this source.
-                warnings.Add(CreateFailureWarning("discovery", source.Id));
-            }
+
+            after = page.NextCursor ?? throw new InvalidOperationException(
+                "source page reported more entries without a continuation cursor.");
         }
 
         var books = byCanonical.Values

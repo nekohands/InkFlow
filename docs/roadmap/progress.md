@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.70 Health-probe candidate batching Accepted；5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；下一工作包待基于新证据 intake；历史记录见 `progress-history.md`。
+- 文档状态：5.71 Source registry page fencing In Progress；5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -44,6 +44,17 @@ Phase 1A 自动化工作包状态：
 13. ✅ Web Reader 最小纵向体验（自动化基线已完成）。
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
+
+### 5.71 Source registry page fencing（本轮，2026-10-08，In Progress）
+
+- 缺口：`EfSourceRepository.ListAsync` 会一次性物化全部来源及规则文档；`BookDiscoveryService` 和 `SourceBookUrlResolver` 的用户请求会直接枚举完整注册表，来源数量增长时读取内存和请求前置开销无上界。
+- Intake：新增按 `Source.Id` 稳定 keyset 分页的来源仓储页查询；搜索发现与直链解析逐页消费，单次只持有固定上限的来源，保留既有来源顺序、禁用过滤、适配器解析、warning、取消和结果语义。
+- 范围边界：保留 `ListAsync` 给 Operations Center 等显式全量快照调用；不改变公共 API/Legado、Search/URL 规则、来源健康/适配器预算、Schema/Migration、durable cursor 或 `.workbuddy-ai/`。
+- 验收：两个生产调用方不再调用 `ListAsync`；EF 查询按 `Id` 排序、keyset 续页并读取 `limit + 1`；页边界不跳过来源且取消正确传播；其他全量快照调用方行为不变。
+- 验证计划：先补多页搜索/直链解析红绿回归和 PostgreSQL 分页/排序/look-ahead/取消回归，再执行 Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：`ISourceRepository` 增加 `Source.Id` keyset `SourcePage`；EF 读取固定页加一条 look-ahead；`BookDiscoveryService` 与 `SourceBookUrlResolver` 逐页消费，`OperationsCenter` 保留显式 `ListAsync` 全量快照。
+- 本地验证：TDD 红态为缺失分页契约导致的预期编译失败；focused discovery/URL `18/18`、Unit `619/619`、Architecture `1/1`、Contract `12/12`、Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法、`git diff --check` 与 changed-file secret audit PASS。完整 Integration `8 passed / 3 skipped / 120 blocked`，新 PostgreSQL 回归已编译但因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而未运行。
+- 状态：Implemented / Locally Validated；候选提交与精确 SHA 远端 CI/Docker/Security 待推送验证。
 
 ### 5.70 Health-probe candidate batching（本轮，2026-10-08，Accepted）
 

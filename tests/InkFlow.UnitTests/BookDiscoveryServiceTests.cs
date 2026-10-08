@@ -184,6 +184,42 @@ public sealed class BookDiscoveryServiceTests
     }
 
     [TestMethod]
+    public async Task Discovery_Continues_Across_Source_Pages_Without_Full_List()
+    {
+        var sourceBooks = new InMemorySourceBooks();
+        var sources = new InMemorySources { ThrowOnList = true };
+        for (var index = 0; index < BookDiscoveryService.MaxSourcesPerPage; index++)
+        {
+            sources.Store.Add(Source.Create(
+                $"src-{index:000}",
+                $"来源 {index}",
+                $"https://src-{index:000}.example.com",
+                T0));
+        }
+
+        sources.Store.Add(Source.Create(
+            "zz-target",
+            "目标来源",
+            "https://zz-target.example.com",
+            T0));
+
+        var service = BuildService(
+            sources,
+            sourceBooks,
+            new InMemoryCanonicalRepo(),
+            new InMemoryCandidates(),
+            ("zz-target", (ISourceAdapter)new RecordingAdapter(
+                "zz-target",
+                [new SourceSearchResult("target-book", "目标书", "目标作者")])));
+
+        var outcome = await service.DiscoverAsync("目标");
+
+        Assert.AreEqual("目标书", outcome.Books.Single().Title);
+        Assert.IsTrue(sources.PageCallCount > 1, "发现必须跨来源页继续读取");
+        Assert.AreEqual(0, sources.ListCallCount, "发现不得回退到全量来源读取");
+    }
+
+    [TestMethod]
     public async Task Overlong_Query_Returns_Warning_Without_Touching_Sources()
     {
         var probe = new RecordingAdapter("probe-source", []);
@@ -412,6 +448,8 @@ public sealed class BookDiscoveryServiceTests
     {
         public List<Source> Store { get; } = [];
         public int ListCallCount { get; private set; }
+        public int PageCallCount { get; private set; }
+        public bool ThrowOnList { get; init; }
 
         public Task AddAsync(Source source, CancellationToken cancellationToken = default)
         {
@@ -425,7 +463,36 @@ public sealed class BookDiscoveryServiceTests
         public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default)
         {
             ListCallCount++;
+            if (ThrowOnList)
+            {
+                throw new InvalidOperationException("source list must be paged");
+            }
+
             return Task.FromResult<IReadOnlyList<Source>>(Store.ToList());
+        }
+
+        public Task<SourcePage> ListPageAsync(
+            SourceScanCursor? after,
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            PageCallCount++;
+            var entries = Store
+                .OrderBy(source => source.Id, StringComparer.Ordinal)
+                .Where(source => after is null ||
+                    string.Compare(source.Id, after.Id, StringComparison.Ordinal) > 0)
+                .Take(limit + 1)
+                .ToList();
+            var hasMore = entries.Count > limit;
+            if (hasMore)
+            {
+                entries.RemoveAt(limit);
+            }
+
+            return Task.FromResult(new SourcePage(
+                entries,
+                hasMore ? new SourceScanCursor(entries[^1].Id) : null,
+                hasMore));
         }
 
         public Task SaveAsync(Source source, CancellationToken cancellationToken = default) => Task.CompletedTask;

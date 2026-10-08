@@ -30,6 +30,7 @@ public sealed class SourceBookUrlResolver(
 {
     private const int MaxUrlLength = 2048;
     private const int MaxExternalIdLength = 512;
+    private const int MaxSourcesPerPage = 100;
 
     public async Task<SourceBookUrlResolution> ResolveAsync(
         string? input,
@@ -73,40 +74,54 @@ public sealed class SourceBookUrlResolver(
                 "source-url.port", "non-default URL ports are not supported.");
         }
 
-        var sources = await sourceRepository.ListAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var source in sources)
+        SourceScanCursor? after = null;
+        while (true)
         {
-            if (!source.IsEnabled)
-            {
-                continue;
-            }
-
-            if (!MatchesRegisteredBase(uri, source.BaseUrl))
-            {
-                continue;
-            }
-
-            var adapter = await adapterFactory
-                .GetAdapterAsync(source.Id, cancellationToken)
+            var page = await sourceRepository
+                .ListPageAsync(after, MaxSourcesPerPage, cancellationToken)
                 .ConfigureAwait(false);
-            if (adapter is null)
+            foreach (var source in page.Sources)
             {
-                continue;
+                if (!source.IsEnabled)
+                {
+                    continue;
+                }
+
+                if (!MatchesRegisteredBase(uri, source.BaseUrl))
+                {
+                    continue;
+                }
+
+                var adapter = await adapterFactory
+                    .GetAdapterAsync(source.Id, cancellationToken)
+                    .ConfigureAwait(false);
+                if (adapter is null)
+                {
+                    continue;
+                }
+
+                if (!adapter.TryResolveBookUrl(uri, out var externalBookId) ||
+                    string.IsNullOrWhiteSpace(externalBookId) ||
+                    externalBookId.Length > MaxExternalIdLength ||
+                    externalBookId.Any(char.IsControl))
+                {
+                    continue;
+                }
+
+                var normalized = uri.GetLeftPart(UriPartial.Path);
+                return SourceBookUrlResolution.Success(
+                    source.Id,
+                    externalBookId.Trim(),
+                    normalized);
             }
 
-            if (!adapter.TryResolveBookUrl(uri, out var externalBookId) ||
-                string.IsNullOrWhiteSpace(externalBookId) ||
-                externalBookId.Length > MaxExternalIdLength ||
-                externalBookId.Any(char.IsControl))
+            if (!page.HasMore)
             {
-                continue;
+                break;
             }
 
-            var normalized = uri.GetLeftPart(UriPartial.Path);
-            return SourceBookUrlResolution.Success(
-                source.Id,
-                externalBookId.Trim(),
-                normalized);
+            after = page.NextCursor ?? throw new InvalidOperationException(
+                "source page reported more entries without a continuation cursor.");
         }
 
         return SourceBookUrlResolution.Failure(

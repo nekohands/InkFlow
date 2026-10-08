@@ -134,6 +134,12 @@ chapter-free 查询。无匹配时继续静默跳过；该边界只约束样本�
 的行，因此 100 行是候选读取与探针 fan-out 上限，不是数据库 due 过滤；游标不持久化，重启会从首批
 重扫，也不新增 Schema/Migration。
 
+搜索发现和人工输入的直链解析按 `Source.Id` 对来源注册表做稳定 keyset 分页，单次最多读取 100 个
+来源加一条 look-ahead；`BookDiscoveryService` 与 `SourceBookUrlResolver` 逐页消费，不再通过
+`ListAsync` 一次性物化所有来源及规则文档。页查询只限制内存中的单页，不改变来源顺序、禁用来源过滤、
+适配器解析、搜索结果或 URL 解析语义；Operations Center 等显式全量快照仍可使用 `ListAsync`。该游标
+只存在于当前请求，不持久化，也不新增 Schema/Migration。
+
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。

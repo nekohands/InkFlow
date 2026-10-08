@@ -22,6 +22,34 @@ public sealed class SourceBookUrlResolverTests
     }
 
     [TestMethod]
+    public async Task Resolves_Source_After_First_Page_Without_Full_List()
+    {
+        var sources = Enumerable.Range(0, 100)
+            .Select(index => Source.Create(
+                $"a-{index:000}",
+                $"来源 {index}",
+                $"https://a-{index:000}.example.com",
+                DateTimeOffset.UtcNow))
+            .Append(Source.Create(
+                "books",
+                "Books",
+                "https://books.example.com",
+                DateTimeOffset.UtcNow))
+            .ToArray();
+        var repository = new PagedSourceRepository(sources);
+        var resolver = new SourceBookUrlResolver(
+            repository,
+            new FixedAdapterFactory(new TestAdapter()));
+
+        var result = await resolver.ResolveAsync("https://books.example.com/novel/42.html");
+
+        Assert.IsTrue(result.IsSuccess);
+        Assert.AreEqual("books", result.SourceId);
+        Assert.IsTrue(repository.PageCallCount > 1, "直链解析必须跨来源页继续读取");
+        Assert.AreEqual(0, repository.ListCallCount, "直链解析不得回退到全量来源读取");
+    }
+
+    [TestMethod]
     public async Task Rejects_Query_Credentials_And_Unknown_Hosts()
     {
         var resolver = CreateResolver();
@@ -83,6 +111,49 @@ public sealed class SourceBookUrlResolverTests
             Task.FromResult<Source?>(source.Id == sourceId ? source : null);
         public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Source>>([source]);
+        public Task SaveAsync(Source value, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class PagedSourceRepository(IReadOnlyList<Source> sources) : ISourceRepository
+    {
+        public int ListCallCount { get; private set; }
+        public int PageCallCount { get; private set; }
+
+        public Task AddAsync(Source value, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<Source?> GetAsync(string sourceId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(sources.FirstOrDefault(source => source.Id == sourceId));
+
+        public Task<IReadOnlyList<Source>> ListAsync(CancellationToken cancellationToken = default)
+        {
+            ListCallCount++;
+            throw new InvalidOperationException("source list must be paged");
+        }
+
+        public Task<SourcePage> ListPageAsync(
+            SourceScanCursor? after,
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            PageCallCount++;
+            var entries = sources
+                .OrderBy(source => source.Id, StringComparer.Ordinal)
+                .Where(source => after is null ||
+                    string.Compare(source.Id, after.Id, StringComparison.Ordinal) > 0)
+                .Take(limit + 1)
+                .ToList();
+            var hasMore = entries.Count > limit;
+            if (hasMore)
+            {
+                entries.RemoveAt(limit);
+            }
+
+            return Task.FromResult(new SourcePage(
+                entries,
+                hasMore ? new SourceScanCursor(entries[^1].Id) : null,
+                hasMore));
+        }
+
         public Task SaveAsync(Source value, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 

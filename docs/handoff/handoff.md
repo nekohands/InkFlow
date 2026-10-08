@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.70 Health-probe candidate batching Accepted；5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；下一工作包待重新 intake；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.71 Source registry page fencing In Progress；5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -72,6 +72,17 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ```
 
 ## 4. 下一工作包
+
+### 5.71 Source registry page fencing 交接（本轮，2026-10-08，In Progress）
+
+- 目标：搜索发现和直接书籍 URL 解析不再一次性物化整个来源注册表；按 `Source.Id` 稳定 keyset 页逐页读取，保持跨页来源顺序和现有业务语义。
+- 范围：`ISourceRepository` 增加 `SourceScanCursor`/`SourcePage`/`ListPageAsync`；EF 按固定页大小和 `limit + 1` look-ahead 查询；`BookDiscoveryService`、`SourceBookUrlResolver` 逐页消费；补充 Unit/PostgreSQL 回归。
+- 非目标：保留 `ListAsync` 给 Operations Center 全量快照；不改公共 API/Legado、Search/URL 规则、来源健康/适配器预算、Schema/Migration、durable cursor、真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：生产两个调用方不调用 `ListAsync`；按 `Id` keyset 续页无跳过/重复，最多读取一页加一条 look-ahead，取消向下传播；显式全量快照调用方不变。
+- 验证计划：多页搜索/直链解析红绿回归、PostgreSQL keyset/排序/look-ahead/取消回归、Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 和精确 SHA CI/Docker/Security。
+- 实现：`ISourceRepository` 增加 `Source.Id` keyset `SourcePage` 与默认兼容回退；EF 查询读取固定页加一条 look-ahead；`BookDiscoveryService` 和 `SourceBookUrlResolver` 逐页读取，`OperationsCenter` 保留 `ListAsync` 全量快照。
+- 本地证据：focused discovery/URL `18/18`、Unit `619/619`、Architecture `1/1`、Contract `12/12`、Restore/tool restore PASS、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法、diff/secret audit PASS。完整 Integration `8 passed / 3 skipped / 120 blocked`，新 PostgreSQL 用例已编译但受 Windows Docker named pipe 阻塞。
+- 当前状态：Implemented / Locally Validated；待创建 candidate commit、推送并确认精确 SHA 的 CI/Docker/Security。`.workbuddy-ai/` 仍未跟踪且未触碰。
 
 ### 5.70 Health-probe candidate batching 交接（本轮，2026-10-08，Accepted）
 

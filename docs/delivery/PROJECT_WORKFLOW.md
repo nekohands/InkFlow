@@ -69,20 +69,20 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.70 Health-probe candidate batching Accepted；下一工作包待基于新证据 intake。5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.71 Source registry page fencing In Progress；5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前工作包如下：
 
 ```text
-Name: Health-probe candidate batching
-Objective / user outcome: 主动健康探针按有限页读取 Unhealthy 能力候选，避免每 10 分钟全量物化健康表并形成无界探针 fan-out。
-In scope: ISourceHealthRepository stable `(SourceId, Capability)` keyset page, HealthProbeService bounded batch result, Scheduler in-process cursor/reset, focused Unit/PostgreSQL regressions, source-runtime and delivery docs.
-Non-goals: durable cursor, Schema/Migration, public API/Legado JSON, health policy/cooldown algorithm, due-candidate SQL expression, probe concurrency/rate-limit policy, source rotation, other repository callers, live-source acceptance.
-Acceptance: production health probing reads at most 100 candidates plus one look-ahead row; SQL filters Unhealthy, applies `(SourceId, Capability)` keyset order/cursor, and returns deterministic continuation; Scheduler advances only after a successful batch and resets at the final page; existing due/skip/probe/recording/cancellation semantics remain unchanged.
-Status: Accepted.
-Verification: red/green HealthProbeService batching/cursor regression and PostgreSQL paging/order/cancellation regression are implemented; local Unit/Architecture/Contract, Restore/Release Build, migration model, diff/secret checks are PASS. Full local Integration is 8 passed / 3 skipped / 119 Docker-blocked. Final SHA `6acb91910db8eb90fb3ea06cfc80031bd4cfbaaf` passed CI `37730186762`, Docker `37730186799`, and Security `37730186829`, all with matching head SHA.
-Delivery: accepted implementation is pushed to `origin/dev`; CI included PostgreSQL Integration `127 passed / 3 skipped`, Compose/runtime, Redis, backup/restore, and diagnostics. Next work package is not yet selected.
-Boundary: cursor is process-local; restart replays from the first page, and a candidate before the current cursor may wait until the next cycle. Pages may include not-yet-due rows; `.workbuddy-ai/` remains untracked and untouched.
+Name: Source registry page fencing
+Objective / user outcome: 搜索发现和直接书籍 URL 解析按有限页读取来源注册表，避免用户请求一次性物化所有来源及规则文档。
+In scope: ISourceRepository stable `Source.Id` keyset page, EF bounded query, BookDiscoveryService and SourceBookUrlResolver page consumers, focused Unit/PostgreSQL regressions, delivery and source-runtime documentation.
+Non-goals: retain ListAsync for explicit Operations Center snapshots; no public API/Legado JSON, search/URL rule, source health/adapter budget, Schema/Migration, durable cursor, or live-source acceptance change.
+Acceptance: the two production callers never call ListAsync; page SQL orders by Id, applies keyset continuation, reads at most `limit + 1`, and preserves source order/eligibility across pages; cancellation and existing warning/result semantics remain unchanged.
+Status: Implemented / Locally Validated; remote gates pending.
+Verification: TDD red/green multi-page discovery and direct-URL regressions plus PostgreSQL keyset/order/look-ahead/cancellation regression are present. Focused discovery/URL `18/18`, Unit `619/619`, Architecture `1/1`, Contract `12/12`, Restore/tool restore, Release Build `0 warnings / 0 errors`, migration model `11/11`, script syntax, diff/secret checks PASS. Full local Integration is `8 passed / 3 skipped / 120 Docker-blocked`; the new PostgreSQL regression compiled but could not start Testcontainers.
+Delivery: implementation and documentation are ready for a candidate commit and push; exact-SHA CI/Docker/Security gates are still pending. `.workbuddy-ai/` remains untracked and untouched.
+Boundary: paging is request-local and only bounds materialized page size; it does not add source rotation, caching, or a durable cursor.
 ```
 
 最近接受工作包如下：

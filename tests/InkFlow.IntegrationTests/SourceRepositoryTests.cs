@@ -235,6 +235,67 @@ public sealed class SourceRepositoryTests
     }
 
     [TestMethod]
+    public async Task ListPage_Uses_Stable_Keyset_And_Lookahead()
+    {
+        var repo = CreateRepository();
+        foreach (var sourceId in new[]
+        {
+            "zzzz-source-page-a",
+            "zzzz-source-page-b",
+            "zzzz-source-page-c",
+        })
+        {
+            await repo.AddAsync(NewSourceWithRules(sourceId)).ConfigureAwait(false);
+        }
+
+        var first = await repo
+            .ListPageAsync(new SourceScanCursor("zzzz-source-page-0"), 2)
+            .ConfigureAwait(false);
+
+        CollectionAssert.AreEqual(
+            new[] { "zzzz-source-page-a", "zzzz-source-page-b" },
+            first.Sources.Select(source => source.Id).ToArray());
+        Assert.IsTrue(first.HasMore);
+        Assert.IsNotNull(first.NextCursor);
+
+        var second = await repo
+            .ListPageAsync(first.NextCursor, 2)
+            .ConfigureAwait(false);
+
+        CollectionAssert.AreEqual(
+            new[] { "zzzz-source-page-c" },
+            second.Sources.Select(source => source.Id).ToArray());
+        Assert.IsFalse(second.HasMore);
+        Assert.IsNull(second.NextCursor);
+
+        var invalidLimitRejected = false;
+        try
+        {
+            await repo.ListPageAsync(null, 0).ConfigureAwait(false);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            invalidLimitRejected = true;
+        }
+
+        Assert.IsTrue(invalidLimitRejected, "来源分页必须拒绝无效页大小");
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var canceled = false;
+        try
+        {
+            await repo.ListPageAsync(null, 2, cancellation.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            canceled = true;
+        }
+
+        Assert.IsTrue(canceled, "来源分页查询必须向上传播取消");
+    }
+
+    [TestMethod]
     public async Task Capability_Health_Roundtrips_Status_And_Evidence()
     {
         var repo = CreateHealthRepository();
