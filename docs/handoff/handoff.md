@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.73 Source content chapter metadata point lookup In Progress；5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.73 Source content chapter metadata point lookup Accepted；5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -82,7 +82,8 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 验证计划：TDD 红绿、Unit/Architecture/Contract、Restore/Release Build、迁移模型、脚本语法、适用 Integration/Runtime、diff/secret audit、精确 SHA CI/Docker/Security。
 - 实现：`ISourceBookRepository.GetChapterAsync` 返回保留书存在状态的 `SourceChapterLookup`；EF 以来源书身份和外部章节 ID 做 `AsNoTracking` 左连接点查询；`SourceContentService.FetchChapterContentAsync` 改用点查，缺书/缺章错误与触网前置顺序保持不变。
 - 本地验证：TDD 红态为缺少 `SourceChapterLookup` 的预期编译失败；focused `SourceContentServiceTests` `8/8`；Unit `622/622`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法、diff/secret audit PASS。完整 Solution Test Integration 为 `8 passed / 3 skipped / 122 blocked`，原因是 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译但未运行。
-- 当前状态：候选实现待提交/推送；远端 CI、Docker、Security 尚未触发；工作包明细见 `../repowiki/work-packages/2026-10-08-source-content-chapter-metadata-point-lookup.md`。
+- 门禁：候选 SHA `5892eca6d754ba53d3a6d496b4d37cb69e387643` 的 [CI 37739646911](https://github.com/nekohands/InkFlow/actions/runs/37739646911)、[Docker 37739647011](https://github.com/nekohands/InkFlow/actions/runs/37739647011)、[Security 37739647021](https://github.com/nekohands/InkFlow/actions/runs/37739647021) 均 success 且 head SHA 一致；CI 的迁移/全量测试、Compose、Reader/Legado/Source smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 通过，Docker 四镜像与 Compose 镜像验证通过，Security 的 SBOM/Filesystem/NuGet/CodeQL 通过。
+- 当前状态：Accepted；本机 Integration 为 `8 passed / 3 skipped / 122 blocked`，阻塞原因为 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用，远端提供 PostgreSQL/runtime 证据；无公共 Contract、Schema/Migration、缓存或 durable cursor 变化；`.workbuddy-ai/` 保持未跟踪且未触碰。当前无活动工作包，下一项重新 intake；工作包明细见 `../repowiki/work-packages/2026-10-08-source-content-chapter-metadata-point-lookup.md`。
 
 ### 5.72 Reader chapter metadata point lookup 交接（本轮，2026-10-08，Accepted）
 

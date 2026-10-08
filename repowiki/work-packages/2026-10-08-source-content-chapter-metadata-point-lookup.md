@@ -1,6 +1,6 @@
 # 5.73 Source content chapter metadata point lookup
 
-Status: Candidate ready; remote gates pending
+Status: Accepted
 
 ## Objective
 
@@ -41,3 +41,11 @@ Status: Candidate ready; remote gates pending
 - Restore/tool restore PASS; Release Build `0 warnings / 0 errors`.
 - PowerShell migration model check `11/11` PASS; `bash -n scripts/verify-migrations.sh` exit `0`; `git diff --check` and added-line secret audit PASS.
 - Full Solution Test: Unit/Architecture/Contract PASS; Integration `8 passed / 3 skipped / 122 blocked` during Testcontainers class initialization because Windows Docker Engine `npipe://./pipe/docker_engine` is unavailable. The new PostgreSQL regression compiled but did not run locally.
+
+## Delivery
+
+- Candidate SHA `5892eca6d754ba53d3a6d496b4d37cb69e387643` passed exact-head CI `37739646911`, Docker `37739647011`, and Security `37739647021`.
+- CI passed migrations, all Unit/Architecture/Contract tests, Compose validation, reader/Legado/source/runtime smoke, SLO probes, Redis, PostgreSQL backup/restore, and diagnostics.
+- Docker built, scanned, published, and verified the four business images and release Compose images. Security passed SBOM, filesystem, NuGet, and CodeQL checks.
+- Local Integration remains `8 passed / 3 skipped / 122 blocked` only because the Windows Docker Engine named pipe is unavailable; remote CI supplied PostgreSQL and runtime evidence.
+- No public Contract, Schema/Migration, cache, or durable cursor change; `.workbuddy-ai/` remains untracked and untouched.
