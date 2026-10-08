@@ -11,6 +11,7 @@ public sealed record SourceRuleExecutionLimits
     public const int DefaultMaxRequests = 8;
     public const int DefaultMaxBytes = 2 * 1024 * 1024;
     public const int DefaultMaxResultSize = 512 * 1024;
+    public const int DefaultMaxResultItems = 10_000;
     public const int DefaultMaxVariableCount = 32;
     public const int DefaultMaxVariableNameLength = 128;
     public const int DefaultMaxVariableValueLength = 2_048;
@@ -23,6 +24,8 @@ public sealed record SourceRuleExecutionLimits
     public TimeSpan MaxExecutionTime { get; init; } = DefaultMaxExecutionTime;
     public TimeSpan MaxRegexTime { get; init; } = DefaultMaxRegexTime;
     public int MaxResultSize { get; init; } = DefaultMaxResultSize;
+    /// <summary>Maximum number of extracted search or table-of-contents items.</summary>
+    public int MaxResultItems { get; init; } = DefaultMaxResultItems;
     /// <summary>Maximum number of transient request-template variables.</summary>
     public int MaxVariableCount { get; init; } = DefaultMaxVariableCount;
     /// <summary>Maximum UTF-16 length of one transient variable name.</summary>
@@ -39,6 +42,7 @@ public sealed record SourceRuleExecutionLimits
         ValidateRange(MaxRequests, 0, 32, nameof(MaxRequests));
         ValidateRange(MaxBytes, 1, 16 * 1024 * 1024, nameof(MaxBytes));
         ValidateRange(MaxResultSize, 1, 16 * 1024 * 1024, nameof(MaxResultSize));
+        ValidateRange(MaxResultItems, 1, 100_000, nameof(MaxResultItems));
         ValidateRange(MaxVariableCount, 0, 64, nameof(MaxVariableCount));
         ValidateRange(MaxVariableNameLength, 1, 256, nameof(MaxVariableNameLength));
         ValidateRange(MaxVariableValueLength, 1, 16 * 1024, nameof(MaxVariableValueLength));

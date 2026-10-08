@@ -26,7 +26,8 @@ public sealed class RuleBasedSourceAdapterPaginationTests
                 "https://books.example.com/search?page=3" =>
                     "<a class=\"book\" href=\"/book/3\">Three</a>",
                 "https://books.example.com/book/1" =>
-                    "<a class=\"chapter\" href=\"/chapter/1\">Chapter</a>",
+                    "<a class=\"chapter\" href=\"/chapter/1\">Chapter</a>" +
+                    "<a class=\"chapter\" href=\"/chapter/2\">Chapter 2</a>",
                 _ => string.Empty,
             };
 
@@ -291,6 +292,70 @@ public sealed class RuleBasedSourceAdapterPaginationTests
                 new RuleSelectorEvaluator(),
                 limits),
             new SlowListSelectorEvaluator(),
+            limits);
+
+        var entries = await adapter.GetTableOfContentsAsync("1");
+
+        Assert.AreEqual(0, entries.Count);
+    }
+
+    [TestMethod]
+    public async Task Search_List_Extraction_Fails_Closed_After_Result_Item_Budget()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Search,
+            RuleRequest.Get("/search?page=1"),
+            [],
+            List: new RuleListBinding("a.book", "href", "/book/", string.Empty),
+            Pagination: new RulePagination(
+                new RuleSelector(SelectorKind.Css, "a.next"),
+                "href",
+                MaxPages: 4));
+        var source = Source.Rehydrate(
+            "bounded-search-source",
+            "有界搜索来源",
+            "https://books.example.com",
+            new SourceRuleDsl("1", "bounded-search-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow);
+        var http = new PagingHttpClient();
+        var limits = new SourceRuleExecutionLimits
+        {
+            MaxRequests = 3,
+            MaxResultItems = 2,
+        };
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(http, new RuleSelectorEvaluator(), limits),
+            new RuleSelectorEvaluator(),
+            limits);
+
+        var results = await adapter.SearchAsync("keyword");
+
+        Assert.AreEqual(0, results.Count);
+    }
+
+    [TestMethod]
+    public async Task Toc_List_Extraction_Fails_Closed_After_Result_Item_Budget()
+    {
+        var rule = new CapabilityRule(
+            SourceCapability.Toc,
+            RuleRequest.Get("/book/1"),
+            [],
+            List: new RuleListBinding("a.chapter", "href", "/chapter/", string.Empty));
+        var source = Source.Rehydrate(
+            "bounded-toc-source",
+            "有界目录来源",
+            "https://books.example.com",
+            new SourceRuleDsl("1", "bounded-toc-source", [rule]),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow);
+        var http = new PagingHttpClient();
+        var limits = new SourceRuleExecutionLimits { MaxResultItems = 1 };
+        var adapter = new RuleBasedSourceAdapter(
+            source,
+            new RuleAdapter(http, new RuleSelectorEvaluator(), limits),
+            new RuleSelectorEvaluator(),
             limits);
 
         var entries = await adapter.GetTableOfContentsAsync("1");

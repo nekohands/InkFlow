@@ -110,6 +110,44 @@ public sealed class SeventeenKSourceAdapterTests
             adapter.GetBookInfoAsync("123"));
     }
 
+    [TestMethod]
+    public async Task Search_Over_Max_Result_Items_Fails_Closed()
+    {
+        var handler = new FixtureHandler((_, _) => Json("""
+            {"data":[
+              {"book_id":123,"book_name":"一本","author_name":"甲"},
+              {"book_id":456,"book_name":"二本","author_name":"乙"}
+            ]}
+            """));
+        var adapter = CreateAdapter(
+            handler,
+            new SourceRuleExecutionLimits { MaxResultItems = 1 });
+
+        var results = await adapter.SearchAsync("关键词");
+
+        Assert.AreEqual(0, results.Count);
+    }
+
+    [TestMethod]
+    public async Task Toc_Over_Max_Result_Items_Fails_Closed()
+    {
+        var handler = new FixtureHandler((_, _) => Json("""
+            {"data":{"book_id":123,"volumes":[
+              {"chapters":[
+                {"chapter_id":456,"name":"第一章"},
+                {"chapter_id":457,"name":"第二章"}
+              ]}
+            ]}}
+            """));
+        var adapter = CreateAdapter(
+            handler,
+            new SourceRuleExecutionLimits { MaxResultItems = 1 });
+
+        var entries = await adapter.GetTableOfContentsAsync("123");
+
+        Assert.AreEqual(0, entries.Count);
+    }
+
     private static SeventeenKSourceAdapter CreateAdapter(
         FixtureHandler handler,
         SourceRuleExecutionLimits? limits = null) =>

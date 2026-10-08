@@ -38,6 +38,7 @@ public sealed class SeventeenKSourceAdapter(
             WebHost,
         };
     private readonly int _maxResponseBytes = ValidateLimits(limits).MaxBytes;
+    private readonly int _maxResultItems = (limits ?? SourceRuleExecutionLimits.Default).MaxResultItems;
 
     public string SourceId => SourceIdValue;
 
@@ -104,6 +105,11 @@ public sealed class SeventeenKSourceAdapter(
                 !seenIds.Add(externalBookId))
             {
                 continue;
+            }
+
+            if (results.Count >= _maxResultItems)
+            {
+                return [];
             }
 
             results.Add(new SourceSearchResult(
@@ -212,6 +218,11 @@ public sealed class SeventeenKSourceAdapter(
                 if (string.IsNullOrWhiteSpace(title))
                 {
                     continue;
+                }
+
+                if (entries.Count >= _maxResultItems)
+                {
+                    return [];
                 }
 
                 entries.Add(new SourceTocEntry(

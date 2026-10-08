@@ -22,6 +22,8 @@ public sealed class SourceCatalogService(
     ISourceHealthReader? healthReader = null,
     ISourceHealthRecorder? healthRecorder = null)
 {
+    public const int MaxTocEntries = SourceRuleExecutionLimits.DefaultMaxResultItems;
+
     /// <summary>
     /// 抓取并导入一本书的元数据。已存在的书更新元数据，否则创建。
     /// </summary>
@@ -157,6 +159,21 @@ public sealed class SourceCatalogService(
 
             return ImportOutcome.Fail(
                 [$"catalog: no chapters returned for book '{sourceId}/{externalBookId}'."]);
+        }
+
+        if (toc.Count > MaxTocEntries)
+        {
+            if (healthRecorder is not null)
+            {
+                await healthRecorder.RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.Toc,
+                    "toc-result-too-large",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return ImportOutcome.Fail(
+                [$"catalog: Toc result exceeds maximum of {MaxTocEntries} entries."]);
         }
 
         if (healthRecorder is not null)

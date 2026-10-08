@@ -80,6 +80,18 @@ public sealed class KanunuSourceAdapterTests
     }
 
     [TestMethod]
+    public async Task Toc_Over_Max_Result_Items_Fails_Closed()
+    {
+        var adapter = CreateAdapter(
+            BookPage,
+            new SourceRuleExecutionLimits { MaxResultItems = 1 });
+
+        var toc = await adapter.GetTableOfContentsAsync("book/3441");
+
+        Assert.AreEqual(0, toc.Count);
+    }
+
+    [TestMethod]
     public void Regexes_Use_The_Configured_Bounded_Timeout()
     {
         var timeout = TimeSpan.FromMilliseconds(500);

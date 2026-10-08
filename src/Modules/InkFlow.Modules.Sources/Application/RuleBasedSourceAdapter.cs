@@ -99,6 +99,11 @@ public sealed class RuleBasedSourceAdapter(
                         return [];
                     }
 
+                    if (results.Count >= _limits.MaxResultItems)
+                    {
+                        return [];
+                    }
+
                     resultBytes += itemBytes;
                     results.Add(new SourceSearchResult(externalId, title, unknownAuthor));
                 }
@@ -206,6 +211,11 @@ public sealed class RuleBasedSourceAdapter(
                     var itemBytes = (long)Encoding.UTF8.GetByteCount(externalId) +
                         Encoding.UTF8.GetByteCount(title);
                     if (resultBytes + itemBytes > _limits.MaxResultSize)
+                    {
+                        return [];
+                    }
+
+                    if (entries.Count >= _limits.MaxResultItems)
                     {
                         return [];
                     }

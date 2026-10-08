@@ -62,6 +62,11 @@ Parent/root index: [README.md](README.md)
   import/matching, and discovery returns at most 100 merged canonical books.
   Truncation is reported through the existing stable `DiscoveryOutcome.Warnings`
   without changing the public or Legado JSON shape.
+- Source Search/TOC list projection has a separate `SourceRuleExecutionLimits.MaxResultItems`
+  fence (default 10,000). RuleBased, Kanunu8, and SeventeenK fail closed rather
+  than return partial lists when the item budget is crossed; `SourceCatalogService`
+  repeats the TOC count check before persistence for any adapter. This does not
+  change `ISourceAdapter`, public/Legado JSON, pagination, schema, or migrations.
 - Trusted Kanunu8/17K CodeAdapters use the same `SourceRuleExecutionLimits`:
   `SourceResponseReader` rejects oversized bodies before decode/parse, and
   Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.

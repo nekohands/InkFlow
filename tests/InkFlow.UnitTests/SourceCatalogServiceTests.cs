@@ -135,6 +135,32 @@ public sealed class SourceCatalogServiceTests
         CollectionAssert.Contains(health.FailureReasons, "empty-toc");
     }
 
+    [TestMethod]
+    public async Task Over_Max_Toc_Entries_Fails_Before_Persistence()
+    {
+        var adapter = new FakeAdapter
+        {
+            Toc = Enumerable.Range(0, SourceCatalogService.MaxTocEntries + 1)
+                .Select(index => new SourceTocEntry($"c-{index}", index, $"第 {index} 章"))
+                .ToList(),
+        };
+        var repo = new InMemoryBookRepository();
+        var health = new RecordingHealth();
+        var service = new SourceCatalogService(
+            new FixedAdapterFactory(adapter),
+            repo,
+            TimeProvider.System,
+            healthRecorder: health);
+
+        await service.ImportBookInfoAsync("example-source", "10001");
+        var outcome = await service.SyncChaptersAsync("example-source", "10001");
+
+        Assert.IsFalse(outcome.IsSuccess);
+        StringAssert.Contains(outcome.Errors.Single(), "Toc result exceeds maximum");
+        Assert.AreEqual(0, repo.Store[("example-source", "10001")].Chapters.Count);
+        CollectionAssert.Contains(health.FailureReasons, "toc-result-too-large");
+    }
+
     private sealed class RecordingHealth : ISourceHealthRecorder
     {
         public List<string> FailureReasons { get; } = [];

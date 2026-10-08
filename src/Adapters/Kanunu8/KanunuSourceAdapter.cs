@@ -27,6 +27,7 @@ public sealed class KanunuSourceAdapter(
 
     private static readonly HtmlParserHolder ParserHolder = new();
     private readonly int _maxResponseBytes = ValidateLimits(limits).MaxBytes;
+    private readonly int _maxResultItems = (limits ?? SourceRuleExecutionLimits.Default).MaxResultItems;
     private readonly Regex _chapterLinkPattern = NewRegex(
         @"href=""(\d+[0-9]*\.html)""[^>]*>([^<]+)</a>",
         (limits ?? SourceRuleExecutionLimits.Default).MaxRegexTime);
@@ -105,6 +106,11 @@ public sealed class KanunuSourceAdapter(
         {
             foreach (Match match in _chapterLinkPattern.Matches(html))
             {
+                if (entries.Count >= _maxResultItems)
+                {
+                    return [];
+                }
+
                 entries.Add(new SourceTocEntry(
                     $"{externalBookId}/{match.Groups[1].Value}",
                     index++,

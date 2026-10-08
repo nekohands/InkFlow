@@ -113,6 +113,12 @@ Header 基线；持久化 Session，以及动态多请求/递归执行所需的 
 `ISourceAdapter` 或公共/Legado JSON 形状，适配器自身的 HTTP/规则响应预算仍是更低层的
 网络与内存边界。
 
+来源适配器的 Search/TOC 列表投影另受 `SourceRuleExecutionLimits.MaxResultItems`
+约束，默认最多 10,000 条；RuleBased、Kanunu8 与 17K 超限均整体 fail-closed，不能
+返回部分列表。`SourceCatalogService.SyncChaptersAsync` 对任意 adapter 返回的 TOC
+再做同一上限的持久化前检查，避免超限章节进入 `SourceBook`。该条目预算不改变
+`ISourceAdapter` 方法签名或公共 JSON，也不替代响应字节和执行时间预算。
+
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。
