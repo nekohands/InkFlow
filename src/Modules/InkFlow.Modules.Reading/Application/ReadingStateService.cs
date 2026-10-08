@@ -52,8 +52,9 @@ public sealed class ReadingStateService(
                 ReadingResultStatus.InvalidRequest);
         }
 
-        var book = await GetVisibleBookAsync(canonicalBookId, cancellationToken).ConfigureAwait(false);
-        if (book is null)
+        var summary = await GetVisibleBookSummaryAsync(canonicalBookId, cancellationToken)
+            .ConfigureAwait(false);
+        if (summary is null)
         {
             return ReadingOperationResult<ReadingShelfItem>.Failure(ReadingResultStatus.NotFound);
         }
@@ -73,7 +74,7 @@ public sealed class ReadingStateService(
 
         await repository.UpsertShelfAsync(entry, cancellationToken).ConfigureAwait(false);
         return ReadingOperationResult<ReadingShelfItem>.Ok(
-            await MapShelfEntryAsync(userId, entry, cancellationToken).ConfigureAwait(false)
+            await MapShelfEntryAsync(userId, entry, cancellationToken, summary).ConfigureAwait(false)
             ?? throw new InvalidOperationException("visible shelf book disappeared during mapping."));
     }
 
@@ -151,8 +152,9 @@ public sealed class ReadingStateService(
             return null;
         }
 
-        var book = await GetVisibleBookAsync(canonicalBookId, cancellationToken).ConfigureAwait(false);
-        if (book is null)
+        var summary = await GetVisibleBookSummaryAsync(canonicalBookId, cancellationToken)
+            .ConfigureAwait(false);
+        if (summary is null)
         {
             return null;
         }
@@ -160,7 +162,15 @@ public sealed class ReadingStateService(
         var progress = await repository
             .GetProgressAsync(userId, canonicalBookId, cancellationToken)
             .ConfigureAwait(false);
-        return progress is null ? null : MapProgress(book, progress);
+        if (progress is null)
+        {
+            return null;
+        }
+
+        var chapter = await books
+            .GetChapterAsync(canonicalBookId, progress.CanonicalChapterId, cancellationToken)
+            .ConfigureAwait(false);
+        return MapProgress(summary, progress, chapter);
     }
 
     public async Task<ReadingOperationResult<ReadingProgressView>> SaveProgressAsync(
@@ -178,10 +188,13 @@ public sealed class ReadingStateService(
                 ReadingResultStatus.InvalidRequest);
         }
 
-        var book = await GetVisibleBookAsync(canonicalBookId, cancellationToken).ConfigureAwait(false);
-        var chapter = book?.Chapters.FirstOrDefault(
-            candidate => candidate.Id == canonicalChapterId);
-        if (book is null || chapter is null)
+        var summary = await GetVisibleBookSummaryAsync(canonicalBookId, cancellationToken)
+            .ConfigureAwait(false);
+        var chapter = summary is null
+            ? null
+            : await books.GetChapterAsync(canonicalBookId, canonicalChapterId, cancellationToken)
+                .ConfigureAwait(false);
+        if (summary is null || chapter is null)
         {
             return ReadingOperationResult<ReadingProgressView>.Failure(ReadingResultStatus.NotFound);
         }
@@ -223,7 +236,7 @@ public sealed class ReadingStateService(
 
         await repository.SaveProgressAsync(progress, history, cancellationToken)
             .ConfigureAwait(false);
-        return ReadingOperationResult<ReadingProgressView>.Ok(MapProgress(book, progress));
+        return ReadingOperationResult<ReadingProgressView>.Ok(MapProgress(summary, progress, chapter));
     }
 
     public async Task<ReaderPreferenceView> GetPreferencesAsync(
@@ -278,11 +291,13 @@ public sealed class ReadingStateService(
     private async Task<ReadingShelfItem?> MapShelfEntryAsync(
         Guid userId,
         BookshelfEntry entry,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CanonicalBookSummary? knownSummary = null)
     {
-        var book = await GetVisibleBookAsync(entry.CanonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        if (book is null)
+        var summary = knownSummary ?? await GetVisibleBookSummaryAsync(
+            entry.CanonicalBookId,
+            cancellationToken).ConfigureAwait(false);
+        if (summary is null)
         {
             return null;
         }
@@ -292,13 +307,16 @@ public sealed class ReadingStateService(
             .ConfigureAwait(false);
         var chapter = progress is null
             ? null
-            : book.Chapters.FirstOrDefault(candidate => candidate.Id == progress.CanonicalChapterId);
+            : await books.GetChapterAsync(
+                summary.Id,
+                progress.CanonicalChapterId,
+                cancellationToken).ConfigureAwait(false);
 
         return new ReadingShelfItem(
-            book.Id,
-            book.Title,
-            book.Author,
-            book.Chapters.Count,
+            summary.Id,
+            summary.Title,
+            summary.Author,
+            summary.ChapterCount,
             entry.Status.ToString(),
             entry.AddedAt,
             entry.UpdatedAt,
@@ -308,28 +326,32 @@ public sealed class ReadingStateService(
             progress?.UpdatedAt);
     }
 
-    private async Task<CanonicalBook?> GetVisibleBookAsync(
+    private async Task<CanonicalBookSummary?> GetVisibleBookSummaryAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken)
     {
-        var book = await books.GetAsync(canonicalBookId, cancellationToken).ConfigureAwait(false);
-        return book is null || await contentPolicy
+        var summary = await books.GetSummaryAsync(canonicalBookId, cancellationToken)
+            .ConfigureAwait(false);
+        return summary is null || await contentPolicy
             .IsTakedownAsync(canonicalBookId, cancellationToken)
             .ConfigureAwait(false)
             ? null
-            : book;
+            : summary;
     }
 
     private static ReadingProgressView MapProgress(
-        CanonicalBook book,
-        ReadingProgress progress)
+        CanonicalBookSummary summary,
+        ReadingProgress progress,
+        CanonicalChapter? chapter)
     {
-        var chapter = book.Chapters.FirstOrDefault(
-            candidate => candidate.Id == progress.CanonicalChapterId)
-            ?? throw new InvalidOperationException(
-                $"reading progress chapter {progress.CanonicalChapterId} does not belong to book {book.Id}.");
+        if (chapter is null)
+        {
+            throw new InvalidOperationException(
+                $"reading progress chapter {progress.CanonicalChapterId} does not belong to book {summary.Id}.");
+        }
+
         return new ReadingProgressView(
-            book.Id,
+            summary.Id,
             chapter.Id,
             chapter.Title,
             chapter.Index,

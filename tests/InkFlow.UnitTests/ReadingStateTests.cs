@@ -151,6 +151,29 @@ public sealed class ReadingStateTests
     }
 
     [TestMethod]
+    public async Task Shelf_And_Progress_Use_Bounded_Metadata_Reads()
+    {
+        var book = CreateBook();
+        var books = new InMemoryBooks(book);
+        var repository = new InMemoryReadingRepository();
+        var service = CreateService(repository, books);
+
+        Assert.IsTrue((await service.PutShelfAsync(UserA, book.Id, ShelfStatus.Reading)).IsSuccess);
+        Assert.IsTrue((await service.SaveProgressAsync(
+            UserA,
+            book.Id,
+            book.Chapters[0].Id,
+            paragraphIndex: 1,
+            progressPercent: 20)).IsSuccess);
+        Assert.IsNotNull(await service.GetProgressAsync(UserA, book.Id));
+        Assert.AreEqual(1, (await service.ListShelfAsync(UserA, 1)).Count);
+
+        Assert.AreEqual(0, books.FullBookReadCount);
+        Assert.IsGreaterThan(0, books.SummaryReadCount);
+        Assert.IsGreaterThan(0, books.ChapterReadCount);
+    }
+
+    [TestMethod]
     public async Task Takedown_Hides_Book_And_Blocks_User_State_Writes()
     {
         var book = CreateBook();

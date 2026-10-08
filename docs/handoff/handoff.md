@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.80 Legado book-info metadata projection 已 Accepted；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.81 Reading state bounded metadata projection In Progress；5.80 Legado book-info metadata projection 已 Accepted；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -72,6 +72,13 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ```
 
 ## 4. 最近完成工作包
+
+### 5.81 Reading state bounded metadata projection 交接（本轮，2026-10-08，In Progress）
+
+- 缺口：`ReadingStateService` 的书架与进度路径仍通过 `ICanonicalBookRepository.GetAsync` 物化完整 `CanonicalBook`，实际只需要书籍摘要、章节数或一个章节的元数据。
+- 目标：复用既有 `GetSummaryAsync` / `GetChapterAsync`，保持 Reading 字段、稳定身份、撤下/缺失/无效输入/取消语义不变，并以测试计数证明 bounded paths 不再 full-read。
+- 范围：`ReadingStateService`、受影响 Unit 回归和对应 Wiki/中文交付记录；不改公共 JSON/路由、Content Policy、Schema/Migration、缓存、权限、UI、批量/N+1、书籍详情/书籍包路径或 `.workbuddy-ai/`。
+- 当前状态：实现已完成并通过本地 RED→GREEN 与项目门禁；`ReadingStateService` 书架/进度路径只走摘要与单章点查，ReadingState `9/9`、Unit `627/627`、Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors、迁移模型 `11/11` 通过。focused PostgreSQL Integration 仍因 Windows Docker named pipe 不可用 BLOCKED；下一步创建候选提交、推送并等待精确 SHA CI/Docker/Security。工作包明细见 `../../repowiki/work-packages/2026-10-08-reading-state-bounded-projection.md`。
 
 ### 5.80 Legado book-info metadata projection 交接（本轮，2026-10-08，Accepted）
 

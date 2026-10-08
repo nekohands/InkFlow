@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.80 Legado book-info metadata projection 已 Accepted；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.81 Reading state bounded metadata projection In Progress；5.80 Legado book-info metadata projection 已 Accepted；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -44,6 +44,18 @@ Phase 1A 自动化工作包状态：
 13. ✅ Web Reader 最小纵向体验（自动化基线已完成）。
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
+
+### 5.81 Reading state bounded metadata projection（本轮，2026-10-08，In Progress）
+
+- 缺口：`ReadingStateService` 的书架、进度读取和保存仍通过 `ICanonicalBookRepository.GetAsync` 物化完整 `CanonicalBook`，但这些路径只需要书籍元数据/章节数或一个章节的标题与序号。
+- 目标：复用现有 `GetSummaryAsync` 与 `GetChapterAsync` 投影，保持书架、进度、缺失、撤下、无效章节和取消语义不变，并用 full-read 计数回归锁定边界。
+- 范围边界：不改公共 Reading JSON/路由、BookId/ChapterId、Content Policy 决策、Schema/Migration、缓存、权限、UI、批量/N+1 设计、书籍详情/书籍包完整聚合路径或 `.workbuddy-ai/`。
+- 验收/验证：TDD 红绿；`ListShelfAsync`/`PutShelfAsync`/`GetProgressAsync`/`SaveProgressAsync` 的生产读路径不调用完整 `GetAsync`；现有字段与错误/撤下语义保持。随后执行 Unit/Architecture/Contract、Release Build、迁移模型、适用 Integration/Runtime、diff/secret 和精确 SHA CI/Docker/Security。
+- 实现：`ReadingStateService` 的书架与进度路径改用 `GetSummaryAsync`，需要当前/目标章节时改用 `GetChapterAsync`；完整 `GetAsync` 仍保留在明确需要完整聚合的其他路径。新增 full-read 计数回归。
+- 本地验证：TDD RED 先证明旧路径触发 5 次 full read，GREEN 后 ReadingState `9/9`、Unit `627/627`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`、Windows `dotnet-ef` 迁移模型 `11/11`、bounded-read audit、`git diff --check` 和 added-line secret audit PASS。focused PostgreSQL Integration 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- 风险：低/中风险、可回滚的 Reading 应用读路径调整；公共字段、稳定身份、撤下/缺失/无效章节和取消语义保持。远端 CI/Docker/Security 尚待候选 SHA。
+- 当前状态：Implemented / Locally Validated，代码与文档已进入候选提交；精确 SHA 门禁和最终 closeout 尚未完成。
+- 工作包明细：[RepoWiki work package](../../repowiki/work-packages/2026-10-08-reading-state-bounded-projection.md)。
 
 ### 5.80 Legado book-info metadata projection（本轮，2026-10-08，Accepted）
 

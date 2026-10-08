@@ -60,6 +60,8 @@ Phase 1 先使用章节号、标准化标题和序列上下文；Phase 2 再加�
 
 Legado 目录是 canonical chapter metadata 的受限读模型：目录路径先读取书籍摘要，再通过 `ListChapterSummariesAsync` 只投影章节 `Id`、`ChapterIndex` 和 `Title`，按 `(ChapterIndex, Id)` 排序。BookInfo 路径通过 `GetBookSummaryAsync` 复用 `CanonicalBookSummary`，只读取 ID、书名、作者和章节数，不物化章节行。书籍详情仍可读取完整 `CanonicalBook` 聚合；该边界不改变 BookInfo/TOC JSON、稳定身份、撤下/缺书语义、Schema 或 Migration。
 
+Reading 书架与进度路径同样只读取 `CanonicalBookSummary`，并在需要当前/目标章节时通过 `GetChapterAsync` 点查章节元数据，不物化完整 `CanonicalBook` 聚合。撤下/缺书、无效章节和取消语义保持不变；书籍详情、章节映射、内容包等确实需要聚合的路径仍保留完整读取。
+
 ### Private Library
 
 Private Book 是绑定单一 UserId 的用户私有书目元数据，使用独立的 PrivateBookId，不进入 CanonicalBook、公共搜索、Legado、Source Match 或公共 Reading Shelf。所有读取和变更都以认证主体为范围；私有书目缺失与非所有者访问统一返回未找到。书目视图携带从 1 开始递增的 \`Version\`；元数据 PUT 必须提交读取到的版本，过期版本不写入并返回稳定的 409 冲突。

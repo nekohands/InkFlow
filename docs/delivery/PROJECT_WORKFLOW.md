@@ -69,11 +69,21 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.80 Legado book-info metadata projection 已 Accepted；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.81 Reading state bounded metadata projection In Progress；5.80 Legado book-info metadata projection 已 Accepted；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前及最近接受工作包如下：
 
 ```text
+Name: Reading state bounded metadata projection
+Objective / user outcome: Reading shelf and progress paths must not materialize a full CanonicalBook aggregate when they only need book metadata, chapter count, or one chapter.
+In scope: `ReadingStateService` shelf/progress reads, existing `GetSummaryAsync`/`GetChapterAsync` projections, full-read regressions, and delivery documentation.
+Non-goals: no public JSON/route, BookId/ChapterId, content policy, schema/migration, cache, permission, UI, bulk/N+1, book-detail or package path change; `.workbuddy-ai/` remains untouched.
+Acceptance: shelf/progress fields and missing/takedown/invalid/cancellation semantics stay stable; bounded paths avoid full `GetAsync`; full aggregate callers remain unchanged.
+Status: In Progress.
+Risk/review: low/medium, reversible application read-path change with no data or public contract mutation; focused Reading Unit regressions plus existing project gates.
+Verification plan: TDD red/green, diff/secret audit, Restore/Release Build, Unit/Architecture/Contract, migration model, applicable Integration/Runtime, exact SHA CI/Docker/Security, then Wiki/docs closeout.
+Boundary: local Docker/Testcontainers and real account/device acceptance remain independent constraints; required blocker evidence will be recorded if local Docker is unavailable.
+
 Name: Legado book-info metadata projection
 Objective / user outcome: Legado BookInfo only reads canonical book identity and metadata; it must not materialize all canonical chapters.
 In scope: `CatalogQueryService` bounded book-summary read, `LegadoContractService.GetBookAsync`, full-read regression, and existing canonical summary evidence.
