@@ -1,6 +1,6 @@
 # 5.72 Reader chapter metadata point lookup
 
-Status: Locally Validated; candidate commit pending.
+Status: Accepted.
 
 ## Objective
 
@@ -40,4 +40,5 @@ The new application contract must not break existing repository test doubles, an
 - TDD red: the new reader regression failed as expected because the point-read counter stayed at `0`; green focused `CatalogQueryServiceTests` is `12/12`.
 - Local gates: Restore/tool restore PASS; full Release Build `0 warnings / 0 errors`; Unit `620/620`; Architecture `1/1`; Contract `12/12`; PowerShell migration model check `11/11`; `bash -n scripts/verify-migrations.sh`; `git diff --check`; added-line secret audit PASS.
 - Full solution test ran Unit/Architecture/Contract successfully; Integration was `8 passed / 3 skipped / 121 blocked` at class initialization because Windows Docker Engine endpoint `npipe://./pipe/docker_engine` is unavailable. The new PostgreSQL point-query regression compiled but did not obtain local container evidence.
-- Runtime/Docker and exact-SHA CI/Docker/Security are pending the candidate push. `.workbuddy-ai/` remains untracked and untouched.
+- Candidate SHA `bae00c78ac627daef2467bbd3e34c3778dbc4ba8` passed exact-head [CI 37736706191](https://github.com/nekohands/InkFlow/actions/runs/37736706191), [Docker 37736706174](https://github.com/nekohands/InkFlow/actions/runs/37736706174), and [Security 37736706156](https://github.com/nekohands/InkFlow/actions/runs/37736706156); all concluded success. CI covered migrations, tests, Compose, reader/runtime smoke, Redis, PostgreSQL backup/restore, and diagnostics; Docker built/scanned/published all four business images and verified Compose images.
+- Status: Accepted. Local Testcontainers/Compose runtime remains blocked by unavailable Windows Docker Engine endpoint `npipe://./pipe/docker_engine`; remote gates provide the PostgreSQL/runtime evidence. No public contract, schema, migration, cache, or durable cursor changed; `.workbuddy-ai/` remains untracked and untouched.

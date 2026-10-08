@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.72 Reader chapter metadata point lookup Locally Validated；5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.72 Reader chapter metadata point lookup Accepted；5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,7 +45,7 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.72 Reader chapter metadata point lookup（本轮，2026-10-08，Locally Validated）
+### 5.72 Reader chapter metadata point lookup（本轮，2026-10-08，Accepted）
 
 - 缺口：`CatalogQueryService.GetChapterContentAsync` 在已完成策略门控和正文版本选择后，为读取一个章节的标题/序号调用 `ICanonicalBookRepository.GetAsync`，EF 会连同该书全部章节一起物化；章节规模增长会放大单章阅读请求的数据库行数和内存。
 - Intake：新增按 `canonicalBookId + chapterId` 的章节元数据点查询，阅读路径只读取目标章节；保留 `GetAsync` 给书籍详情/TOC 聚合读取。
@@ -53,7 +53,8 @@ Phase 1A 自动化工作包状态：
 - 验收：正文读取不再为元数据调用完整书聚合；跨书/缺失章节返回 null 元数据并保持既有正文输出；EF 单行查询按书与章节约束并传播取消。
 - 实现：`ICanonicalBookRepository.GetChapterAsync` 提供兼容回退；EF 以 `AsNoTracking`、`BookId + ChapterId` 和 `FirstOrDefaultAsync` 单行读取并传播取消；`CatalogQueryService.GetChapterContentAsync` 改走点查询，保留既有策略门控和正文版本选择。
 - 本地验证：TDD 红态为点查询计数仍为 `0` 的预期失败，focused `CatalogQueryServiceTests` `12/12`；Restore/tool restore PASS；Release Build `0 warnings / 0 errors`；Unit `620/620`、Architecture `1/1`、Contract `12/12`；PowerShell 迁移模型 `11/11`、`bash -n scripts/verify-migrations.sh`、`git diff --check`、added-line secret audit PASS。完整 Solution Test 的 Integration 为 `8 passed / 3 skipped / 121 blocked`，均在类初始化因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 点查询回归已编译但未取得本机容器证据。
-- 状态：Locally Validated；候选提交与远端 Runtime/CI/Docker/Security 门禁待推送后执行；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 门禁：候选 SHA `bae00c78ac627daef2467bbd3e34c3778dbc4ba8` 的 [CI 37736706191](https://github.com/nekohands/InkFlow/actions/runs/37736706191)、[Docker 37736706174](https://github.com/nekohands/InkFlow/actions/runs/37736706174)、[Security 37736706156](https://github.com/nekohands/InkFlow/actions/runs/37736706156) 均 success 且 head SHA 一致；CI 的迁移、Unit/Architecture/Contract、Compose、reader/runtime smoke、Redis、PostgreSQL backup/restore 与 diagnostics 通过，Docker 四镜像构建/扫描/发布及 Compose 镜像验证通过。
+- 状态：Accepted；本机完整 Integration 仍有 121 项因 Windows Docker named pipe 不可用而 blocked，远端门禁补足 PostgreSQL/runtime 证据；不改变公共 API/Legado、Schema/Migration、缓存或 durable cursor；`.workbuddy-ai/` 保持未跟踪且未触碰。当前无活动工作包，下一项重新 intake。
 
 ### 5.71 Source registry page fencing（本轮，2026-10-08，Accepted）
 
