@@ -167,11 +167,9 @@ public sealed class CatalogQueryService(
             return null;
         }
 
-        var book = await bookRepository
-            .GetAsync(version.CanonicalBookId, cancellationToken)
+        var chapter = await bookRepository
+            .GetChapterAsync(version.CanonicalBookId, chapterId, cancellationToken)
             .ConfigureAwait(false);
-
-        var chapter = book?.Chapters.FirstOrDefault(c => c.Id == chapterId);
 
         var paragraphs = version.CanonicalText
             .Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

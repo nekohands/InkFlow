@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.71 Source registry page fencing Accepted；5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；当前无活动工作包，下一项需重新 intake；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.72 Reader chapter metadata point lookup Locally Validated；5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -71,7 +71,19 @@ Runtime smoke: PASS
 CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ```
 
-## 4. 下一工作包
+## 4. 当前工作包
+
+### 5.72 Reader chapter metadata point lookup 交接（本轮，2026-10-08，Locally Validated）
+
+- 目标：公共章节阅读只为标题/序号读取目标章节，不因单章正文请求物化整本正典书的全部章节。
+- 范围：新增 `ICanonicalBookRepository` 的 `bookId + chapterId` 点查询及 EF 单行实现；`CatalogQueryService.GetChapterContentAsync` 改用点查询；补充 Unit/PostgreSQL 回归。
+- 非目标：不改公共 API/Legado JSON、TOC/详情聚合读取、ContentVersion 选优、策略门控顺序、Schema/Migration、缓存或 durable cursor；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：读正文不再为元数据调用完整 `GetAsync`；跨书/缺失章节返回 null 元数据且保持既有输出；EF 查询按书 ID 与章节 ID 定位一行并传播取消。
+- 实现：`ICanonicalBookRepository.GetChapterAsync` 保留测试替身兼容回退；EF 以 `BookId + ChapterId` 的 `AsNoTracking` 单行查询映射 `CanonicalChapter`；`CatalogQueryService.GetChapterContentAsync` 改走点查询，策略门控和正文版本选择顺序不变。
+- 验证：TDD 红态为预期的点查询计数失败，focused `CatalogQueryServiceTests` `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、Unit `620/620`、Architecture `1/1`、Contract `12/12`、迁移模型 `11/11`、脚本语法、diff/secret audit 均 PASS。完整 Solution Test Integration 为 `8 passed / 3 skipped / 121 blocked`，原因是 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译但未运行。
+- 当前状态：Locally Validated；候选提交、远端 Runtime 和精确 SHA CI/Docker/Security 待推送后执行；`.workbuddy-ai/` 保持未跟踪且未触碰。
+
+### 5.71 Source registry page fencing 交接（本轮，2026-10-08，Accepted）
 
 ### 5.71 Source registry page fencing 交接（本轮，2026-10-08，Accepted）
 

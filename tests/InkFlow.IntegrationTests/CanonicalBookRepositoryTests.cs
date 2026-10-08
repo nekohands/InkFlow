@@ -66,6 +66,30 @@ public sealed class CanonicalBookRepositoryTests
     }
 
     [TestMethod]
+    public async Task GetChapter_Uses_Bounded_Point_Query_And_Enforces_Book_Id()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var book = CanonicalBook.Create("点查书", "作者", T0.AddMinutes(1));
+        book.AddChapter(0, "第一章", T0.AddMinutes(1));
+        var target = book.AddChapter(1, "第二章", T0.AddMinutes(1));
+
+        await repo.AddAsync(book).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        var loaded = await repo.GetChapterAsync(book.Id, target.Id).ConfigureAwait(false);
+
+        Assert.IsNotNull(loaded);
+        Assert.AreEqual(target.Id, loaded.Id);
+        Assert.AreEqual(target.Index, loaded.Index);
+        Assert.AreEqual(target.Title, loaded.Title);
+        Assert.IsNull(await repo.GetChapterAsync(Guid.NewGuid(), target.Id).ConfigureAwait(false));
+
+        var command = capture.Commands.First(text =>
+            text.Contains("chapters", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(command.Contains("LIMIT 1", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
     public async Task Save_Appends_New_Chapters_Without_Touching_Old_Ones()
     {
         var repo = CreateRepository();

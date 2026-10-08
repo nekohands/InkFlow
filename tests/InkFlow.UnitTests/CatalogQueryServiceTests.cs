@@ -17,6 +17,7 @@ public sealed class CatalogQueryServiceTests
     {
         public Dictionary<Guid, CanonicalBook> Store { get; } = new();
         public int FullBookReads { get; private set; }
+        public int ChapterMetadataReads { get; private set; }
         public int LastSummaryLimit { get; private set; }
 
         public Task AddAsync(CanonicalBook book, CancellationToken cancellationToken = default)
@@ -29,6 +30,18 @@ public sealed class CatalogQueryServiceTests
         {
             FullBookReads++;
             return Task.FromResult(Store.TryGetValue(id, out var book) ? book : null);
+        }
+
+        public Task<CanonicalChapter?> GetChapterAsync(
+            Guid bookId,
+            Guid chapterId,
+            CancellationToken cancellationToken = default)
+        {
+            ChapterMetadataReads++;
+            return Task.FromResult<CanonicalChapter?>(
+                Store.TryGetValue(bookId, out var book)
+                    ? book.Chapters.FirstOrDefault(chapter => chapter.Id == chapterId)
+                    : null);
         }
 
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
@@ -248,6 +261,33 @@ public sealed class CatalogQueryServiceTests
         Assert.AreEqual(3, content.Paragraphs.Count);
         Assert.AreEqual("第二段", content.Paragraphs[1]);
         Assert.AreEqual("example-source", content.SourceId);
+    }
+
+    [TestMethod]
+    public async Task GetChapterContent_Uses_Point_Chapter_Metadata_Read()
+    {
+        var books = new InMemoryBookRepository();
+        var versions = new InMemoryVersionRepository();
+        var book = CreateBook("点查书", "作者", withChapters: true);
+        await books.AddAsync(book);
+        var chapter = book.Chapters.Single();
+
+        var published = await new ContentPublishingService(versions).PublishAsync(
+            book.Id,
+            chapter.Id,
+            "example-source",
+            "<p>正文</p>");
+        Assert.IsTrue(published.IsSuccess);
+
+        var service = new CatalogQueryService(books, versions, new AllowAllContentPolicyReader());
+        var content = await service.GetChapterContentAsync(chapter.Id);
+
+        Assert.IsNotNull(content);
+        Assert.AreEqual(chapter.Index, content.Index);
+        Assert.AreEqual(chapter.Title, content.Title);
+        Assert.AreEqual(1, books.ChapterMetadataReads);
+        Assert.AreEqual(0, books.FullBookReads,
+            "单章正文读取不应为章节标题/序号物化整本书");
     }
 
     [TestMethod]
