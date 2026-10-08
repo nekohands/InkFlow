@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.78 Source registry page projection In Progress；5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.78 Source registry page projection Accepted；当前无活动工作包。5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -73,12 +73,16 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ## 4. 最近完成工作包
 
-### 5.78 Source registry page projection 交接（本轮，2026-10-08，In Progress）
+### 5.78 Source registry page projection 交接（本轮，2026-10-08，Accepted）
 
 - 目标：搜索发现和人工输入直链解析的来源分页只读取 `Id`、`BaseUrl`、`IsEnabled`，不加载完整 Rule DSL。
 - 范围：`ISourceRepository.ListPageAsync` 轻量页项、EF 标量投影、`BookDiscoveryService`/`SourceBookUrlResolver` 兼容行为及 Unit/PostgreSQL 回归。
 - 非目标：完整 `GetAsync`、`ListAsync` 全量快照、RuleBased Adapter、来源写入、健康转移、公共 Contract、Schema/Migration、缓存、凭据和 `.workbuddy-ai/`。
-- 当前状态：In Progress；待完成实现、验证、候选提交和精确 SHA 远端门禁。
+- 实现：`SourcePage` 改用 `SourcePageEntry(Id, BaseUrl, IsEnabled)`；生产 EF 分页只投影三列，发现/直链调用方只使用对应字段；`ListAsync`/`GetAsync` 完整读取与兼容 fallback 保持不变。
+- 验证：focused discovery/URL resolver Unit `18/18`；Unit `624/624`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`；PowerShell migration model `11/11`；full Integration `8 passed / 3 skipped / 127 Docker-blocked`，阻塞原因是本机 `npipe://./pipe/docker_engine` 不可用。
+- 回归修复：首个候选 `ef591f3cf9172693b89b1152f83944a185c00d4e` 的新增测试错误假设 `limit=2` 能覆盖任意新来源；修复为页大小 `1000` 后重新推送，未改产品代码。
+- 门禁：最终 SHA `24669af2f343f47cbd1e29924772b15d5956a67a` 的 [CI 37764067745](https://github.com/nekohands/InkFlow/actions/runs/37764067745)、[Docker 37764067733](https://github.com/nekohands/InkFlow/actions/runs/37764067733)、[Security 37764067771](https://github.com/nekohands/InkFlow/actions/runs/37764067771) 均 success 且 head SHA 一致；远端提供 PostgreSQL/Redis、Runtime smoke、SLO、backup/restore 和 diagnostics 证据。
+- 当前状态：Accepted；无公共 Contract、Schema/Migration、缓存、凭据或 `.workbuddy-ai/` 变化。当前无活动工作包，下一项重新 intake；工作包明细见 `../../repowiki/work-packages/2026-10-08-source-registry-page-projection.md`。
 
 ### 5.77 Source enabled-state projection 交接（本轮，2026-10-08，Accepted）
 

@@ -69,11 +69,21 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.78 Source registry page projection In Progress；5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.78 Source registry page projection 已 Accepted；当前无活动工作包。5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 最近接受工作包如下：
 
 ```text
+Name: Source registry page projection
+Objective / user outcome: 来源注册表分页不再加载或反序列化完整 Source Rule DSL；搜索发现和直链解析只读取 `Id`、`BaseUrl`、`IsEnabled`。
+In scope: `SourcePageEntry`, EF `ListPageAsync` scalar projection, discovery/direct URL consumers, compatibility fallback, and SQL-shape regression.
+Non-goals: no full `ListAsync` snapshot, `GetAsync`, RuleBased Adapter, source writes, health transitions, public API/Legado, Schema/Migration, cache, credentials, or `.workbuddy-ai/`.
+Acceptance: keyset order/cursor/look-ahead/limit, disabled filtering, URL matching, adapter selection, warnings, cancellation, and existing full aggregate callers remain stable; production page SQL excludes `RuleDslJson`.
+Status: Accepted.
+Verification: focused discovery/URL resolver Unit `18/18`; Unit `624/624`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; PowerShell migration model `11/11`; full local Integration `8 passed / 3 skipped / 127 Docker-blocked`; diff/secret audit passed.
+Delivery: final implementation SHA `24669af2f343f47cbd1e29924772b15d5956a67a`; exact-head CI `37764067745`, Docker `37764067733`, and Security `37764067771` all GREEN. The initial candidate failed only because its new regression test assumed `limit=2` contained a newly inserted source; the follow-up changed the test to page size `1000`, with no product-code change.
+Boundary: local Windows Docker/Testcontainers remains BLOCKED; remote CI supplied PostgreSQL/Redis/runtime/SLO/backup/restore/diagnostics evidence. Real external-source and manual Release Candidate acceptance remain outside this package; `.workbuddy-ai/` remains untracked and untouched.
+
 Name: Source enabled-state projection
 Objective / user outcome: 来源健康门控和已注册代码适配器只读取来源存在/启用状态，不加载完整 Source Rule DSL 聚合。
 In scope: `ISourceRepository.GetEnabledAsync`, EF `sources.IsEnabled` projection, health/code-adapter paths, focused Unit/PostgreSQL regressions, and Source Runtime/Wiki delivery documentation.

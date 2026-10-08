@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.78 Source registry page projection In Progress；5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.78 Source registry page projection Accepted；当前无活动工作包。5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,14 +45,18 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.78 Source registry page projection（本轮，2026-10-08，In Progress）
+### 5.78 Source registry page projection（本轮，2026-10-08，Accepted）
 
 - 缺口：来源注册表分页已限制页大小，但生产 `ListPageAsync` 仍读取并反序列化完整 `RuleDslJson`；搜索发现和直链解析每页只需要 `Id`、`BaseUrl`、`IsEnabled`。
 - Intake：将 `SourcePage` 收窄为轻量页项，EF 直接投影所需列；保留 keyset 游标、look-ahead、禁用过滤、适配器和 URL 解析语义。
 - 范围边界：不改完整 `GetAsync`、`ListAsync` 全量快照、RuleBased Adapter、来源写入、健康转移、公共 API/Legado、Schema/Migration、缓存、凭据或 `.workbuddy-ai/`。
 - 验收：生产分页不读取/反序列化 `RuleDslJson`；来源顺序、分页、缺省/禁用处理、搜索/直链结果、取消和兼容 test double 行为保持。
 - 验证计划：TDD 红绿、focused discovery/URL resolver、Unit/Architecture/Contract、Restore/Release Build、迁移模型、适用 Integration/Runtime、diff/secret audit 与精确 SHA CI/Docker/Security。
-- 状态：In Progress；实现和远端门禁证据待补。
+- 实现：`SourcePage` 改用 `SourcePageEntry(Id, BaseUrl, IsEnabled)`；`EfSourceRepository.ListPageAsync` 只投影三列；`BookDiscoveryService`、`SourceBookUrlResolver` 和旧 test double 保持既有语义；`ListAsync`/`GetAsync` 全量聚合读取不变。
+- 回归修复：首个候选 `ef591f3cf9172693b89b1152f83944a185c00d4e` 暴露新增测试使用 `limit=2` 的错误前提，修复为允许的页大小 `1000`；没有产品代码变更。
+- 本地验证：focused discovery/URL resolver Unit `18/18`；Unit `624/624`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`；PowerShell 迁移模型 `11/11`；`git diff --check`、secret audit `0` hits。完整 Integration `8 passed / 3 skipped / 127 blocked`，均因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译，未产生产品断言失败。
+- 远端门禁：最终 SHA `24669af2f343f47cbd1e29924772b15d5956a67a` 的 [CI 37764067745](https://github.com/nekohands/InkFlow/actions/runs/37764067745)、[Docker 37764067733](https://github.com/nekohands/InkFlow/actions/runs/37764067733)、[Security 37764067771](https://github.com/nekohands/InkFlow/actions/runs/37764067771) 均 success 且 head SHA 一致；CI 提供 PostgreSQL/Redis、迁移、Runtime smoke、SLO、backup/restore 和 diagnostics 证据。
+- 边界：无公共 API/Legado、Schema/Migration、缓存、凭据或 `.workbuddy-ai/` 变化；本机 Docker/Testcontainers 与真实外部来源/人工 Release Candidate 验收仍是独立限制。状态：Accepted；当前无活动工作包，下一轮重新 intake。
 
 ### 5.77 Source enabled-state projection（本轮，2026-10-08，Accepted）
 
