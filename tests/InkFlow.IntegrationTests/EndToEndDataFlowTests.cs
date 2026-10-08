@@ -454,6 +454,21 @@ public sealed class EndToEndDataFlowTests
             => Task.FromResult(Book is not null && Book.SourceId == sourceId && Book.ExternalBookId == externalBookId ? Book : null);
         public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<SourceBook>>(Book is null ? [] : [Book]);
+        public Task<SourceBookPage> ListPageAsync(
+            SourceBookScanCursor? after,
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Book is null || after is not null &&
+                (Book.CreatedAt < after.CreatedAt ||
+                 Book.CreatedAt == after.CreatedAt && Book.Id.CompareTo(after.Id) <= 0))
+            {
+                return Task.FromResult(new SourceBookPage([], null, false));
+            }
+
+            return Task.FromResult(new SourceBookPage([Book], null, false));
+        }
         public Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default)
         {
             Book = book;
