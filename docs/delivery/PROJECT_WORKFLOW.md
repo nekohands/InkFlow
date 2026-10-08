@@ -69,7 +69,7 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.66，Discovery search budget fencing）。5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：Accepted（5.66，Discovery search budget fencing）。当前无 In Progress 工作包；5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前工作包如下：
 
@@ -79,10 +79,13 @@ Objective / user outcome: 用户触发的来源发现受到查询长度、逐源
 In scope: BookDiscoveryService query/work fences, stable truncation warnings, offline regressions, source-runtime and delivery docs.
 Non-goals: ISourceAdapter/public API/Legado JSON, catalog pagination, parser/HTTP budgets, source registry paging, schema/migration, permissions, retry policy, full-text ranking, live-source acceptance.
 Acceptance: overlong query touches no source; per-source and total discovery processing are bounded; warnings are stable and non-sensitive; empty/normal/cancellation/idempotency behavior remains unchanged.
-Status: In Progress.
+Status: Accepted.
 Verification: focused red/green Unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
+Evidence: focused BookDiscoveryServiceTests 12/12, Unit 609/609, Architecture 1/1, Contract 12/12, migration model check 11/11, Release Build 0 warnings/0 errors; Integration 8 passed / 3 skipped / 116 blocked by unavailable Windows Docker named pipe. Exact SHA `193722cffb726c7338128be1f66111369b48a8a9` passed CI `37715153756`, Docker `37715153801`, and Security `37715153778`.
 Boundary: truncation is explicitly warned; source registry cardinality and live-source/manual Release Candidate acceptance remain separate boundaries; .workbuddy-ai/ remains untracked and untouched.
 ```
+
+最近接受工作包：5.66 Discovery search budget fencing（上述证据已完成）；当前无活动工作包。
 
 最近接受工作包如下：
 

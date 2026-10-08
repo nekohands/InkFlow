@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.65 Rule selector execution deadline fencing 已 Accepted；当前无 In Progress 工作包；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.66 Discovery search budget fencing 已 Accepted；当前无 In Progress 工作包；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -189,12 +189,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
 - 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
 
-### 5.66 Discovery search budget fencing 交接（本轮，2026-10-08，In Progress）
+### 5.66 Discovery search budget fencing 交接（本轮，2026-10-08，Accepted）
 
 - 缺口：`BookDiscoveryService` 只有空查询短路，没有查询长度、逐源命中处理量或总正典发现结果边界；搜索会把适配器返回的全部命中逐条导入/匹配。
 - 目标：在已有 Crawling 编排边界加入固定查询与工作量上限；超限通过既有 `DiscoveryOutcome.Warnings` 返回稳定、非敏感提示，不改变公共响应形状。
 - 范围边界：仅修改发现服务及其离线回归/相关文档；不改 `ISourceAdapter`、公共 API/Legado JSON、目录分页、Source Runtime parser/HTTP 预算、Schema/Migration、权限、重试策略或真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
-- 当前状态：Intake 完成，代码与回归尚未完成；下一步先建立超长查询、逐源命中与总结果上限的红灯，再实现最小根因修复。
+- 当前状态：实现与本地门禁已完成；BookDiscoveryService focused 12/12、Unit 609/609、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；远端 CI/Docker/Security 与 PostgreSQL/runtime/Compose smoke 全部通过。
+- 实现：查询长度上限 256、逐源命中上限 100、总正典发现结果上限 100；截断通过稳定 warnings 报告，不改变公共响应、适配器、Schema/Migration。
+- 门禁：候选 SHA `193722cffb726c7338128be1f66111369b48a8a9` 的 [CI 37715153756](https://github.com/nekohands/InkFlow/actions/runs/37715153756)、[Docker 37715153801](https://github.com/nekohands/InkFlow/actions/runs/37715153801)、[Security 37715153778](https://github.com/nekohands/InkFlow/actions/runs/37715153778) 均 success 且 head SHA 一致。
+- 下一步：当前无活动工作包；重新 intake 下一个有证据的最小工作包。Source registry cardinality、真实来源、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定；`.workbuddy-ai/` 保持未跟踪且未触碰。
 
 ### 5.65 Rule selector execution deadline fencing 交接（本轮，2026-10-08，Accepted）
 
