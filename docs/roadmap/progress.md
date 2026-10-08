@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.80 Legado book-info metadata projection In Progress；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.80 Legado book-info metadata projection 已 Accepted；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,7 +45,7 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.80 Legado book-info metadata projection（本轮，2026-10-08，In Progress）
+### 5.80 Legado book-info metadata projection（本轮，2026-10-08，Accepted）
 
 - 缺口：Legado `BookInfo` 只需要正典书籍 ID、书名、作者和 TOC URL，但当前复用 `CatalogQueryService.GetBookAsync` 并物化完整 `CanonicalBook` 及全部章节。
 - Intake：新增 Catalog 层的 bounded book-summary 读取，Legado BookInfo 改走现有 `CanonicalBookSummary` 投影；保留既有撤下、缺书、路由前缀和响应字段语义。
@@ -53,7 +53,10 @@ Phase 1A 自动化工作包状态：
 - 验收：AC-1 BookInfo 字段、TOC URL、路由校验、缺书和撤下语义不变；AC-2 生产 BookInfo 路径不调用完整 `GetAsync`；AC-3 只使用 canonical summary 边界并传播取消。
 - 风险/评审：低风险、可回滚的应用查询路径改动；公共 Contract 与持久化结构冻结， focused Unit/Contract 和既有全量门禁足以审查。
 - 验证计划：TDD 红绿、focused Catalog/Legado Unit、Unit/Architecture/Contract、Restore/Release Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA CI/Docker/Security。
-- 状态：In Progress；实现和门禁证据待补。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-legado-book-info-metadata-projection.md)。
+- 实现：新增 `CatalogQueryService.GetBookSummaryAsync` 复用 `ICanonicalBookRepository.GetSummaryAsync`；`LegadoContractService.GetBookAsync` 改走该摘要入口，完整 `GetBookAsync` 详情路径保持不变；新增 Catalog/Legado full-read 回归。
+- 本地验证：TDD 红态先以缺少新摘要入口的预期编译失败；focused Catalog/Legado `24/24`、Unit `626/626`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、迁移脚本语法、`git diff --check` 和 added-line secret audit PASS。focused PostgreSQL Integration 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED，未产生产品断言失败。
+- 远端门禁：实现 SHA `4eb63e5a1a0a95872ec6dc9814ab0fcba126a0f0` 的 [CI 37771778894](https://github.com/nekohands/InkFlow/actions/runs/37771778894)、[Docker 37771778862](https://github.com/nekohands/InkFlow/actions/runs/37771778862)、[Security 37771778935](https://github.com/nekohands/InkFlow/actions/runs/37771778935) 均 success 且 head SHA 一致；CI 提供迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 证据，Docker 与 Security 门禁通过。
+- 边界：无公共 Legado JSON/URL、Schema/Migration、缓存、权限或 `.workbuddy-ai/` 变化；本机 Docker/Testcontainers、真实来源和 Legado 真机验收仍是独立限制。状态：Accepted；当前无活动工作包，下一轮重新 intake。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-legado-book-info-metadata-projection.md)。
 
 ### 5.79 Legado TOC canonical chapter projection（本轮，2026-10-08，Accepted）
 
