@@ -72,8 +72,14 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        return await BuildSummaryQuery()
+        return await db.Books
+            .AsNoTracking()
             .Where(book => book.Id == id)
+            .Select(book => new CanonicalBookSummary(
+                book.Id,
+                book.Title,
+                book.Author,
+                db.Chapters.Count(chapter => chapter.BookId == book.Id)))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }
