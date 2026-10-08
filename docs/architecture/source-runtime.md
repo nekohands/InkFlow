@@ -124,6 +124,11 @@ Header 基线；持久化 Session，以及动态多请求/递归执行所需的 
 仅在批次成功后保留进程内游标，扫完末页后重置。游标不持久化，也不新增 Schema/Migration；
 进程重启会从首批重新扫描，任务去重和来源健康门控仍是最终防线。
 
+主动 Toc 健康探针只需一个目标来源的样本书，不得为此物化完整来源书目；
+`HealthProbeService` 使用按 `SourceId` 过滤、按 `(CreatedAt, Id)` 排序并限制为一条的
+chapter-free 查询。无匹配时继续静默跳过；该边界只约束样本选择，不改变 unhealthy 健康候选列表的
+调度语义或引入持久化游标。
+
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。

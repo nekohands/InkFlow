@@ -106,10 +106,9 @@ public sealed class HealthProbeService(
         string sourceId,
         CancellationToken cancellationToken)
     {
-        var sample = (await sourceBooks
-            .ListAllAsync(cancellationToken)
-            .ConfigureAwait(false))
-            .FirstOrDefault(b => b.SourceId == sourceId);
+        var sample = await sourceBooks
+            .FindFirstForSourceAsync(sourceId, cancellationToken)
+            .ConfigureAwait(false);
 
         // 没有已导入书目就没有可探目标;静默跳过,不误报失败、不产生结果行。
         if (sample is null)

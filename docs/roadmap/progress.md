@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.68 Scheduled update-scan page/fan-out fencing Accepted；当前无活动工作包；5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.69 Health-probe sample lookup fencing In Progress；5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -44,6 +44,15 @@ Phase 1A 自动化工作包状态：
 13. ✅ Web Reader 最小纵向体验（自动化基线已完成）。
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
+
+### 5.69 Health-probe sample lookup fencing（本轮，2026-10-08，In Progress）
+
+- 缺口：`HealthProbeService.ProbeTocAsync` 为寻找某来源的一本样本书调用 `ListAllAsync`，主动巡检每 10 分钟会全量物化来源书目。
+- Intake：本包改为按 `SourceId` 过滤、按 `(CreatedAt, Id)` 稳定排序并只取一条 chapter-free `SourceBook`；保留既有无样本静默跳过、空目录失败、健康上报、取消和稳定失败原因。
+- 范围边界：不分页 unhealthy 健康候选，不新增 Schema/Migration，不改变公共 API/Legado、Source Adapter/HTTP budget、Scheduler interval、重试策略或其他仓储调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：Toc 探针不再调用 `ListAllAsync`；生产 SQL 只返回目标来源的一条确定性样本；无样本、空/非空目录、健康状态、取消和错误分类语义不变。
+- 验证计划：HealthProbeService 红绿回归、PostgreSQL first-sample/filter 回归、Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 状态：已完成 intake，尚未实现、提交或推送。
 
 
 > 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。

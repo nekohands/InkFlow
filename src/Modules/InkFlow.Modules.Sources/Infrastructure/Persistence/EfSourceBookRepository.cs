@@ -49,6 +49,31 @@ public sealed class EfSourceBookRepository(SourcesDbContext db) : ISourceBookRep
             .ToList();
     }
 
+    public async Task<SourceBook?> FindFirstForSourceAsync(
+        string sourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.SourceBooks
+            .AsNoTracking()
+            .Where(book => book.SourceId == sourceId)
+            .OrderBy(book => book.CreatedAt)
+            .ThenBy(book => book.Id)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return entity is null
+            ? null
+            : SourceBook.Rehydrate(
+                entity.Id,
+                entity.SourceId,
+                entity.ExternalBookId,
+                entity.Title,
+                entity.Author,
+                entity.CreatedAt,
+                entity.UpdatedAt,
+                []);
+    }
+
     public async Task<SourceBookPage> ListPageAsync(
         SourceBookScanCursor? after,
         int limit,

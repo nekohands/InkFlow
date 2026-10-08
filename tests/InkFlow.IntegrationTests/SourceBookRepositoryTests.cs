@@ -80,6 +80,32 @@ public sealed class SourceBookRepositoryTests
     }
 
     [TestMethod]
+    public async Task First_Book_For_Source_Uses_Stable_Order_And_Filter()
+    {
+        var repo = CreateRepository();
+        var sourceId = $"sample-source-{Guid.NewGuid():N}";
+        var otherSource = $"other-source-{Guid.NewGuid():N}";
+        var sourceBooks = new[]
+        {
+            SourceBook.Create(sourceId, "later", "later", "作者", T0.AddMinutes(1)),
+            SourceBook.Create(sourceId, "earlier", "earlier", "作者", T0),
+            SourceBook.Create(otherSource, "wrong-source", "wrong", "作者", T0.AddMinutes(-1)),
+        };
+
+        foreach (var book in sourceBooks)
+        {
+            await repo.AddAsync(book).ConfigureAwait(false);
+        }
+
+        var first = await repo.FindFirstForSourceAsync(sourceId).ConfigureAwait(false);
+
+        Assert.IsNotNull(first);
+        Assert.AreEqual("earlier", first.ExternalBookId);
+        Assert.AreEqual(sourceId, first.SourceId);
+        Assert.AreEqual(0, first.Chapters.Count);
+    }
+
+    [TestMethod]
     public async Task Book_With_Chapters_Roundtrips()
     {
         var repo = CreateRepository();

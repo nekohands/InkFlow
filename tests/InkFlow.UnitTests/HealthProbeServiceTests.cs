@@ -281,7 +281,16 @@ public sealed class HealthProbeServiceTests
             Task.FromResult(_store.TryGetValue((sourceId, externalBookId), out var book) ? book : null);
 
         public Task<IReadOnlyList<SourceBook>> ListAllAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<SourceBook>>(_store.Values.ToList());
+            throw new InvalidOperationException("Toc health probes must not materialize all source books.");
+
+        public Task<SourceBook?> FindFirstForSourceAsync(
+            string sourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<SourceBook?>(_store.Values
+                .Where(book => book.SourceId == sourceId)
+                .OrderBy(book => book.CreatedAt)
+                .ThenBy(book => book.Id)
+                .FirstOrDefault());
 
         public Task SaveAsync(SourceBook book, CancellationToken cancellationToken = default)
         {

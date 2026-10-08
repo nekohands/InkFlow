@@ -69,20 +69,20 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：Accepted（5.68，Scheduled update-scan page/fan-out fencing）。当前无活动工作包；5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：In Progress（5.69，Health-probe sample lookup fencing）。5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
-当前工作包如下（刚完成）：
+当前工作包如下：
 
 ```text
-Name: Scheduled update-scan page/fan-out fencing
-Objective / user outcome: 定时追更扫描按有限页读取来源书目并限制每轮 TOC 入队量；连续调度在进程内推进游标，不因书目增长形成无界读取或 fan-out。
-In scope: ISourceBookRepository keyset page, UpdateScanService batch/cursor, Scheduler in-process cursor, focused Unit/PostgreSQL regressions, source-runtime and delivery docs.
-Non-goals: persistent scheduler cursor, Schema/Migration, public API/Legado JSON, source registry policy, worker queue redesign, task dedupe/retry policy, source adapter behavior, live-source acceptance.
-Acceptance: each tick processes at most 100 books; `(CreatedAt, Id)` cursor advances without skip/duplicate and resets at end; health skip, atomic dedupe, normal cancellation and task contracts remain unchanged; production SQL path does not call ListAllAsync.
-Status: Accepted.
-Verification: focused UpdateScanService 4/4 and affected EndToEnd scheduler 1/1; Unit 616/616; Architecture 1/1; Contract 12/12; Release Restore/Build 0 warnings / 0 errors; migration model check 11/11; diff/secret audit PASS; local Integration 8 passed / 3 skipped / 117 blocked by unavailable Windows Docker named pipe; exact-SHA CI/Docker/Security GREEN.
-Delivery: implementation SHA `a9686fd114c2704360588b81eb64d9c6f35f9df3`; final candidate `83f12e8cdc30837ed6a8309e0288829966065eaf` passed CI `37721216436`, Docker `37721216460`, and Security `37721216368` with exact head SHA. Remote full test gate passed the PostgreSQL keyset-page regression and runtime/Compose gates.
-Boundary: cursor is intentionally in-memory and restart may revisit the first page; durable cursor/multi-scheduler coordination is a separate boundary; no public contract or schema change; .workbuddy-ai/ remains untracked and untouched.
+Name: Health-probe sample lookup fencing
+Objective / user outcome: 主动 Toc 健康探针按来源过滤且只读取一本确定性样本书，不因每 10 分钟探针全量物化来源书目。
+In scope: ISourceBookRepository source-filtered first-book query, HealthProbeService Toc sample lookup, focused Unit/PostgreSQL regressions, source-runtime and delivery docs.
+Non-goals: unhealthy-health candidate paging, Schema/Migration, public API/Legado JSON, source adapter/HTTP budgets, scheduler interval, retry policy, other repository callers, live-source acceptance.
+Acceptance: due Toc probe never calls ListAllAsync; production SQL filters SourceId, orders by `(CreatedAt, Id)`, and takes at most one chapter-free book; no-sample, empty/non-empty Toc, health recording, cancellation, and stable failure reasons remain unchanged.
+Status: In Progress.
+Verification: planned focused HealthProbeService/repository regressions, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
+Delivery: not yet committed or pushed.
+Boundary: one imported book remains the Toc probe sample; this package bounds selection but does not add rotation or page the unhealthy health candidate list; `.workbuddy-ai/` remains untracked and untouched.
 ```
 
 最近接受工作包如下：
