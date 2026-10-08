@@ -1,6 +1,6 @@
 # 5.71 Source registry page fencing
 
-Status: Implemented / Locally Validated; remote gates pending
+Status: Accepted
 
 ## Objective
 
@@ -40,6 +40,15 @@ The main risk is silently skipping a source at a page boundary or changing searc
 - `BookDiscoveryService` and `SourceBookUrlResolver` consume 100-source pages and preserve existing source order, filtering, adapter, warning, cancellation, and result behavior. `OperationsCenter` remains on explicit `ListAsync` full snapshots.
 - TDD red: the new multi-page tests first failed to compile because the page contract was absent. Green: focused discovery/URL Unit tests `18/18`; full Unit `619/619`; Architecture `1/1`; Contract `12/12`; Restore and tool restore PASS; Release Build `0 warnings / 0 errors`; migration model `11/11`; migration script syntax, `git diff --check`, and changed-file secret audit PASS.
 - Full local Integration was attempted: `8 passed / 3 skipped / 120 blocked`; the new PostgreSQL page regression compiled but could not start Testcontainers because Windows Docker Engine `npipe://./pipe/docker_engine` is unavailable.
+
+## Remote evidence
+
+- Exact SHA `fe78305eda8055802bbc65cf95a1e3089a49c4d1` passed CI `37733255748`, Docker `37733255786`, and Security `37733255787`; all three completed with `success` and the same head SHA. CI also passed the PostgreSQL/Redis, backup-restore, runtime smoke, and diagnostics steps.
+- The local Docker blocker remains an environment limitation, not a product failure; the remote PostgreSQL and runtime gates supplied the missing container evidence.
+
+## Closeout
+
+Accepted. Paging is request-local and only bounds materialized page size; it does not add source rotation, caching, or a durable cursor. Real upstream sources, production credentials, and manual Release Candidate acceptance remain outside this package.
 
 ## Evidence
 

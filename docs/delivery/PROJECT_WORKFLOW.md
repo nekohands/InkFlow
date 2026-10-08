@@ -69,7 +69,7 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.71 Source registry page fencing In Progress；5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.71 Source registry page fencing Accepted；5.70 Health-probe candidate batching、5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted；当前无活动工作包，下一项需重新 intake。
 
 当前工作包如下：
 
@@ -79,9 +79,9 @@ Objective / user outcome: 搜索发现和直接书籍 URL 解析按有限页读�
 In scope: ISourceRepository stable `Source.Id` keyset page, EF bounded query, BookDiscoveryService and SourceBookUrlResolver page consumers, focused Unit/PostgreSQL regressions, delivery and source-runtime documentation.
 Non-goals: retain ListAsync for explicit Operations Center snapshots; no public API/Legado JSON, search/URL rule, source health/adapter budget, Schema/Migration, durable cursor, or live-source acceptance change.
 Acceptance: the two production callers never call ListAsync; page SQL orders by Id, applies keyset continuation, reads at most `limit + 1`, and preserves source order/eligibility across pages; cancellation and existing warning/result semantics remain unchanged.
-Status: Implemented / Locally Validated; remote gates pending.
+Status: Accepted.
 Verification: TDD red/green multi-page discovery and direct-URL regressions plus PostgreSQL keyset/order/look-ahead/cancellation regression are present. Focused discovery/URL `18/18`, Unit `619/619`, Architecture `1/1`, Contract `12/12`, Restore/tool restore, Release Build `0 warnings / 0 errors`, migration model `11/11`, script syntax, diff/secret checks PASS. Full local Integration is `8 passed / 3 skipped / 120 Docker-blocked`; the new PostgreSQL regression compiled but could not start Testcontainers.
-Delivery: implementation and documentation are ready for a candidate commit and push; exact-SHA CI/Docker/Security gates are still pending. `.workbuddy-ai/` remains untracked and untouched.
+Delivery: exact SHA `fe78305eda8055802bbc65cf95a1e3089a49c4d1` passed CI `37733255748`, Docker `37733255786`, and Security `37733255787`; all three have matching head SHA and success conclusions. CI included PostgreSQL/Redis, backup/restore, runtime smoke, and diagnostics. `.workbuddy-ai/` remains untracked and untouched.
 Boundary: paging is request-local and only bounds materialized page size; it does not add source rotation, caching, or a durable cursor.
 ```
 
