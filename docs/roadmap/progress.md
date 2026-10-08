@@ -47,12 +47,14 @@ Phase 1A 自动化工作包状态：
 
 
 > 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。
-### 5.65 Rule selector execution deadline fencing（本轮，2026-10-08，In Progress）
+### 5.65 Rule selector execution deadline fencing（本轮，2026-10-08，Accepted）
 
 - 缺口：`RuleAdapter` 的 `MaxExecutionTime` 取消令牌已约束 HTTP 与 Credential Provider，但字段、分页和响应变量选择器，以及 `RuleBasedSourceAdapter` 在分页响应收集后的 Search/TOC 列表绑定边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
 - Intake：本包只在既有选择器/提取边界加入 deadline fencing；不增加选择器语法、动态多请求/分支/递归、`MaxDepth`、公共契约、Schema/Migration、凭据存储或重试策略。
 - 验收：内部预算过期返回稳定 `execution: time budget exceeded.` 且不暴露 values/bodies；字段、分页、派生变量和 Search/TOC 列表绑定均受保护；调用方取消继续传播；正常 Source fixture 语义不变。
-- 状态：实现与本地门禁已完成；Unit 605/605、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；精确 SHA CI/Docker/Security 待推送，真实来源和 Release Candidate 人工验收不属于本包。
+- 实现：`RuleAdapter` 与 `RuleBasedSourceAdapter` 在 selector/extraction/list-binding 边界观察同一 `MaxExecutionTime`，内部超时 fail-closed，调用方取消继续传播；字段、分页、响应变量、Search/TOC 列表回归已补齐。
+- 状态：本地 Release Build 0 warnings/0 errors、Unit 605/605、Architecture 1/1、Contract 12/12、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；远端 CI/Docker/Security 与 PostgreSQL/runtime smoke 全部通过。真实来源和 Release Candidate 人工验收不属于本包。
+- CI：精确 SHA `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` 的 CI `37710808321`、Docker `37710808308`、Security `37710808245` 均 success。
 
 ### 5.50 已停止任务重试/取消与已取消任务清理（本轮，2026-09-03）
 

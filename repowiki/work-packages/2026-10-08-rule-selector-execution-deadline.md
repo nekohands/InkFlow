@@ -1,6 +1,6 @@
 # 5.65 Rule selector execution deadline fencing
 
-Status: In Progress
+Status: Accepted
 
 ## Objective
 
@@ -62,14 +62,22 @@ depend on a real source or Docker.
 - Local Docker/Testcontainers and live-source checks remain environment/manual
   boundaries and must be reported explicitly.
 
-## Current evidence (2026-10-08)
+## Delivery record (2026-10-08)
 
-- Implementation: `RuleAdapter` fences field, pagination-selector, and
-  response-variable extraction; `RuleBasedSourceAdapter` fences Search/TOC
-  list binding and preserves caller cancellation propagation.
-- Local gates: Release restore/build passed with 0 warnings and 0 errors;
-  Unit `605/605`, Architecture `1/1`, Contract `12/12`, and 11-context
-  migration model check passed; diff/secret audit passed.
-- Integration: `8 passed / 3 skipped / 116 blocked` because Testcontainers
-  could not connect to `npipe://./pipe/docker_engine` on this Windows host.
-- Remote exact-SHA CI/Docker/Security gates: pending candidate commit and push.
+Work package: Accepted
+Implementation: `RuleAdapter` fences field, pagination-selector, and response-variable extraction; `RuleBasedSourceAdapter` fences Search/TOC list binding and preserves caller cancellation propagation; deterministic field, response-variable, Search, and TOC regressions added.
+Acceptance: PASS — internal selector/list-binding deadline expiry fails closed without values, response bodies, or partial entries; caller cancellation propagates; existing valid selector, pagination, credential, and regex behavior remains green.
+Build: PASS — `dotnet restore InkFlow.sln` and `dotnet build InkFlow.sln -c Release --no-restore`, 0 warnings / 0 errors.
+Tests: PASS/PARTIAL — focused `RuleAdapterTests` 56/56 and `RuleBasedSourceAdapterPaginationTests` 5/5; full Unit 605/605; Architecture 1/1; Contract 12/12. Solution Integration locally was 8 passed / 3 skipped / 116 blocked by unavailable `npipe://./pipe/docker_engine`; CI covered the PostgreSQL/runtime path.
+Runtime: PASS — exact-SHA CI covered Compose, Runtime smoke, Redis, PostgreSQL backup/restore, and diagnostics; local Docker runtime remained blocked by the same named pipe.
+Security: PASS — staged diff/secret audit and exact-SHA Security workflow passed; no public contract, credential storage, permission, schema, or migration change.
+Project-defined gates/phase exit: PASS — PowerShell-equivalent migration model check 11/11; no schema/migration change; exact-SHA CI/Docker/Security all green.
+CI: GREEN — candidate `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` passed CI `37710808321`, Docker `37710808308`, and Security `37710808245`.
+Findings: Selector and list-binding boundaries were not observing the existing internal execution deadline; local Testcontainers could not connect to the Windows Docker named pipe.
+Fixed: Added deadline checks around selector/regex/transform extraction, pagination continuation, response variables, and Search/TOC list projection with fail-closed result handling and caller-cancellation preservation.
+Remaining risks/blockers: Real sources, production credentials, real-device/manual Release Candidate acceptance, and local Docker/Testcontainers remain outside or unavailable for this package.
+Commit/PR: `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` pushed to `origin/dev`; no PR created.
+Documentation/state sync: RepoWiki work package/index, source-runtime architecture, workflow profile, progress, and handoff synchronized.
+RepoWiki sync: PASS — implementation, tests, boundaries, evidence, and blockers agree across source, tests, Wiki, and Chinese state records.
+Evidence limitations: Local Integration/Testcontainers was blocked by Docker availability; remote CI supplied production-like PostgreSQL/runtime evidence. GitHub emitted only existing Node.js 20 and ubuntu-latest migration annotations; no job failed.
+Next step: Re-intake the next evidence-backed package; keep real-source/manual acceptance and local Docker boundaries visible.

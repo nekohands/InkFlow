@@ -69,9 +69,9 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.65，Rule selector execution deadline fencing）。5.64 Crawler handler lease renewal 已 Accepted；前一包为 [Canonical match query bounding](../../repowiki/work-packages/2026-10-08-canonical-match-query-bound.md)。
+当前状态：Accepted（5.65，Rule selector execution deadline fencing）。当前无 In Progress 工作包；5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
-当前工作包：
+当前工作包：无；最近接受工作包如下：
 
 ```text
 Name: Rule selector execution deadline fencing
@@ -79,13 +79,14 @@ Objective / user outcome: RuleAdapter 在选择器/字段提取超过 MaxExecuti
 In scope: RuleAdapter selector/extraction cancellation boundaries; RuleBasedSourceAdapter Search/TOC list binding; field, pagination, response-variable, and list-binding regression tests; source-runtime and delivery docs.
 Non-goals: selector syntax, dynamic multi-request/branch/recursive execution, MaxDepth, public API/Legado, Schema/Migration, credential storage, retry policy, and live-source acceptance.
 Acceptance: internal deadline expiry returns the stable time-budget error with no values/bodies; normal fields, pagination, derived variables, and Search/TOC list binding are fenced; caller cancellation still propagates; existing valid source behavior remains unchanged.
-Status: In Progress.
+Status: Accepted.
 Verification: focused red/green Source unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
- Evidence: implementation complete; local Release restore/build passed with 0 warnings/0 errors; Unit 605/605, Architecture 1/1, Contract 12/12, migration model 11/11, and diff/secret audit passed. Integration is 8 passed / 3 skipped / 116 blocked by unavailable Docker named pipe; exact-SHA CI/Docker/Security pending.
+Evidence: Release restore/build 0 warnings/0 errors; focused `RuleAdapterTests` 56/56 and `RuleBasedSourceAdapterPaginationTests` 5/5; Unit 605/605; Architecture 1/1; Contract 12/12; migration model 11/11; diff/secret audit passed. Local Integration is 8 passed / 3 skipped / 116 blocked by unavailable Docker named pipe; remote CI runtime/PostgreSQL/Compose is green.
+CI: exact SHA `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` passed CI `37710808321`, Docker `37710808308`, and Security `37710808245`.
 Boundary: local Docker/Testcontainers and live-source checks remain independent environment/manual boundaries; `.workbuddy-ai/` remains untracked and untouched.
 ```
 
-Last accepted work package:
+上一工作包（5.64）:
 
 ```text
 Name: Crawler handler lease renewal

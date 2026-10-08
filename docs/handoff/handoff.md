@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.65 Rule selector execution deadline fencing In Progress；5.64 Crawler handler lease renewal 已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.65 Rule selector execution deadline fencing 已 Accepted；当前无 In Progress 工作包；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -189,13 +189,14 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 - 门禁：代码候选 `0d7d5ce` 的 [CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
 - 工作树/下一步：代码已推送 `origin/dev`；closeout 文档随本次提交推送。`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake，当前候选为乐观并发；真实上游、生产凭据、阅读 3.0/MuMu 和其他 Release Candidate 人工验收继续待定。
 
-### 5.65 Rule selector execution deadline fencing 交接（本轮，2026-10-08，In Progress）
+### 5.65 Rule selector execution deadline fencing 交接（本轮，2026-10-08，Accepted）
 
 - 缺口：`RuleAdapter` 已为 HTTP 与 Credential Provider 创建 `MaxExecutionTime` 取消令牌，但字段、分页和响应变量的选择器，以及 `RuleBasedSourceAdapter` 的 Search/TOC 列表绑定边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
 - 目标：在既有 selector/extraction/list-binding 边界加入 fail-closed deadline fencing，内部预算到期不返回 values、ResponseBodies 或部分结果；调用方主动取消仍保持原有传播语义。
 - 范围边界：不增加选择器语法、动态多请求/分支/递归、`MaxDepth`、公共 API/Legado、Schema/Migration、凭据存储、重试策略或真实来源验收；`.workbuddy-ai/` 保持未跟踪且未触碰。
-- 当前状态：实现与本地门禁已完成；Unit 605/605、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；精确 SHA 远端门禁待推送。
-- 下一步：创建 candidate commit 并推送 `origin/dev`，核对同一 SHA 的 CI/Docker/Security；通过后补齐 Accepted closeout 和远端 runtime 证据。
+- 当前状态：实现与本地门禁已完成；Unit 605/605、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；远端 CI/Docker/Security 与 PostgreSQL/runtime smoke 全部通过。
+- 门禁：候选 SHA `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` 的 [CI 37710808321](https://github.com/nekohands/InkFlow/actions/runs/37710808321)、[Docker 37710808308](https://github.com/nekohands/InkFlow/actions/runs/37710808308)、[Security 37710808245](https://github.com/nekohands/InkFlow/actions/runs/37710808245) 均 success 且 head SHA 一致。
+- 下一步：当前无活动工作包；重新 intake 下一个有证据的最小工作包。真实来源、生产凭据、真实设备/人工 Release Candidate 验收及本机 Docker 继续保持显式边界。
 
 ### 5.64 Crawler handler lease renewal 交接（本轮，2026-10-08，Accepted）
 
