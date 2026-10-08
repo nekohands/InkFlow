@@ -111,6 +111,30 @@ public sealed class CatalogQueryService(
                 .ToList());
     }
 
+    public async Task<IReadOnlyList<ChapterListItem>?> GetChapterListAsync(
+        Guid bookId,
+        CancellationToken cancellationToken = default)
+    {
+        if (await policyReader
+            .IsTakedownAsync(bookId, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        if (await bookRepository.GetSummaryAsync(bookId, cancellationToken).ConfigureAwait(false) is null)
+        {
+            return null;
+        }
+
+        var chapters = await bookRepository
+            .ListChapterSummariesAsync(bookId, cancellationToken)
+            .ConfigureAwait(false);
+        return chapters
+            .Select(chapter => new ChapterListItem(chapter.Id, chapter.Index, chapter.Title))
+            .ToList();
+    }
+
     /// <summary>读取章节正文:返回当前版本的规范化段落。未发布内容时返回 null。</summary>
     public async Task<ChapterContent?> GetChapterContentAsync(
         Guid chapterId, CancellationToken cancellationToken = default)

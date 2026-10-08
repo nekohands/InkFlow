@@ -117,6 +117,33 @@ public sealed class CanonicalBookRepositoryTests
     }
 
     [TestMethod]
+    public async Task ListChapterSummaries_Projects_Only_Directory_Columns()
+    {
+        var (repo, capture) = CreateRepositoryWithCapture();
+        var book = CanonicalBook.Create("目录投影书", "作者", T0.AddMinutes(3));
+        var first = book.AddChapter(0, "第一章", T0.AddMinutes(3));
+        var second = book.AddChapter(1, "第二章", T0.AddMinutes(3));
+
+        await repo.AddAsync(book).ConfigureAwait(false);
+        capture.Commands.Clear();
+
+        var chapters = await repo.ListChapterSummariesAsync(book.Id).ConfigureAwait(false);
+
+        Assert.AreEqual(2, chapters.Count);
+        Assert.AreEqual(first.Id, chapters[0].Id);
+        Assert.AreEqual(second.Title, chapters[1].Title);
+        Assert.AreEqual(1, capture.Commands.Count);
+        Assert.IsTrue(capture.Commands[0].Contains("ChapterIndex", StringComparison.OrdinalIgnoreCase));
+        Assert.IsTrue(capture.Commands[0].Contains("Title", StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(capture.Commands[0].Contains("CreatedAt", StringComparison.OrdinalIgnoreCase));
+
+        capture.Commands.Clear();
+        var missing = await repo.ListChapterSummariesAsync(Guid.NewGuid()).ConfigureAwait(false);
+        Assert.AreEqual(0, missing.Count);
+        Assert.AreEqual(1, capture.Commands.Count);
+    }
+
+    [TestMethod]
     public async Task Save_Appends_New_Chapters_Without_Touching_Old_Ones()
     {
         var repo = CreateRepository();

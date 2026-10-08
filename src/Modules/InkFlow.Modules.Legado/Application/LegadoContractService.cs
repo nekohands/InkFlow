@@ -82,10 +82,10 @@ public sealed class LegadoContractService(CatalogQueryService catalog)
         CancellationToken cancellationToken = default)
     {
         ValidateRoutePrefix(routePrefix);
-        var book = await catalog.GetBookAsync(bookId, cancellationToken).ConfigureAwait(false);
-        return book is null
+        var chapters = await catalog.GetChapterListAsync(bookId, cancellationToken).ConfigureAwait(false);
+        return chapters is null
             ? null
-            : book.Chapters
+            : chapters
                 .Select(c => new LegadoTocItem(
                     c.ChapterId, c.Index, c.Title,
                     $"{routePrefix}/chapters/{c.ChapterId}"))

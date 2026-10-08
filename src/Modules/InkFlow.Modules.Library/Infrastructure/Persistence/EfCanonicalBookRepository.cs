@@ -106,6 +106,23 @@ public sealed class EfCanonicalBookRepository(LibraryDbContext db) : ICanonicalB
                 entity.CreatedAt);
     }
 
+    public async Task<IReadOnlyList<CanonicalChapterSummary>> ListChapterSummariesAsync(
+        Guid bookId,
+        CancellationToken cancellationToken = default)
+    {
+        return await db.Chapters
+            .AsNoTracking()
+            .Where(chapter => chapter.BookId == bookId)
+            .OrderBy(chapter => chapter.ChapterIndex)
+            .ThenBy(chapter => chapter.Id)
+            .Select(chapter => new CanonicalChapterSummary(
+                chapter.Id,
+                chapter.ChapterIndex,
+                chapter.Title))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<IReadOnlyDictionary<Guid, string>> GetTitlesAsync(
         IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default)

@@ -8,6 +8,8 @@ public sealed record CanonicalBookSummary(
     string Author,
     int ChapterCount);
 
+public sealed record CanonicalChapterSummary(Guid Id, int Index, string Title);
+
 /// <summary>正典书籍仓储契约。实现负责聚合与实体的映射及章节增量持久化。</summary>
 public interface ICanonicalBookRepository
 {
@@ -34,6 +36,17 @@ public interface ICanonicalBookRepository
     {
         var book = await GetAsync(bookId, cancellationToken).ConfigureAwait(false);
         return book?.Chapters.FirstOrDefault(chapter => chapter.Id == chapterId);
+    }
+
+    /// <summary>按书籍 ID 读取章节目录投影，不加载整本书聚合。</summary>
+    async Task<IReadOnlyList<CanonicalChapterSummary>> ListChapterSummariesAsync(
+        Guid bookId,
+        CancellationToken cancellationToken = default)
+    {
+        var book = await GetAsync(bookId, cancellationToken).ConfigureAwait(false);
+        return book?.Chapters
+            .Select(chapter => new CanonicalChapterSummary(chapter.Id, chapter.Index, chapter.Title))
+            .ToList() ?? [];
     }
 
     /// <summary>按正典书 ID 批量读取轻量书名，供跨模块列表投影使用。</summary>

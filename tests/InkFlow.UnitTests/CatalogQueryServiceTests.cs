@@ -18,6 +18,7 @@ public sealed class CatalogQueryServiceTests
         public Dictionary<Guid, CanonicalBook> Store { get; } = new();
         public int FullBookReads { get; private set; }
         public int ChapterMetadataReads { get; private set; }
+        public int ChapterListReads { get; private set; }
         public int LastSummaryLimit { get; private set; }
 
         public Task AddAsync(CanonicalBook book, CancellationToken cancellationToken = default)
@@ -42,6 +43,28 @@ public sealed class CatalogQueryServiceTests
                 Store.TryGetValue(bookId, out var book)
                     ? book.Chapters.FirstOrDefault(chapter => chapter.Id == chapterId)
                     : null);
+        }
+
+        public Task<CanonicalBookSummary?> GetSummaryAsync(
+            Guid id,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CanonicalBookSummary?>(
+                Store.TryGetValue(id, out var book)
+                    ? new CanonicalBookSummary(book.Id, book.Title, book.Author, book.Chapters.Count)
+                    : null);
+
+        public Task<IReadOnlyList<CanonicalChapterSummary>> ListChapterSummariesAsync(
+            Guid bookId,
+            CancellationToken cancellationToken = default)
+        {
+            ChapterListReads++;
+            return Task.FromResult<IReadOnlyList<CanonicalChapterSummary>>(
+                Store.TryGetValue(bookId, out var book)
+                    ? book.Chapters
+                        .Select(chapter => new CanonicalChapterSummary(
+                            chapter.Id, chapter.Index, chapter.Title))
+                        .ToList()
+                    : []);
         }
 
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
@@ -370,6 +393,28 @@ public sealed class CatalogQueryServiceTests
             new InMemoryVersionRepository(),
             new AllowAllContentPolicyReader());
         Assert.IsNull(await service.GetBookAsync(Guid.NewGuid()));
+    }
+
+    [TestMethod]
+    public async Task GetChapterList_Uses_Chapter_Projection_Without_Full_Book_Read()
+    {
+        var books = new InMemoryBookRepository();
+        var book = CreateBook("目录点查书", "作者", withChapters: true);
+        await books.AddAsync(book);
+
+        var service = new CatalogQueryService(
+            books,
+            new InMemoryVersionRepository(),
+            new AllowAllContentPolicyReader());
+
+        var chapters = await service.GetChapterListAsync(book.Id);
+
+        Assert.IsNotNull(chapters);
+        Assert.AreEqual(1, chapters!.Count);
+        Assert.AreEqual(book.Chapters[0].Id, chapters[0].ChapterId);
+        Assert.AreEqual(1, books.ChapterListReads);
+        Assert.AreEqual(0, books.FullBookReads,
+            "目录读取不应为章节列表物化整本书");
     }
 
     /// <summary>构造带可选章节的书目聚合(复用既有测试约定)。</summary>
