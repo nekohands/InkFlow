@@ -11,7 +11,7 @@ namespace InkFlow.UnitTests;
 [TestClass]
 public sealed class LegadoContractServiceTests
 {
-    private static (CatalogQueryService Catalog, InMemoryVersionRepository Versions) BuildCatalog(
+    private static (CatalogQueryService Catalog, InMemoryVersionRepository Versions, InMemoryBooks Books) BuildCatalog(
         IContentPolicyReader? policyReader = null)
     {
         var books = new InMemoryBooks();
@@ -35,7 +35,8 @@ public sealed class LegadoContractServiceTests
                 books,
                 versions,
                 policyReader ?? new AllowAllContentPolicyReader()),
-            versions);
+            versions,
+            books);
     }
 
     private static readonly DateTimeOffset T0 = new(2026, 8, 27, 8, 30, 0, TimeSpan.Zero);
@@ -98,13 +99,28 @@ public sealed class LegadoContractServiceTests
     private sealed class InMemoryBooks : ICanonicalBookRepository
     {
         public Dictionary<Guid, CanonicalBook> Store { get; } = [];
+        public int FullBookReads { get; private set; }
+
         public Task AddAsync(CanonicalBook book, CancellationToken cancellationToken = default)
         {
             Store[book.Id] = book;
             return Task.CompletedTask;
         }
+
         public Task<CanonicalBook?> GetAsync(Guid id, CancellationToken cancellationToken = default)
-            => Task.FromResult(Store.TryGetValue(id, out var b) ? b : null);
+        {
+            FullBookReads++;
+            return Task.FromResult(Store.TryGetValue(id, out var b) ? b : null);
+        }
+
+        public Task<CanonicalBookSummary?> GetSummaryAsync(
+            Guid id,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CanonicalBookSummary?>(
+                Store.TryGetValue(id, out var book)
+                    ? new CanonicalBookSummary(book.Id, book.Title, book.Author, book.Chapters.Count)
+                    : null);
+
         public Task<IReadOnlyList<CanonicalBook>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CanonicalBook>>(Store.Values.ToList());
 
@@ -120,7 +136,7 @@ public sealed class LegadoContractServiceTests
     [TestMethod]
     public async Task Search_Returns_Items_With_DetailUrls_And_Filters_By_Keyword()
     {
-        var (catalog, _) = BuildCatalog();
+        var (catalog, _, _) = BuildCatalog();
         var service = new LegadoContractService(catalog);
 
         var all = await service.SearchAsync("");
@@ -136,12 +152,15 @@ public sealed class LegadoContractServiceTests
     [TestMethod]
     public async Task Book_Info_Contains_TocUrl()
     {
-        var (catalog, _) = BuildCatalog();
+        var (catalog, _, books) = BuildCatalog();
         var service = new LegadoContractService(catalog);
         var all = await service.SearchAsync("");
 
+        var fullBookReadsBeforeInfo = books.FullBookReads;
         var info = await service.GetBookAsync(all[0].BookId);
         Assert.IsNotNull(info);
+        Assert.AreEqual(fullBookReadsBeforeInfo, books.FullBookReads,
+            "Legado BookInfo 不应物化整本书");
         StringAssert.Contains(info!.TocUrl, "/api/legado/v1/books/");
         StringAssert.Contains(info.TocUrl, "/chapters");
     }
@@ -149,7 +168,7 @@ public sealed class LegadoContractServiceTests
     [TestMethod]
     public async Task Toc_Lists_Chapters_With_ChapterUrls()
     {
-        var (catalog, _) = BuildCatalog();
+        var (catalog, _, _) = BuildCatalog();
         var service = new LegadoContractService(catalog);
         var all = await service.SearchAsync("");
 
@@ -163,7 +182,7 @@ public sealed class LegadoContractServiceTests
     [TestMethod]
     public async Task Chapter_Content_Is_Served_From_Current_Version()
     {
-        var (catalog, _) = BuildCatalog();
+        var (catalog, _, _) = BuildCatalog();
         var service = new LegadoContractService(catalog);
         var all = await service.SearchAsync("");
         var toc = await service.GetTocAsync(all[0].BookId);
@@ -177,7 +196,7 @@ public sealed class LegadoContractServiceTests
     public async Task Takedown_Hides_Book_From_Legado_Search_Info_And_Toc()
     {
         var policy = new MutableContentPolicyReader();
-        var (catalog, _) = BuildCatalog(policy);
+        var (catalog, _, _) = BuildCatalog(policy);
         var service = new LegadoContractService(catalog);
         var visible = (await service.SearchAsync("剑来")).Single();
         policy.TakenDownBookIds.Add(visible.BookId);
@@ -190,7 +209,7 @@ public sealed class LegadoContractServiceTests
     [TestMethod]
     public async Task Personal_Route_Prefix_Is_Used_For_All_Legado_Links()
     {
-        var (catalog, _) = BuildCatalog();
+        var (catalog, _, _) = BuildCatalog();
         var service = new LegadoContractService(catalog);
 
         var result = (await service

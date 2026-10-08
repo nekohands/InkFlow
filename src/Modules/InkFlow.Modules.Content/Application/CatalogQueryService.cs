@@ -87,6 +87,25 @@ public sealed class CatalogQueryService(
         return items;
     }
 
+    public async Task<BookListItem?> GetBookSummaryAsync(
+        Guid bookId,
+        CancellationToken cancellationToken = default)
+    {
+        if (await policyReader
+            .IsTakedownAsync(bookId, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        var book = await bookRepository
+            .GetSummaryAsync(bookId, cancellationToken)
+            .ConfigureAwait(false);
+        return book is null
+            ? null
+            : new BookListItem(book.Id, book.Title, book.Author, book.ChapterCount);
+    }
+
     public async Task<BookDetail?> GetBookAsync(Guid bookId, CancellationToken cancellationToken = default)
     {
         if (await policyReader

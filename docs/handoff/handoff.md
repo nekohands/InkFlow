@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.79 Legado TOC canonical chapter projection Accepted；当前无活动工作包。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.80 Legado book-info metadata projection In Progress；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -72,6 +72,15 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 ```
 
 ## 4. 最近完成工作包
+
+### 5.80 Legado book-info metadata projection 交接（本轮，2026-10-08，In Progress）
+
+- 目标：Legado BookInfo 只读取正典书籍身份和元数据，不因返回书名/作者物化完整 `CanonicalBook` 章节集合。
+- 范围：`CatalogQueryService` bounded book-summary seam、`LegadoContractService.GetBookAsync` 以及 full-read 回归；复用现有 `ICanonicalBookRepository.GetSummaryAsync`/EF 投影。
+- 非目标：不改公共 Legado JSON/URL、BookId/ChapterId、TOC/正文/Content 选择、Schema/Migration、缓存、权限或 `.workbuddy-ai/`。
+- 验收：BookInfo 字段、TOC URL、路由前缀、缺书和撤下语义保持；生产路径不调用完整 `GetAsync`；取消继续向下传播。
+- 风险/评审：低风险、可回滚；公共 Contract 和数据库结构冻结，Unit/Contract 与既有全量门禁覆盖。
+- 当前状态：In Progress；待完成 TDD 红绿、全量验证、精确 SHA 门禁和文档收口。工作包明细见 `../../repowiki/work-packages/2026-10-08-legado-book-info-metadata-projection.md`。
 
 ### 5.79 Legado TOC canonical chapter projection 交接（本轮，2026-10-08，Accepted）
 

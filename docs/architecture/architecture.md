@@ -58,7 +58,7 @@ Canonical Chapter 与 Source Chapter 通过 Mapping 关联。数据模型允许 
 
 Phase 1 先使用章节号、标准化标题和序列上下文；Phase 2 再加入内容指纹与跨源序列对齐。
 
-Legado 目录是 canonical chapter metadata 的受限读模型：目录路径先读取书籍摘要，再通过 `ListChapterSummariesAsync` 只投影章节 `Id`、`ChapterIndex` 和 `Title`，按 `(ChapterIndex, Id)` 排序。书籍详情仍可读取完整 `CanonicalBook` 聚合；该边界不改变 TOC JSON、稳定身份、撤下/缺书语义、Schema 或 Migration。
+Legado 目录是 canonical chapter metadata 的受限读模型：目录路径先读取书籍摘要，再通过 `ListChapterSummariesAsync` 只投影章节 `Id`、`ChapterIndex` 和 `Title`，按 `(ChapterIndex, Id)` 排序。BookInfo 路径通过 `GetBookSummaryAsync` 复用 `CanonicalBookSummary`，只读取 ID、书名、作者和章节数，不物化章节行。书籍详情仍可读取完整 `CanonicalBook` 聚合；该边界不改变 BookInfo/TOC JSON、稳定身份、撤下/缺书语义、Schema 或 Migration。
 
 ### Private Library
 

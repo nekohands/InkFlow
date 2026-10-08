@@ -396,6 +396,29 @@ public sealed class CatalogQueryServiceTests
     }
 
     [TestMethod]
+    public async Task GetBookSummary_Uses_Bounded_Summary_Without_Full_Book_Read()
+    {
+        var books = new InMemoryBookRepository();
+        var book = CreateBook("BookInfo 摘要书", "作者", withChapters: true);
+        await books.AddAsync(book);
+
+        var service = new CatalogQueryService(
+            books,
+            new InMemoryVersionRepository(),
+            new AllowAllContentPolicyReader());
+
+        var summary = await service.GetBookSummaryAsync(book.Id);
+
+        Assert.IsNotNull(summary);
+        Assert.AreEqual(book.Id, summary!.Id);
+        Assert.AreEqual(book.Title, summary.Title);
+        Assert.AreEqual(book.Author, summary.Author);
+        Assert.AreEqual(1, summary.ChapterCount);
+        Assert.AreEqual(0, books.FullBookReads,
+            "BookInfo 摘要读取不应物化整本书");
+    }
+
+    [TestMethod]
     public async Task GetChapterList_Uses_Chapter_Projection_Without_Full_Book_Read()
     {
         var books = new InMemoryBookRepository();

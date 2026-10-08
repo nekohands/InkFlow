@@ -58,7 +58,7 @@ Web 与 Legado 必须共享同一个 `CanonicalContentService` 和 Selected Cont
 
 默认情况下，同一章节在 Web 与 Legado 返回相同 Canonical Content Version。用户显式 PreferredSource 是用户阅读偏好，不修改平台全局 Selection。
 
-Legado TOC 读取先执行既有撤下策略和 canonical book 摘要检查，再按持久化 `(ChapterIndex, Id)` 顺序投影章节 `Id`、序号和标题；不为目录请求物化完整 `CanonicalBook` 聚合。`GetBookAsync` 仍服务书籍详情等明确需要完整聚合的路径，TOC JSON、稳定 ID/URL、缺书语义、Schema 和 Migration 不变。
+Legado BookInfo 先执行既有撤下策略，再通过 `CatalogQueryService.GetBookSummaryAsync` 读取 `CanonicalBookSummary`；TOC 先执行摘要检查，再按持久化 `(ChapterIndex, Id)` 顺序投影章节 `Id`、序号和标题。两条路径都不物化不需要的完整聚合或章节正文；`GetBookAsync` 仍服务明确需要完整书籍详情的路径。BookInfo/TOC JSON、稳定 ID/URL、缺书语义、Schema 和 Migration 不变。
 
 ## 7. 缓存
 

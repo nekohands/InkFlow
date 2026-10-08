@@ -69,11 +69,21 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.79 Legado TOC canonical chapter projection 已 Accepted；当前无活动工作包。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.80 Legado book-info metadata projection In Progress；5.79 Legado TOC canonical chapter projection 已 Accepted。5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
-最近接受工作包如下：
+当前及最近接受工作包如下：
 
 ```text
+Name: Legado book-info metadata projection
+Objective / user outcome: Legado BookInfo only reads canonical book identity and metadata; it must not materialize all canonical chapters.
+In scope: `CatalogQueryService` bounded book-summary read, `LegadoContractService.GetBookAsync`, full-read regression, and existing canonical summary evidence.
+Non-goals: no public Legado JSON/URL change, no BookId/ChapterId change, no TOC/content selection change, no schema/migration, cache, permissions, or `.workbuddy-ai/` change.
+Acceptance: AC-1 preserves BookInfo fields, TOC URL, route-prefix validation, missing-book, and takedown semantics; AC-2 production BookInfo does not call full `GetAsync`; AC-3 existing canonical summary projection remains the authoritative bounded read and cancellation propagates.
+Status: In Progress.
+Risk/review: low blast radius, reversible application read-path change; public contract and persistence schema are explicitly frozen. Review is focused Unit/Contract plus existing Release/CI gates.
+Verification plan: TDD red/green; focused Catalog/Legado Unit; Unit/Architecture/Contract; Restore/Release Build; migration model; diff/secret audit; applicable Integration/Runtime; exact-head CI/Docker/Security.
+Boundary: full `GetBookAsync` remains for book detail and other intentional aggregate callers; real-source/manual Legado client acceptance remains outside this package.
+
 Name: Legado TOC canonical chapter projection
 Objective / user outcome: Legado TOC 只读取 canonical book visibility 和 chapter metadata，不物化完整 `CanonicalBook` 聚合。
 In scope: `CanonicalChapterSummary`, `ListChapterSummariesAsync`, EF scalar projection, `CatalogQueryService.GetChapterListAsync`, Legado TOC consumer, compatibility fallback, and Unit/PostgreSQL regression.
