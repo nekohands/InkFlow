@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.77 Source enabled-state projection In Progress；5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
+- 文档状态：5.77 Source enabled-state projection Accepted；5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；当前无活动工作包，历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -45,14 +45,17 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 5.77 Source enabled-state projection（本轮，2026-10-08，In Progress）
+### 5.77 Source enabled-state projection（本轮，2026-10-08，Accepted）
 
 - 缺口：来源健康门控和已注册代码适配器只需要来源是否存在/启用，但当前 `ISourceRepository.GetAsync` 会加载并反序列化完整 Rule DSL；规则文档增大时会放大高频资格检查的读取和 CPU 开销。
 - Intake：新增可区分缺失/禁用/启用的标量状态读取；健康门控与代码适配器路径使用该投影，规则适配器继续使用完整聚合读取。
 - 范围边界：不改规则适配器加载、来源生命周期写入、Rule DSL 校验/执行、来源分页、健康状态转移、公共 API/Legado、Schema/Migration、缓存、凭据或 `.workbuddy-ai/`。
 - 验收：启用、禁用、缺失来源的既有决策保持；生产健康/代码适配器路径不调用完整 `GetAsync`；EF 只读取 `sources.IsEnabled` 并传播取消；规则适配器仍完整读取 Rule DSL。
 - 验证计划：TDD 红绿、Unit/Architecture/Contract、Restore/Release Build、迁移模型、适用 Integration/Runtime、diff/secret audit 与精确 SHA CI/Docker/Security。
-- 状态：In Progress；实现和远端门禁证据待补。
+- 实现：新增兼容的 `ISourceRepository.GetEnabledAsync`；生产 EF 只投影 `sources.IsEnabled`；健康门控和已注册 CodeAdapter 使用该投影，RuleBased Adapter 保持完整读取。
+- 本地验证：TDD 红绿、focused `SourceAdapterFactory`/`SourceCapabilityHealth` `14/14`、Unit `624/624`、Architecture `1/1`、Contract `12/12`、Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`git diff --check` 和 secret audit `0` hits 通过。完整本机 Integration `8 passed / 3 skipped / 126 blocked`，新增 PostgreSQL 回归已编译但执行受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用阻塞。
+- 门禁：候选 SHA `b753a8bc207fda442148f0ab70af9ffcb2826bba` 的 [CI 37759082085](https://github.com/nekohands/InkFlow/actions/runs/37759082085)、[Docker 37759082091](https://github.com/nekohands/InkFlow/actions/runs/37759082091)、[Security 37759082083](https://github.com/nekohands/InkFlow/actions/runs/37759082083) 均与 head SHA 一致并 GREEN；CI 迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 全部通过，Docker 与 Security 完整门禁通过。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存、凭据或 `.workbuddy-ai/` 变化；当前无活动工作包，下一项重新 intake。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-source-enabled-state-projection.md)。
 
 ### 5.76 Matching source-book metadata projection（本轮，2026-10-08，Accepted）
 

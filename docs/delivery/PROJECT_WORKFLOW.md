@@ -69,11 +69,21 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.77 Source enabled-state projection In Progress；5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.77 Source enabled-state projection Accepted；5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted；当前无活动工作包。
 
 最近接受工作包如下：
 
 ```text
+Name: Source enabled-state projection
+Objective / user outcome: 来源健康门控和已注册代码适配器只读取来源存在/启用状态，不加载完整 Source Rule DSL 聚合。
+In scope: `ISourceRepository.GetEnabledAsync`, EF `sources.IsEnabled` projection, health/code-adapter paths, focused Unit/PostgreSQL regressions, and Source Runtime/Wiki delivery documentation.
+Non-goals: no RuleBased Adapter loading change, source writes, Rule DSL validation/execution, paging, health transitions, public API/Legado, Schema/Migration, cache, credentials, or `.workbuddy-ai/`.
+Acceptance: enabled/disabled/missing decisions remain stable; production health/code-adapter paths avoid full `GetAsync`; EF projects only `sources.IsEnabled` and propagates cancellation; RuleBased Adapter retains full reads.
+Status: Accepted.
+Verification: TDD red/green; focused SourceAdapterFactory/SourceCapabilityHealth `14/14`; Unit `624/624`; Architecture `1/1`; Contract `12/12`; restore/tool restore; Release Build `0 warnings / 0 errors`; migration model `11/11`; diff/secret audit; exact-head CI/Docker/Security.
+Delivery: implementation SHA `b753a8bc207fda442148f0ab70af9ffcb2826bba`; CI `37759082085`, Docker `37759082091`, and Security `37759082083` all GREEN with matching head SHA. Local Integration `8 passed / 3 skipped / 126 Docker-blocked`; remote CI supplied PostgreSQL/runtime evidence.
+Boundary: full `GetAsync` remains for RuleBased Adapter, writes, and other aggregate callers; no public Contract, Schema/Migration, cache, credential, or `.workbuddy-ai/` change.
+
 Name: Matching source-book metadata projection
 Objective / user outcome: 正典书匹配只读取来源书标题和作者，不因取得匹配键物化整本来源书。
 In scope: `ISourceBookRepository.GetMetadataAsync`, `CanonicalBookMatchingService.CreateOrMatchAsync`, focused Unit/PostgreSQL regressions, Source Runtime and delivery/Wiki documentation.
