@@ -69,7 +69,7 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：In Progress（5.70，Health-probe candidate batching）。5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.70 Health-probe candidate batching Accepted；下一工作包待基于新证据 intake。5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前工作包如下：
 
@@ -79,9 +79,9 @@ Objective / user outcome: 主动健康探针按有限页读取 Unhealthy 能力�
 In scope: ISourceHealthRepository stable `(SourceId, Capability)` keyset page, HealthProbeService bounded batch result, Scheduler in-process cursor/reset, focused Unit/PostgreSQL regressions, source-runtime and delivery docs.
 Non-goals: durable cursor, Schema/Migration, public API/Legado JSON, health policy/cooldown algorithm, due-candidate SQL expression, probe concurrency/rate-limit policy, source rotation, other repository callers, live-source acceptance.
 Acceptance: production health probing reads at most 100 candidates plus one look-ahead row; SQL filters Unhealthy, applies `(SourceId, Capability)` keyset order/cursor, and returns deterministic continuation; Scheduler advances only after a successful batch and resets at the final page; existing due/skip/probe/recording/cancellation semantics remain unchanged.
-Status: In Progress.
-Verification: red/green HealthProbeService batching/cursor regression and PostgreSQL paging/order/cancellation regression are implemented; local Unit/Architecture/Contract, Restore/Release Build, migration model, diff/secret checks are PASS. Full local Integration is 8 passed / 3 skipped / 119 Docker-blocked; exact-SHA CI/Docker/Security and Runtime remain pending.
-Delivery: implementation is present in the working tree; candidate commit and push are pending.
+Status: Accepted.
+Verification: red/green HealthProbeService batching/cursor regression and PostgreSQL paging/order/cancellation regression are implemented; local Unit/Architecture/Contract, Restore/Release Build, migration model, diff/secret checks are PASS. Full local Integration is 8 passed / 3 skipped / 119 Docker-blocked. Final SHA `6acb91910db8eb90fb3ea06cfc80031bd4cfbaaf` passed CI `37730186762`, Docker `37730186799`, and Security `37730186829`, all with matching head SHA.
+Delivery: accepted implementation is pushed to `origin/dev`; CI included PostgreSQL Integration `127 passed / 3 skipped`, Compose/runtime, Redis, backup/restore, and diagnostics. Next work package is not yet selected.
 Boundary: cursor is process-local; restart replays from the first page, and a candidate before the current cursor may wait until the next cycle. Pages may include not-yet-due rows; `.workbuddy-ai/` remains untracked and untouched.
 ```
 

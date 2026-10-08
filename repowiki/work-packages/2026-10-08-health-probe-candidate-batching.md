@@ -1,6 +1,6 @@
 # 5.70 Health-probe candidate batching
 
-Status: In Progress
+Status: Accepted
 
 ## Objective
 
@@ -76,7 +76,7 @@ candidate-read/probe-fan-out bound rather than a database-side due filter.
 - Source Runtime and architecture Wiki constraints now document the bounded
   candidate page, look-ahead, restart replay, and non-due-page boundary.
 
-## Local evidence before remote gates
+## Verification and delivery evidence
 
 - TDD red: the new batch regression first failed to compile because the batch
   API did not exist; green focused HealthProbeService: `7/7`.
@@ -88,4 +88,19 @@ candidate-read/probe-fan-out bound rather than a database-side due filter.
 - Full Integration attempted: `130` total, `8 passed / 3 skipped / 119
   blocked` by unavailable Windows Docker Engine `npipe://./pipe/docker_engine`;
   the new PostgreSQL regression compiled but could not start Testcontainers.
-- Runtime and remote CI/Docker/Security: PENDING for the candidate SHA.
+- Initial candidate `16b34e94bb5fb0214c2765fa2bad79604c5bc603` correctly exposed
+  a shared-container fixture assumption in CI; `6acb91910db8eb90fb3ea06cfc80031bd4cfbaaf`
+  isolates the regression with a keyset start cursor and passed the full gate.
+- Exact final SHA `6acb91910db8eb90fb3ea06cfc80031bd4cfbaaf` passed CI
+  `37730186762` (`Unit 617/617`, `Architecture 1/1`, `Contract 12/12`,
+  PostgreSQL Integration `127 passed / 3 skipped`, Compose/runtime/Redis/
+  backup/diagnostics), Docker `37730186799`, and Security `37730186829`; all
+  three runs report the same head SHA.
+
+## Accepted boundary
+
+The scheduled path is bounded and remote runtime evidence is green. The cursor
+remains process-local, restarts replay the first page, pages may contain
+not-yet-due rows, and no schema, migration, public protocol, due SQL policy,
+probe concurrency/rate-limit policy, source rotation, or live-source acceptance
+was added. `.workbuddy-ai/` remains untracked and untouched.

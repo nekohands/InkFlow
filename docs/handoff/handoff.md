@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；真实来源与外部验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.70 Health-probe candidate batching In Progress；5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史交接明细见 `handoff-history.md`。
+- 文档状态：5.70 Health-probe candidate batching Accepted；5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；下一工作包待重新 intake；历史交接明细见 `handoff-history.md`。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-08；dev 骨架重建更新：2026-08-25
 
@@ -73,17 +73,18 @@ CI: GREEN (CI 33255354693; Docker 33255354699; Security 33255354684)
 
 ## 4. 下一工作包
 
-### 5.70 Health-probe candidate batching 交接（本轮，2026-10-08，In Progress）
+### 5.70 Health-probe candidate batching 交接（本轮，2026-10-08，Accepted）
 
 - 目标：主动健康探针按有限页读取 Unhealthy 能力候选，避免每次巡检通过 `ListUnhealthyAsync` 全量物化健康表并形成无界 fan-out。
 - 范围：`ISourceHealthRepository` 增加 `(SourceId, Capability)` 稳定 keyset page；`HealthProbeService` 返回有界批次结果；Scheduler 保留进程内游标并在末页重置；补充 focused Unit/PostgreSQL 回归与文档。
 - 非目标：durable cursor、Schema/Migration、公共 API/Legado JSON、健康策略/冷却算法、due SQL 表达式、探针并发/限流、来源轮换、其他仓储调用方和真实来源验收。
 - 验收：生产每批最多读取 100 条候选加一条 look-ahead；查询过滤 Unhealthy、按 `(SourceId, Capability)` 排序并续页；批次成功才推进游标，末页重置；既有 due/skip/probe/recording/cancellation 语义保持不变。
-- 当前状态：已实现并完成本地非容器门槛，候选提交/推送与远端门禁待完成；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 当前状态：已实现、推送并通过精确 SHA 的本地/远端门禁；`.workbuddy-ai/` 保持未跟踪且未触碰。
 - 验证计划：HealthProbeService 批次/游标红绿回归、PostgreSQL 分页/排序/取消回归、Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 和精确 SHA 的 CI/Docker/Security。
 - 实现：新增 `SourceHealthPage` 与稳定 `(SourceId, Capability)` 游标；EF 健康仓储按 `Unhealthy` 过滤并读取 100 条加一条 look-ahead；`ProbeDueBatchAsync` 复用既有 due/skip/probe/recording/cancellation 逻辑；Scheduler 在成功批次后推进进程内游标、末页清空，旧 `ProbeDueAsync` 调用保持全量语义。
 - 本地证据：focused HealthProbeService `7/7`、Unit `617/617`、Architecture `1/1`、Contract `12/12`、Restore PASS、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法、diff/secret audit PASS。完整 Integration `130` 项为 `8 passed / 3 skipped / 119 blocked`，原因是 Windows Docker named pipe 不可用；新增 PostgreSQL 分页/取消回归已编译但未运行。
-- 当前门禁：候选 SHA、远端 CI/Docker/Security、容器 Runtime 尚未取得；不得标记 Accepted。
+- 当前门禁：初始候选 `16b34e94bb5fb0214c2765fa2bad79604c5bc603` 的共享容器测试夹具假设已由 `6acb91910db8eb90fb3ea06cfc80031bd4cfbaaf` 修复。最终 SHA 的 [CI 37730186762](https://github.com/nekohands/InkFlow/actions/runs/37730186762)、[Docker 37730186799](https://github.com/nekohands/InkFlow/actions/runs/37730186799)、[Security 37730186829](https://github.com/nekohands/InkFlow/actions/runs/37730186829) 均 success 且 head SHA 一致；CI PostgreSQL Integration `127 passed / 3 skipped`，Compose/runtime、Redis、备份恢复和 diagnostics 均通过。
+- 下一步：5.70 已 Accepted；继续任务前先基于新的证据 intake 下一项最小工作包。游标进程内、重启重扫、页面包含未到期行、无 Schema/Migration/公共 Contract 变化等边界保持；真实来源/生产凭据/其他 Release Candidate 人工验收仍独立。
 
 ### 5.69 Health-probe sample lookup fencing 交接（本轮，2026-10-08，Accepted）
 
