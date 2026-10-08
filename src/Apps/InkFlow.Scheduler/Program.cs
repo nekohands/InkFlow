@@ -116,6 +116,7 @@ internal sealed class HealthProbeBackgroundService(
     IServiceScopeFactory scopeFactory) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(10);
+    private SourceHealthScanCursor? _cursor;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -127,13 +128,17 @@ internal sealed class HealthProbeBackgroundService(
             {
                 using var scope = scopeFactory.CreateScope();
                 var prober = scope.ServiceProvider.GetRequiredService<HealthProbeService>();
-                var results = await prober.ProbeDueAsync(stoppingToken).ConfigureAwait(false);
-                foreach (var result in results)
+                var batch = await prober
+                    .ProbeDueBatchAsync(_cursor, stoppingToken)
+                    .ConfigureAwait(false);
+                foreach (var result in batch.Results)
                 {
                     Console.WriteLine(
                         $"health probe {result.SourceId}/{result.Capability}: " +
                         (result.Recovered ? "recovered." : $"still failing ({result.FailureReason})."));
                 }
+
+                _cursor = batch.HasMore ? batch.NextCursor : null;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

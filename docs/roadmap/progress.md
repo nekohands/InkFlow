@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（本轮 Reader 顶部采集/下载/来源状态入口、书籍详情下载入口及来源只读权限已完成本机/VM/浏览器自动化验收，CI/Docker/Security 已通过；人工及其他真实环境验收待定）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：5.69 Health-probe sample lookup fencing Accepted；5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；下一工作包重新 intake；历史记录见 `progress-history.md`。
+- 文档状态：5.70 Health-probe candidate batching In Progress；5.69 Health-probe sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing 及前序包均已 Accepted；历史记录见 `progress-history.md`。
 - 最后更新日期：2026-10-08
 
 ## 1. 总体状态
@@ -44,6 +44,17 @@ Phase 1A 自动化工作包状态：
 13. ✅ Web Reader 最小纵向体验（自动化基线已完成）。
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
+
+### 5.70 Health-probe candidate batching（本轮，2026-10-08，In Progress）
+
+- 缺口：`HealthProbeService.ProbeDueAsync` 通过 `ListUnhealthyAsync` 全量物化所有 Unhealthy 能力行，来源与能力规模增长后每 10 分钟巡检的读取和探针 fan-out 无上界。
+- Intake：本包改为按 `(SourceId, Capability)` 稳定 keyset 读取有限候选页，每批最多 100 行；Scheduler 在进程内保留游标，末页重置，保留既有冷却判断与结果语义。
+- 范围边界：不持久化游标，不新增 Schema/Migration，不改变公共 API/Legado、健康策略/冷却算法、due SQL 表达式、探针并发/限流、来源轮换或其他仓储调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：生产查询只读取最多 100 条候选加一条 look-ahead，过滤 Unhealthy、按 `(SourceId, Capability)` 排序并支持 keyset continuation；批次成功才推进游标，末页重置；due/skip/probe/recording/cancellation 语义不变。
+- 验证计划：HealthProbeService 红绿批次/游标回归、PostgreSQL 分页/排序/取消回归、Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：`ISourceHealthRepository` 增加 `SourceHealthPage` 与 `(SourceId, Capability)` keyset 游标，EF 查询按 `Unhealthy` 过滤、稳定排序并 `Take(limit + 1)`；`HealthProbeService.ProbeDueBatchAsync` 固定每批最多 100 条，保留旧 `ProbeDueAsync` 全量调用语义；Scheduler 成功批次后推进进程内游标，末页重置。同步更新 Source Runtime 与 RepoWiki 架构约束。
+- 本地验证：红灯为新批次 API 缺失导致的预期编译失败，随后 focused HealthProbeService `7/7`；Restore PASS；Release Build `0 warnings / 0 errors`；Unit `617/617`、Architecture `1/1`、Contract `12/12`；迁移模型 `11/11`、迁移脚本 `bash -n`、`git diff --check`、changed-file secret scan PASS。完整 Integration `130` 项为 `8 passed / 3 skipped / 119 blocked`，均因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已完整编译但未取得本机容器证据。
+- 门禁：候选提交、远端 PostgreSQL/runtime、CI/Docker/Security 尚未完成；当前仍为 In Progress，不标记 Accepted。
 
 ### 5.69 Health-probe sample lookup fencing（本轮，2026-10-08，Accepted）
 

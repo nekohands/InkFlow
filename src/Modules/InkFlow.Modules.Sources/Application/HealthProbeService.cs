@@ -9,6 +9,12 @@ public sealed record HealthProbeResult(
     bool Recovered,
     string? FailureReason);
 
+public sealed record HealthProbeBatchResult(
+    IReadOnlyList<HealthProbeResult> Results,
+    int CandidateCount,
+    bool HasMore,
+    SourceHealthScanCursor? NextCursor);
+
 /// <summary>
 /// 主动巡检式健康探测:对冷却期已满的 Unhealthy 能力主动发起轻量真实请求,
 /// 成败经既有 Record* 上报——与被动半开(依赖自然流量)互补,共同构成自适应健康。
@@ -30,6 +36,7 @@ public sealed class HealthProbeService(
 {
     /// <summary>Search 探针使用的探测关键词;探针判定的是连通性而非命中数。</summary>
     public const string ProbeKeyword = "inkflow-probe";
+    public const int MaxCandidatesPerRun = 100;
 
     public async Task<IReadOnlyList<HealthProbeResult>> ProbeDueAsync(
         CancellationToken cancellationToken = default)
@@ -39,6 +46,32 @@ public sealed class HealthProbeService(
             .ListUnhealthyAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        return await ProbeCandidatesAsync(unhealthy, now, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<HealthProbeBatchResult> ProbeDueBatchAsync(
+        SourceHealthScanCursor? after = null,
+        CancellationToken cancellationToken = default)
+    {
+        var now = clock.GetUtcNow();
+        var page = await healthRepository
+            .ListUnhealthyPageAsync(after, MaxCandidatesPerRun, cancellationToken)
+            .ConfigureAwait(false);
+        var results = await ProbeCandidatesAsync(page.Health, now, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new HealthProbeBatchResult(
+            results,
+            page.Health.Count,
+            page.HasMore,
+            page.NextCursor);
+    }
+
+    private async Task<IReadOnlyList<HealthProbeResult>> ProbeCandidatesAsync(
+        IReadOnlyList<SourceCapabilityHealth> unhealthy,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
         var results = new List<HealthProbeResult>();
 
         foreach (var health in unhealthy)

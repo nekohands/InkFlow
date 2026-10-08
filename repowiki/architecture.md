@@ -69,6 +69,7 @@ Parent/root index: [README.md](README.md)
   change `ISourceAdapter`, public/Legado JSON, pagination, schema, or migrations.
 - Scheduled update scans page `SourceBook` rows by the stable `(CreatedAt, Id)` keyset and process at most 100 books per scheduler tick. The scheduler keeps the cursor in memory only, advances it after a successful batch, and resets it after the last page; restart replay is bounded by the existing task dedupe gate. No cursor persistence, schema, or migration is part of this boundary.
 - The active Toc health probe selects one chapter-free sample `SourceBook` with a source-filtered `(CreatedAt, Id)` query and `LIMIT 1`; it must not materialize the complete source-book table. No sample remains a silent skip, and this does not page unhealthy health candidates or add a durable cursor.
+- Scheduled health probes page `Unhealthy` capability rows by the stable `(SourceId, Capability)` keyset, read at most 100 candidates plus one look-ahead per batch, and keep an in-process cursor in the Scheduler. The cursor advances only after a successful batch and resets after the final page; pages may contain not-yet-due rows, restart replay is expected, and no cursor persistence, schema, or migration is part of this boundary.
 - Trusted Kanunu8/17K CodeAdapters use the same `SourceRuleExecutionLimits`:
   `SourceResponseReader` rejects oversized bodies before decode/parse, and
   Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.

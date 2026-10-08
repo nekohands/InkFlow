@@ -129,6 +129,11 @@ Header 基线；持久化 Session，以及动态多请求/递归执行所需的 
 chapter-free 查询。无匹配时继续静默跳过；该边界只约束样本选择，不改变 unhealthy 健康候选列表的
 调度语义或引入持久化游标。
 
+定时健康探针按 `(SourceId, Capability)` 对 `Unhealthy` 能力行做稳定 keyset 分页，单批最多读取
+100 行加一条 look-ahead；Scheduler 仅在批次成功后推进进程内游标，末页重置。页面可包含冷却期未满
+的行，因此 100 行是候选读取与探针 fan-out 上限，不是数据库 due 过滤；游标不持久化，重启会从首批
+重扫，也不新增 Schema/Migration。
+
 `CapabilityRule.ResponseVariables` 已补齐有界的响应派生变量能力：仅允许在 page-number/cursor
 续页实际存在时从当前响应按受控 Selector 或带超时 Regex 提取，并经过 Trim/Replace 后合并到同一次
 执行的临时请求模板上下文；变量数量、名称、单值、累计 UTF-8 字节和控制字符继续复用同一预算。

@@ -287,6 +287,71 @@ public sealed class SourceRepositoryTests
     }
 
     [TestMethod]
+    public async Task ListUnhealthyPage_Uses_Stable_Keyset_And_Lookahead()
+    {
+        var repo = CreateHealthRepository();
+        var healthy = SourceCapabilityHealth.Create("health-page-a", SourceCapability.Toc, T0);
+        healthy.RecordSuccess(T0.AddMinutes(1));
+
+        foreach (var row in new[]
+        {
+            CreateUnhealthy("health-page-a", SourceCapability.Search),
+            CreateUnhealthy("health-page-a", SourceCapability.Content),
+            CreateUnhealthy("health-page-b", SourceCapability.Search),
+            CreateUnhealthy("health-page-c", SourceCapability.Search),
+            healthy,
+        })
+        {
+            await repo.AddAsync(row).ConfigureAwait(false);
+        }
+
+        var first = await repo.ListUnhealthyPageAsync(null, 2).ConfigureAwait(false);
+
+        CollectionAssert.AreEqual(
+            new[] { "health-page-a/Search", "health-page-a/Content" },
+            first.Health.Select(row => $"{row.SourceId}/{row.Capability}").ToArray());
+        Assert.IsTrue(first.HasMore);
+        Assert.IsNotNull(first.NextCursor);
+
+        var second = await repo
+            .ListUnhealthyPageAsync(first.NextCursor, 2)
+            .ConfigureAwait(false);
+
+        CollectionAssert.AreEqual(
+            new[] { "health-page-b/Search", "health-page-c/Search" },
+            second.Health.Select(row => $"{row.SourceId}/{row.Capability}").ToArray());
+        Assert.IsFalse(second.HasMore);
+        Assert.IsNull(second.NextCursor);
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var canceled = false;
+        try
+        {
+            await repo.ListUnhealthyPageAsync(null, 2, cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            canceled = true;
+        }
+
+        Assert.IsTrue(canceled, "分页查询必须向上传播取消");
+    }
+
+    private static SourceCapabilityHealth CreateUnhealthy(
+        string sourceId,
+        SourceCapability capability)
+    {
+        var health = SourceCapabilityHealth.Create(sourceId, capability, T0);
+        for (var i = 0; i < SourceHealthPolicy.UnhealthyAfterConsecutiveFailures; i++)
+        {
+            health.RecordFailure("seeded-failure", T0.AddMinutes(i + 1));
+        }
+
+        return health;
+    }
+
+    [TestMethod]
     public async Task Concurrent_Health_Mutations_Preserve_All_Failures()
     {
         await using (CreateHealthDbContext(migrate: true))

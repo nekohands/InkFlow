@@ -138,6 +138,28 @@ public sealed class HealthProbeServiceTests
         Assert.AreEqual(0, harness.Adapter.CallCount, "冷却期内不得触发探针");
     }
 
+    [TestMethod]
+    public async Task Probe_Batch_Is_Bounded_And_Advances_Keyset_Cursor()
+    {
+        var rows = Enumerable.Range(0, 101)
+            .Select(index => (($"probe-{index:000}", SourceCapability.Search), T0))
+            .ToArray();
+        var harness = CreateHarness(rows);
+        harness.Clock.Now = T0.AddMinutes(10);
+
+        var first = await harness.Service.ProbeDueBatchAsync();
+        Assert.AreEqual(100, first.CandidateCount);
+        Assert.AreEqual(0, first.Results.Count);
+        Assert.IsTrue(first.HasMore);
+        Assert.IsNotNull(first.NextCursor);
+
+        var second = await harness.Service.ProbeDueBatchAsync(first.NextCursor);
+        Assert.AreEqual(1, second.CandidateCount);
+        Assert.AreEqual(0, second.Results.Count);
+        Assert.IsFalse(second.HasMore);
+        Assert.IsNull(second.NextCursor);
+    }
+
     private static Harness CreateHarness(
         ((string SourceId, SourceCapability Capability), DateTimeOffset anchor) unhealthyRow,
         Exception? searchThrows = null,
@@ -179,7 +201,7 @@ public sealed class HealthProbeServiceTests
         var service = new HealthProbeService(healthRepo, recorder, factory, sourceBooks, clock);
 
         return new Harness(service, healthRepo, clock,
-            (ProbeAdapter)adapters.Values.Single());
+            adapters.Values.OfType<ProbeAdapter>().First());
     }
 
     private sealed record Harness(

@@ -137,6 +137,47 @@ public sealed class EfSourceHealthRepository(SourcesDbContext db) : ISourceHealt
         return entities.Select(ToDomain).ToList();
     }
 
+    public async Task<SourceHealthPage> ListUnhealthyPageAsync(
+        SourceHealthScanCursor? after,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        }
+
+        var query = db.CapabilityHealth
+            .AsNoTracking()
+            .Where(x => x.Status == SourceHealthStatus.Unhealthy);
+        if (after is not null)
+        {
+            var sourceId = after.SourceId;
+            var capability = after.Capability;
+            query = query.Where(x => x.SourceId.CompareTo(sourceId) > 0
+                || (x.SourceId == sourceId && x.Capability > capability));
+        }
+
+        var entities = await query
+            .OrderBy(x => x.SourceId)
+            .ThenBy(x => x.Capability)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var hasMore = entities.Count > limit;
+        if (hasMore)
+        {
+            entities.RemoveAt(limit);
+        }
+
+        var health = entities.Select(ToDomain).ToList();
+        var nextCursor = hasMore
+            ? new SourceHealthScanCursor(health[^1].SourceId, health[^1].Capability)
+            : null;
+        return new SourceHealthPage(health, nextCursor, hasMore);
+    }
+
     private static SourceCapabilityHealthEntity ToEntity(SourceCapabilityHealth health) => new()
     {
         SourceId = health.SourceId,
