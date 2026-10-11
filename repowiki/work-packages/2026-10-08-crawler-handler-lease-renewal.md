@@ -1,5 +1,14 @@
 # Crawler handler lease renewal
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing the crawler lease work package; then read the linked implementation, tests, and worker state pages.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Crawler task processor](../../src/Modules/InkFlow.Modules.Crawling/Application/CrawlerTaskProcessor.cs)
+- [Crawler task processor tests](../../tests/InkFlow.UnitTests/CrawlerTaskProcessorTests.cs)
+
 Status: Accepted
 Name: Crawler handler lease renewal
 Objective / user outcome: A single crawler handler that runs longer than its initial task lease keeps exclusive ownership until it finishes or is cancelled, so another worker does not reclaim the task mid-execution.

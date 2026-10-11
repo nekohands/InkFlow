@@ -1,5 +1,14 @@
 # 5.73 Source content chapter metadata point lookup
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.73; then read the linked Source implementation, repository tests, and current state.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Source content service](../../src/Modules/InkFlow.Modules.Sources/Application/SourceContentService.cs)
+- [Source content tests](../../tests/InkFlow.UnitTests/SourceContentServiceTests.cs)
+
 Status: Accepted
 
 ## Objective

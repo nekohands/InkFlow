@@ -1,7 +1,7 @@
 # InkFlow 项目工作流档案
 
 Status: Active profile
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-11
 Owner: InkFlow maintainers
 
 本文件是唯一的操作型工作流 profile。项目自身的强制工程规范仍以
@@ -15,6 +15,7 @@ Owner: InkFlow maintainers
 - 当前阶段：`1.0 Release Candidate`（保持不标记 `Accepted/Completed`，人工/真实环境验收见 progress.md 第 6 节）。
 - 分支模型：`dev` 为唯一开发主线，经 PR 合入 `main`；CI/Docker/Security 三个 workflow 覆盖 `main` + `dev` 的 push/PR。
 - AI 权威项目参考（RepoWiki）：[repowiki/README.md](../../repowiki/README.md)；中文人文文档入口见根 README 与 AGENTS.md 阅读顺序。
+- 文档入口：[docs/README.md](../README.md)；文档角色分离为 `docs/` 能力/交付输出与 `repowiki/` Agent-only 合同/状态/证据。
 
 ## Project Profile
 
@@ -22,8 +23,8 @@ Owner: InkFlow maintainers
 Project: InkFlow
 Primary stack/runtime: .NET 10 modular monolith; ASP.NET Core; PostgreSQL 18; Redis; Docker Compose; server-rendered Web/PWA
 Project instructions: AGENTS.md; docs/engineering/development-workflow.md（强制）
-Optional code index: CodeGraph queried with `codegraph explore "..."`
-Root `.codegraph/` present; query "project structure, entrypoints, and verification commands" executed 2026-10-02 with results (39 symbols, 5 files)
+Optional code index: CodeGraph queried with `codegraph explore "project structure, entrypoints, and verification commands"`
+Root `.codegraph/` present; same query executed 2026-10-11 with results (37 symbols, 5 files)
 Authoritative architecture/invariant docs: docs/architecture/architecture.md; invariants.md; domain-model.md; overview.md; Wiki 镜像 repowiki/architecture.md
 Security/input/permission docs: docs/architecture/security-model.md; AGENTS.md 安全与不变量章节
 Public/external contracts: docs/architecture/legado-contract.md; docs/architecture/developer-api.md; docs/contracts/source-rule-dsl-v1.schema.json; tests/InkFlow.ContractTests
@@ -43,6 +44,8 @@ Security/scan checks: AGENTS.md SSRF/授权/Secret/Migration 检查；.github/wo
 CI trigger/status: .github/workflows/ci.yml、docker.yml、security.yml；push/PR 覆盖 main + dev；Completed 前必须确认目标 commit 的强制 Job 全部真实通过
 Status vocabulary: Planned; In Progress; Implemented; Locally Validated; CI Green; Accepted; Completed; Blocked（沿用项目自有词汇，见 development-workflow.md §2）
 Known environment blockers: Windows 开发机无 Docker Engine —— Testcontainers Integration 与源码 Compose runtime smoke 本机 BLOCKED，由远端 CI 容器作为证据来源；GitHub 网络（push/API）偶发中断需重试
+RepoWiki/documentation conformance: 2026-10-11 adoption recheck is COMPLIANT after Wiki metadata/source/catalog and docs-index normalization; application work still waits for fresh intake
+Initialization intake: pending user choice of standard intake or grillme; no application work package is authorized
 ```
 
 ## 交付状态记录（当前/历史）
@@ -69,7 +72,7 @@ Known environment blockers: Windows 开发机无 Docker Engine —— Testcontai
 
 ## Work Package
 
-当前状态：5.81 Reading state bounded metadata projection 已 Accepted；当前无活动工作包，下一项重新 intake。5.80 Legado book-info metadata projection、5.79 Legado TOC canonical chapter projection、5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前状态：5.81 Reading state bounded metadata projection 已 Accepted；当前无活动工作包，下一项为 `Intake required`。5.80 Legado book-info metadata projection、5.79 Legado TOC canonical chapter projection、5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
 
 当前及最近接受工作包如下：
 
@@ -274,3 +277,6 @@ Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `1658b87`（37
 
 2026-10-02 完成 in-progress adoption：文档盘点映射、RepoWiki 建立、占位符
 替换为实测值。见 [adoption-2026-10-02.md](adoption-2026-10-02.md)。
+
+2026-10-11 执行 workflow 0.93.0 文档符合性复核与规范化；见同一记录中的
+“2026-10-11 规范化复核”。应用实现需等待该记录的 fresh `COMPLIANT` 与 intake。

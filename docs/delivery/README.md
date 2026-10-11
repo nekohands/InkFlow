@@ -3,6 +3,8 @@
 Scope: 工作流 profile 与当前/历史状态记录的入口。工程强制规范本身在
 [development-workflow](../engineering/development-workflow.md)（中文）。
 
+上级索引：[docs/README.md](../README.md)。Agent 权威参考：[repowiki/README.md](../../repowiki/README.md)。
+
 - 工作流 profile：[PROJECT_WORKFLOW.md](PROJECT_WORKFLOW.md)
 - 进度（当前）：[../roadmap/progress.md](../roadmap/progress.md) ·（历史）[../roadmap/progress-history.md](../roadmap/progress-history.md)
 - 交接（当前）：[../handoff/handoff.md](../handoff/handoff.md) ·（历史）[../handoff/handoff-history.md](../handoff/handoff-history.md)

@@ -15,6 +15,7 @@
 ## RepoWiki（AI 权威参考）
 
 项目工作前，先读 [repowiki/README.md](repowiki/README.md) 索引与相关主题页；操作型 profile 与交付状态索引见 `docs/delivery/`。RepoWiki 是面向 AI 的唯一权威项目参考；同一变更内同步维护受影响的 Wiki 页与中文人文页，Wiki 压缩不得丢失规则或证据，语义漂移或信息丢失会阻断交付完成。
+所有 Agent MUST 在 planning、implementation、verification 或 closeout 前读取该 Wiki 索引；docs 仅是能力/交付输出，不作为事实、要求、状态或验证证据的权威来源。
 
 ## 强制工作流
 

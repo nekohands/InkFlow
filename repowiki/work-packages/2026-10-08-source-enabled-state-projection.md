@@ -1,5 +1,14 @@
 # Work Package 5.77 — Source enabled-state projection
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.77; then read the linked Source health/factory implementation and tests.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Source health service](../../src/Modules/InkFlow.Modules.Sources/Application/SourceHealthService.cs)
+- [Source adapter factory tests](../../tests/InkFlow.UnitTests/SourceAdapterFactoryTests.cs)
+
 ## Intake
 
 - Status: Accepted.

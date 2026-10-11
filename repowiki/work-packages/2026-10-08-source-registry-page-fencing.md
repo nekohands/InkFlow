@@ -1,5 +1,14 @@
 # 5.71 Source registry page fencing
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.71; then read the linked discovery/resolution implementation and tests.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Book discovery service](../../src/Modules/InkFlow.Modules.Crawling/Application/BookDiscoveryService.cs)
+- [Source URL resolver tests](../../tests/InkFlow.UnitTests/SourceBookUrlResolverTests.cs)
+
 Status: Accepted
 
 ## Objective

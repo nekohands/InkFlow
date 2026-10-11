@@ -1,5 +1,14 @@
 # Work Package 5.74 — Reading history chapter metadata point lookup
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.74; then read the linked Reading/Library implementation and tests.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Reading state service](../../src/Modules/InkFlow.Modules.Reading/Application/ReadingStateService.cs)
+- [Reading state tests](../../tests/InkFlow.UnitTests/ReadingStateTests.cs)
+
 Status: Accepted
 
 ## Objective

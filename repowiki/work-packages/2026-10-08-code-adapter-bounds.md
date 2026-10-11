@@ -1,5 +1,14 @@
 # Code adapter response and regex bounds
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing the CodeAdapter bounds work package; then read the linked implementation, tests, and Source runtime contract.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Kanunu8 adapter](../../src/Adapters/Kanunu8/KanunuSourceAdapter.cs)
+- [Kanunu8 adapter tests](../../tests/InkFlow.UnitTests/KanunuSourceAdapterTests.cs)
+
 RepoWiki index: [README.md](../README.md)
 Workflow profile: [PROJECT_WORKFLOW.md](../../docs/delivery/PROJECT_WORKFLOW.md)
 Related feature/module docs: [Source runtime](../architecture.md); [Source runtime contract](../../docs/architecture/source-runtime.md); [Security model](../../docs/architecture/security-model.md)

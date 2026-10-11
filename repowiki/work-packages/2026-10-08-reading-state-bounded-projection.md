@@ -1,5 +1,14 @@
+# Work Package 5.81 — Reading state bounded metadata projection
+
 Audience: Agent-only
 Agent read instruction: Agents MUST read this record when planning, implementing, verifying, or closing work package 5.81; then read the linked Reading and Library source/contracts.
+
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Reading state service](../../src/Modules/InkFlow.Modules.Reading/Application/ReadingStateService.cs)
+- [Reading state tests](../../tests/InkFlow.UnitTests/ReadingStateTests.cs)
 
 RepoWiki index: [README.md](../README.md)
 Workflow gates: [PROJECT_WORKFLOW.md](../../docs/delivery/PROJECT_WORKFLOW.md)

@@ -1,5 +1,14 @@
 # Work Package 5.76 — Matching source-book metadata projection
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.76; then read the linked matching implementation, repository tests, and current state.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Canonical book matching service](../../src/Modules/InkFlow.Modules.Library/Application/CanonicalBookMatchingService.cs)
+- [Canonical match tests](../../tests/InkFlow.UnitTests/CanonicalBookMatchingServiceTests.cs)
+
 Status: Accepted
 
 ## Objective

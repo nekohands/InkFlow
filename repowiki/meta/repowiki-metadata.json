@@ -1,0 +1,552 @@
+{
+  "schema_version": 1,
+  "index": "README.md",
+  "entries": [
+    {
+      "path": "architecture.md",
+      "title": "Architecture",
+      "kind": "topic",
+      "scope": "binding invariants, dependency direction, data consistency, and source",
+      "sources": [
+        "../docs/architecture/architecture.md",
+        "../docs/architecture/invariants.md",
+        "../docs/architecture/source-runtime.md",
+        "../src/Modules/",
+        "../tests/InkFlow.ArchitectureTests/"
+      ],
+      "parent": "README.md",
+      "status": "documented"
+    },
+    {
+      "path": "decisions/README.md",
+      "title": "Decisions",
+      "kind": "index",
+      "scope": "accepted architecture decisions (ADR). One decision per file; new work",
+      "sources": [],
+      "parent": "README.md",
+      "status": "documented"
+    },
+    {
+      "path": "modules/README.md",
+      "title": "Modules",
+      "kind": "index",
+      "scope": "one-line responsibility per module/host/adapter, with source paths.",
+      "sources": [],
+      "parent": "README.md",
+      "status": "documented"
+    },
+    {
+      "path": "operations/README.md",
+      "title": "Operations",
+      "kind": "index",
+      "scope": "operational verification commands, evidence sources, and known environment boundaries.",
+      "sources": [],
+      "parent": "README.md",
+      "status": "documented"
+    },
+    {
+      "path": "operations/verification.md",
+      "title": "Verification",
+      "kind": "topic",
+      "scope": "real commands and evidence sources per surface, with observed local",
+      "sources": [
+        "../../.github/workflows/",
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../docs/engineering/development-workflow.md",
+        ".github/workflows/ci.yml",
+        ".github/workflows/security.yml",
+        "bash scripts/verify-migrations.sh",
+        "docker-compose.yml",
+        "docker.yml",
+        "dotnet restore InkFlow.sln",
+        "dotnet test tests/InkFlow.ArchitectureTests -c Release --no-build",
+        "dotnet test tests/InkFlow.ContractTests -c Release --no-build",
+        "dotnet test tests/InkFlow.IntegrationTests",
+        "dotnet test tests/InkFlow.UnitTests -c Release --no-build",
+        "scripts/*-runtime-smoke.sh",
+        "security.yml"
+      ],
+      "parent": "operations/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-07-catalog-query-pagination.md",
+      "title": "Catalog query pagination and N+1 reduction",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../docs/architecture/developer-api.md",
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs",
+        "../../tests/InkFlow.UnitTests/CatalogQueryServiceTests.cs",
+        "../README.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-07-entitlement-actor-validation.md",
+      "title": "Entitlement actor validation",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../docs/architecture/developer-api.md",
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../src/Modules/InkFlow.Modules.Billing/Application/EntitlementService.cs",
+        "../../tests/InkFlow.UnitTests/DeveloperFoundationTests.cs",
+        "../README.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-canonical-match-query-bound.md",
+      "title": "Canonical match query bounding",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Library/Application/CanonicalBookMatchingService.cs",
+        "../../tests/InkFlow.UnitTests/CanonicalBookMatchingServiceTests.cs",
+        ".workbuddy-ai/",
+        "1/1",
+        "11/11",
+        "12/12",
+        "597/597",
+        "dotnet restore InkFlow.sln",
+        "library.books"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-code-adapter-bounds.md",
+      "title": "Code adapter response and regex bounds",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../docs/architecture/security-model.md",
+        "../../docs/architecture/source-runtime.md",
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../src/Adapters/Kanunu8/KanunuSourceAdapter.cs",
+        "../../tests/InkFlow.UnitTests/KanunuSourceAdapterTests.cs",
+        "../README.md",
+        "../architecture.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-content-fetch-chapter-id-projection.md",
+      "title": "Work Package 5.75 — Content-fetch chapter ID projection",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Crawling/Application/ContentFetchChainService.cs",
+        "../../tests/InkFlow.IntegrationTests/SourceBookRepositoryTests.cs",
+        ".workbuddy-ai/",
+        "npipe://./pipe/docker_engine"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-crawler-handler-lease-renewal.md",
+      "title": "Crawler handler lease renewal",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Crawling/Application/CrawlerTaskProcessor.cs",
+        "../../tests/InkFlow.UnitTests/CrawlerTaskProcessorTests.cs",
+        ".workbuddy-ai/",
+        "dotnet restore InkFlow.sln"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-discovery-search-budget.md",
+      "title": "5.66 Discovery search budget fencing",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Crawling/Application/BookDiscoveryService.cs",
+        "../../tests/InkFlow.UnitTests/BookDiscoveryServiceTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-health-probe-candidate-batching.md",
+      "title": "5.70 Health-probe candidate batching",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/Application/HealthProbeService.cs",
+        "../../tests/InkFlow.UnitTests/HealthProbeServiceTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-health-probe-sample-fencing.md",
+      "title": "5.69 Health-probe sample lookup fencing",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/Application/HealthProbeService.cs",
+        "../../tests/InkFlow.UnitTests/HealthProbeServiceTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-legado-book-info-metadata-projection.md",
+      "title": "Legado book-info metadata projection",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Legado/Application/LegadoContractService.cs",
+        "../../tests/InkFlow.UnitTests/LegadoContractServiceTests.cs",
+        "AGENTS.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-legado-toc-chapter-projection.md",
+      "title": "Legado TOC canonical chapter projection",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Legado/Application/LegadoContractService.cs",
+        "../../tests/InkFlow.UnitTests/LegadoContractServiceTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-matching-source-book-metadata-projection.md",
+      "title": "Work Package 5.76 — Matching source-book metadata projection",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Library/Application/CanonicalBookMatchingService.cs",
+        "../../tests/InkFlow.UnitTests/CanonicalBookMatchingServiceTests.cs",
+        ".workbuddy-ai/",
+        "0 warnings / 0 errors",
+        "1/1",
+        "11/11",
+        "12/12",
+        "3/3",
+        "623/623",
+        "8 passed / 3 skipped / 125 blocked",
+        "npipe://./pipe/docker_engine"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-private-book-optimistic-concurrency.md",
+      "title": "Private book optimistic concurrency",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../docs/architecture/architecture.md#3-private-library",
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../src/Modules/InkFlow.Modules.Library/Infrastructure/Persistence/EfPrivateBookRepository.cs",
+        "../../tests/InkFlow.IntegrationTests/PrivateBookRepositoryTests.cs",
+        "../README.md",
+        "../architecture.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-reader-chapter-metadata-point-lookup.md",
+      "title": "5.72 Reader chapter metadata point lookup",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs",
+        "../../tests/InkFlow.UnitTests/CatalogQueryServiceTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-reading-history-chapter-metadata-point-lookup.md",
+      "title": "Work Package 5.74 — Reading history chapter metadata point lookup",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Reading/Application/ReadingStateService.cs",
+        "../../tests/InkFlow.UnitTests/ReadingStateTests.cs",
+        ".workbuddy-ai/",
+        "0 warnings / 0 errors",
+        "1/1",
+        "11/11",
+        "12/12",
+        "623/623",
+        "8 passed / 3 skipped\n/ 123 blocked",
+        "8/8",
+        "npipe://./pipe/docker_engine",
+        "wsl.exe bash -n\nscripts/verify-migrations.sh"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-reading-state-bounded-projection.md",
+      "title": "Work Package 5.81 — Reading state bounded metadata projection",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../docs/handoff/handoff.md",
+        "../../docs/roadmap/progress.md",
+        "../../src/Modules/InkFlow.Modules.Library/Application/ICanonicalBookRepository.cs",
+        "../../src/Modules/InkFlow.Modules.Reading/Application/ReadingContracts.cs",
+        "../../src/Modules/InkFlow.Modules.Reading/Application/ReadingStateService.cs",
+        "../../tests/InkFlow.UnitTests/ReadingStateTests.cs",
+        "../README.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-rule-selector-execution-deadline.md",
+      "title": "5.65 Rule selector execution deadline fencing",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/Application/RuleAdapter.cs",
+        "../../tests/InkFlow.UnitTests/RuleAdapterTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-source-content-chapter-metadata-point-lookup.md",
+      "title": "5.73 Source content chapter metadata point lookup",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/Application/SourceContentService.cs",
+        "../../tests/InkFlow.UnitTests/SourceContentServiceTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-source-enabled-state-projection.md",
+      "title": "Work Package 5.77 — Source enabled-state projection",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/Application/SourceHealthService.cs",
+        "../../tests/InkFlow.UnitTests/SourceAdapterFactoryTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-source-list-result-budget.md",
+      "title": "5.67 Source list-result budget fencing",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/Application/RuleBasedSourceAdapter.cs",
+        "../../tests/InkFlow.UnitTests/RuleAdapterTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-source-registry-page-fencing.md",
+      "title": "5.71 Source registry page fencing",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Crawling/Application/BookDiscoveryService.cs",
+        "../../tests/InkFlow.UnitTests/SourceBookUrlResolverTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-source-registry-page-projection.md",
+      "title": "Work Package 5.78 — Source registry page projection",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/Persistence/EfSourceRepository.cs",
+        "../../tests/InkFlow.IntegrationTests/SourceRepositoryTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-08-update-scan-page-fencing.md",
+      "title": "5.68 Scheduled update-scan page/fan-out fencing",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Crawling/Application/UpdateScanService.cs",
+        "../../tests/InkFlow.UnitTests/UpdateScanServiceTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-11-workflow-093-documentation-normalization.md",
+      "title": "Workflow 0.93.0 documentation normalization",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../AGENTS.md",
+        "../../docs/README.md",
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../docs/delivery/adoption-2026-10-02.md",
+        "../README.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/README.md",
+      "title": "Work packages",
+      "kind": "index",
+      "scope": "bounded implementation, verification, acceptance, and handoff records. Historical packages remain evidence and are not active authorization.",
+      "sources": [],
+      "parent": "README.md",
+      "status": "documented"
+    }
+  ],
+  "relations": [
+    {
+      "type": "PARENT_CHILD",
+      "parent": "operations/README.md",
+      "child": "operations/verification.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-07-catalog-query-pagination.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-07-entitlement-actor-validation.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-canonical-match-query-bound.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-code-adapter-bounds.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-content-fetch-chapter-id-projection.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-crawler-handler-lease-renewal.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-discovery-search-budget.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-health-probe-candidate-batching.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-health-probe-sample-fencing.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-legado-book-info-metadata-projection.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-legado-toc-chapter-projection.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-matching-source-book-metadata-projection.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-private-book-optimistic-concurrency.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-reader-chapter-metadata-point-lookup.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-reading-history-chapter-metadata-point-lookup.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-reading-state-bounded-projection.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-rule-selector-execution-deadline.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-source-content-chapter-metadata-point-lookup.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-source-enabled-state-projection.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-source-list-result-budget.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-source-registry-page-fencing.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-source-registry-page-projection.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-08-update-scan-page-fencing.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-11-workflow-093-documentation-normalization.md"
+    }
+  ]
+}

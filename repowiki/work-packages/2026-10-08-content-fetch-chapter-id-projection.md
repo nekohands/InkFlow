@@ -1,5 +1,14 @@
 # Work Package 5.75 — Content-fetch chapter ID projection
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.75; then read the linked implementation, tests, and Source runtime state.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Content fetch chain](../../src/Modules/InkFlow.Modules.Crawling/Application/ContentFetchChainService.cs)
+- [Source book repository tests](../../tests/InkFlow.IntegrationTests/SourceBookRepositoryTests.cs)
+
 Status: Accepted
 
 ## Objective

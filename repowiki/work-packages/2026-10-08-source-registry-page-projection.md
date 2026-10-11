@@ -1,5 +1,14 @@
 # Work Package 5.78 — Source registry page projection
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.78; then read the linked Source repository implementation and tests.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Source repository](../../src/Modules/InkFlow.Modules.Sources/Infrastructure/Persistence/EfSourceRepository.cs)
+- [Source repository tests](../../tests/InkFlow.IntegrationTests/SourceRepositoryTests.cs)
+
 ## Intake
 
 - Status: Accepted.

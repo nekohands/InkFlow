@@ -1,5 +1,14 @@
 # Private book optimistic concurrency
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing the private-book concurrency work package; then read the linked Library implementation, migration, tests, and current state.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Private book repository](../../src/Modules/InkFlow.Modules.Library/Infrastructure/Persistence/EfPrivateBookRepository.cs)
+- [Private book repository tests](../../tests/InkFlow.IntegrationTests/PrivateBookRepositoryTests.cs)
+
 RepoWiki index: [README.md](../README.md)
 Workflow profile: [PROJECT_WORKFLOW.md](../../docs/delivery/PROJECT_WORKFLOW.md)
 Related feature/module docs: [Architecture](../architecture.md); [Private Library](../../docs/architecture/architecture.md#3-private-library)

@@ -1,5 +1,14 @@
 # 5.68 Scheduled update-scan page/fan-out fencing
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.68; then read the linked scheduler implementation, tests, and current state.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Update scan service](../../src/Modules/InkFlow.Modules.Crawling/Application/UpdateScanService.cs)
+- [Update scan tests](../../tests/InkFlow.UnitTests/UpdateScanServiceTests.cs)
+
 Status: Accepted
 
 ## Objective

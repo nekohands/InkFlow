@@ -1,5 +1,7 @@
 # Modules
 
+Audience: Agent-only.
+Agent read instruction: Read this page when locating module, host, adapter, or ownership boundaries; then read the relevant architecture topic and source/test paths.
 Scope: one-line responsibility per module/host/adapter, with source paths.
 Detail lives in the linked architecture pages; tests live under `tests/`
 (Unit / Architecture / Integration / Contract).

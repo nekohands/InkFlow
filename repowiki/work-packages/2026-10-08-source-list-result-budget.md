@@ -1,5 +1,14 @@
 # 5.67 Source list-result budget fencing
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.67; then read the linked Source adapter implementation, tests, and runtime contract.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Rule-based source adapter](../../src/Modules/InkFlow.Modules.Sources/Application/RuleBasedSourceAdapter.cs)
+- [Rule adapter tests](../../tests/InkFlow.UnitTests/RuleAdapterTests.cs)
+
 Status: Accepted
 
 ## Objective

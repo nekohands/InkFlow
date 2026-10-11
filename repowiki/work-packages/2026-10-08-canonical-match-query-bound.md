@@ -1,5 +1,14 @@
 # Canonical match query bounding
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing the canonical match query work package; then read the linked implementation, tests, and current state pages.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Canonical match service](../../src/Modules/InkFlow.Modules.Library/Application/CanonicalBookMatchingService.cs)
+- [Canonical match tests](../../tests/InkFlow.UnitTests/CanonicalBookMatchingServiceTests.cs)
+
 Status: Accepted
 Name: Canonical match query bounding
 Objective / user outcome: Canonical book matching no longer materializes every canonical book when resolving a normalized title/author pair.

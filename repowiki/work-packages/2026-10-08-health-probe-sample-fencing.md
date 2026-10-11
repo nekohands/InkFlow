@@ -1,5 +1,14 @@
 # 5.69 Health-probe sample lookup fencing
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.69; then read the linked implementation, tests, and health evidence.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Health probe service](../../src/Modules/InkFlow.Modules.Sources/Application/HealthProbeService.cs)
+- [Health probe tests](../../tests/InkFlow.UnitTests/HealthProbeServiceTests.cs)
+
 Status: Accepted
 
 ## Objective

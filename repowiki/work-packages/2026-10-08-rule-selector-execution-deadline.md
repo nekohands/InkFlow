@@ -1,5 +1,14 @@
 # 5.65 Rule selector execution deadline fencing
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.65; then read the linked Source runtime implementation, tests, and evidence.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Rule adapter](../../src/Modules/InkFlow.Modules.Sources/Application/RuleAdapter.cs)
+- [Rule adapter tests](../../tests/InkFlow.UnitTests/RuleAdapterTests.cs)
+
 Status: Accepted
 
 ## Objective

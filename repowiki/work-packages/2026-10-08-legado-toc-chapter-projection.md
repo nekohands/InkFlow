@@ -1,5 +1,14 @@
 # Legado TOC canonical chapter projection
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.79; then read the linked Legado and Library source/contracts.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Legado contract service](../../src/Modules/InkFlow.Modules.Legado/Application/LegadoContractService.cs)
+- [Legado contract tests](../../tests/InkFlow.UnitTests/LegadoContractServiceTests.cs)
+
 Date: 2026-10-08
 Status: Accepted
 Package: 5.79

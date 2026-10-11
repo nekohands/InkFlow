@@ -1,5 +1,14 @@
 # 5.72 Reader chapter metadata point lookup
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.72; then read the linked Reader/Library implementation and tests.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Catalog query service](../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs)
+- [Catalog query tests](../../tests/InkFlow.UnitTests/CatalogQueryServiceTests.cs)
+
 Status: Accepted.
 
 ## Objective

@@ -1,6 +1,14 @@
 # Legado book-info metadata projection
 
-Agent read trigger: read when continuing, implementing, verifying, or closing work package 5.80.
+Audience: Agent-only.
+Agent read instruction: Read this page when continuing, implementing, verifying, or closing work package 5.80; then read the linked Legado and Library source/contracts.
+
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Legado contract service](../../src/Modules/InkFlow.Modules.Legado/Application/LegadoContractService.cs)
+- [Legado contract tests](../../tests/InkFlow.UnitTests/LegadoContractServiceTests.cs)
 
 Date: 2026-10-08
 Status: Accepted

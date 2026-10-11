@@ -1,5 +1,14 @@
 # Entitlement actor validation
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing the entitlement actor validation work package; then read the linked implementation, tests, and current state pages.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Entitlement service](../../src/Modules/InkFlow.Modules.Billing/Application/EntitlementService.cs)
+- [Developer foundation tests](../../tests/InkFlow.UnitTests/DeveloperFoundationTests.cs)
+
 RepoWiki index: [README.md](../README.md)
 Workflow profile: [PROJECT_WORKFLOW.md](../../docs/delivery/PROJECT_WORKFLOW.md)
 Related contract: [Developer API v1](../../docs/architecture/developer-api.md)

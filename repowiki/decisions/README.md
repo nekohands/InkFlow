@@ -1,5 +1,7 @@
 # Decisions
 
+Audience: Agent-only.
+Agent read instruction: Read this page when a change may alter an accepted architecture or product direction; then read the specific ADR and affected contract/evidence pages.
 Scope: accepted architecture decisions (ADR). One decision per file; new work
 that changes an accepted direction must add an ADR before implementation.
 

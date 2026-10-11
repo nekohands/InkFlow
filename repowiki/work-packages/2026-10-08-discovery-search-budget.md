@@ -1,5 +1,14 @@
 # 5.66 Discovery search budget fencing
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing work package 5.66; then read the linked implementation, tests, and source-discovery contract.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Book discovery service](../../src/Modules/InkFlow.Modules.Crawling/Application/BookDiscoveryService.cs)
+- [Book discovery tests](../../tests/InkFlow.UnitTests/BookDiscoveryServiceTests.cs)
+
 Status: Accepted
 
 ## Objective

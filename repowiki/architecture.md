@@ -1,5 +1,7 @@
 # Architecture
 
+Audience: Agent-only.
+Agent read instruction: Read this page when planning or reviewing architecture, module boundaries, data invariants, Source runtime, or public-contract changes; then read the linked human capability pages and exact source/test evidence.
 Scope: binding invariants, dependency direction, data consistency, and source
 runtime constraints that every change must keep. Human counterparts:
 [docs/architecture/invariants.md](../docs/architecture/invariants.md),
@@ -7,6 +9,14 @@ runtime constraints that every change must keep. Human counterparts:
 [docs/architecture/source-runtime.md](../docs/architecture/source-runtime.md).
 
 Parent/root index: [README.md](README.md)
+
+## Sources
+
+- [Architecture invariants](../docs/architecture/invariants.md)
+- [Architecture and module boundaries](../docs/architecture/architecture.md)
+- [Source runtime](../docs/architecture/source-runtime.md)
+- [Domain implementation](../src/Modules/)
+- [Architecture tests](../tests/InkFlow.ArchitectureTests/)
 
 ## Named invariants (violating any requires a new ADR first)
 

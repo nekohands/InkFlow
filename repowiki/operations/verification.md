@@ -1,5 +1,7 @@
 # Verification
 
+Audience: Agent-only.
+Agent read instruction: Read this page when selecting or reporting repository verification gates; then read the linked workflow profile and work-package evidence.
 Scope: real commands and evidence sources per surface, with observed local
 blockers. Evidence rules and status vocabulary live in the
 [workflow profile](../../docs/delivery/PROJECT_WORKFLOW.md) and
@@ -7,6 +9,14 @@ blockers. Evidence rules and status vocabulary live in the
 (mandatory, Chinese).
 
 Parent/root index: [../README.md](../README.md)
+
+Operations index: [README.md](README.md)
+
+## Sources
+
+- [Project workflow profile](../../docs/delivery/PROJECT_WORKFLOW.md)
+- [Development workflow](../../docs/engineering/development-workflow.md)
+- [CI workflows](../../.github/workflows/)
 
 | Surface | Command | Evidence source | Observed state (2026-10-02) |
 | --- | --- | --- | --- |

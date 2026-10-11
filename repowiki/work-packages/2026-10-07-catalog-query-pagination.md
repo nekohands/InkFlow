@@ -1,5 +1,14 @@
 # Catalog query pagination and N+1 reduction
 
+Audience: Agent-only.
+Agent read instruction: Read this page when resuming, verifying, or closing the catalog query work package; then read the linked implementation, tests, and current state pages.
+Work packages index: [README.md](README.md)
+
+## Sources
+
+- [Catalog query service](../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs)
+- [Catalog query tests](../../tests/InkFlow.UnitTests/CatalogQueryServiceTests.cs)
+
 RepoWiki index: [README.md](../README.md)
 Workflow profile: [PROJECT_WORKFLOW.md](../../docs/delivery/PROJECT_WORKFLOW.md)
 Related contract: [Developer API v1](../../docs/architecture/developer-api.md)
