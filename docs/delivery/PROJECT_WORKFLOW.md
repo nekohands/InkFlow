@@ -82,4 +82,4 @@ Initialization intake: grillme recommendation-first selected; project simplifica
 替换为实测值。见 [adoption-2026-10-02.md](adoption-2026-10-02.md)。
 
 2026-10-11 执行 workflow 0.93.0 文档符合性复核与规范化；见同一记录中的
-“2026-10-11 规范化复核”。应用实现需等待该记录的 fresh `COMPLIANT` 与 intake。
+“2026-10-11 规范化复核”。该阶段的 intake 等待已由本次用户授权结束；2026-10-15 当前/历史记录再整理见当前工作包。

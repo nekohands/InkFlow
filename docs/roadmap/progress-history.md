@@ -2182,3 +2182,21 @@ Acceptance criteria（全部满足）:
   - regression: Unit 587/587、Architecture 1/1、Contract 12/12
 Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `1658b87`（37478901744/37478902070/37478901915）
 ```
+
+## 2026-10-15 归档：被替代的 2026-10-08 阻塞快照
+
+## 7. 当前阻塞
+
+最新状态（2026-10-08）：审查高危项全部关闭（H2→5.54 重放/族吊销，H1→5.55 全局异常处理，H3→5.52/ADR 0028 既定边界）；5.56–5.62 已分别关闭 Canonical 匹配入口原子化、死信与任务状态同事务、Inbox/Outbox 批次租约续约、适配器边界、Entitlement actor 校验和 PrivateBook 乐观并发缺口。本机无 Docker，Integration 继续由远端 CI 的 PostgreSQL 容器执行。`progress.md`/`handoff.md` 已拆分为当前记录与历史归档，交付工作流结构已 adoption（`repowiki/` + `docs/delivery/`）。下一工作包需重新 intake，候选应重新按风险和证据缺口排序。
+
+当前仍有以下验收级限制：Windows 开发机 Docker Engine 不可用，受影响的本机 Testcontainers 仍为 BLOCKED；内置浏览器直接读取部分 VM JSON API、Manifest、Service Worker 资源仍可能被 `ERR_BLOCKED_BY_CLIENT` 拦截；本轮只使用一次性 `.invalid` Web Reader 测试账号和临时令牌，未使用真实外部账户、生产密码或 Personal Legado Token。阅读 3.0/MuMu、真实账户/PWA 安装与跨设备、真实追更与真实第二来源、真实凭据/Provider、受保护 Operations/Content Policy/Source Authorization/Admin Audit 的人工操作、linovelib/17K 真实链路，以及生产 OTLP/SLO/告警/备份治理继续按第 6 节处理。令牌浏览器撤销按钮未在未确认情况下点击；整体仍保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+以下为历史复验记录，仅用于追溯，不代表当前最新测试数字：
+
+历史复验记录（4.64）：此前本机 Restore、Release Build、Unit 472/472、Architecture 1/1、Contract 10/10 和迁移模型检查通过；完整 Integration 因本机 Docker Engine 不可用而部分 BLOCKED。代码候选 `acbbd10dd67e350f2bf6b2ae1080c54f7b725d91` 的远端 [CI 33290137667](https://github.com/nekohands/InkFlow/actions/runs/33290137667)、[Docker 33290137676](https://github.com/nekohands/InkFlow/actions/runs/33290137676)、[Security 33290137668](https://github.com/nekohands/InkFlow/actions/runs/33290137668) 均 GREEN。
+
+历史复验记录（早期 Ubuntu VM）：Linux SDK 容器曾执行完整 `Restore → Build → Test`，源码构建 Compose、Core SLO 和备份恢复通过；验证后停止容器并保留 PostgreSQL/Redis 卷。
+
+历史复验记录（GHCR 发布镜像）：默认 GHCR Compose 曾在 Ubuntu VM 拉取镜像并通过 Migration、服务健康、Core SLO、脚本回归和备份恢复；验证后停止容器并保留数据卷。
+
+历史复验记录（ContentVersion）：Ubuntu VM 曾以 PostgreSQL Testcontainers 验证跨章节目标拒绝、原当前版本保留和同章节唯一当前版本；测试容器已清理。

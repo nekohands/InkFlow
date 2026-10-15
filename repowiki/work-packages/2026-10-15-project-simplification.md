@@ -69,20 +69,20 @@ Known blocker: Docker image security scan was already RED. Its remediation is se
 - AC-2: Worker Program 377 -> 177 lines; Scheduler 151 -> 71. All 7 extracted class bodies and non-using host startup statements match the baseline. No project reference, package, migration, config or job timing edits.
 - AC-3: 8 audit wrappers -> one `AuditedResult`; feature payload/status switches remain local. Existing endpoint tests and new delayed/failing/cancelled audit tests pass. Temporarily executing the response before the audit caused both new tests to fail; the mutation was reverted before final verification.
 - AC-4: see gate table; local Docker and remote gates are not inferred from passing Unit tests.
-- AC-5: module source navigation and architecture guide updated; completed/superseded records moved verbatim into existing docs histories. Current progress 537 -> 211 lines, handoff 540 -> 216, profile 282 -> 85; pending manual/real-environment items preserved. Commit/push and final remote evidence pending.
+- AC-5: module source navigation and architecture guide updated; completed/superseded records moved verbatim into existing docs histories. Current progress 537 -> 211 lines, handoff 540 -> 216, profile 282 -> 85; pending manual/real-environment items preserved. Implementation `9abffabdca10b9ea0d8eec23758b9bc6ad077281` pushed to origin/dev and verified with `ls-remote`; final remote evidence below.
 
 ### Verification evidence (2026-10-15)
 
 | Gate | Result | Evidence / validity |
 | --- | --- | --- |
 | Restore / Release build | PASS | `dotnet restore InkFlow.sln`; `dotnet build InkFlow.sln -c Release --no-restore`, 0 warnings/errors; repeated after import cleanup. |
-| Unit / Architecture / Contract | PASS | 630/630, 1/1, 12/12; `dotnet test InkFlow.sln -c Release --no-build --no-restore`, TRX under `artifacts/refactor-20261015/final/`. Unit rerun after formatting also 630/630. |
+| Unit / Architecture / Contract | PASS | 630/630, 1/1, 12/12; `dotnet test InkFlow.sln -c Release --no-build --no-restore`, TRX under `artifacts/refactor-20261015/final/`. All three suites and Release Build rerun after restoring the audit-order mutation; Unit TRX under `artifacts/refactor-20261015/restored/`. |
 | Integration | BLOCKED locally | 139 selected: 8 passed, 3 not executed, 128 failed in initialization with `DockerUnavailableException`; no available Docker CLI/Engine. Await same-commit CI PostgreSQL/Redis evidence. |
 | Migration model | PASS | All 11 contexts from `scripts/verify-migrations.sh`, pinned dotnet-ef 10.0.4, Release `has-pending-model-changes --no-build`. PowerShell executes the exact script selection/options; no database mutation. |
 | Local runtime | BLOCKED | Compose requires unavailable Docker; remote runtime smoke remains required. No production or external source interaction. |
 | Review / regression attribution | PASS for reviewed source | Mechanical equivalence checks plus diff review of 8 payload adapters; no auth, validation, input bounds, schema or dependencies changed. Audit ordering mutation fails as intended. No independent reviewer claimed. |
-| Documentation normalization | PASS | Five original blocks archived verbatim; unresolved checklist retained. 343 local Markdown target links checked; Wiki catalog generator write/check passes, 32 pages. Current source navigation, profile and state agree. |
-| Exact-SHA CI / Docker / Security | NOT TRIGGERED yet | Push after final review; baseline Docker RED is retained as pre-existing, not attributed to refactoring. |
+| Documentation normalization | PASS | Five original blocks archived verbatim; unresolved checklist retained. 351 local Markdown target links checked after new files were tracked; Wiki catalog generator write/check passes, 32 pages. No repository inbound fragments target moved sections. Current source navigation, profile and state agree. |
+| Exact-SHA CI / Docker / Security | PENDING / RED / PENDING | Implementation `9abffab`: CI [38689954214](https://github.com/nekohands/InkFlow/actions/runs/38689954214), Docker [38689954183](https://github.com/nekohands/InkFlow/actions/runs/38689954183), Security [38689954301](https://github.com/nekohands/InkFlow/actions/runs/38689954301). All bind to the exact implementation SHA. Docker failed at `Scan OTLP Collector before publishing application images`; build/publish and published-image verification were skipped. This same gate failed on the baseline. Log reads via gh returned HTTP 403; the current CVE list is unverified. |
 
 Review scope: correctness, readability, architecture, security and performance. No new business branches, queries or background loops; the shared lazy factory retains audit-before-response semantics. The development fallback connection string was moved unchanged, not newly introduced credentials. Actual writes are limited to the declared hosts/tests/Wiki/docs and ignored local verification artifacts; `.workbuddy-ai/` is untouched.
 
