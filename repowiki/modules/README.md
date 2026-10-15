@@ -60,6 +60,8 @@ direction and invariants every module must keep.
 Sources runtime navigation: `RuleBasedSourceAdapter` owns capability-specific
 mapping and source-context normalization; `RuleListProjector` owns shared
 selector traversal, cancellation and result budgets for list capabilities.
-`RuleAdapter` remains the request/session/pagination execution module, while
-`ISelectorEvaluator` is the selector-language seam. Batch evidence is recorded
-in [the module refactor package](../work-packages/2026-10-15-module-refactor.md).
+`RuleAdapter` remains the request/session/pagination execution module. `RuleSelectorEvaluator`
+validates and dispatches to the internal CSS, HTML/XML XPath and JSONPath
+implementations behind `ISelectorLanguageEvaluator`; shared parser limits live
+in `SelectorEvaluationLimits`. Batch evidence is recorded in [the module
+refactor package](../work-packages/2026-10-15-module-refactor.md).

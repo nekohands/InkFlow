@@ -45,13 +45,13 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 当前工作包：项目结构简化（2026-10-15，Implemented / 验证中）
+### 当前工作包：模块化重构（2026-10-15，Batch 2 Pushed / CI Pending）
 
-- API 入口分为服务注册、路由组合与中间件；路由回归既有功能文件，Worker/Scheduler 后台类独立。
-- 8 份审计响应包装器合并为一个，保留审计成功后才生成/执行响应的顺序。
-- Restore / Release Build 通过；Unit 630/630、Architecture 1/1、Contract 12/12 通过。Integration 139 项中 8 通过、3 跳过、128 因本机 Docker 不可用阻塞；远端最终 SHA 门禁待运行。
-- 公共协议、模块依赖、Schema/Migration、调度节奏及 UI 不变。基线 Docker 镜像安全门禁已失败，不以本次重构隐藏该问题。
-- 范围与证据：[工作包](../../repowiki/work-packages/2026-10-15-project-simplification.md)。已完成 5.50–5.81 明细见 [历史归档](progress-history.md)。
+- 已完成宿主组合与审计包装器归并；当前继续按模块收敛 Sources 职责。
+- Batch 1 统一规则 Search/TOC 列表投影；Batch 2 将选择器分派、CSS、HTML/XML XPath、JSONPath 及共享安全上限分开，保留公共接口和有界解析行为。
+- Restore / Release Build 通过；Batch 2 Unit 630/630、Architecture 1/1、Contract 12/12、Sources 相关回归 93/93 通过。Integration/Compose 仍受本机 Docker 不可用阻塞；提交 `49e3515` 的 CI/Docker/Security 正在运行，未提前视为通过。
+- 公共协议、模块依赖、Schema/Migration、调度节奏及 UI 不变；工作包和模块导航已同步。
+- 范围与证据：[模块化重构工作包](../../repowiki/work-packages/2026-10-15-module-refactor.md)。已完成历史明细见 [历史归档](progress-history.md)。
 
 ## 5. Phase 1A 核心验收链路
 

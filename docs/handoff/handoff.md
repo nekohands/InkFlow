@@ -43,14 +43,14 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 ## 3. 当前真实仓库状态
 
 - `dev` 是唯一开发主线，包含现有业务实现；旧骨架说明与旧验证数字已归档，不是当前状态。
-- 当前整理范围是三个宿主的职责布局、审计响应去重及项目导航，不重写领域模型。
-- 本地 Release Build 0 warnings / 0 errors；Unit 630/630、Architecture 1/1、Contract 12/12。集成测试及 Compose 受本机 Docker 环境阻塞，远端门禁待最终提交。
+- 当前整理范围是按模块澄清职责、收敛重复和保留扩展 seam；已完成宿主组合/审计响应去重，Sources 当前完成两批局部重构，不重写领域模型。
+- Batch 2 本地 Release Build 0 warnings / 0 errors；Unit 630/630、Architecture 1/1、Contract 12/12，Sources 相关回归 93/93。集成测试及 Compose 受本机 Docker 环境阻塞，远端门禁待本批提交。
 - 接续时先读 RepoWiki 工作包，复核实际 diff / HEAD / Actions。`.workbuddy-ai/` 为用户目录，禁止纳入本次变更。
-- 下一步：提交并推送，核对最终 SHA 的 CI、Docker、Security；基线 OTLP 镜像漏洞仍是独立发布阻塞。
+- 下一步：检查提交 `49e3515` 的 CI/Docker/Security（当前 Pending），再进入 RuleAdapter 执行职责批次；基线 OTLP 镜像漏洞仍是独立发布阻塞。
 
 ## 4. 当前工作包与未完成验收
 
-当前工作包见 [项目结构简化](../../repowiki/work-packages/2026-10-15-project-simplification.md)；已完成包及早期证据见 [历史交接](handoff-history.md)。
+当前工作包见 [模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md)；已完成包及早期证据见 [历史交接](handoff-history.md)。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 
