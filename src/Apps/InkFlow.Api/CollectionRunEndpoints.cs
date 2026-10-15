@@ -338,11 +338,10 @@ public static class CollectionRunEndpoints
                 : $"error:{result.ErrorCode}");
 
         return new AuditedResult(
-            result,
-            statusCode,
             audit,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(result, statusCode));
     }
 
     private static IResult ControlAudited(
@@ -377,11 +376,10 @@ public static class CollectionRunEndpoints
             reference: $"run:{runId};status:{result.Run?.Status.ToString() ?? result.ErrorCode}");
 
         return new AuditedResult(
-            result,
-            statusCode,
             audit,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(result, statusCode));
     }
 
     public static int GetDeleteStatusCode(CollectionRunDeleteOutcome result)
@@ -430,11 +428,10 @@ public static class CollectionRunEndpoints
             reference: $"run:{runId};result:{(result.IsSuccess ? "deleted" : result.ErrorCode)}");
 
         return new AuditedResult(
-            result,
-            statusCode,
             audit,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(result, statusCode));
     }
 
     private static IResult CleanupCancelledAudited(
@@ -460,67 +457,54 @@ public static class CollectionRunEndpoints
             reference: $"deleted:{result.DeletedCount};result:{(result.IsSuccess ? "cleaned" : result.ErrorCode)}");
 
         return new AuditedResult(
-            result,
-            statusCode,
             audit,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(result, statusCode));
     }
 
-    private sealed class AuditedResult(
-        object result,
-        int statusCode,
-        AuditEvent audit,
-        IAuditEventSink auditSink,
-        CancellationToken cancellationToken) : IResult
+    private static IResult CreateResponse(object result, int statusCode)
     {
-        public async Task ExecuteAsync(HttpContext httpContext)
+        object payload = result switch
         {
-            await auditSink.AppendAsync(audit, cancellationToken).ConfigureAwait(false);
-
-            object payload = result switch
+            CollectionRunStartOutcome start when start.IsSuccess => new
             {
-                CollectionRunStartOutcome start when start.IsSuccess => new
-                {
-                    status = start.Reused ? "reused" : "accepted",
-                    run = start.Run is null ? null : ToResponse(start.Run),
-                },
-                CollectionRunStartOutcome start => new
-                {
-                    error = start.ErrorCode ?? "collection_run_start_failed",
-                },
-                CollectionRunControlOutcome control when control.IsSuccess => new
-                {
-                    status = "applied",
-                    run = control.Run is null ? null : ToResponse(control.Run),
-                },
-                CollectionRunControlOutcome control => new
-                {
-                    error = control.ErrorCode ?? "collection_run_control_failed",
-                },
-                CollectionRunDeleteOutcome deletion when deletion.IsSuccess => new
-                {
-                    status = "deleted",
-                },
-                CollectionRunDeleteOutcome deletion => new
-                {
-                    error = deletion.ErrorCode ?? "collection_run_delete_failed",
-                },
-                CollectionRunCleanupOutcome cleanup when cleanup.IsSuccess => new
-                {
-                    status = "cleaned",
-                    deletedCount = cleanup.DeletedCount,
-                },
-                CollectionRunCleanupOutcome cleanup => new
-                {
-                    error = cleanup.ErrorCode ?? "collection_run_cleanup_failed",
-                },
-                _ => new { error = "collection_run_operation_failed" },
-            };
+                status = start.Reused ? "reused" : "accepted",
+                run = start.Run is null ? null : ToResponse(start.Run),
+            },
+            CollectionRunStartOutcome start => new
+            {
+                error = start.ErrorCode ?? "collection_run_start_failed",
+            },
+            CollectionRunControlOutcome control when control.IsSuccess => new
+            {
+                status = "applied",
+                run = control.Run is null ? null : ToResponse(control.Run),
+            },
+            CollectionRunControlOutcome control => new
+            {
+                error = control.ErrorCode ?? "collection_run_control_failed",
+            },
+            CollectionRunDeleteOutcome deletion when deletion.IsSuccess => new
+            {
+                status = "deleted",
+            },
+            CollectionRunDeleteOutcome deletion => new
+            {
+                error = deletion.ErrorCode ?? "collection_run_delete_failed",
+            },
+            CollectionRunCleanupOutcome cleanup when cleanup.IsSuccess => new
+            {
+                status = "cleaned",
+                deletedCount = cleanup.DeletedCount,
+            },
+            CollectionRunCleanupOutcome cleanup => new
+            {
+                error = cleanup.ErrorCode ?? "collection_run_cleanup_failed",
+            },
+            _ => new { error = "collection_run_operation_failed" },
+        };
 
-            await Results.Json(payload, statusCode: statusCode)
-                .ExecuteAsync(httpContext)
-                .ConfigureAwait(false);
-        }
+        return Results.Json(payload, statusCode: statusCode);
     }
 }

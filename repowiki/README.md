@@ -28,10 +28,13 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 - Conformance/adoption: the 2026-10-11 recheck is `COMPLIANT` after the Wiki
   metadata/source/catalog and docs-index normalization recorded in
   [the adoption record](../docs/delivery/adoption-2026-10-02.md); the preserved
-  accepted package is 5.81 and no application package is active.
-- Current work package: `Intake required`; no package is authorized after 5.81.
-  The next intake must record objective, scope/non-goals, acceptance, risk, and
-  verification before application changes.
+  accepted package at that checkpoint was 5.81. The 2026-10-15 normalization
+  archives completed/superseded progress, handoff and profile blocks into the
+  existing docs histories, preserves pending acceptance items, and updates host
+  navigation; the current package below supersedes the old no-active-work state.
+- Current work package: [Project simplification](work-packages/2026-10-15-project-simplification.md),
+  authorized by the 2026-10-15 user request; behavior-preserving host organization
+  and audit-response consolidation are in progress.
 - Required project gates: Restore, Release Build, affected Unit/Architecture/
   Integration/Contract checks, applicable Runtime/Security, exact target-SHA
   CI/Docker/Security, then Progress/Handoff and RepoWiki sync. Local Docker is
@@ -45,7 +48,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active work package: Intake required. 5.81 [Reading state bounded metadata projection](work-packages/2026-10-08-reading-state-bounded-projection.md) is Accepted; the next package requires fresh intake.
+Active work package: [Project simplification](work-packages/2026-10-15-project-simplification.md). 5.81 [Reading state bounded metadata projection](work-packages/2026-10-08-reading-state-bounded-projection.md) remains Accepted.
 - Last completed: Reading state bounded metadata projection (5.81) — implementation SHA `e85dbc143fb6b7d20030403239aceedb34ec43d9` passed exact-head CI `37775920297`, Docker `37775919950`, and Security `37775919947`; local ReadingState `9/9`, Unit `627/627`, Architecture `1/1`, Contract `12/12`, Release Restore/Build, migration model `11/11`, diff and secret checks passed. Focused PostgreSQL Integration remained blocked by the Windows Docker named pipe; CI supplied migrations, PostgreSQL/Redis, runtime smoke, SLO, backup/restore, and diagnostics.
 - Last completed: Legado book-info metadata projection (5.80) — implementation SHA `4eb63e5a1a0a95872ec6dc9814ab0fcba126a0f0` passed exact-head CI `37771778894`, Docker `37771778862`, and Security `37771778935`; local Unit/Architecture/Contract, Release Restore/Build, migration model `11/11`, script syntax, diff, and secret checks passed, while the focused PostgreSQL Integration regression was blocked by the Windows Docker named pipe. CI supplied migrations, PostgreSQL/Redis, runtime smoke, SLO, backup/restore, and diagnostics; Docker and Security passed their complete gates.
 -Last completed: Legado TOC canonical chapter projection (5.79) — implementation SHA `c0aefc08682e9ed1bb22b201ec16b4c5a9b7ba10` passed exact-head CI `37768061749`, Docker `37768061718`, and Security `37768061741`; local Unit/Architecture/Contract, Release Build, migration model, diff, and secret checks passed, while the focused PostgreSQL Integration regression was blocked by the Windows Docker named pipe. CI supplied migrations, PostgreSQL/Redis, runtime smoke, SLO, backup/restore, and diagnostics; Docker and Security passed their complete gates.
@@ -114,6 +117,7 @@ Navigation is grouped by RepoWiki folder; topic pages retain their own source ci
   - [Work Package 5.78 — Source registry page projection](work-packages/2026-10-08-source-registry-page-projection.md)
   - [5.68 Scheduled update-scan page/fan-out fencing](work-packages/2026-10-08-update-scan-page-fencing.md)
   - [Workflow 0.93.0 documentation normalization](work-packages/2026-10-11-workflow-093-documentation-normalization.md)
+  - [Project simplification — host composition and audited responses](work-packages/2026-10-15-project-simplification.md)
 - [Architecture](architecture.md) — binding invariants, dependency direction, data consistency, and source
 
 Catalog metadata: [meta/repowiki-metadata.json](meta/repowiki-metadata.json)

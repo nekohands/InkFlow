@@ -1,7 +1,7 @@
 # InkFlow 项目工作流档案
 
 Status: Active profile
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-15
 Owner: InkFlow maintainers
 
 本文件是唯一的操作型工作流 profile。项目自身的强制工程规范仍以
@@ -44,8 +44,8 @@ Security/scan checks: AGENTS.md SSRF/授权/Secret/Migration 检查；.github/wo
 CI trigger/status: .github/workflows/ci.yml、docker.yml、security.yml；push/PR 覆盖 main + dev；Completed 前必须确认目标 commit 的强制 Job 全部真实通过
 Status vocabulary: Planned; In Progress; Implemented; Locally Validated; CI Green; Accepted; Completed; Blocked（沿用项目自有词汇，见 development-workflow.md §2）
 Known environment blockers: Windows 开发机无 Docker Engine —— Testcontainers Integration 与源码 Compose runtime smoke 本机 BLOCKED，由远端 CI 容器作为证据来源；GitHub 网络（push/API）偶发中断需重试
-RepoWiki/documentation conformance: 2026-10-11 adoption recheck is COMPLIANT after Wiki metadata/source/catalog and docs-index normalization; application work still waits for fresh intake
-Initialization intake: pending user choice of standard intake or grillme; no application work package is authorized
+RepoWiki/documentation conformance: 2026-10-11 adoption recheck is COMPLIANT after Wiki metadata/source/catalog and docs-index normalization; current/history records normalized again on 2026-10-15
+Initialization intake: grillme recommendation-first selected; project simplification authorized on 2026-10-15
 ```
 
 ## 交付状态记录（当前/历史）
@@ -72,206 +72,9 @@ Initialization intake: pending user choice of standard intake or grillme; no app
 
 ## Work Package
 
-当前状态：5.81 Reading state bounded metadata projection 已 Accepted；当前无活动工作包，下一项为 `Intake required`。5.80 Legado book-info metadata projection、5.79 Legado TOC canonical chapter projection、5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+当前：[项目结构简化](../../repowiki/work-packages/2026-10-15-project-simplification.md)，`Implemented / 验证中`。用户选择 grillme 推荐优先，并授权整理与推送；公共行为保持不变。
 
-当前及最近接受工作包如下：
-
-```text
-Name: Reading state bounded metadata projection
-Objective / user outcome: Reading shelf and progress paths must not materialize a full CanonicalBook aggregate when they only need book metadata, chapter count, or one chapter.
-In scope: `ReadingStateService` shelf/progress reads, existing `GetSummaryAsync`/`GetChapterAsync` projections, full-read regressions, and delivery documentation.
-Non-goals: no public JSON/route, BookId/ChapterId, content policy, schema/migration, cache, permission, UI, bulk/N+1, book-detail or package path change; `.workbuddy-ai/` remains untouched.
-Acceptance: shelf/progress fields and missing/takedown/invalid/cancellation semantics stay stable; bounded paths avoid full `GetAsync`; full aggregate callers remain unchanged.
-Status: Accepted.
-Risk/review: low/medium, reversible application read-path change with no data or public contract mutation; focused Reading Unit regressions plus existing project gates.
-Verification plan: TDD red/green, diff/secret audit, Restore/Release Build, Unit/Architecture/Contract, migration model, applicable Integration/Runtime, exact SHA CI/Docker/Security, then Wiki/docs closeout.
-Boundary: local Docker/Testcontainers and real account/device acceptance remain independent constraints; required blocker evidence will be recorded if local Docker is unavailable.
-Delivery: implementation SHA `e85dbc143fb6b7d20030403239aceedb34ec43d9`; exact-head CI `37775920297`, Docker `37775919950`, and Security `37775919947` all GREEN. The synchronized documentation closeout is pushed separately and requires final docs-head gate verification.
-
-Name: Legado book-info metadata projection
-Objective / user outcome: Legado BookInfo only reads canonical book identity and metadata; it must not materialize all canonical chapters.
-In scope: `CatalogQueryService` bounded book-summary read, `LegadoContractService.GetBookAsync`, full-read regression, and existing canonical summary evidence.
-Non-goals: no public Legado JSON/URL change, no BookId/ChapterId change, no TOC/content selection change, no schema/migration, cache, permissions, or `.workbuddy-ai/` change.
-Acceptance: AC-1 preserves BookInfo fields, TOC URL, route-prefix validation, missing-book, and takedown semantics; AC-2 production BookInfo does not call full `GetAsync`; AC-3 existing canonical summary projection remains the authoritative bounded read and cancellation propagates.
-Status: Accepted.
-Risk/review: low blast radius, reversible application read-path change; public contract and persistence schema are explicitly frozen. Review is focused Unit/Contract plus existing Release/CI gates.
-Verification: TDD red/green; focused Catalog/Legado `24/24`; Unit `626/626`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; migration model `11/11`, migration script syntax, `git diff --check`, and added-line secret audit passed; focused PostgreSQL Integration BLOCKED by the Windows Docker named pipe.
-Delivery: implementation SHA `4eb63e5a1a0a95872ec6dc9814ab0fcba126a0f0`; exact-head CI `37771778894`, Docker `37771778862`, and Security `37771778935` all GREEN.
-Boundary: full `GetBookAsync` remains for book detail and other intentional aggregate callers; real-source/manual Legado client acceptance remains outside this package.
-
-Name: Legado TOC canonical chapter projection
-Objective / user outcome: Legado TOC 只读取 canonical book visibility 和 chapter metadata，不物化完整 `CanonicalBook` 聚合。
-In scope: `CanonicalChapterSummary`, `ListChapterSummariesAsync`, EF scalar projection, `CatalogQueryService.GetChapterListAsync`, Legado TOC consumer, compatibility fallback, and Unit/PostgreSQL regression.
-Non-goals: no public Legado JSON/URL change, BookId/ChapterId change, book-detail aggregate change, chapter-content lookup change, Content selection, Schema/Migration, cache, permissions, or `.workbuddy-ai/`.
-Acceptance: takedown/missing-book semantics, chapter fields/order, stable IDs/URLs, and cancellation remain stable; production SQL projects only `Id`, `ChapterIndex`, and `Title`, ordered by `(ChapterIndex, Id)`; full `GetBookAsync` remains for explicit aggregate callers.
-Status: Accepted.
-Verification: focused Catalog/Legado `23/23`; Unit `625/625`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; migration model `11/11`; script syntax, diff, and secret audit passed; focused PostgreSQL Integration BLOCKED by the Windows Docker named pipe.
-Delivery: implementation SHA `c0aefc08682e9ed1bb22b201ec16b4c5a9b7ba10`; exact-head CI `37768061749`, Docker `37768061718`, and Security `37768061741` all GREEN.
-Boundary: no public Contract, Schema/Migration, cache, or `.workbuddy-ai/` change; local Docker/Testcontainers and real-source/manual Legado acceptance remain independent boundaries.
-
-Name: Source registry page projection
-Objective / user outcome: 来源注册表分页不再加载或反序列化完整 Source Rule DSL；搜索发现和直链解析只读取 `Id`、`BaseUrl`、`IsEnabled`。
-In scope: `SourcePageEntry`, EF `ListPageAsync` scalar projection, discovery/direct URL consumers, compatibility fallback, and SQL-shape regression.
-Non-goals: no full `ListAsync` snapshot, `GetAsync`, RuleBased Adapter, source writes, health transitions, public API/Legado, Schema/Migration, cache, credentials, or `.workbuddy-ai/`.
-Acceptance: keyset order/cursor/look-ahead/limit, disabled filtering, URL matching, adapter selection, warnings, cancellation, and existing full aggregate callers remain stable; production page SQL excludes `RuleDslJson`.
-Status: Accepted.
-Verification: focused discovery/URL resolver Unit `18/18`; Unit `624/624`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; PowerShell migration model `11/11`; full local Integration `8 passed / 3 skipped / 127 Docker-blocked`; diff/secret audit passed.
-Delivery: final implementation SHA `24669af2f343f47cbd1e29924772b15d5956a67a`; exact-head CI `37764067745`, Docker `37764067733`, and Security `37764067771` all GREEN. The initial candidate failed only because its new regression test assumed `limit=2` contained a newly inserted source; the follow-up changed the test to page size `1000`, with no product-code change.
-Boundary: local Windows Docker/Testcontainers remains BLOCKED; remote CI supplied PostgreSQL/Redis/runtime/SLO/backup/restore/diagnostics evidence. Real external-source and manual Release Candidate acceptance remain outside this package; `.workbuddy-ai/` remains untracked and untouched.
-
-Name: Source enabled-state projection
-Objective / user outcome: 来源健康门控和已注册代码适配器只读取来源存在/启用状态，不加载完整 Source Rule DSL 聚合。
-In scope: `ISourceRepository.GetEnabledAsync`, EF `sources.IsEnabled` projection, health/code-adapter paths, focused Unit/PostgreSQL regressions, and Source Runtime/Wiki delivery documentation.
-Non-goals: no RuleBased Adapter loading change, source writes, Rule DSL validation/execution, paging, health transitions, public API/Legado, Schema/Migration, cache, credentials, or `.workbuddy-ai/`.
-Acceptance: enabled/disabled/missing decisions remain stable; production health/code-adapter paths avoid full `GetAsync`; EF projects only `sources.IsEnabled` and propagates cancellation; RuleBased Adapter retains full reads.
-Status: Accepted.
-Verification: TDD red/green; focused SourceAdapterFactory/SourceCapabilityHealth `14/14`; Unit `624/624`; Architecture `1/1`; Contract `12/12`; restore/tool restore; Release Build `0 warnings / 0 errors`; migration model `11/11`; diff/secret audit; exact-head CI/Docker/Security.
-Delivery: implementation SHA `b753a8bc207fda442148f0ab70af9ffcb2826bba`; CI `37759082085`, Docker `37759082091`, and Security `37759082083` all GREEN with matching head SHA. Local Integration `8 passed / 3 skipped / 126 Docker-blocked`; remote CI supplied PostgreSQL/runtime evidence.
-Boundary: full `GetAsync` remains for RuleBased Adapter, writes, and other aggregate callers; no public Contract, Schema/Migration, cache, credential, or `.workbuddy-ai/` change.
-
-Name: Matching source-book metadata projection
-Objective / user outcome: 正典书匹配只读取来源书标题和作者，不因取得匹配键物化整本来源书。
-In scope: `ISourceBookRepository.GetMetadataAsync`, `CanonicalBookMatchingService.CreateOrMatchAsync`, focused Unit/PostgreSQL regressions, Source Runtime and delivery/Wiki documentation.
-Non-goals: no confirmed-candidate resolution, match locking, title/author normalization, candidate writes, catalog sync, chapter mapping, source content fetch, public Reading/Legado API, Schema/Migration, cache, HTTP/retry budget, full aggregate callers, or `.workbuddy-ai/`.
-Acceptance: matching, missing-book, idempotency, same-title/author reuse, confirmed-candidate, and cancellation semantics remain stable; production EF does not call full `GetAsync` and reads only `source_books` title/author fields.
-Status: Accepted.
-Verification: TDD red/green; focused CanonicalBookMatching tests `3/3`; Unit `623/623`; Architecture `1/1`; Contract `12/12`; Restore/tool restore; Release Build `0 warnings / 0 errors`; migration model `11/11`; diff/secret audit; exact-head CI/Docker/Security.
-Delivery: implementation SHA `835e0914b84469581f1d2a21a33fa9a65fac09f6`; CI `37753946308`, Docker `37753946459`, and Security `37753946140` all GREEN with matching head SHA. Local Integration `8 passed / 3 skipped / 125 Docker-blocked`; remote CI supplied PostgreSQL/runtime evidence.
-Boundary: `GetAsync` remains the full aggregate read for catalog sync, chapter mapping, writes, and other intentional aggregate callers; this package only fences the matching metadata read.
-```
-
-此前已接受工作包如下：
-
-```text
-Name: Content-fetch chapter ID projection
-Objective / user outcome: 内容抓取联动只读取来源书按目录顺序排列的外部章节 ID，不因判断待抓章节物化整本来源书。
-Status: Accepted.
-Evidence: TDD counter red/green; focused ContentFetchChainServiceTests 10/10; Unit 623/623; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model 11/11; full local Integration 8 passed / 3 skipped / 124 Docker-blocked. Final implementation SHA `523a305f735fda252dbfcb27dc560f39c930b604` passed CI `37748826161`, Docker `37748826364`, and Security `37748826225`; local PostgreSQL was blocked by the Windows Docker named pipe and remote CI supplied that evidence.
-Boundary: `GetAsync` remains the full aggregate read for catalog sync, chapter mapping, writes, and other intentional aggregate callers; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
-
-Name: Scheduled update-scan page/fan-out fencing
-Objective / user outcome: 定时追更扫描按有限页读取来源书目并限制每轮 TOC 入队量；连续调度在进程内推进游标，不因书目增长形成无界读取或 fan-out。
-Status: Accepted.
-Evidence: focused UpdateScanService 4/4 and affected EndToEnd scheduler 1/1; Unit 616/616; Architecture 1/1; Contract 12/12; Release Restore/Build 0 warnings / 0 errors; migration model check 11/11; local Integration 8 passed / 3 skipped / 117 blocked by unavailable Windows Docker named pipe. Final candidate `83f12e8cdc30837ed6a8309e0288829966065eaf` passed CI `37721216436`, Docker `37721216460`, and Security `37721216368`.
-Boundary: max 100 books per tick, stable `(CreatedAt, Id)` keyset, in-process cursor only; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
-
-Name: Source list-result budget fencing
-Objective / user outcome: Rule/Code Source 的 Search/TOC 列表结果受到有限条目预算保护；超限 fail-closed，不把部分列表写入来源书目或正典链路。
-Status: Accepted.
-Evidence: focused adapter/catalog tests 25/25; Unit 615/615; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model check 11/11; local Integration 8 passed / 3 skipped / 116 blocked by unavailable Windows Docker named pipe. Implementation SHA `2853c5e71cb321284113637042a7a91b224b069f` passed CI `37717734392`, Docker `37717734423`, and Security `37717734362`.
-Boundary: default item ceiling is 10,000; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
-
-Name: Discovery search budget fencing
-Objective / user outcome: 用户触发的来源发现受到查询长度、逐源命中数和总正典结果数边界保护；截断通过既有 warnings 可解释。
-In scope: BookDiscoveryService query/work fences, stable truncation warnings, offline regressions, source-runtime and delivery docs.
-Non-goals: ISourceAdapter/public API/Legado JSON, catalog pagination, parser/HTTP budgets, source registry paging, schema/migration, permissions, retry policy, full-text ranking, live-source acceptance.
-Acceptance: overlong query touches no source; per-source and total discovery processing are bounded; warnings are stable and non-sensitive; empty/normal/cancellation/idempotency behavior remains unchanged.
-Status: Accepted.
-Verification: focused red/green Unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
-Evidence: focused BookDiscoveryServiceTests 12/12, Unit 609/609, Architecture 1/1, Contract 12/12, migration model check 11/11, Release Build 0 warnings/0 errors; Integration 8 passed / 3 skipped / 116 blocked by unavailable Windows Docker named pipe. Exact SHA `193722cffb726c7338128be1f66111369b48a8a9` passed CI `37715153756`, Docker `37715153801`, and Security `37715153778`.
-Boundary: truncation is explicitly warned; source registry cardinality and live-source/manual Release Candidate acceptance remain separate boundaries; .workbuddy-ai/ remains untracked and untouched.
-```
-
-```text
-Name: Rule selector execution deadline fencing
-Objective / user outcome: RuleAdapter 在选择器/字段提取超过 MaxExecutionTime 后 fail-closed，不返回超时后的值或部分页面结果。
-In scope: RuleAdapter selector/extraction cancellation boundaries; RuleBasedSourceAdapter Search/TOC list binding; field, pagination, response-variable, and list-binding regression tests; source-runtime and delivery docs.
-Non-goals: selector syntax, dynamic multi-request/branch/recursive execution, MaxDepth, public API/Legado, Schema/Migration, credential storage, retry policy, and live-source acceptance.
-Acceptance: internal deadline expiry returns the stable time-budget error with no values/bodies; normal fields, pagination, derived variables, and Search/TOC list binding are fenced; caller cancellation still propagates; existing valid source behavior remains unchanged.
-Status: Accepted.
-Verification: focused red/green Source unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
-Evidence: Release restore/build 0 warnings/0 errors; focused `RuleAdapterTests` 56/56 and `RuleBasedSourceAdapterPaginationTests` 5/5; Unit 605/605; Architecture 1/1; Contract 12/12; migration model 11/11; diff/secret audit passed. Local Integration is 8 passed / 3 skipped / 116 blocked by unavailable Docker named pipe; remote CI runtime/PostgreSQL/Compose is green.
-CI: exact SHA `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` passed CI `37710808321`, Docker `37710808308`, and Security `37710808245`.
-Boundary: local Docker/Testcontainers and live-source checks remain independent environment/manual boundaries; `.workbuddy-ai/` remains untracked and untouched.
-```
-
-上一工作包（5.64）:
-
-```text
-Name: Crawler handler lease renewal
-Objective / user outcome: 单条 Crawler handler 超过初始租约时仍保持当前 worker 的排他持有，避免执行中被其他 worker 回收。
-In scope: CrawlerTask lease renewal domain rule; PostgreSQL 条件续约；CrawlerTaskProcessor heartbeat 与 lease-loss cancellation；Unit/PostgreSQL regression。
-Non-goals: Inbox/Outbox 批次续约、公共 API/Legado、Schema/Migration、重试策略重设计、并发调度和真实来源验收。
-Acceptance: active unexpired owner can renew; expired/terminal/other-owner cannot; long handler renews before expiry and completes; lease loss cancels execution without terminal persistence under stale ownership.
-Status: Accepted.
-Verification: focused red/green tests, Release Build, Unit, Architecture, PostgreSQL Integration, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
-Evidence: Restore/Release Build 0 warnings / 0 errors; focused CrawlerTask Unit 21/21; full Unit 600/600; Architecture 1/1; Contract 12/12; PowerShell migration model check 11/11; local PostgreSQL Integration BLOCKED by unavailable Docker named pipe; remote PostgreSQL/runtime, Docker, and Security GREEN.
-CI: exact SHA `11a493a2da72dba38072cad1cbc142711654fc0d` passed CI `37707275909`, Docker `37707275881`, and Security `37707275873`.
-Boundary: production heartbeat uses an independent DI scope; `.workbuddy-ai/` remains untracked and untouched.
-```
-
-最近完成工作包（5.63，2026-10-08，Accepted）：
-
-```text
-Name: Canonical match query bounding
-Objective / user outcome: Canonical book matching no longer materializes every canonical book for a normalized title/author lookup.
-In scope: PostgreSQL-backed FindByTitleAuthorAsync, parameterized normalized predicates, deterministic first-match ordering, focused PostgreSQL regression.
-Non-goals: matching-policy redesign, public API/Legado contract changes, schema/migration changes, duplicate cleanup, full-text search, UI.
-Acceptance: whitespace/case semantics and stable BookId preserved; miss does not load the full table; SQL is parameterized and bounded with LIMIT 1.
-Status: Accepted.
-Verification: Restore/Release Build 0 warnings / 0 errors; Unit 597/597; Architecture 1/1; Contract 12/12; Windows migration model check 11/11; focused local PostgreSQL Integration BLOCKED by unavailable Docker named pipe. Exact SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` passed CI 37661014830, Docker 37661014858, and Security 37661014826.
-Boundary: local Testcontainers may remain BLOCKED by the unavailable Docker named pipe; .workbuddy-ai/ is preserved and untracked.
-```
-
-最近完成工作包（5.62，2026-10-08，`Accepted`）：
-
-```text
-Name: Private book optimistic concurrency
-Objective / user outcome: 私有书目元数据并发编辑不再静默覆盖较新的编辑
-In scope: PrivateBook Version、private_books Migration、原子条件更新、PUT version/409 contract、回归与 PostgreSQL evidence
-Non-goals: 其他聚合、删除 CAS、章节正文编辑、自动合并、ETag/If-Match、UI
-Acceptance: 当前 version 更新成功并递增；过期/缺失 version 不写入并返回稳定错误；真实 PostgreSQL 仅一个并发写成功
-Evidence status: Accepted; implementation and verification complete
-Verification: focused Library/API 13/13; Unit 597/597; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model check 11/11. Local Integration attempted but BLOCKED by unavailable Docker named pipe; remote PostgreSQL/runtime passed.
-CI: exact SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` passed CI `37655196433`, Docker/Compose `37655726362`, and Security `37655196520`.
-Delivery boundary: no changes to other aggregate concurrency, delete CAS, chapter/content editing, automatic merge/retry, ETag/If-Match, or UI.
-```
-
-最近完成工作包（5.61，2026-10-08，`Accepted` 级证据）：
-
-本包复用既有 SourceRuleExecutionLimits，为 Kanunu8/17K 自定义适配器补齐响应体上限，并为 Kanunu8 静态正则设置配置化有限超时；不引入公共适配器契约、乐观并发、Schema 或 Migration 变化。远端 CI/Docker/Security 全部 GREEN。
-
-最近完成工作包（5.61，2026-10-08，`Accepted` 级证据）：
-
-```text
-Name: Code adapter response and regex bounds
-Objective / user outcome: 可信 CodeAdapter 不再无界读取响应体或执行无超时静态正则
-In scope: shared streaming HttpContent reader; ProductionSafeSourceHttpClient reuse; Kanunu8/17K MaxBytes; Kanunu8 configured MaxRegexTime; focused regressions and source-runtime docs
-Non-goals: Rule DSL redesign, new adapters, host/retry policy, public ISourceAdapter contract, Schema/Migration, live-source acceptance
-Acceptance: Kanunu8 GB18030 and 17K JSON fixtures remain valid; oversized responses fail before decode/parse; regex timeout is finite and no partial result escapes; SSRF/host/VIP/identity boundaries unchanged
-Evidence: Restore/Release Build 0 warnings/0 errors；focused 13/13、Unit 595/595、Architecture 1/1、Contract 12/12；migration 11/11；local Integration attempted but BLOCKED by unavailable Docker named pipe
-CI: `0d7d5ce` 的 CI 37650394342、Docker 37650394297、Security 37650394257 均 GREEN 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke
-Boundary: no Schema/Migration or phase-exit change; real upstream/live-source and Release Candidate manual acceptance remain pending
-```
-
-最近完成工作包（5.60，2026-10-07，`Accepted` 级证据）：
-
-```text
-Name: Entitlement actor validation
-Objective / user outcome: 直接调用 Billing entitlement assignment service 也只能由 active Administrator 执行
-In scope: Billing actor-status port + Identity composition adapter + service guard + stable 403 mapping + regression tests
-Non-goals: role policy redesign, token/session redesign, optimistic concurrency, adapter bounds, plan/quota changes, Schema/Migration
-Acceptance criteria（全部满足）:
-  - happy path: active Administrator assignment remains valid with existing reason/audit behavior
-  - error path: empty/unknown/inactive/non-Administrator actor is rejected before assignment persistence and maps to 403
-  - regression: route, payload, target/plan lookup, authentication, and data model remain unchanged
-Evidence: Restore/Release Build 0 warnings/0 errors；Unit 592/592、Architecture 1/1、Contract 12/12；migration 11/11；remote CI/Docker/Security GREEN at d0413f2 (37638597477/37638597479/37638597492)
-Boundary: local Testcontainers BLOCKED by unavailable Docker named pipe；remote CI supplied PostgreSQL/runtime evidence；real-account/manual Release Candidate gates remain pending
-```
-
-最近完成工作包（5.58，2026-10-06，`Accepted` 级证据）：
-
-```text
-Name: Inbox/Outbox 批次租约续约
-Objective / user outcome: 长批次处理不再因租约过期被其他实例重复领取/投递
-In scope: Messaging 端口与 EF 存储（ExtendLeaseBatchAsync）+ Dispatcher/Inbox 泵接线
-Non-goals: 单条 Handler 超长租约的中途续约（幂等消费兜底，已记录边界）；无 Schema/Migration 变更
-Acceptance criteria（全部满足）:
-  - happy path: 每条消息处理前续约整批剩余租约（单元接线断言）
-  - error path: 过期后经续约不可被其他 owner 领取；终态行不参与续约（真实 PostgreSQL 回归）
-  - regression: Unit 587/587、Architecture 1/1、Contract 12/12
-Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `1658b87`（37478901744/37478902070/37478901915）
-```
+当前进度、交接与阻塞使用上表入口。已接受 5.81 及此前包的 profile 快照已原样收录于 [进度历史](../roadmap/progress-history.md)，不再在操作型 profile 重复维护。
 
 ## Adoption 记录
 

@@ -47,11 +47,10 @@ public static class RepairEndpointResults
             reference: reference);
 
         return new AuditedResult(
-            result,
-            statusCode,
             auditEvent,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(result, statusCode));
     }
 
     public static bool TryGetActor(ClaimsPrincipal principal, out string actorId)
@@ -60,37 +59,26 @@ public static class RepairEndpointResults
         return Guid.TryParse(actorId, out _);
     }
 
-    private sealed class AuditedResult(
-        DeadLetterReplayResult replay,
-        int statusCode,
-        AuditEvent auditEvent,
-        IAuditEventSink auditSink,
-        CancellationToken cancellationToken) : IResult
+    private static IResult CreateResponse(DeadLetterReplayResult replay, int statusCode)
     {
-        public async Task ExecuteAsync(HttpContext httpContext)
+        if (replay.IsSuccess)
         {
-            await auditSink.AppendAsync(auditEvent, cancellationToken).ConfigureAwait(false);
-
-            if (replay.IsSuccess)
+            return Results.Json(new
             {
-                await Results.Json(new
-                {
-                    status = replay.Status.ToString(),
-                    replayTaskId = replay.ReplayTaskId,
-                }, statusCode: statusCode).ExecuteAsync(httpContext).ConfigureAwait(false);
-                return;
-            }
-
-            await Results.Json(new
-            {
-                error = replay.Status switch
-                {
-                    DeadLetterReplayStatus.NotFound => "dead_letter_not_found",
-                    DeadLetterReplayStatus.OriginalTaskMissing => "original_task_not_found",
-                    DeadLetterReplayStatus.OriginalTaskNotDeadLettered => "original_task_state_conflict",
-                    _ => "repair_failed",
-                },
-            }, statusCode: statusCode).ExecuteAsync(httpContext).ConfigureAwait(false);
+                status = replay.Status.ToString(),
+                replayTaskId = replay.ReplayTaskId,
+            }, statusCode: statusCode);
         }
+
+        return Results.Json(new
+        {
+            error = replay.Status switch
+            {
+                DeadLetterReplayStatus.NotFound => "dead_letter_not_found",
+                DeadLetterReplayStatus.OriginalTaskMissing => "original_task_not_found",
+                DeadLetterReplayStatus.OriginalTaskNotDeadLettered => "original_task_state_conflict",
+                _ => "repair_failed",
+            },
+        }, statusCode: statusCode);
     }
 }

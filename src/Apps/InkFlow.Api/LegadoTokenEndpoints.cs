@@ -31,6 +31,92 @@ public sealed record LegadoTokenIssueResponse(
 /// <summary>Personal Legado Token 管理结果与命令审计。</summary>
 public static class LegadoTokenEndpointResults
 {
+    public static void Map(RouteGroupBuilder api)
+    {
+        // ---- Personal Legado Token 管理(使用 Web Access Token,令牌只签发一次)----
+
+        var personalLegadoTokens = api.MapGroup("/me/legado")
+            .RequireAuthorization();
+
+        personalLegadoTokens.MapPost("/tokens", async (
+            CreateLegadoTokenRequest? request,
+            ClaimsPrincipal principal,
+            ILegadoAccessTokenService tokens,
+            ILegadoRuleGenerator legadoRuleGenerator,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!LegadoTokenEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await tokens.IssueAsync(userId, request?.Name, ct).ConfigureAwait(false);
+            if (!result.IsSuccess || result.Issue is null)
+            {
+                return LegadoTokenEndpointResults.FromIssueFailure(result.Status);
+            }
+
+            var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+            using var document = JsonDocument.Parse(
+                legadoRuleGenerator.Generate(baseUrl, result.Issue.RawToken));
+            var response = LegadoTokenEndpointResults.ToIssueResponse(
+                result.Issue,
+                document.RootElement.Clone());
+            return LegadoTokenEndpointResults.Issue(
+                response,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
+
+        personalLegadoTokens.MapGet("/tokens", async (
+            ClaimsPrincipal principal,
+            ILegadoAccessTokenService tokens,
+            CancellationToken ct) =>
+        {
+            if (!LegadoTokenEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var values = await tokens.ListAsync(userId, ct).ConfigureAwait(false);
+            return Results.Ok(values.Select(LegadoTokenEndpointResults.ToResponse));
+        });
+
+        personalLegadoTokens.MapDelete("/tokens/{tokenId:guid}", async (
+            Guid tokenId,
+            ClaimsPrincipal principal,
+            ILegadoAccessTokenService tokens,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!LegadoTokenEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var status = await tokens.RevokeAsync(userId, tokenId, ct).ConfigureAwait(false);
+            if (status != LegadoTokenResultStatus.Success)
+            {
+                return LegadoTokenEndpointResults.FromRevokeStatus(status);
+            }
+
+            return LegadoTokenEndpointResults.Revoke(
+                tokenId,
+                principal,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
+    }
+
     public static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
     {
         userId = Guid.Empty;
@@ -124,17 +210,4 @@ public static class LegadoTokenEndpointResults
         LegadoTokenResultStatus.NotFound => Results.NotFound(new { error = "not_found" }),
         _ => Results.BadRequest(new { error = "invalid_request" }),
     };
-
-    private sealed class AuditedResult(
-        AuditEvent auditEvent,
-        IAuditEventSink auditSink,
-        CancellationToken cancellationToken,
-        Func<IResult> resultFactory) : IResult
-    {
-        public async Task ExecuteAsync(HttpContext httpContext)
-        {
-            await auditSink.AppendAsync(auditEvent, cancellationToken).ConfigureAwait(false);
-            await resultFactory().ExecuteAsync(httpContext).ConfigureAwait(false);
-        }
-    }
 }

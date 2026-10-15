@@ -95,7 +95,11 @@ public static class SourceLifecycleEndpointResults
             traceId: Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier,
             reference: $"source:{source.Id};enabled:{source.IsEnabled}");
 
-        return new AuditedResult(source, action, auditEvent, auditSink, cancellationToken);
+        return new AuditedResult(
+            auditEvent,
+            auditSink,
+            cancellationToken,
+            () => CreateResponse(source, action));
     }
 
     private static async Task<IResult> HandleAsync(
@@ -158,29 +162,19 @@ public static class SourceLifecycleEndpointResults
                 cancellationToken);
     }
 
-    private sealed class AuditedResult(
-        Source source,
-        SourceLifecycleCommandAction action,
-        AuditEvent auditEvent,
-        IAuditEventSink auditSink,
-        CancellationToken cancellationToken) : IResult
+    private static IResult CreateResponse(Source source, SourceLifecycleCommandAction action)
     {
-        public async Task ExecuteAsync(HttpContext httpContext)
+        return Results.Ok(new
         {
-            await auditSink.AppendAsync(auditEvent, cancellationToken).ConfigureAwait(false);
-
-            await Results.Ok(new
+            status = "applied",
+            action = action.ToString().ToLowerInvariant(),
+            source = new
             {
-                status = "applied",
-                action = action.ToString().ToLowerInvariant(),
-                source = new
-                {
-                    sourceId = source.Id,
-                    displayName = source.DisplayName,
-                    isEnabled = source.IsEnabled,
-                    updatedAt = source.UpdatedAt,
-                },
-            }).ExecuteAsync(httpContext).ConfigureAwait(false);
-        }
+                sourceId = source.Id,
+                displayName = source.DisplayName,
+                isEnabled = source.IsEnabled,
+                updatedAt = source.UpdatedAt,
+            },
+        });
     }
 }

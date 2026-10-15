@@ -1,3 +1,6 @@
+using InkFlow.Modules.Sources.Application;
+using InkFlow.Modules.Identity.Application;
+using System.Security.Claims;
 using System.Diagnostics;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Sources.Domain;
@@ -27,6 +30,172 @@ public sealed record SourceHealthResponse(
 /// <summary>来源健康运维结果适配器；命令审计在响应执行前追加写入。</summary>
 public static class SourceHealthEndpointResults
 {
+    public static void Map(RouteGroupBuilder api)
+    {
+        var sourceOperationsRead = api.MapGroup("/admin/sources")
+            .RequireAuthorization(IdentityPolicies.OperationsRead);
+
+        sourceOperationsRead.MapGet("/{sourceId}/health", async (
+            string sourceId,
+            ClaimsPrincipal principal,
+            ISourceRepository sources,
+            ISourceHealthOperations health,
+            IResourceAuthorizationService authorization,
+            CancellationToken ct) =>
+        {
+            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId))
+            {
+                return (IResult)Results.BadRequest(new { error = "invalid_source_id" });
+            }
+
+            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+            {
+                return (IResult)Results.NotFound(new { error = "source_not_found" });
+            }
+
+            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+                    principal,
+                    out var userId,
+                    out var role))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            if (!await authorization.CanAccessAsync(
+                    userId,
+                    role,
+                    IdentityPermissions.SourceRead,
+                    IdentityResourceTypes.Source,
+                    sourceId,
+                    ct).ConfigureAwait(false))
+            {
+                return (IResult)Results.Forbid();
+            }
+
+            var rows = await health.ListForSourceAsync(sourceId, ct).ConfigureAwait(false);
+            return Results.Ok(rows.Select(SourceHealthEndpointResults.ToResponse));
+        });
+
+        var sourceOperations = api.MapGroup("/admin/sources")
+            .RequireAuthorization(IdentityPolicies.SourceOperations);
+
+        sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/disable", async (
+            string sourceId,
+            string rawCapability,
+            SourceHealthCommandRequest? request,
+            ClaimsPrincipal principal,
+            ISourceRepository sources,
+            ISourceHealthOperations health,
+            IResourceAuthorizationService authorization,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+                    principal,
+                    out var actorUserId,
+                    out var actorRole))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+            var actorId = actorUserId.ToString("D");
+
+            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+                !SourceHealthEndpointResults.TryParseCapability(rawCapability, out var capability) ||
+                request is null ||
+                !SourceHealthEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+            {
+                return (IResult)Results.BadRequest(new { error = "invalid_source_health_request" });
+            }
+
+            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+            {
+                return (IResult)Results.NotFound(new { error = "source_not_found" });
+            }
+
+            if (!await authorization.CanAccessAsync(
+                    actorUserId,
+                    actorRole,
+                    IdentityPermissions.SourceManage,
+                    IdentityResourceTypes.Source,
+                    sourceId,
+                    ct).ConfigureAwait(false))
+            {
+                return (IResult)Results.Forbid();
+            }
+
+            var updated = await health.DisableAsync(sourceId, capability, reason, ct).ConfigureAwait(false);
+            return SourceHealthEndpointResults.Command(
+                updated,
+                SourceHealthCommandAction.Disable,
+                actorId,
+                reason,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
+
+        sourceOperations.MapPost("/{sourceId}/health/{rawCapability}/enable", async (
+            string sourceId,
+            string rawCapability,
+            SourceHealthCommandRequest? request,
+            ClaimsPrincipal principal,
+            ISourceRepository sources,
+            ISourceHealthOperations health,
+            IResourceAuthorizationService authorization,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+                    principal,
+                    out var actorUserId,
+                    out var actorRole))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+            var actorId = actorUserId.ToString("D");
+
+            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+                !SourceHealthEndpointResults.TryParseCapability(rawCapability, out var capability) ||
+                request is null ||
+                !SourceHealthEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+            {
+                return (IResult)Results.BadRequest(new { error = "invalid_source_health_request" });
+            }
+
+            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+            {
+                return (IResult)Results.NotFound(new { error = "source_not_found" });
+            }
+
+            if (!await authorization.CanAccessAsync(
+                    actorUserId,
+                    actorRole,
+                    IdentityPermissions.SourceManage,
+                    IdentityResourceTypes.Source,
+                    sourceId,
+                    ct).ConfigureAwait(false))
+            {
+                return (IResult)Results.Forbid();
+            }
+
+            var updated = await health.EnableAsync(sourceId, capability, ct).ConfigureAwait(false);
+            return SourceHealthEndpointResults.Command(
+                updated,
+                SourceHealthCommandAction.Enable,
+                actorId,
+                reason,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
+    }
+
     public static bool IsValidSourceId(string sourceId) =>
         !string.IsNullOrWhiteSpace(sourceId) && !sourceId.Any(char.IsWhiteSpace);
 
@@ -93,30 +262,19 @@ public static class SourceHealthEndpointResults
             reference: $"source:{health.SourceId};capability:{health.Capability};status:{health.Status}");
 
         return new AuditedResult(
-            health,
-            action,
             auditEvent,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(health, action));
     }
 
-    private sealed class AuditedResult(
-        SourceCapabilityHealth health,
-        SourceHealthCommandAction action,
-        AuditEvent auditEvent,
-        IAuditEventSink auditSink,
-        CancellationToken cancellationToken) : IResult
+    private static IResult CreateResponse(SourceCapabilityHealth health, SourceHealthCommandAction action)
     {
-        public async Task ExecuteAsync(HttpContext httpContext)
+        return Results.Ok(new
         {
-            await auditSink.AppendAsync(auditEvent, cancellationToken).ConfigureAwait(false);
-
-            await Results.Ok(new
-            {
-                status = "applied",
-                action = action.ToString().ToLowerInvariant(),
-                health = ToResponse(health),
-            }).ExecuteAsync(httpContext).ConfigureAwait(false);
-        }
+            status = "applied",
+            action = action.ToString().ToLowerInvariant(),
+            health = ToResponse(health),
+        });
     }
 }

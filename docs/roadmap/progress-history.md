@@ -1,7 +1,7 @@
 # InkFlow 项目进度 — 历史归档
 
 > 本文件由 `docs/roadmap/progress.md` 于 2026-10-01 拆分而来，只读归档：收录已关闭的 Phase 0 验收记录、骨架重建记录和 4.1–5.49 历史工作包明细。
-> 当前状态、近期工作包、待定事项与阻塞见 `progress.md`；除本说明外内容与拆分时点保持一致。
+> 当前状态、近期工作包、待定事项与阻塞见 [progress.md](progress.md)。原归档保持不变；后续按日期追加已完成或被替代记录，不将历史结果当作当前验证。
 
 ## 2. Phase 0 验收记录
 
@@ -1642,3 +1642,543 @@ dotnet test -c Release                PASS (Unit/Architecture/Integration/Contra
 
 无已知阻塞；后续工作包按第 4 节顺序在 `dev` 上推进，每个工作包维持完整 Gate 闭环。
 
+## 2026-10-15 归档：5.50–5.81 进度记录
+
+### 5.81 Reading state bounded metadata projection（本轮，2026-10-08，Accepted）
+
+- 缺口：`ReadingStateService` 的书架、进度读取和保存仍通过 `ICanonicalBookRepository.GetAsync` 物化完整 `CanonicalBook`，但这些路径只需要书籍元数据/章节数或一个章节的标题与序号。
+- 目标：复用现有 `GetSummaryAsync` 与 `GetChapterAsync` 投影，保持书架、进度、缺失、撤下、无效章节和取消语义不变，并用 full-read 计数回归锁定边界。
+- 范围边界：不改公共 Reading JSON/路由、BookId/ChapterId、Content Policy 决策、Schema/Migration、缓存、权限、UI、批量/N+1 设计、书籍详情/书籍包完整聚合路径或 `.workbuddy-ai/`。
+- 验收/验证：TDD 红绿；`ListShelfAsync`/`PutShelfAsync`/`GetProgressAsync`/`SaveProgressAsync` 的生产读路径不调用完整 `GetAsync`；现有字段与错误/撤下语义保持。随后执行 Unit/Architecture/Contract、Release Build、迁移模型、适用 Integration/Runtime、diff/secret 和精确 SHA CI/Docker/Security。
+- 实现：`ReadingStateService` 的书架与进度路径改用 `GetSummaryAsync`，需要当前/目标章节时改用 `GetChapterAsync`；完整 `GetAsync` 仍保留在明确需要完整聚合的其他路径。新增 full-read 计数回归。
+- 本地验证：TDD RED 先证明旧路径触发 5 次 full read，GREEN 后 ReadingState `9/9`、Unit `627/627`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`、Windows `dotnet-ef` 迁移模型 `11/11`、bounded-read audit、`git diff --check` 和 added-line secret audit PASS。focused PostgreSQL Integration 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- 风险：低/中风险、可回滚的 Reading 应用读路径调整；公共字段、稳定身份、撤下/缺失/无效章节和取消语义保持。本机 PostgreSQL/Testcontainers 仍受 Windows Docker named pipe 阻塞，远端容器证据已覆盖对应集成与运行时门禁。
+- 当前状态：Accepted；实现 SHA `e85dbc143fb6b7d20030403239aceedb34ec43d9` 的 [CI 37775920297](https://github.com/nekohands/InkFlow/actions/runs/37775920297)、[Docker 37775919950](https://github.com/nekohands/InkFlow/actions/runs/37775919950)、[Security 37775919947](https://github.com/nekohands/InkFlow/actions/runs/37775919947) 均 success 且 head SHA 一致；RepoWiki、工作流和交接记录已同步。当前无活动工作包，下一项重新 intake。
+- 工作包明细：[RepoWiki work package](../../repowiki/work-packages/2026-10-08-reading-state-bounded-projection.md)。
+
+### 5.80 Legado book-info metadata projection（本轮，2026-10-08，Accepted）
+
+- 缺口：Legado `BookInfo` 只需要正典书籍 ID、书名、作者和 TOC URL，但当前复用 `CatalogQueryService.GetBookAsync` 并物化完整 `CanonicalBook` 及全部章节。
+- Intake：新增 Catalog 层的 bounded book-summary 读取，Legado BookInfo 改走现有 `CanonicalBookSummary` 投影；保留既有撤下、缺书、路由前缀和响应字段语义。
+- 范围边界：不改公共 Legado JSON/URL、BookId/ChapterId、TOC/正文路径、Content 选择、Schema/Migration、缓存、权限或 `.workbuddy-ai/`。
+- 验收：AC-1 BookInfo 字段、TOC URL、路由校验、缺书和撤下语义不变；AC-2 生产 BookInfo 路径不调用完整 `GetAsync`；AC-3 只使用 canonical summary 边界并传播取消。
+- 风险/评审：低风险、可回滚的应用查询路径改动；公共 Contract 与持久化结构冻结， focused Unit/Contract 和既有全量门禁足以审查。
+- 验证计划：TDD 红绿、focused Catalog/Legado Unit、Unit/Architecture/Contract、Restore/Release Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA CI/Docker/Security。
+- 实现：新增 `CatalogQueryService.GetBookSummaryAsync` 复用 `ICanonicalBookRepository.GetSummaryAsync`；`LegadoContractService.GetBookAsync` 改走该摘要入口，完整 `GetBookAsync` 详情路径保持不变；新增 Catalog/Legado full-read 回归。
+- 本地验证：TDD 红态先以缺少新摘要入口的预期编译失败；focused Catalog/Legado `24/24`、Unit `626/626`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、迁移脚本语法、`git diff --check` 和 added-line secret audit PASS。focused PostgreSQL Integration 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED，未产生产品断言失败。
+- 远端门禁：实现 SHA `4eb63e5a1a0a95872ec6dc9814ab0fcba126a0f0` 的 [CI 37771778894](https://github.com/nekohands/InkFlow/actions/runs/37771778894)、[Docker 37771778862](https://github.com/nekohands/InkFlow/actions/runs/37771778862)、[Security 37771778935](https://github.com/nekohands/InkFlow/actions/runs/37771778935) 均 success 且 head SHA 一致；CI 提供迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 证据，Docker 与 Security 门禁通过。
+- 边界：无公共 Legado JSON/URL、Schema/Migration、缓存、权限或 `.workbuddy-ai/` 变化；本机 Docker/Testcontainers、真实来源和 Legado 真机验收仍是独立限制。状态：Accepted；当前无活动工作包，下一轮重新 intake。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-legado-book-info-metadata-projection.md)。
+
+### 5.79 Legado TOC canonical chapter projection（本轮，2026-10-08，Accepted）
+
+- 缺口：Legado TOC 复用 `CatalogQueryService.GetBookAsync`，为返回章节元数据物化完整 `CanonicalBook` 及全部章节；目录规模增长会放大数据库行数和内存。
+- Intake：新增 `CanonicalChapterSummary` 与 `ListChapterSummariesAsync`；TOC 路径先保留撤下/缺书语义，再读取书籍摘要和有序章节元数据投影，完整 `GetBookAsync` 继续服务书籍详情。
+- 范围边界：不改公共 Legado JSON/URL、BookId/ChapterId、章节内容读取、Content 选择、Schema/Migration、缓存、权限或 `.workbuddy-ai/`。
+- 验收：TOC 输出字段、顺序、稳定身份、缺书和撤下语义保持；生产 EF 只投影章节 `Id`、`ChapterIndex`、`Title`，按 `(ChapterIndex, Id)` 排序；旧 test double 通过兼容回退继续工作。
+- 验证计划：TDD 红绿、focused Catalog/Legado Unit、Unit/Architecture/Contract、Restore/Release Build、迁移模型、脚本语法、适用 Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 实现：`CatalogQueryService.GetChapterListAsync` 使用 `GetSummaryAsync` 与 `ListChapterSummariesAsync`；`EfCanonicalBookRepository` 以 `AsNoTracking` 投影目录列；`LegadoContractService.GetTocAsync` 改走章节列表，书籍详情和正文点查路径保持不变；新增 Unit 读取计数和 PostgreSQL SQL 形状回归。
+- 本地验证：TDD 红态先以缺少新章节列表入口的预期编译失败；focused Catalog/Legado `23/23`、Unit `625/625`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法、`git diff --check` 和 added-line secret audit PASS。新增 PostgreSQL 投影回归的 focused Integration 因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而 BLOCKED，未产生产品断言失败。
+- 远端门禁：实现 SHA `c0aefc08682e9ed1bb22b201ec16b4c5a9b7ba10` 的 [CI 37768061749](https://github.com/nekohands/InkFlow/actions/runs/37768061749)、[Docker 37768061718](https://github.com/nekohands/InkFlow/actions/runs/37768061718)、[Security 37768061741](https://github.com/nekohands/InkFlow/actions/runs/37768061741) 均 success 且 head SHA 一致；CI 提供迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 证据，Docker 与 Security 门禁通过。
+- 边界：无公共 API/Legado JSON、Schema/Migration、缓存或 `.workbuddy-ai/` 变化；本机 Docker/Testcontainers、真实来源和 Legado 真机验收仍是独立限制。状态：Accepted；当前无活动工作包，下一轮重新 intake。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-legado-toc-chapter-projection.md)。
+
+### 5.78 Source registry page projection（本轮，2026-10-08，Accepted）
+
+- 缺口：来源注册表分页已限制页大小，但生产 `ListPageAsync` 仍读取并反序列化完整 `RuleDslJson`；搜索发现和直链解析每页只需要 `Id`、`BaseUrl`、`IsEnabled`。
+- Intake：将 `SourcePage` 收窄为轻量页项，EF 直接投影所需列；保留 keyset 游标、look-ahead、禁用过滤、适配器和 URL 解析语义。
+- 范围边界：不改完整 `GetAsync`、`ListAsync` 全量快照、RuleBased Adapter、来源写入、健康转移、公共 API/Legado、Schema/Migration、缓存、凭据或 `.workbuddy-ai/`。
+- 验收：生产分页不读取/反序列化 `RuleDslJson`；来源顺序、分页、缺省/禁用处理、搜索/直链结果、取消和兼容 test double 行为保持。
+- 验证计划：TDD 红绿、focused discovery/URL resolver、Unit/Architecture/Contract、Restore/Release Build、迁移模型、适用 Integration/Runtime、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 实现：`SourcePage` 改用 `SourcePageEntry(Id, BaseUrl, IsEnabled)`；`EfSourceRepository.ListPageAsync` 只投影三列；`BookDiscoveryService`、`SourceBookUrlResolver` 和旧 test double 保持既有语义；`ListAsync`/`GetAsync` 全量聚合读取不变。
+- 回归修复：首个候选 `ef591f3cf9172693b89b1152f83944a185c00d4e` 暴露新增测试使用 `limit=2` 的错误前提，修复为允许的页大小 `1000`；没有产品代码变更。
+- 本地验证：focused discovery/URL resolver Unit `18/18`；Unit `624/624`、Architecture `1/1`、Contract `12/12`；Restore/Release Build `0 warnings / 0 errors`；PowerShell 迁移模型 `11/11`；`git diff --check`、secret audit `0` hits。完整 Integration `8 passed / 3 skipped / 127 blocked`，均因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译，未产生产品断言失败。
+- 远端门禁：最终 SHA `24669af2f343f47cbd1e29924772b15d5956a67a` 的 [CI 37764067745](https://github.com/nekohands/InkFlow/actions/runs/37764067745)、[Docker 37764067733](https://github.com/nekohands/InkFlow/actions/runs/37764067733)、[Security 37764067771](https://github.com/nekohands/InkFlow/actions/runs/37764067771) 均 success 且 head SHA 一致；CI 提供 PostgreSQL/Redis、迁移、Runtime smoke、SLO、backup/restore 和 diagnostics 证据。
+- 边界：无公共 API/Legado、Schema/Migration、缓存、凭据或 `.workbuddy-ai/` 变化；本机 Docker/Testcontainers 与真实外部来源/人工 Release Candidate 验收仍是独立限制。状态：Accepted；当前无活动工作包，下一轮重新 intake。
+
+### 5.77 Source enabled-state projection（本轮，2026-10-08，Accepted）
+
+- 缺口：来源健康门控和已注册代码适配器只需要来源是否存在/启用，但当前 `ISourceRepository.GetAsync` 会加载并反序列化完整 Rule DSL；规则文档增大时会放大高频资格检查的读取和 CPU 开销。
+- Intake：新增可区分缺失/禁用/启用的标量状态读取；健康门控与代码适配器路径使用该投影，规则适配器继续使用完整聚合读取。
+- 范围边界：不改规则适配器加载、来源生命周期写入、Rule DSL 校验/执行、来源分页、健康状态转移、公共 API/Legado、Schema/Migration、缓存、凭据或 `.workbuddy-ai/`。
+- 验收：启用、禁用、缺失来源的既有决策保持；生产健康/代码适配器路径不调用完整 `GetAsync`；EF 只读取 `sources.IsEnabled` 并传播取消；规则适配器仍完整读取 Rule DSL。
+- 验证计划：TDD 红绿、Unit/Architecture/Contract、Restore/Release Build、迁移模型、适用 Integration/Runtime、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 实现：新增兼容的 `ISourceRepository.GetEnabledAsync`；生产 EF 只投影 `sources.IsEnabled`；健康门控和已注册 CodeAdapter 使用该投影，RuleBased Adapter 保持完整读取。
+- 本地验证：TDD 红绿、focused `SourceAdapterFactory`/`SourceCapabilityHealth` `14/14`、Unit `624/624`、Architecture `1/1`、Contract `12/12`、Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`git diff --check` 和 secret audit `0` hits 通过。完整本机 Integration `8 passed / 3 skipped / 126 blocked`，新增 PostgreSQL 回归已编译但执行受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用阻塞。
+- 门禁：候选 SHA `b753a8bc207fda442148f0ab70af9ffcb2826bba` 的 [CI 37759082085](https://github.com/nekohands/InkFlow/actions/runs/37759082085)、[Docker 37759082091](https://github.com/nekohands/InkFlow/actions/runs/37759082091)、[Security 37759082083](https://github.com/nekohands/InkFlow/actions/runs/37759082083) 均与 head SHA 一致并 GREEN；CI 迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 全部通过，Docker 与 Security 完整门禁通过。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存、凭据或 `.workbuddy-ai/` 变化；当前无活动工作包，下一项重新 intake。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-source-enabled-state-projection.md)。
+
+### 5.76 Matching source-book metadata projection（本轮，2026-10-08，Accepted）
+
+- 缺口：`CanonicalBookMatchingService.CreateOrMatchAsync` 只需要来源书的 `Title`/`Author` 作为匹配键，但当前调用 `ISourceBookRepository.GetAsync` 并物化全部章节；章节规模增长会放大匹配临界区前的数据库行数和内存。
+- Intake：新增按来源书身份读取书名/作者的标量投影，保留缺书分支；匹配路径只消费投影，完整聚合继续留给写入、目录同步、章节映射等调用方。
+- 范围边界：不改确认候选快路径、匹配锁、标题/作者归一化、候选创建、目录同步、章节映射、正文抓取、公共 API/Legado、Schema/Migration、缓存、HTTP/重试预算或 `.workbuddy-ai/`。
+- 验收：匹配结果、缺书错误、幂等、同名同作者复用、确认候选和取消语义不变；生产路径不调用完整 `GetAsync`，EF 只读取 `source_books` 的标题和作者，并传播取消。
+- 实现：新增 `SourceBookMetadata`、兼容旧 test double 的默认回退和 EF `source_books` 标量投影；`CanonicalBookMatchingService.CreateOrMatchAsync` 只读取匹配所需的 Title/Author，完整 `GetAsync` 保留给确认候选及其他明确需要聚合的调用方；新增 Unit 读取计数和 PostgreSQL 投影/缺失/取消回归。
+- 本地验证：TDD 红态先证明匹配路径仍调用完整书读取（`expected 0, actual 1`），修复后 focused `CanonicalBookMatchingServiceTests` `3/3`、Unit `623/623`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`git diff --check` 和 secret audit `0` hits PASS。完整本机 Integration 为 `8 passed / 3 skipped / 125 blocked`，新增 PostgreSQL 回归已编译但执行受 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用阻塞。
+- 门禁：实现 SHA `835e0914b84469581f1d2a21a33fa9a65fac09f6` 的 [CI 37753946308](https://github.com/nekohands/InkFlow/actions/runs/37753946308)、[Docker 37753946459](https://github.com/nekohands/InkFlow/actions/runs/37753946459)、[Security 37753946140](https://github.com/nekohands/InkFlow/actions/runs/37753946140) 均与 head SHA 一致并 GREEN；CI 迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 全部通过，Docker 与 Security 完整门禁通过。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化；当前无活动工作包，下一项重新 intake。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-matching-source-book-metadata-projection.md)。
+
+### 5.75 Content-fetch chapter ID projection（本轮，2026-10-08，Accepted）
+
+- 缺口：`ContentFetchChainService.EnqueuePendingContentFetchesAsync` 只需要来源书按目录顺序排列的 `ExternalChapterId`，但当前调用 `ISourceBookRepository.GetAsync` 并物化完整 `SourceBook` 及所有章节标题；章节规模增长会放大追更联动前的数据库行数和内存。
+- Intake：新增按来源书身份读取外部章节 ID 的投影查询，保留目录顺序与缺书/空目录返回 `0` 的语义；正文任务链只消费该投影，完整聚合继续留给写入、匹配、映射等调用方。
+- 范围边界：不改 SourceCatalog 目录同步、章节映射、SourceContent 正文抓取、任务载荷、健康门控、FetchArtifact 新鲜度、去重/run gate、公共 API/Legado、Schema/Migration、缓存、HTTP/重试预算或 `.workbuddy-ai/`。
+- 验收：内容入队的 new/stale/force-refresh、顺序、健康/缺书/空书、去重和 collection-run 语义不变；生产路径不调用完整 `GetAsync`，EF 只投影按 `ChapterIndex` 排序的外部章节 ID；取消向下传播。
+- 实现：新增 `ISourceBookRepository.ListChapterIdsAsync` 及 EF `AsNoTracking` 身份 join/标量投影，按持久化 `ChapterIndex` 排序；`ContentFetchChainService` 只消费章节 ID，完整 `GetAsync` 保留给其他聚合调用方；取消令牌向下传递，任务链语义不变。
+- 本地验证：TDD 红态先证明内容入队仍调用完整书读取，修复后 focused counter `1/1`、`ContentFetchChainServiceTests` `10/10`；Unit `623/623`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`git diff --check` 与 added-line secret audit PASS。完整本机 Integration 为 `8 passed / 3 skipped / 124 blocked`，阻塞原因为 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译，远端 CI 通过。
+- 门禁：候选 SHA `523a305f735fda252dbfcb27dc560f39c930b604` 的 CI `37748826161`、Docker `37748826364`、Security `37748826225` 均与 head SHA 一致并 GREEN；CI 的迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 通过，Docker 与 Security 完整门禁通过。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化；当前无活动工作包。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-content-fetch-chapter-id-projection.md)。
+
+### 5.74 Reading history chapter metadata point lookup（本轮，2026-10-08，Accepted）
+
+- 缺口：`ReadingStateService.ListHistoryAsync` 已将历史记录限制为有界条目，但每条记录仍通过 `ICanonicalBookRepository.GetAsync` 物化整本 `CanonicalBook`，只为取得书名、作者和一个章节元数据；章节规模增长会放大历史列表的数据库行数和内存。
+- Intake：复用现有 `CanonicalBookSummary` 和 `GetChapterAsync`，新增按书 ID 的有界摘要点读；历史路径先保持现有可见性/撤下策略，再点读目标章节，保留缺失项跳过、顺序和响应字段。
+- 范围边界：不改公共 Reading/Legado 响应、历史上限、撤下策略、写路径、Shelf/Progress 路径、完整聚合调用方、Schema/Migration、缓存、正文选择或 `.workbuddy-ai/`。
+- 验收：历史列表不再调用完整 `GetAsync`；生产 EF 使用书籍摘要和目标章节的有界投影；缺书、缺章、跨书和撤下语义不变；取消正确传播。
+- 验证计划：先补 ReadingState focused 红绿回归和 PostgreSQL 点查询/身份回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 实现：`ICanonicalBookRepository.GetSummaryAsync` 复用 `CanonicalBookSummary`；EF 先按书 ID 过滤再投影摘要与相关章节计数；`ReadingStateService.ListHistoryAsync` 改用摘要和既有 `GetChapterAsync`，保留缺失、撤下、顺序、元数据和取消语义，完整 `GetAsync` 继续服务有意需要聚合的调用方。
+- 本地验证：TDD 红态先以完整书读取计数器失败；focused 回归 `1/1`、全部 `ReadingStateTests` `8/8`；Unit `623/623`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、`wsl.exe bash -n scripts/verify-migrations.sh`、`git diff --check` 和 added-line secret audit 均 PASS。完整本机 Integration 为 `8 passed / 3 skipped / 123 blocked`，原因是 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已编译，远端 CI 通过，本机聚焦运行同样受该 named pipe 阻塞。
+- 门禁：实现候选 SHA `4e918c1df43367a8ed52d9e52d2170c6782266b3` 的 [CI 37744554098](https://github.com/nekohands/InkFlow/actions/runs/37744554098)、[Docker 37744554120](https://github.com/nekohands/InkFlow/actions/runs/37744554120)、[Security 37744554105](https://github.com/nekohands/InkFlow/actions/runs/37744554105) 均 success 且 head SHA 一致。CI 的迁移、全量测试、Compose/runtime smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 通过；Docker 四业务镜像构建/扫描/发布及 Compose 镜像验证通过；Security 的 SBOM/Filesystem/NuGet/CodeQL 通过。CI 首次尝试仅因外部 registry 鉴权瞬态失败，原运行同 SHA 重跑后 GREEN。
+- 状态：Accepted；无公共 Contract、Schema/Migration、缓存或 `.workbuddy-ai/` 变化；本机 Docker named pipe 是环境限制，远端容器证据已补足。工作包明细见 [RepoWiki](../../repowiki/work-packages/2026-10-08-reading-history-chapter-metadata-point-lookup.md)。
+
+### 5.73 Source content chapter metadata point lookup（本轮，2026-10-08，Accepted）
+
+- 缺口：`SourceContentService.FetchChapterContentAsync` 在触网前调用 `ISourceBookRepository.GetAsync`，EF 会为定位一个外部章节 ID 物化整本来源书的章节集合；章节规模增长会放大正文抓取前的数据库行数和内存。
+- Intake：新增同时表达书存在状态与目标章节的来源章节点查找，正文路径只读取目标章节元数据；保留 `GetAsync` 给目录、同步和其他完整聚合调用方。
+- 范围边界：不改公共 API/Legado、Source Adapter、正文/FetchArtifact 语义、缺书/缺章错误文本、Schema/Migration、缓存、durable cursor、HTTP/重试预算或 `.workbuddy-ai/`。
+- 验收：正文抓取不再为章节定位调用完整书聚合；缺书和缺章继续返回各自稳定错误；EF 查询按来源书身份和外部章节 ID 有界定位一行并传播取消。
+- 验证计划：先补 SourceContentService focused 红绿回归和 PostgreSQL 点查询/跨书回归，再执行 Unit、Architecture、Contract、Restore/Release Build、迁移模型、脚本语法、Integration、diff/secret audit 与精确 SHA CI/Docker/Security。
+- 实现：`ISourceBookRepository.GetChapterAsync` 返回保留书存在状态的 `SourceChapterLookup`；EF 以来源书身份和外部章节 ID 做 `AsNoTracking` 左连接点查询；`SourceContentService.FetchChapterContentAsync` 改用点查，缺书/缺章错误与触网前置顺序保持不变。
+- 本地验证：TDD 红态为缺少 `SourceChapterLookup` 的预期编译失败；focused `SourceContentServiceTests` `8/8`；Unit `622/622`、Architecture `1/1`、Contract `12/12`；Restore/tool restore、Release Build `0 warnings / 0 errors`、PowerShell 迁移模型 `11/11`、`bash -n scripts/verify-migrations.sh`、`git diff --check` 与 added-line secret audit PASS。完整 Solution Test 的 Integration 为 `8 passed / 3 skipped / 122 blocked`，均在类初始化因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 点查询回归已编译但未取得本机容器证据。
+- 门禁：候选 SHA `5892eca6d754ba53d3a6d496b4d37cb69e387643` 的 [CI 37739646911](https://github.com/nekohands/InkFlow/actions/runs/37739646911)、[Docker 37739647011](https://github.com/nekohands/InkFlow/actions/runs/37739647011)、[Security 37739647021](https://github.com/nekohands/InkFlow/actions/runs/37739647021) 均 success 且 head SHA 一致；CI 的迁移、全量测试、Compose、Reader/Legado/Source smoke、SLO、Redis、PostgreSQL backup/restore 和 diagnostics 通过，Docker 四镜像与发布 Compose 镜像验证通过，Security 的 SBOM/Filesystem/NuGet/CodeQL 通过。
+- 状态：Accepted；本机完整 Integration 仍有 122 项因 Windows Docker named pipe 不可用而 blocked，远端门禁补足 PostgreSQL/runtime 证据；无公共 Contract、Schema/Migration、缓存或 durable cursor 变化；`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包为 5.74 Reading history chapter metadata point lookup。
+
+### 5.72 Reader chapter metadata point lookup（本轮，2026-10-08，Accepted）
+
+- 缺口：`CatalogQueryService.GetChapterContentAsync` 在已完成策略门控和正文版本选择后，为读取一个章节的标题/序号调用 `ICanonicalBookRepository.GetAsync`，EF 会连同该书全部章节一起物化；章节规模增长会放大单章阅读请求的数据库行数和内存。
+- Intake：新增按 `canonicalBookId + chapterId` 的章节元数据点查询，阅读路径只读取目标章节；保留 `GetAsync` 给书籍详情/TOC 聚合读取。
+- 范围边界：不改公共 API/Legado JSON、TOC/详情契约、ContentVersion 选优、策略门控顺序、Schema/Migration、缓存、durable cursor 或 `.workbuddy-ai/`。
+- 验收：正文读取不再为元数据调用完整书聚合；跨书/缺失章节返回 null 元数据并保持既有正文输出；EF 单行查询按书与章节约束并传播取消。
+- 实现：`ICanonicalBookRepository.GetChapterAsync` 提供兼容回退；EF 以 `AsNoTracking`、`BookId + ChapterId` 和 `FirstOrDefaultAsync` 单行读取并传播取消；`CatalogQueryService.GetChapterContentAsync` 改走点查询，保留既有策略门控和正文版本选择。
+- 本地验证：TDD 红态为点查询计数仍为 `0` 的预期失败，focused `CatalogQueryServiceTests` `12/12`；Restore/tool restore PASS；Release Build `0 warnings / 0 errors`；Unit `620/620`、Architecture `1/1`、Contract `12/12`；PowerShell 迁移模型 `11/11`、`bash -n scripts/verify-migrations.sh`、`git diff --check`、added-line secret audit PASS。完整 Solution Test 的 Integration 为 `8 passed / 3 skipped / 121 blocked`，均在类初始化因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 点查询回归已编译但未取得本机容器证据。
+- 门禁：候选 SHA `bae00c78ac627daef2467bbd3e34c3778dbc4ba8` 的 [CI 37736706191](https://github.com/nekohands/InkFlow/actions/runs/37736706191)、[Docker 37736706174](https://github.com/nekohands/InkFlow/actions/runs/37736706174)、[Security 37736706156](https://github.com/nekohands/InkFlow/actions/runs/37736706156) 均 success 且 head SHA 一致；CI 的迁移、Unit/Architecture/Contract、Compose、reader/runtime smoke、Redis、PostgreSQL backup/restore 与 diagnostics 通过，Docker 四镜像构建/扫描/发布及 Compose 镜像验证通过。
+- 状态：Accepted；本机完整 Integration 仍有 121 项因 Windows Docker named pipe 不可用而 blocked，远端门禁补足 PostgreSQL/runtime 证据；不改变公共 API/Legado、Schema/Migration、缓存或 durable cursor；`.workbuddy-ai/` 保持未跟踪且未触碰。当前无活动工作包，下一项重新 intake。
+
+### 5.71 Source registry page fencing（本轮，2026-10-08，Accepted）
+
+- 缺口：`EfSourceRepository.ListAsync` 会一次性物化全部来源及规则文档；`BookDiscoveryService` 和 `SourceBookUrlResolver` 的用户请求会直接枚举完整注册表，来源数量增长时读取内存和请求前置开销无上界。
+- Intake：新增按 `Source.Id` 稳定 keyset 分页的来源仓储页查询；搜索发现与直链解析逐页消费，单次只持有固定上限的来源，保留既有来源顺序、禁用过滤、适配器解析、warning、取消和结果语义。
+- 范围边界：保留 `ListAsync` 给 Operations Center 等显式全量快照调用；不改变公共 API/Legado、Search/URL 规则、来源健康/适配器预算、Schema/Migration、durable cursor 或 `.workbuddy-ai/`。
+- 验收：两个生产调用方不再调用 `ListAsync`；EF 查询按 `Id` 排序、keyset 续页并读取 `limit + 1`；页边界不跳过来源且取消正确传播；其他全量快照调用方行为不变。
+- 验证计划：先补多页搜索/直链解析红绿回归和 PostgreSQL 分页/排序/look-ahead/取消回归，再执行 Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：`ISourceRepository` 增加 `Source.Id` keyset `SourcePage`；EF 读取固定页加一条 look-ahead；`BookDiscoveryService` 与 `SourceBookUrlResolver` 逐页消费，`OperationsCenter` 保留显式 `ListAsync` 全量快照。
+- 本地验证：TDD 红态为缺失分页契约导致的预期编译失败；focused discovery/URL `18/18`、Unit `619/619`、Architecture `1/1`、Contract `12/12`、Restore/tool restore、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、脚本语法、`git diff --check` 与 changed-file secret audit PASS。完整 Integration `8 passed / 3 skipped / 120 blocked`，新 PostgreSQL 回归已编译但因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用而未运行。
+- 门禁：实现 SHA `fe78305eda8055802bbc65cf95a1e3089a49c4d1` 的 [CI 37733255748](https://github.com/nekohands/InkFlow/actions/runs/37733255748)、[Docker 37733255786](https://github.com/nekohands/InkFlow/actions/runs/37733255786)、[Security 37733255787](https://github.com/nekohands/InkFlow/actions/runs/37733255787) 均 success 且 head SHA 一致；CI 的 PostgreSQL/Redis、备份恢复、runtime smoke 与 diagnostics 均通过。
+- 状态：Accepted；分页为请求内固定页读取，不引入来源轮换、缓存或 durable cursor；本机 Integration 仍有 120 项因 Windows Docker named pipe 不可用而 blocked，远端容器门禁补足该证据；真实来源、生产凭据和其他 Release Candidate 人工验收不属于本包；`.workbuddy-ai/` 保持未跟踪且未触碰。当前无活动工作包，下一项重新 intake。
+
+### 5.70 Health-probe candidate batching（本轮，2026-10-08，Accepted）
+
+- 缺口：`HealthProbeService.ProbeDueAsync` 通过 `ListUnhealthyAsync` 全量物化所有 Unhealthy 能力行，来源与能力规模增长后每 10 分钟巡检的读取和探针 fan-out 无上界。
+- Intake：本包改为按 `(SourceId, Capability)` 稳定 keyset 读取有限候选页，每批最多 100 行；Scheduler 在进程内保留游标，末页重置，保留既有冷却判断与结果语义。
+- 范围边界：不持久化游标，不新增 Schema/Migration，不改变公共 API/Legado、健康策略/冷却算法、due SQL 表达式、探针并发/限流、来源轮换或其他仓储调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：生产查询只读取最多 100 条候选加一条 look-ahead，过滤 Unhealthy、按 `(SourceId, Capability)` 排序并支持 keyset continuation；批次成功才推进游标，末页重置；due/skip/probe/recording/cancellation 语义不变。
+- 验证计划：HealthProbeService 红绿批次/游标回归、PostgreSQL 分页/排序/取消回归、Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：`ISourceHealthRepository` 增加 `SourceHealthPage` 与 `(SourceId, Capability)` keyset 游标，EF 查询按 `Unhealthy` 过滤、稳定排序并 `Take(limit + 1)`；`HealthProbeService.ProbeDueBatchAsync` 固定每批最多 100 条，保留旧 `ProbeDueAsync` 全量调用语义；Scheduler 成功批次后推进进程内游标，末页重置。同步更新 Source Runtime 与 RepoWiki 架构约束。
+- 本地验证：红灯为新批次 API 缺失导致的预期编译失败，随后 focused HealthProbeService `7/7`；Restore PASS；Release Build `0 warnings / 0 errors`；Unit `617/617`、Architecture `1/1`、Contract `12/12`；迁移模型 `11/11`、迁移脚本 `bash -n`、`git diff --check`、changed-file secret scan PASS。完整 Integration `130` 项为 `8 passed / 3 skipped / 119 blocked`，均因 Windows Docker Engine `npipe://./pipe/docker_engine` 不可用；新增 PostgreSQL 回归已完整编译但未取得本机容器证据。
+- 门禁：初始候选 `16b34e94bb5fb0214c2765fa2bad79604c5bc603` 暴露共享容器测试夹具假设，已由 `6acb91910db8eb90fb3ea06cfc80031bd4cfbaaf` 隔离起始游标并修复。最终 SHA 的 [CI 37730186762](https://github.com/nekohands/InkFlow/actions/runs/37730186762)、[Docker 37730186799](https://github.com/nekohands/InkFlow/actions/runs/37730186799)、[Security 37730186829](https://github.com/nekohands/InkFlow/actions/runs/37730186829) 均 success 且 head SHA 一致；CI PostgreSQL Integration `127 passed / 3 skipped`，含 Compose/runtime、Redis、备份恢复与 diagnostics。
+- 状态：Accepted。游标仍只保存在 Scheduler 进程内，重启重扫与页面内未到期行是明确边界；未新增 Schema/Migration、公共 Contract、due SQL 表达式或探针并发/限流策略；真实来源和其他 Release Candidate 人工验收不属于本包；`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake。
+
+### 5.69 Health-probe sample lookup fencing（本轮，2026-10-08，Accepted）
+
+- 缺口：`HealthProbeService.ProbeTocAsync` 为寻找某来源的一本样本书调用 `ListAllAsync`，主动巡检每 10 分钟会全量物化来源书目。
+- Intake：本包改为按 `SourceId` 过滤、按 `(CreatedAt, Id)` 稳定排序并只取一条 chapter-free `SourceBook`；保留既有无样本静默跳过、空目录失败、健康上报、取消和稳定失败原因。
+- 范围边界：不分页 unhealthy 健康候选，不新增 Schema/Migration，不改变公共 API/Legado、Source Adapter/HTTP budget、Scheduler interval、重试策略或其他仓储调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：Toc 探针不再调用 `ListAllAsync`；生产 SQL 只返回目标来源的一条确定性样本；无样本、空/非空目录、健康状态、取消和错误分类语义不变。
+- 验证计划：HealthProbeService 红绿回归、PostgreSQL first-sample/filter 回归、Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：新增 `ISourceBookRepository.FindFirstForSourceAsync`，EF 按 `SourceId` 过滤、按 `(CreatedAt, Id)` 排序并 `FirstOrDefaultAsync`，返回无章节的 `SourceBook`；Toc 健康探针不再调用 `ListAllAsync`；同步确定性 EndToEnd fixture 与相关文档。
+- 验证：HealthProbeService focused `6/6`、受影响 EndToEnd `1/1`、Unit `616/616`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`、迁移模型 `11/11`、迁移脚本语法、diff/secret audit 均 PASS。Integration 本机为 `8 passed / 3 skipped / 118 blocked`，均因 Windows Docker Engine named pipe 不可用；远端 CI 负责 PostgreSQL/runtime 证据。
+- 远端：精确 SHA `62331b47f1e1efd2d4080477b45e15661567e79f` 的 [CI 37724656744](https://github.com/nekohands/InkFlow/actions/runs/37724656744)、[Docker 37724656752](https://github.com/nekohands/InkFlow/actions/runs/37724656752)、[Security 37724656807](https://github.com/nekohands/InkFlow/actions/runs/37724656807) 均 success 且 head SHA 一致。
+- 边界：仍使用一本已导入书作为 Toc 样本；本包未加入样本轮换或 unhealthy health 候选分页，`ListAllAsync` 保留给无关边界；`.workbuddy-ai/` 保持未跟踪且未触碰。下一工作包重新 intake。
+
+
+> 4.1–5.49 历史工作包明细已归档至 [progress-history.md](progress-history.md)，近期记录如下。
+### 5.68 Scheduled update-scan page/fan-out fencing（本轮，2026-10-08，Accepted）
+
+- 缺口：`UpdateScanService` 通过 `ListAllAsync` 一次性物化全部 `SourceBook`，随后逐本创建追更任务；书库规模增长会同时放大内存峰值和单轮调度 fan-out。
+- Intake：本包将 scheduled update-scan 改为 `(CreatedAt, Id)` 有序 keyset 分页，每轮最多扫描 100 本；调度器在进程内保留游标，扫完后重置，并保留既有健康检查、任务去重和取消语义。
+- 范围边界：不持久化游标、不新增 Schema/Migration、不改变 `ISourceAdapter`、公共 API/Legado、Source registry、Worker 队列、重试策略或其他 `ListAllAsync` 调用方；`.workbuddy-ai/` 保持未跟踪且未触碰。
+- 验收：单轮不超过 100 本；跨轮游标确定性推进且无跳过/重复，末页后重置；健康不可用、冲突任务和取消语义保持；生产查询不再为 scheduled scan 物化完整书库。
+- 验证计划：先补 UpdateScanService 红绿回归和 PostgreSQL repository keyset 回归，再执行 Unit/Architecture/Contract、Release Restore/Build、迁移模型、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：`ISourceBookRepository.ListPageAsync` 按 `(CreatedAt, Id)` 提供稳定 keyset 页；`UpdateScanService`/Scheduler 每轮最多处理 100 本，成功批次后推进进程内游标，末页重置；保留健康门控、原子去重和取消语义。无公共契约、Schema 或 Migration 变化。
+- 验证：focused UpdateScanService 4/4、受影响 EndToEnd scheduler 1/1、Unit 616/616、Architecture 1/1、Contract 12/12、Release Restore/Build 0 warnings / 0 errors、PowerShell 迁移模型 11/11、diff/secret audit PASS；本机 Integration 8 passed / 3 skipped / 117 blocked（Windows Docker named pipe 不可用）；远端完整测试通过 PostgreSQL keyset 回归及 runtime/Compose 门禁。
+- 门禁：初始实现 SHA `a9686fd114c2704360588b81eb64d9c6f35f9df3` 的 CI 暴露旧测试替身未实现分页契约，已由 `83f12e8cdc30837ed6a8309e0288829966065eaf` 修复；最终 SHA 的 [CI 37721216436](https://github.com/nekohands/InkFlow/actions/runs/37721216436)、[Docker 37721216460](https://github.com/nekohands/InkFlow/actions/runs/37721216460)、[Security 37721216368](https://github.com/nekohands/InkFlow/actions/runs/37721216368) 均 success 且 head SHA 一致。
+- 状态：Accepted；游标刻意只保存在 Scheduler 进程内，重启重扫与多 Scheduler 协调仍是独立边界；真实来源、生产凭据和 Release Candidate 人工验收不属于本包；当前无活动工作包。
+
+### 5.67 Source list-result budget fencing（本轮，2026-10-08，Accepted）
+
+- 缺口：`SourceRuleExecutionLimits` 已限制请求、响应字节、时间、选择器和结果字节，但 Rule/Code Source 的 Search/TOC 投影仍没有条目数量上限；`SourceCatalogService` 也会接受任意 adapter 返回的完整 TOC 后再同步。
+- Intake：本包复用既有执行预算加入有限 `MaxResultItems`，覆盖 RuleBased、Kanunu8、17K 和通用 TOC 同步防线；不改 `ISourceAdapter`、公共 API/Legado JSON、分页语义、Source registry、Schema/Migration、权限或重试策略。
+- 验收：正常列表、稳定 ID/顺序和取消语义不变；超过经验证条目预算时 fail-closed，不返回部分结果；超限 TOC 在持久化前被拒绝并返回稳定非敏感错误。
+- 验证计划：RuleBased/Kanunu8/17K/SourceCatalogService 红绿回归、完整 Unit/Architecture/Contract、Release Restore/Build、迁移模型检查、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：在既有 `SourceRuleExecutionLimits` 中加入经验证的 `MaxResultItems`（默认 10,000）；RuleBased、Kanunu8、17K 的 Search/TOC 超限整体 fail-closed；`SourceCatalogService` 在 health success 和持久化前拒绝超限 TOC。
+- 验证：focused adapter/catalog 25/25、Unit 615/615、Architecture 1/1、Contract 12/12、Release Build 0 warnings/0 errors、迁移模型检查 11/11、diff/secret audit PASS；本机 Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）。
+- 门禁：实现 SHA `2853c5e71cb321284113637042a7a91b224b069f` 的 [CI 37717734392](https://github.com/nekohands/InkFlow/actions/runs/37717734392)、[Docker 37717734423](https://github.com/nekohands/InkFlow/actions/runs/37717734423)、[Security 37717734362](https://github.com/nekohands/InkFlow/actions/runs/37717734362) 均 success，含远端 PostgreSQL/runtime/Compose smoke。
+- 状态：Accepted；默认上限沿用既有 10,000 章节/包上限，Source registry cardinality、真实来源与 Release Candidate 人工验收仍为独立边界；当前无活动工作包。
+
+### 5.66 Discovery search budget fencing（本轮，2026-10-08，Accepted）
+
+- 缺口：`BookDiscoveryService` 只处理空查询，不限制查询长度、逐源命中处理量或总正典发现结果；用户触发搜索会把适配器返回的全部命中逐条导入与匹配。
+- Intake：本包限定在 Crawling 发现编排边界加入查询/工作量上限，并通过既有 `warnings` 报告截断；不改 `ISourceAdapter`、公共 API/Legado JSON、目录分页、Source Runtime parser/HTTP 预算、Schema/Migration、权限或重试策略。
+- 验收：超长查询在列出来源/调用适配器前返回稳定 warning；逐源命中和总正典结果均有界；空查询、正常归并、幂等与调用方取消语义保持不变。
+- 验证计划：BookDiscoveryService 红绿回归、完整 Unit/Architecture/Contract、Release Restore/Build、迁移模型检查、diff/secret audit、适用 Integration/Runtime 与精确 SHA 的 CI/Docker/Security。
+- 实现：查询上限 256，逐源命中上限 100，总正典发现结果上限 100；超限通过既有 warnings 稳定报告，未改变公共响应、适配器、Schema/Migration。
+- 验证：Unit 609/609、Architecture 1/1、Contract 12/12、迁移模型检查 11/11、Release Build 0 warnings/0 errors；本机 Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）。
+- 门禁：候选 SHA `193722cffb726c7338128be1f66111369b48a8a9` 的 [CI 37715153756](https://github.com/nekohands/InkFlow/actions/runs/37715153756)、[Docker 37715153801](https://github.com/nekohands/InkFlow/actions/runs/37715153801)、[Security 37715153778](https://github.com/nekohands/InkFlow/actions/runs/37715153778) 均 success 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke。
+- 状态：Accepted；Source registry cardinality 与真实来源/Release Candidate 人工验收继续作为独立边界；当前无活动工作包。
+
+### 5.65 Rule selector execution deadline fencing（本轮，2026-10-08，Accepted）
+
+- 缺口：`RuleAdapter` 的 `MaxExecutionTime` 取消令牌已约束 HTTP 与 Credential Provider，但字段、分页和响应变量选择器，以及 `RuleBasedSourceAdapter` 在分页响应收集后的 Search/TOC 列表绑定边界没有检查该令牌；慢选择器可能在预算过期后仍返回成功结果。
+- Intake：本包只在既有选择器/提取边界加入 deadline fencing；不增加选择器语法、动态多请求/分支/递归、`MaxDepth`、公共契约、Schema/Migration、凭据存储或重试策略。
+- 验收：内部预算过期返回稳定 `execution: time budget exceeded.` 且不暴露 values/bodies；字段、分页、派生变量和 Search/TOC 列表绑定均受保护；调用方取消继续传播；正常 Source fixture 语义不变。
+- 实现：`RuleAdapter` 与 `RuleBasedSourceAdapter` 在 selector/extraction/list-binding 边界观察同一 `MaxExecutionTime`，内部超时 fail-closed，调用方取消继续传播；字段、分页、响应变量、Search/TOC 列表回归已补齐。
+- 状态：本地 Release Build 0 warnings/0 errors、Unit 605/605、Architecture 1/1、Contract 12/12、11-context migration model check 和 diff/secret audit 通过。Integration 为 8 passed / 3 skipped / 116 blocked（Windows Docker named pipe 不可用）；远端 CI/Docker/Security 与 PostgreSQL/runtime smoke 全部通过。真实来源和 Release Candidate 人工验收不属于本包。
+- CI：精确 SHA `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` 的 CI `37710808321`、Docker `37710808308`、Security `37710808245` 均 success。
+
+### 5.50 已停止任务重试/取消与已取消任务清理（本轮，2026-09-03）
+
+- 实现：已停止采集运行增加“重试”和“取消”操作；“重试”沿用原有地址回填入口创建新运行，“取消”将 `Stopped` 归类为可清理的 `Cancelled`，不恢复原运行，也不删除书籍或正文。
+- 清理：已取消页签增加带理由确认的一键清理；受保护 API 原子删除全部已取消运行及其采集子任务/死信，保留书籍、正文、审计和 Outbox 事实，并记录 `collection.run.cancelled.cleanup` 审计事件。
+- 测试：先以缺失接口/类型验证红态，再补充 Domain、Service、Endpoint、PostgreSQL 和前端合同回归；VM Linux SDK 全量 Restore → Build → Test 为 Release Build 0 warnings / 0 errors、Unit `570/570`、Architecture `1/1`、Contract `12/12`、Integration `110 passed / 3 skipped / 0 failed`。
+- VM/运行时：隔离 Compose 从源码重建并健康启动；`verify-migrations.sh` 通过 11 个 contexts；`collection-package-runtime-smoke` PASS，实际覆盖停止后取消、已取消批量清理、直接地址采集、ZIP/EPUB/TXT 生成下载、完整性和审计；`reader-frontend-runtime-smoke` PASS。为适配 VM 缓存，隔离验证临时使用 Collector `0.159.0`，生产 Compose/CI 仍为 `0.160.0`。
+- 浏览器：内置浏览器在候选 `18080` 端口确认已停止页签出现“取消/重试”、展开状态跨 4.5 秒轮询保持；取消后进入已取消页签并出现“清理已取消任务”及不可恢复确认说明。清理确认未在浏览器中提交，避免误删现场；删除行为已由隔离 HTTP smoke 实际验证。
+- CI：`5d64dd2` 的首次 CI 因前端 smoke 夹具漏记新合同字符串失败，已在 `4b896fb` 补齐；`4b896fb` 的 [CI 33734431190](https://github.com/nekohands/InkFlow/actions/runs/33734431190)、[Docker 33734431170](https://github.com/nekohands/InkFlow/actions/runs/33734431170)、[Security 33734431235](https://github.com/nekohands/InkFlow/actions/runs/33734431235) 均已 success。
+- 验收边界：Windows Integration 仍因本机 Docker Engine named pipe 不可用而 BLOCKED；未使用真实上游账号、生产令牌、Cookie，阅读 3.0/MuMu 真机及其他明确人工验收继续待定。整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.51 运维操作理由候选与自定义输入（本轮，2026-09-03）
+
+- 实现：复用现有操作确认弹窗，按重放、暂停/恢复/停止/取消、失败/已取消清理、来源、能力和内容政策操作展示 3 个常用理由；默认填入第一项，点击候选可替换理由，文本框仍可直接编辑或自行填写。
+- 安全与可访问性：候选项使用键盘可操作的按钮，位于带“常用理由”图例的 fieldset 中；原有 1–512 字符校验、二次确认、权限和审计链路不变，不把理由改为不可编辑的枚举。
+- 测试：ReaderHtml 单元回归先红后绿（24/24），前端 smoke 合同回归 PASS；完整本地 Build PASS、Unit `570/570`、Architecture `1/1`、Contract `12/12`，Windows Integration 因 Docker named pipe 不可用 BLOCKED。
+- VM/运行时：Ubuntu VM 隔离栈已用 `4600d2b` 重建，API/Worker/Scheduler/PostgreSQL/Redis healthy；`reader-frontend-runtime-smoke` PASS。浏览器已实际打开“取消”理由弹窗，确认 3 个候选、默认理由、候选替换和自定义文本输入，未提交破坏性操作。
+- CI：文档提交 `23757d0` 的 [CI 33738529085](https://github.com/nekohands/InkFlow/actions/runs/33738529085)、[Docker 33738530154](https://github.com/nekohands/InkFlow/actions/runs/33738530154)、[Security 33738530652](https://github.com/nekohands/InkFlow/actions/runs/33738530652) 均已 success。
+- 验收边界：真实上游、真实凭据、阅读 3.0/MuMu 真机及其他明确人工项目继续待定；整体仍为 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.52 Reader 采集与书籍包使用权限（本轮，2026-09-03）
+
+- 实现：新增 `OperationsSnapshotRead`、`CollectionUse` 与 `BookPackageUse` 权限；Reader 可创建/查看采集运行、创建/查看/下载 EPUB/TXT/ZIP 书籍包，并读取来源状态快照。来源启停、能力操作、死信、失败/取消清理、内容治理、告警和一致性检查仍由 Operator/Administrator 保护。
+- 前端：Reader 进入采集与下载工作面，来源页仅呈现状态和健康信息，不展示来源操作按钮；运营/管理员继续看到完整运维页签和控制入口。Reader 的账号中心链接同步指向采集与下载入口。
+- 回归：Release Build 0 warnings / 0 errors；Unit `572/572`、Architecture `1/1`、Contract `12/12` PASS；受影响 shell 合同回归与 `bash -n` PASS。Windows Integration 因 Docker Engine `npipe://./pipe/docker_engine` 不可用 BLOCKED（环境阻塞，不记为代码失败）。
+- Ubuntu VM：隔离工作树 `0f55282` 使用源码 Compose 构建并运行，Migration、API、Worker、Scheduler、PostgreSQL、Redis healthy；Reader 账户 runtime smoke 的 Reader 允许/拒绝矩阵 PASS；临时 Reader 实际创建、完成、下载并校验单文件 TXT 书籍包哈希 PASS；`reader-frontend-runtime-smoke` 使用隔离 18080 端口 PASS。手工栈未修改。
+- 权限边界：当前采集运行/书籍包仍是平台级任务，没有 `UserId` 归属字段；本轮不把全局暂停/恢复/停止/取消或清理权限下放给 Reader。若后续要求普通用户只能控制“自己发起的任务”，需先增加任务所有权和按用户隔离列表的迁移与回归。
+- 状态：代码提交 `0f55282`、文档提交 `a08d9a2` 已推送 `dev`；[CI 33750052745](https://github.com/nekohands/InkFlow/actions/runs/33750052745)、[Docker 33750052746](https://github.com/nekohands/InkFlow/actions/runs/33750052746)、[Security 33750052726](https://github.com/nekohands/InkFlow/actions/runs/33750052726) 均 success 且 head SHA 一致。阅读 3.0/MuMu 真机、真实上游/真实凭据和其他第 6 节人工项目继续待定，整体保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`。
+
+### 5.53 Reader 顶部任务导航、来源状态与书籍详情下载入口（本轮，2026-09-04）
+
+- 实现：Reader 顶部新增独立“采集”“下载”“来源状态”页签；书籍详情新增 EPUB、单文件 TXT、ZIP 格式选择和下载入口。已完成书籍包使用当前登录会话直接下载，排队/运行中跳转下载页签，否则创建下载任务。
+- 权限：普通 Reader 可读取来源状态快照但不能调用来源编辑接口；Administrator 可编辑来源状态。既有 Operator 来源级授权模型保持不变，未将普通用户与运维角色混淆。
+- 验证：本机 focused ReaderHtml `27/27`、完整 Unit `574/574`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`、前端 smoke 与 shell 语法均 PASS；Windows Integration `8 passed / 3 skipped / 102 failed`，全部失败发生于本机 Docker Engine named pipe 不可用，记为环境 BLOCKED。
+- Ubuntu VM：隔离工作树 `9233b82` 使用源码 Compose 构建，API/Worker/Scheduler/PostgreSQL/Redis healthy；`reader-frontend-runtime-smoke` PASS；真实 HTTP 角色 smoke 验证首个注册账号为 Administrator、第二个为 Reader、Reader 来源总览 `200`、编辑 `403`、管理员禁用/恢复 `200`；内置浏览器确认三项顶部入口。隔离栈已停止并清理，既有手工栈保留。
+- 状态：代码提交 `9233b82`、文档提交 `94ce713` 已推送 `dev`；[CI 33782382242](https://github.com/nekohands/InkFlow/actions/runs/33782382242)、[Docker 33782382191](https://github.com/nekohands/InkFlow/actions/runs/33782382191)、[Security 33782382185](https://github.com/nekohands/InkFlow/actions/runs/33782382185) 均 success 且 head SHA 为 `94ce713`。保持 `1.0 Release Candidate`，不标记 `Accepted/Completed`；阅读 3.0/MuMu 真机、真实上游/真实凭据及其他第 6 节人工项目继续待定。
+
+### 5.54 Identity 令牌重放检测、族吊销与会话保留清理（本轮，2026-10-01）
+
+- 重放检测：已轮换的 refresh token 再次出现判定为重放（含并发轮换竞态分支），事务内吊销整条轮换链（`RevokeSessionFamilyAsync`，visited 防环），对外返回独立错误码 `refresh_token_replay_detected`（401）；`AuditIdentitySecurityEventSink` 将脱敏事件（userId、吊销会话数）写入审计，不含 token、摘要或会话秘密。
+- 访问令牌会话耦合：`ValidateAccessTokenAsync` 联查所属会话并要求会话活跃，登出/轮换/族吊销后旧访问令牌立即失效；`RotateRefreshSessionAsync` 轮换时同步吊销旧会话的全部访问令牌行，消除最长 15 分钟的幽灵凭证窗口。
+- 保留清理（I-6）：`IdentityRetentionService`（宽限期/批大小/单轮批次上限，配置节 `Identity:Retention`，非法值启动快速失败）由 Worker `IdentityRetentionBackgroundService` 每小时执行；`EfIdentityRetentionStore` 以 `SKIP LOCKED` 取候选、逐会话事务“子表优先”删除；会话删除带 `NOT EXISTS` 护栏，防止外键 CASCADE 把未终态令牌一并带走，且删除谓词与该护栏共同保证“只删终态事实”。
+- 数据回填：`AddIdentityRotatedTokenBackfill` Migration 把被吊销/轮换会话下仍为未吊销的访问令牌回填为随会话吊销（幂等、单向、无模型变更），使存量数据与新验证语义一致，也让保留清理可安全判定令牌终态。
+- 测试：单元新增重放族吊销、安全事件上报、会话吊销后访问令牌失效、轮换吊销旧令牌等回归；集成（真实 PostgreSQL，远端 CI 容器执行）新增轮换吊销旧令牌行、令牌族全链吊销和保留终态矩阵（含 CASCADE 护栏场景）。
+- 文档：`docs/roadmap/progress.md` 与 `docs/handoff/handoff.md` 拆分为“当前记录 + `*-history.md` 历史归档”，`phase-1-acceptance.md` 与 `handoff.md` 中的历史小节引用同步改指归档文件。
+- 验证：本机 Restore PASS；Release Build 0 warnings / 0 errors；Unit 583/583、Architecture 1/1、Contract 12/12 PASS；`scripts/verify-migrations.sh` PASS（11 contexts 无漂移）。本机无 Docker，本机 Integration NOT RUN（环境 BLOCKED，与历轮同因）。
+- CI 迭代与修复：候选 `a661293` 的远端 CI RED 暴露保留存储实现缺口（删除候选会话之外的终态令牌未被清理，与其声明的按行终态契约不符），以 `ctid` 有界终态清扫修复（`3c67dba`）；同提交 CI RED 再暴露 `reader-account-runtime-smoke` 沿用“旧令牌重用仅普通失效”的旧语义（现重放会吊销整族），脚本改为断言 `refresh_token_replay_detected`、验证族吊销并重新登录后通过。Docker 门禁另发现 ubuntu 基础镜像快照 `libssl3t64` CVE-2026-84782（HIGH），四个发布镜像在最终阶段显式升级修复。最终提交 `beb3e56` 的 [CI 36891052979](https://github.com/nekohands/InkFlow/actions/runs/36891052979)、[Docker 36891052985](https://github.com/nekohands/InkFlow/actions/runs/36891052985)、[Security 36891052989](https://github.com/nekohands/InkFlow/actions/runs/36891052989) 均 success 且 head SHA 一致。
+
+### 5.55 API 宿主全局异常处理中间件（本轮，2026-10-02）
+
+- 缺口（审查项 H1，2026-10-02 在当前代码复核成立）：未捕获异常走 ASP.NET 默认错误页，Development 环境泄露堆栈；宿主无任何全局兜底。
+- 实现：`ApiErrorHandlingExtensions` 提供 `AddInkFlowProblemDetails`（写出前剥除 `exceptionDetails` 扩展）与 `UseInkFlowExceptionHandler`（最外层 `UseExceptionHandler`）；Program.cs 接线为首个中间件，任何环境统一返回 `application/problem+json`，不含异常类型、消息、堆栈或路径。审计与 SLO 中间件在内层仍观察原始异常（`unhandled-exception` 审计语义不变）；既有端点稳定错误体（auth 错误码、429、4xx）不重写。
+- 测试：新增 TestServer 级回归 2 例——Development 环境注入异常断言 500 + `application/problem+json` 且无 `secret-exception-detail`/`InvalidOperationException`/`exceptionDetails`/`StackTrace` 泄露；正常端点与 404 不被兜底重写。测试依赖新增 `Microsoft.AspNetCore.TestHost`（CPM 固定 10.0.4，仅测试工程引用）。
+- 验证：本机 Restore/Release Build 0 warnings / 0 errors；Unit 585/585、Architecture 1/1、Contract 12/12 PASS；Migration 未触及（N/A）。远端提交 `d2cbbca` 的 [CI 37427977446](https://github.com/nekohands/InkFlow/actions/runs/37427977446)、[Docker 37427977438](https://github.com/nekohands/InkFlow/actions/runs/37427977438)、[Security 37427977441](https://github.com/nekohands/InkFlow/actions/runs/37427977441) 均 success（含真实 PostgreSQL Integration 与 Compose/Runtime smoke）。
+- 交付结构：同日完成 project-delivery adoption——建立 `repowiki/`（AI 权威参考）与 `docs/delivery/`（profile 迁移 + 索引 + adoption 记录），提交 `507e473` 三 workflow 全绿。
+
+### 5.56 Canonical 匹配入口原子化（本轮，2026-10-06）
+
+- 缺口（审查中危项）：`CanonicalBookMatchingService.CreateOrMatchAsync` 为非原子 check-then-act——并发匹配同一归一化书名/作者时，两路同时看到"无既有正典书"而各自创建，产生重复正典身份，直接威胁"对外 BookId 稳定"不变量；同源书并发路径则依赖 `match_candidates` 唯一索引兜底报 500。
+- 实现：`ICanonicalBookRepository` 新增 `BeginTitleAuthorScopeAsync`（匹配互斥作用域，默认无互斥回退供测试替身，沿 ICrawlerTaskRepository 先例）；EF 实现在单个 ReadCommitted 事务内以归一化 (title, author) 的 SHA-256 稳定前缀取 `pg_advisory_xact_lock`（进程间确定性，不依赖 PG 哈希），作用域内同 DbContext 的书/候选写入共享事务。匹配服务重构为临界区：快路径（既有 Confirmed 候选）无需互斥；进入作用域后锁内复查候选（双检）再创建/挂接，书与候选原子提交；异常整体回滚。
+- 测试：新增真实 PostgreSQL 并发回归 `CanonicalMatchConcurrencyTests`——8 路并发匹配两个空白变体来源书（"同一本书/烽火戏诸侯"），断言恰好 1 个正典书、全部结果同一 BookId、2 个候选、至多 1 次真正创建。候选提交 `7b9553a` CI RED 暴露测试夹具缺陷（并行任务逐上下文 `Migrate()` 竞争 `__EFMigrationsHistory`），改为类初始化迁移一次后修复（`8eb9162`）。
+- 验证：本机 Restore/Release Build 0 warnings / 0 errors；Unit 585/585、Architecture 1/1、Contract 12/12 PASS；无 Schema/Migration 变更。远端提交 `8eb9162` 的 [CI 37437471071](https://github.com/nekohands/InkFlow/actions/runs/37437471071)、[Docker 37437470761](https://github.com/nekohands/InkFlow/actions/runs/37437470761)、[Security 37437470720](https://github.com/nekohands/InkFlow/actions/runs/37437470720) 均 success（含真实 PostgreSQL Integration 与 Runtime smoke）。
+- 边界：`FindByTitleAuthorAsync` 的全表内存加载（审查另列的性能项）本轮未动，保持精确 C# 归一化语义；后续以持久化归一化键 + 索引单独立项。
+
+### 5.57 死信与任务状态同事务（本轮，2026-10-06）
+
+- 缺口（审查中危项）：`CrawlerTaskProcessor.FailTaskAsync` 把死信行与 DeadLettered 任务终态分两次 SaveChanges 提交——中间崩溃/写失败会留下"有死信无终态"（修复视图与任务状态漂移）或"有终态无死信"（无法重放）的半一致状态。
+- 实现：`ICrawlerTaskRepository` 新增 `AddDeadLetterWithTaskAsync`（默认顺序两写回退供测试替身，生产必须覆写，沿仓库既有先例）；EF 实现以单个 ReadCommitted 事务同时提交死信行与任务终态，任一写失败整体回滚；`CrawlerTaskProcessor` 死信路径改用原子方法。
+- 测试：新增真实 PostgreSQL 回归两条——死信+终态单事务同时可见；任务行缺失时死信写入整体回滚（旧两段式会先提交死信行留下漂移，单事务实现断言死信行不存在）。
+- 验证：本机 Release Build 0 warnings / 0 errors；Unit 585/585、Architecture 1/1、Contract 12/12 PASS；无 Schema/Migration 变更。远端提交 `8a8fcd1` 的 [CI 37469389070](https://github.com/nekohands/InkFlow/actions/runs/37469389070) 与 [Security 37469389126](https://github.com/nekohands/InkFlow/actions/runs/37469389126) GREEN；Docker 首跑在镜像构建/扫描（0 漏洞）成功后遇 GHCR 推送瞬时 `unknown blob`，定位为 registry 侧抖动并重跑该 job 后 [Docker 37469389018](https://github.com/nekohands/InkFlow/actions/runs/37469389018) GREEN。
+
+### 5.58 Inbox/Outbox 批次租约续约（本轮，2026-10-06）
+
+- 缺口（审查中危项）：Outbox 投递与 Inbox 消费都以短租约整批领取后串行处理，批次耗时超过租约时长时，后半段消息在处理途中租约过期，会被其他实例重复领取/投递（仅靠幂等消费兜底，浪费且放大竞态窗口）。
+- 实现：`IOutboxStore`/`IInboxStore` 新增 `ExtendLeaseBatchAsync`（默认无操作回退供测试替身，生产必须覆写）；`EfMessagingMessageStore` 以单语句 UPDATE 只续约仍由同一 owner 持有且未达终态的行（Outbox 要求 ProcessedAt 为空；Inbox 还要求 DeadLetteredAt 为空），owner 不匹配的行不会被续约；`OutboxDispatcher` 与 `InboxConsumerPump` 在处理每条消息前续约整批剩余租约。
+- 测试：单元新增 dispatcher/pump 续约接线断言（每条消息前一次续约、ids/owner/时长正确）；集成（真实 PostgreSQL）新增两条——Inbox/Outbox 各验证"原租约过期后经续约不可被其他 owner 领取 + 终态行不参与续约"。候选 `e2b4e6a` CI RED 暴露 Outbox 领取无类型过滤会捞到共享容器中此前用例的遗留行，测试断言收窄到本用例消息后修复（`1658b87`）。
+- 验证：本机 Release Build 0 warnings / 0 errors；Unit 587/587、Architecture 1/1、Contract 12/12 PASS；无 Schema/Migration 变更。远端提交 `1658b87` 的 [CI 37478901744](https://github.com/nekohands/InkFlow/actions/runs/37478901744)、[Docker 37478902070](https://github.com/nekohands/InkFlow/actions/runs/37478902070)、[Security 37478901915](https://github.com/nekohands/InkFlow/actions/runs/37478901915) 均 success（含真实 PostgreSQL Integration 与 Runtime smoke）。
+- 边界：单条 Handler 执行超过完整租约时长的中途续约本轮未实现（仍由幂等消费兜底），已记录为后续可选加固。
+
+### 5.59 Catalog 查询分页与 N+1 收敛（本轮，2026-10-07，Accepted）
+
+- 缺口：`CatalogQueryService.ListBooksAsync` 原先先全量读取书目，再逐本读取 Content Policy 和完整章节聚合，Developer API 又在全部加载后才 `Take(limit)`，形成 `3N+1` 读取和无效放大。
+- 实现：Library 增加有界 `CanonicalBookSummary` 投影，EF 在单个查询中返回书名、作者和章节数；Content Policy 增加按给定 BookId 批量读取最新决策，EF 单查询完成当前状态派生；Catalog 列表/搜索默认有界，Developer `limit` 下推到服务/仓储边界，响应字段和下架语义不变。
+- 测试：Unit 新增有界列表、无完整聚合读取、批量策略读取与搜索候选顺序回归，聚焦 `CatalogQueryServiceTests` `11/11`、全量 Unit `590/590`；Architecture `1/1`、Contract `12/12`、Release Build 0 warnings / 0 errors；本机 Testcontainers 因 `npipe://./pipe/docker_engine` 不可用，但远端 CI `37621536608` 完成 PostgreSQL/Runtime 验证。
+- 代码候选：`a700977`（有界摘要读取）、`771f027`（批量策略与 limit 下推）、`c0d79df`（搜索先匹配后限量）；无 Schema/Migration 变更。
+- 结论：远端 CI `37621536608`、Docker `37621536753`、Security `37621536604` 均对 `9783b7d` 成功；5.59 已 Accepted。下一工作包重新 intake，游标续页与全文检索仍是明确非目标。
+
+### 5.60 Entitlement actor validation（本轮，2026-10-07，Accepted）
+
+- 缺口：`EntitlementService.AssignAsync` 原先只拒绝空 `actorId`；虽然 API 路由已有 Administrator policy，直接调用应用服务仍可传入任意非空操作者。
+- 实现：Billing 新增 `IsActiveAdministratorAsync` 端口；服务在目标用户/计划仓储读取和赋值持久化前检查操作者；API 组合适配器从 Identity 用户记录派生 active Administrator；不符合条件统一返回 `403 entitlement_management_forbidden`。既有路由、载荷、reason、命令审计和数据模型不变。
+- 测试：先建立红态回归，再实现并验证；聚焦 Commercial/Identity `18/18`、全量 Unit `592/592`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`；Windows 迁移模型检查 11/11，脚本语法 PASS。
+- 远端：`d0413f2` 的 [CI 37638597477](https://github.com/nekohands/InkFlow/actions/runs/37638597477)、[Docker 37638597479](https://github.com/nekohands/InkFlow/actions/runs/37638597479)、[Security 37638597492](https://github.com/nekohands/InkFlow/actions/runs/37638597492) 均 success，含 PostgreSQL/runtime 验证。
+- 边界：本机 Billing Testcontainers 因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包需重新 intake，候选为乐观并发和适配器正则/读取边界。
+
+### 5.64 Crawler handler lease renewal（本轮，2026-10-08，Accepted）
+
+- 缺口（5.58 已明确记录）：Crawler Task 创建事件/轮询领取使用两分钟租约，但单条 Handler 执行超过完整租约时长没有中途续约；仅靠 Inbox 幂等会让另一个 Worker 在执行中回收同一任务，放大重复抓取竞态。
+- Intake：本包限定为 `CrawlerTask` active lease 的 owner/status/expiry 条件续约、独立 DI scope 的 Processor heartbeat 与 lease-loss cancellation；不改变任务重试预算、公共契约、Schema/Migration 或真实来源策略。
+- 验收：未过期的当前 owner 可获得新 expiry；过期、终态或 owner 不匹配不续约；长 Handler 在半租约前续约并正常完成；续约丢失时取消 executor 且不以旧 owner 写入成功/失败终态。
+- 实现：`CrawlerTask.RenewLease` 保持 active lease 不变量；`ICrawlerTaskRepository.TryRenewLeaseAsync` 保留测试替身回退；EF 以任务 ID、owner、活动状态和数据库 expiry 条件 UPDATE 原子续约；Processor 使用独立 DI scope 的 `PeriodicTimer` heartbeat，续约失败取消 executor 且不写旧 owner 终态。
+- 测试：先红后绿；聚焦 CrawlerTask `21/21`、全量 Unit `600/600`、Architecture `1/1`、Contract `12/12`；新增真实 PostgreSQL owner/status/expiry 回归，但本机因 `npipe://./pipe/docker_engine` 不可用而 BLOCKED。
+- 本地验证：`dotnet restore InkFlow.sln` PASS；Release Build `0 warnings / 0 errors`；PowerShell 等价 11 contexts migration model check PASS；`git diff --check`、security/architecture review PASS。WSL shell wrapper 未执行成功，原因是 WSL 内无 `dotnet`。
+- 远端：精确 SHA `11a493a2da72dba38072cad1cbc142711654fc0d` 的 [CI 37707275909](https://github.com/nekohands/InkFlow/actions/runs/37707275909)、[Docker 37707275881](https://github.com/nekohands/InkFlow/actions/runs/37707275881)、[Security 37707275873](https://github.com/nekohands/InkFlow/actions/runs/37707275873) 均 success，含 PostgreSQL/runtime、Redis、backup/restore 和 diagnostics。
+- 边界：本机 Docker/Testcontainers 与本地 Docker Compose runtime 仍 BLOCKED；真实账户、真实来源和其他 Release Candidate 人工验收不属于本包。下一工作包重新 intake。
+
+### 5.63 Canonical match query bounding（本轮，2026-10-08，Accepted）
+
+- Intake：5.56 已明确 `FindByTitleAuthorAsync` 会把 `library.books` 全表物化后再执行 Book Matcher v1 的归一化比较；本包只收敛该 PostgreSQL 读路径。
+- 范围：使用参数化 PostgreSQL 归一化谓词、确定性首条排序和 `LIMIT 1`；保持去空白/忽略大小写语义、稳定 BookId、测试替身和所有公开契约不变。
+- 非目标：不增加 Schema/Migration，不改变匹配政策，不清理重复正典，不引入全文检索、分页 API 或 UI。
+- 验收：匹配/未命中回归；SQL 不再全表物化且有 `LIMIT 1`；参数化谓词、确定性排序和原有去空白/忽略大小写语义保持不变。
+- 实现：Npgsql 读路径改为参数化 PostgreSQL `translate` 归一化谓词，按 `CreatedAt, Id` 确定性排序并 `LIMIT 1`；增加真实 PostgreSQL SQL/行为回归，未改 Schema、Migration 或公开契约。
+- 本地验证：Restore/Release Build 0 warnings / 0 errors；Unit `597/597`、Architecture `1/1`、Contract `12/12`；Windows 迁移模型检查 `11/11`。聚焦 PostgreSQL Integration 本机因 Docker named pipe 不可用而 BLOCKED。
+- 远端：精确 SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` 的 [CI 37661014830](https://github.com/nekohands/InkFlow/actions/runs/37661014830)、[Docker 37661014858](https://github.com/nekohands/InkFlow/actions/runs/37661014858)、[Security 37661014826](https://github.com/nekohands/InkFlow/actions/runs/37661014826) 均 success，含 PostgreSQL/runtime smoke；首个候选的测试夹具碰撞已由 `2f20125` 隔离修复。
+
+### 5.62 Private book optimistic concurrency（本轮，2026-10-08，Accepted）
+
+- Intake：将“乐观并发”收窄为 Private Library 私有书目元数据更新；`PrivateBook` 增加从 1 开始的单调 `Version`，PUT 提交当前版本，过期版本返回 409；不扩展到 Canonical/Source/Identity/Reading 等其他聚合。
+- 实现：`PrivateBook.Version`、版本化 View/PUT contract、稳定 `private_book_version_conflict` 409、owner-scoped `UserId+BookId+Version` 原子更新、existing rows default 1 的 Migration，以及 Unit/Contract/Integration 回归。
+- 验收：create/get/list/import 的初始版本为 1；当前版本更新只成功一次并递增；缺失/非正版本拒绝；过期版本不改 title/author；同版本并发写仅一个成功。
+- 本机验证：Release Build 0 warnings / 0 errors；Unit 597/597、Architecture 1/1、Contract 12/12、聚焦 Library/API 13/13；迁移模型检查 11/11。Integration 实际执行 125 项（8 passed / 3 skipped / 114 failed），失败均为 Windows Docker named pipe 不可用，记录为环境 BLOCKED。
+- 远端验证：精确 SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` 的 [CI 37655196433](https://github.com/nekohands/InkFlow/actions/runs/37655196433)、[Docker 37655726362](https://github.com/nekohands/InkFlow/actions/runs/37655726362)、[Security 37655196520](https://github.com/nekohands/InkFlow/actions/runs/37655196520) 均 success，包含 PostgreSQL/runtime/Compose smoke 与 CodeQL。
+- 边界：本机 Docker/Testcontainers 仍 BLOCKED；真实账户、真实外部来源和其他 Release Candidate 人工验收不属于本包；下一工作包需重新 intake。
+
+### 5.61 Code adapter response and regex bounds（本轮，2026-10-08，Accepted）
+
+- 缺口：可信 `Kanunu8` CodeAdapter 使用 `GetByteArrayAsync`，静态 HTML 提取正则没有有限超时；`17K` CodeAdapter 使用 `ReadAsStringAsync`，未复用 RuleAdapter 的响应体字节上限，存在解码/解析前的无界内存与 CPU 风险。
+- 实现：Sources Application 新增共享 `SourceResponseReader`，保留 `Content-Length` 预检并对未知长度流式 fail-closed；ProductionSafeSourceHttpClient、Kanunu8、17K 均在解码/解析前复用 `MaxBytes`。Kanunu8 正则使用同一注册策略的 `MaxRegexTime`，超时返回失败/空结果，不泄漏部分结果；保留 SSRF、allowed-host、identifier、VIP 和既有 `ISourceAdapter` 合约。
+- 测试：先建立红态构造器/边界回归，再实现；聚焦 adapter/HTTP bounds `13/13`、全量 Unit `595/595`、Architecture `1/1`、Contract `12/12`、Release Build `0 warnings / 0 errors`；Windows 迁移模型检查 `11/11`，`wsl.exe bash -n scripts/verify-migrations.sh` PASS。
+- 本机 Integration：实际执行 `124` 项，`8 passed / 3 skipped / 113 failed`；失败均由 Docker Engine `npipe://./pipe/docker_engine` 不可用触发，记录为环境 BLOCKED，不作为代码失败结论。
+- 安全/文档：staged diff/敏感模式扫描 PASS；同步 `docs/architecture/source-runtime.md`、`repowiki/architecture.md`、工作包、工作流档案和本页/交接页；无 Schema/Migration、公共适配器契约或阶段退出变化。
+- 远端：代码候选 `0d7d5ce` 已推送 `dev`；[CI 37650394342](https://github.com/nekohands/InkFlow/actions/runs/37650394342)、[Docker 37650394297](https://github.com/nekohands/InkFlow/actions/runs/37650394297)、[Security 37650394257](https://github.com/nekohands/InkFlow/actions/runs/37650394257) 均 success 且 head SHA 为 `0d7d5ce426b0b42840505168bedf07aa2367df2a`，含 PostgreSQL/runtime/Compose smoke。
+- 边界：本机 Docker runtime/Testcontainers 仍 BLOCKED；未运行真实外部来源，未使用真实账户、生产令牌或 Cookie；下一工作包需重新 intake，候选为乐观并发。
+
+## 2026-10-15 归档：工作流 profile 已接受包快照
+
+## Work Package
+
+当前状态：5.81 Reading state bounded metadata projection 已 Accepted；当前无活动工作包，下一项为 `Intake required`。5.80 Legado book-info metadata projection、5.79 Legado TOC canonical chapter projection、5.78 Source registry page projection、5.77 Source enabled-state projection、5.76 Matching source-book metadata projection、5.75 Content-fetch chapter ID projection、5.74 Reading history chapter metadata point lookup、5.73 Source content chapter metadata point lookup、5.72 Reader chapter metadata point lookup、5.71 Source registry page fencing、5.70 Health-probe candidate batching、5.69 Source-health sample lookup fencing、5.68 Scheduled update-scan page/fan-out fencing、5.67 Source list-result budget fencing、5.66 Discovery search budget fencing、5.65 Rule selector execution deadline fencing、5.64 Crawler handler lease renewal 及前序包均已 Accepted。
+
+当前及最近接受工作包如下：
+
+```text
+Name: Reading state bounded metadata projection
+Objective / user outcome: Reading shelf and progress paths must not materialize a full CanonicalBook aggregate when they only need book metadata, chapter count, or one chapter.
+In scope: `ReadingStateService` shelf/progress reads, existing `GetSummaryAsync`/`GetChapterAsync` projections, full-read regressions, and delivery documentation.
+Non-goals: no public JSON/route, BookId/ChapterId, content policy, schema/migration, cache, permission, UI, bulk/N+1, book-detail or package path change; `.workbuddy-ai/` remains untouched.
+Acceptance: shelf/progress fields and missing/takedown/invalid/cancellation semantics stay stable; bounded paths avoid full `GetAsync`; full aggregate callers remain unchanged.
+Status: Accepted.
+Risk/review: low/medium, reversible application read-path change with no data or public contract mutation; focused Reading Unit regressions plus existing project gates.
+Verification plan: TDD red/green, diff/secret audit, Restore/Release Build, Unit/Architecture/Contract, migration model, applicable Integration/Runtime, exact SHA CI/Docker/Security, then Wiki/docs closeout.
+Boundary: local Docker/Testcontainers and real account/device acceptance remain independent constraints; required blocker evidence will be recorded if local Docker is unavailable.
+Delivery: implementation SHA `e85dbc143fb6b7d20030403239aceedb34ec43d9`; exact-head CI `37775920297`, Docker `37775919950`, and Security `37775919947` all GREEN. The synchronized documentation closeout is pushed separately and requires final docs-head gate verification.
+
+Name: Legado book-info metadata projection
+Objective / user outcome: Legado BookInfo only reads canonical book identity and metadata; it must not materialize all canonical chapters.
+In scope: `CatalogQueryService` bounded book-summary read, `LegadoContractService.GetBookAsync`, full-read regression, and existing canonical summary evidence.
+Non-goals: no public Legado JSON/URL change, no BookId/ChapterId change, no TOC/content selection change, no schema/migration, cache, permissions, or `.workbuddy-ai/` change.
+Acceptance: AC-1 preserves BookInfo fields, TOC URL, route-prefix validation, missing-book, and takedown semantics; AC-2 production BookInfo does not call full `GetAsync`; AC-3 existing canonical summary projection remains the authoritative bounded read and cancellation propagates.
+Status: Accepted.
+Risk/review: low blast radius, reversible application read-path change; public contract and persistence schema are explicitly frozen. Review is focused Unit/Contract plus existing Release/CI gates.
+Verification: TDD red/green; focused Catalog/Legado `24/24`; Unit `626/626`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; migration model `11/11`, migration script syntax, `git diff --check`, and added-line secret audit passed; focused PostgreSQL Integration BLOCKED by the Windows Docker named pipe.
+Delivery: implementation SHA `4eb63e5a1a0a95872ec6dc9814ab0fcba126a0f0`; exact-head CI `37771778894`, Docker `37771778862`, and Security `37771778935` all GREEN.
+Boundary: full `GetBookAsync` remains for book detail and other intentional aggregate callers; real-source/manual Legado client acceptance remains outside this package.
+
+Name: Legado TOC canonical chapter projection
+Objective / user outcome: Legado TOC 只读取 canonical book visibility 和 chapter metadata，不物化完整 `CanonicalBook` 聚合。
+In scope: `CanonicalChapterSummary`, `ListChapterSummariesAsync`, EF scalar projection, `CatalogQueryService.GetChapterListAsync`, Legado TOC consumer, compatibility fallback, and Unit/PostgreSQL regression.
+Non-goals: no public Legado JSON/URL change, BookId/ChapterId change, book-detail aggregate change, chapter-content lookup change, Content selection, Schema/Migration, cache, permissions, or `.workbuddy-ai/`.
+Acceptance: takedown/missing-book semantics, chapter fields/order, stable IDs/URLs, and cancellation remain stable; production SQL projects only `Id`, `ChapterIndex`, and `Title`, ordered by `(ChapterIndex, Id)`; full `GetBookAsync` remains for explicit aggregate callers.
+Status: Accepted.
+Verification: focused Catalog/Legado `23/23`; Unit `625/625`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; migration model `11/11`; script syntax, diff, and secret audit passed; focused PostgreSQL Integration BLOCKED by the Windows Docker named pipe.
+Delivery: implementation SHA `c0aefc08682e9ed1bb22b201ec16b4c5a9b7ba10`; exact-head CI `37768061749`, Docker `37768061718`, and Security `37768061741` all GREEN.
+Boundary: no public Contract, Schema/Migration, cache, or `.workbuddy-ai/` change; local Docker/Testcontainers and real-source/manual Legado acceptance remain independent boundaries.
+
+Name: Source registry page projection
+Objective / user outcome: 来源注册表分页不再加载或反序列化完整 Source Rule DSL；搜索发现和直链解析只读取 `Id`、`BaseUrl`、`IsEnabled`。
+In scope: `SourcePageEntry`, EF `ListPageAsync` scalar projection, discovery/direct URL consumers, compatibility fallback, and SQL-shape regression.
+Non-goals: no full `ListAsync` snapshot, `GetAsync`, RuleBased Adapter, source writes, health transitions, public API/Legado, Schema/Migration, cache, credentials, or `.workbuddy-ai/`.
+Acceptance: keyset order/cursor/look-ahead/limit, disabled filtering, URL matching, adapter selection, warnings, cancellation, and existing full aggregate callers remain stable; production page SQL excludes `RuleDslJson`.
+Status: Accepted.
+Verification: focused discovery/URL resolver Unit `18/18`; Unit `624/624`; Architecture `1/1`; Contract `12/12`; Restore/Release Build `0 warnings / 0 errors`; PowerShell migration model `11/11`; full local Integration `8 passed / 3 skipped / 127 Docker-blocked`; diff/secret audit passed.
+Delivery: final implementation SHA `24669af2f343f47cbd1e29924772b15d5956a67a`; exact-head CI `37764067745`, Docker `37764067733`, and Security `37764067771` all GREEN. The initial candidate failed only because its new regression test assumed `limit=2` contained a newly inserted source; the follow-up changed the test to page size `1000`, with no product-code change.
+Boundary: local Windows Docker/Testcontainers remains BLOCKED; remote CI supplied PostgreSQL/Redis/runtime/SLO/backup/restore/diagnostics evidence. Real external-source and manual Release Candidate acceptance remain outside this package; `.workbuddy-ai/` remains untracked and untouched.
+
+Name: Source enabled-state projection
+Objective / user outcome: 来源健康门控和已注册代码适配器只读取来源存在/启用状态，不加载完整 Source Rule DSL 聚合。
+In scope: `ISourceRepository.GetEnabledAsync`, EF `sources.IsEnabled` projection, health/code-adapter paths, focused Unit/PostgreSQL regressions, and Source Runtime/Wiki delivery documentation.
+Non-goals: no RuleBased Adapter loading change, source writes, Rule DSL validation/execution, paging, health transitions, public API/Legado, Schema/Migration, cache, credentials, or `.workbuddy-ai/`.
+Acceptance: enabled/disabled/missing decisions remain stable; production health/code-adapter paths avoid full `GetAsync`; EF projects only `sources.IsEnabled` and propagates cancellation; RuleBased Adapter retains full reads.
+Status: Accepted.
+Verification: TDD red/green; focused SourceAdapterFactory/SourceCapabilityHealth `14/14`; Unit `624/624`; Architecture `1/1`; Contract `12/12`; restore/tool restore; Release Build `0 warnings / 0 errors`; migration model `11/11`; diff/secret audit; exact-head CI/Docker/Security.
+Delivery: implementation SHA `b753a8bc207fda442148f0ab70af9ffcb2826bba`; CI `37759082085`, Docker `37759082091`, and Security `37759082083` all GREEN with matching head SHA. Local Integration `8 passed / 3 skipped / 126 Docker-blocked`; remote CI supplied PostgreSQL/runtime evidence.
+Boundary: full `GetAsync` remains for RuleBased Adapter, writes, and other aggregate callers; no public Contract, Schema/Migration, cache, credential, or `.workbuddy-ai/` change.
+
+Name: Matching source-book metadata projection
+Objective / user outcome: 正典书匹配只读取来源书标题和作者，不因取得匹配键物化整本来源书。
+In scope: `ISourceBookRepository.GetMetadataAsync`, `CanonicalBookMatchingService.CreateOrMatchAsync`, focused Unit/PostgreSQL regressions, Source Runtime and delivery/Wiki documentation.
+Non-goals: no confirmed-candidate resolution, match locking, title/author normalization, candidate writes, catalog sync, chapter mapping, source content fetch, public Reading/Legado API, Schema/Migration, cache, HTTP/retry budget, full aggregate callers, or `.workbuddy-ai/`.
+Acceptance: matching, missing-book, idempotency, same-title/author reuse, confirmed-candidate, and cancellation semantics remain stable; production EF does not call full `GetAsync` and reads only `source_books` title/author fields.
+Status: Accepted.
+Verification: TDD red/green; focused CanonicalBookMatching tests `3/3`; Unit `623/623`; Architecture `1/1`; Contract `12/12`; Restore/tool restore; Release Build `0 warnings / 0 errors`; migration model `11/11`; diff/secret audit; exact-head CI/Docker/Security.
+Delivery: implementation SHA `835e0914b84469581f1d2a21a33fa9a65fac09f6`; CI `37753946308`, Docker `37753946459`, and Security `37753946140` all GREEN with matching head SHA. Local Integration `8 passed / 3 skipped / 125 Docker-blocked`; remote CI supplied PostgreSQL/runtime evidence.
+Boundary: `GetAsync` remains the full aggregate read for catalog sync, chapter mapping, writes, and other intentional aggregate callers; this package only fences the matching metadata read.
+```
+
+此前已接受工作包如下：
+
+```text
+Name: Content-fetch chapter ID projection
+Objective / user outcome: 内容抓取联动只读取来源书按目录顺序排列的外部章节 ID，不因判断待抓章节物化整本来源书。
+Status: Accepted.
+Evidence: TDD counter red/green; focused ContentFetchChainServiceTests 10/10; Unit 623/623; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model 11/11; full local Integration 8 passed / 3 skipped / 124 Docker-blocked. Final implementation SHA `523a305f735fda252dbfcb27dc560f39c930b604` passed CI `37748826161`, Docker `37748826364`, and Security `37748826225`; local PostgreSQL was blocked by the Windows Docker named pipe and remote CI supplied that evidence.
+Boundary: `GetAsync` remains the full aggregate read for catalog sync, chapter mapping, writes, and other intentional aggregate callers; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
+
+Name: Scheduled update-scan page/fan-out fencing
+Objective / user outcome: 定时追更扫描按有限页读取来源书目并限制每轮 TOC 入队量；连续调度在进程内推进游标，不因书目增长形成无界读取或 fan-out。
+Status: Accepted.
+Evidence: focused UpdateScanService 4/4 and affected EndToEnd scheduler 1/1; Unit 616/616; Architecture 1/1; Contract 12/12; Release Restore/Build 0 warnings / 0 errors; migration model check 11/11; local Integration 8 passed / 3 skipped / 117 blocked by unavailable Windows Docker named pipe. Final candidate `83f12e8cdc30837ed6a8309e0288829966065eaf` passed CI `37721216436`, Docker `37721216460`, and Security `37721216368`.
+Boundary: max 100 books per tick, stable `(CreatedAt, Id)` keyset, in-process cursor only; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
+
+Name: Source list-result budget fencing
+Objective / user outcome: Rule/Code Source 的 Search/TOC 列表结果受到有限条目预算保护；超限 fail-closed，不把部分列表写入来源书目或正典链路。
+Status: Accepted.
+Evidence: focused adapter/catalog tests 25/25; Unit 615/615; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model check 11/11; local Integration 8 passed / 3 skipped / 116 blocked by unavailable Windows Docker named pipe. Implementation SHA `2853c5e71cb321284113637042a7a91b224b069f` passed CI `37717734392`, Docker `37717734423`, and Security `37717734362`.
+Boundary: default item ceiling is 10,000; no public contract or schema change; `.workbuddy-ai/` remains untracked and untouched.
+
+Name: Discovery search budget fencing
+Objective / user outcome: 用户触发的来源发现受到查询长度、逐源命中数和总正典结果数边界保护；截断通过既有 warnings 可解释。
+In scope: BookDiscoveryService query/work fences, stable truncation warnings, offline regressions, source-runtime and delivery docs.
+Non-goals: ISourceAdapter/public API/Legado JSON, catalog pagination, parser/HTTP budgets, source registry paging, schema/migration, permissions, retry policy, full-text ranking, live-source acceptance.
+Acceptance: overlong query touches no source; per-source and total discovery processing are bounded; warnings are stable and non-sensitive; empty/normal/cancellation/idempotency behavior remains unchanged.
+Status: Accepted.
+Verification: focused red/green Unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, diff/secret audit, applicable Integration/Runtime, and exact-SHA CI/Docker/Security.
+Evidence: focused BookDiscoveryServiceTests 12/12, Unit 609/609, Architecture 1/1, Contract 12/12, migration model check 11/11, Release Build 0 warnings/0 errors; Integration 8 passed / 3 skipped / 116 blocked by unavailable Windows Docker named pipe. Exact SHA `193722cffb726c7338128be1f66111369b48a8a9` passed CI `37715153756`, Docker `37715153801`, and Security `37715153778`.
+Boundary: truncation is explicitly warned; source registry cardinality and live-source/manual Release Candidate acceptance remain separate boundaries; .workbuddy-ai/ remains untracked and untouched.
+```
+
+```text
+Name: Rule selector execution deadline fencing
+Objective / user outcome: RuleAdapter 在选择器/字段提取超过 MaxExecutionTime 后 fail-closed，不返回超时后的值或部分页面结果。
+In scope: RuleAdapter selector/extraction cancellation boundaries; RuleBasedSourceAdapter Search/TOC list binding; field, pagination, response-variable, and list-binding regression tests; source-runtime and delivery docs.
+Non-goals: selector syntax, dynamic multi-request/branch/recursive execution, MaxDepth, public API/Legado, Schema/Migration, credential storage, retry policy, and live-source acceptance.
+Acceptance: internal deadline expiry returns the stable time-budget error with no values/bodies; normal fields, pagination, derived variables, and Search/TOC list binding are fenced; caller cancellation still propagates; existing valid source behavior remains unchanged.
+Status: Accepted.
+Verification: focused red/green Source unit tests, full Unit/Architecture/Contract, Release Restore/Build, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
+Evidence: Release restore/build 0 warnings/0 errors; focused `RuleAdapterTests` 56/56 and `RuleBasedSourceAdapterPaginationTests` 5/5; Unit 605/605; Architecture 1/1; Contract 12/12; migration model 11/11; diff/secret audit passed. Local Integration is 8 passed / 3 skipped / 116 blocked by unavailable Docker named pipe; remote CI runtime/PostgreSQL/Compose is green.
+CI: exact SHA `8ec53bdbbf5092c70ff83c2b2ba3b22b22796eac` passed CI `37710808321`, Docker `37710808308`, and Security `37710808245`.
+Boundary: local Docker/Testcontainers and live-source checks remain independent environment/manual boundaries; `.workbuddy-ai/` remains untracked and untouched.
+```
+
+上一工作包（5.64）:
+
+```text
+Name: Crawler handler lease renewal
+Objective / user outcome: 单条 Crawler handler 超过初始租约时仍保持当前 worker 的排他持有，避免执行中被其他 worker 回收。
+In scope: CrawlerTask lease renewal domain rule; PostgreSQL 条件续约；CrawlerTaskProcessor heartbeat 与 lease-loss cancellation；Unit/PostgreSQL regression。
+Non-goals: Inbox/Outbox 批次续约、公共 API/Legado、Schema/Migration、重试策略重设计、并发调度和真实来源验收。
+Acceptance: active unexpired owner can renew; expired/terminal/other-owner cannot; long handler renews before expiry and completes; lease loss cancels execution without terminal persistence under stale ownership.
+Status: Accepted.
+Verification: focused red/green tests, Release Build, Unit, Architecture, PostgreSQL Integration, migration model check, security/diff audit, and exact-SHA CI/Docker/Security.
+Evidence: Restore/Release Build 0 warnings / 0 errors; focused CrawlerTask Unit 21/21; full Unit 600/600; Architecture 1/1; Contract 12/12; PowerShell migration model check 11/11; local PostgreSQL Integration BLOCKED by unavailable Docker named pipe; remote PostgreSQL/runtime, Docker, and Security GREEN.
+CI: exact SHA `11a493a2da72dba38072cad1cbc142711654fc0d` passed CI `37707275909`, Docker `37707275881`, and Security `37707275873`.
+Boundary: production heartbeat uses an independent DI scope; `.workbuddy-ai/` remains untracked and untouched.
+```
+
+最近完成工作包（5.63，2026-10-08，Accepted）：
+
+```text
+Name: Canonical match query bounding
+Objective / user outcome: Canonical book matching no longer materializes every canonical book for a normalized title/author lookup.
+In scope: PostgreSQL-backed FindByTitleAuthorAsync, parameterized normalized predicates, deterministic first-match ordering, focused PostgreSQL regression.
+Non-goals: matching-policy redesign, public API/Legado contract changes, schema/migration changes, duplicate cleanup, full-text search, UI.
+Acceptance: whitespace/case semantics and stable BookId preserved; miss does not load the full table; SQL is parameterized and bounded with LIMIT 1.
+Status: Accepted.
+Verification: Restore/Release Build 0 warnings / 0 errors; Unit 597/597; Architecture 1/1; Contract 12/12; Windows migration model check 11/11; focused local PostgreSQL Integration BLOCKED by unavailable Docker named pipe. Exact SHA `2f20125806b1bc3464fc5d2e299d75f5623ad7a0` passed CI 37661014830, Docker 37661014858, and Security 37661014826.
+Boundary: local Testcontainers may remain BLOCKED by the unavailable Docker named pipe; .workbuddy-ai/ is preserved and untracked.
+```
+
+最近完成工作包（5.62，2026-10-08，`Accepted`）：
+
+```text
+Name: Private book optimistic concurrency
+Objective / user outcome: 私有书目元数据并发编辑不再静默覆盖较新的编辑
+In scope: PrivateBook Version、private_books Migration、原子条件更新、PUT version/409 contract、回归与 PostgreSQL evidence
+Non-goals: 其他聚合、删除 CAS、章节正文编辑、自动合并、ETag/If-Match、UI
+Acceptance: 当前 version 更新成功并递增；过期/缺失 version 不写入并返回稳定错误；真实 PostgreSQL 仅一个并发写成功
+Evidence status: Accepted; implementation and verification complete
+Verification: focused Library/API 13/13; Unit 597/597; Architecture 1/1; Contract 12/12; Release Build 0 warnings / 0 errors; migration model check 11/11. Local Integration attempted but BLOCKED by unavailable Docker named pipe; remote PostgreSQL/runtime passed.
+CI: exact SHA `9610b76fa14b572da4a3203c9047ec0a9ae2d8e0` passed CI `37655196433`, Docker/Compose `37655726362`, and Security `37655196520`.
+Delivery boundary: no changes to other aggregate concurrency, delete CAS, chapter/content editing, automatic merge/retry, ETag/If-Match, or UI.
+```
+
+最近完成工作包（5.61，2026-10-08，`Accepted` 级证据）：
+
+本包复用既有 SourceRuleExecutionLimits，为 Kanunu8/17K 自定义适配器补齐响应体上限，并为 Kanunu8 静态正则设置配置化有限超时；不引入公共适配器契约、乐观并发、Schema 或 Migration 变化。远端 CI/Docker/Security 全部 GREEN。
+
+最近完成工作包（5.61，2026-10-08，`Accepted` 级证据）：
+
+```text
+Name: Code adapter response and regex bounds
+Objective / user outcome: 可信 CodeAdapter 不再无界读取响应体或执行无超时静态正则
+In scope: shared streaming HttpContent reader; ProductionSafeSourceHttpClient reuse; Kanunu8/17K MaxBytes; Kanunu8 configured MaxRegexTime; focused regressions and source-runtime docs
+Non-goals: Rule DSL redesign, new adapters, host/retry policy, public ISourceAdapter contract, Schema/Migration, live-source acceptance
+Acceptance: Kanunu8 GB18030 and 17K JSON fixtures remain valid; oversized responses fail before decode/parse; regex timeout is finite and no partial result escapes; SSRF/host/VIP/identity boundaries unchanged
+Evidence: Restore/Release Build 0 warnings/0 errors；focused 13/13、Unit 595/595、Architecture 1/1、Contract 12/12；migration 11/11；local Integration attempted but BLOCKED by unavailable Docker named pipe
+CI: `0d7d5ce` 的 CI 37650394342、Docker 37650394297、Security 37650394257 均 GREEN 且 head SHA 一致，含远端 PostgreSQL/runtime/Compose smoke
+Boundary: no Schema/Migration or phase-exit change; real upstream/live-source and Release Candidate manual acceptance remain pending
+```
+
+最近完成工作包（5.60，2026-10-07，`Accepted` 级证据）：
+
+```text
+Name: Entitlement actor validation
+Objective / user outcome: 直接调用 Billing entitlement assignment service 也只能由 active Administrator 执行
+In scope: Billing actor-status port + Identity composition adapter + service guard + stable 403 mapping + regression tests
+Non-goals: role policy redesign, token/session redesign, optimistic concurrency, adapter bounds, plan/quota changes, Schema/Migration
+Acceptance criteria（全部满足）:
+  - happy path: active Administrator assignment remains valid with existing reason/audit behavior
+  - error path: empty/unknown/inactive/non-Administrator actor is rejected before assignment persistence and maps to 403
+  - regression: route, payload, target/plan lookup, authentication, and data model remain unchanged
+Evidence: Restore/Release Build 0 warnings/0 errors；Unit 592/592、Architecture 1/1、Contract 12/12；migration 11/11；remote CI/Docker/Security GREEN at d0413f2 (37638597477/37638597479/37638597492)
+Boundary: local Testcontainers BLOCKED by unavailable Docker named pipe；remote CI supplied PostgreSQL/runtime evidence；real-account/manual Release Candidate gates remain pending
+```
+
+最近完成工作包（5.58，2026-10-06，`Accepted` 级证据）：
+
+```text
+Name: Inbox/Outbox 批次租约续约
+Objective / user outcome: 长批次处理不再因租约过期被其他实例重复领取/投递
+In scope: Messaging 端口与 EF 存储（ExtendLeaseBatchAsync）+ Dispatcher/Inbox 泵接线
+Non-goals: 单条 Handler 超长租约的中途续约（幂等消费兜底，已记录边界）；无 Schema/Migration 变更
+Acceptance criteria（全部满足）:
+  - happy path: 每条消息处理前续约整批剩余租约（单元接线断言）
+  - error path: 过期后经续约不可被其他 owner 领取；终态行不参与续约（真实 PostgreSQL 回归）
+  - regression: Unit 587/587、Architecture 1/1、Contract 12/12
+Evidence: Build 0 warnings/0 errors；CI/Docker/Security GREEN at `1658b87`（37478901744/37478902070/37478901915）
+```

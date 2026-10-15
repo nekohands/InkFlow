@@ -16,8 +16,15 @@ Human/Wiki counterpart: [docs/architecture/architecture.md](../../docs/architect
 | --- | --- |
 | `InkFlow.Api` | Public API, Legado API, Reader HTML/PWA shell, Operations Center; composition root for most modules |
 | `InkFlow.Worker` | Crawler task polling/lease, book packages, Outbox relay, Inbox consumption, retention jobs (messaging/audit/identity) |
-| `InkFlow.Scheduler` | Update scans that enqueue crawler tasks |
+| `InkFlow.Scheduler` | Update scans that enqueue crawler tasks; periodic source capability health probes |
 | `InkFlow.Migrations` | Applies all module DbContext migrations; fail-closed on model drift |
+
+### Host composition and navigation
+
+- API: [Program.cs](../../src/Apps/InkFlow.Api/Program.cs) owns startup/middleware order; [ApiServiceRegistration](../../src/Apps/InkFlow.Api/ApiServiceRegistration.cs) owns the existing DI, authentication/authorization, rate-limit and observation setup; [ApiEndpoints](../../src/Apps/InkFlow.Api/ApiEndpoints.cs) composes feature maps. Handlers stay in feature `*Endpoints.cs` files. Shared `/api/v1` rate limiting and each feature's authorization are unchanged.
+- [AuditedResult](../../src/Apps/InkFlow.Api/AuditedResult.cs) is the single API command-response wrapper: await the audit sink with the supplied cancellation token before creating/executing the response. Audit errors/cancellation prevent response execution. Feature helpers retain their own event and payload mappings.
+- [Worker Program](../../src/Apps/InkFlow.Worker/Program.cs) registers services; `TaskPollingService`, `BookPackagePollingService`, `MessageRetentionBackgroundService`, `MappingContentPublisher` and `CompositeTaskExecutor` live in same-named files in that host. [Scheduler Program](../../src/Apps/InkFlow.Scheduler/Program.cs) registers `UpdateScanBackgroundService` and `HealthProbeBackgroundService` from their same-named files. Scope/lease/cancellation/timing behavior is unchanged.
+- Regression evidence: [ApiCompositionTests](../../tests/InkFlow.UnitTests/ApiCompositionTests.cs), [AuditedResponseTests](../../tests/InkFlow.UnitTests/AuditedResponseTests.cs); delivery state: [simplification work package](../work-packages/2026-10-15-project-simplification.md).
 
 ## Modules (`src/Modules/`)
 

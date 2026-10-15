@@ -1,3 +1,4 @@
+using InkFlow.Modules.Sources.Application;
 using System.Diagnostics;
 using System.Security.Claims;
 using InkFlow.BuildingBlocks.Security;
@@ -14,6 +15,156 @@ public sealed record SourcePermissionGrantRequest(
 /// <summary>来源级授权 API 的身份、输入和审计结果适配器。</summary>
 public static class ResourcePermissionEndpointResults
 {
+    public static void Map(RouteGroupBuilder api)
+    {
+        var sourcePermissionManagement = api.MapGroup("/admin/sources")
+            .RequireAuthorization(IdentityPolicies.PermissionManagement);
+
+        sourcePermissionManagement.MapGet("/{sourceId}/permissions", async (
+            string sourceId,
+            int? limit,
+            ClaimsPrincipal principal,
+            ISourceRepository sources,
+            IResourcePermissionService permissions,
+            CancellationToken ct) =>
+        {
+            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId))
+            {
+                return (IResult)Results.BadRequest(new { error = "invalid_source_id" });
+            }
+
+            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+            {
+                return (IResult)Results.NotFound(new { error = "source_not_found" });
+            }
+
+            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+                    principal,
+                    out var actorId,
+                    out var actorRole))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await permissions.ListAsync(
+                actorId,
+                actorRole,
+                IdentityResourceTypes.Source,
+                sourceId,
+                limit ?? ResourcePermissionService.MaxListLimit,
+                ct).ConfigureAwait(false);
+            return result.Status switch
+            {
+                ResourcePermissionListStatus.Success =>
+                    Results.Ok(result.Grants),
+                ResourcePermissionListStatus.ActorNotAllowed =>
+                    Results.Forbid(),
+                _ => Results.BadRequest(new { error = "invalid_permission_request" }),
+            };
+        });
+
+        sourcePermissionManagement.MapPost("/{sourceId}/permissions", async (
+            string sourceId,
+            SourcePermissionGrantRequest? request,
+            ClaimsPrincipal principal,
+            ISourceRepository sources,
+            IResourcePermissionService permissions,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+                request is null ||
+                !ResourcePermissionEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+            {
+                return (IResult)Results.BadRequest(new { error = "invalid_permission_request" });
+            }
+
+            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+            {
+                return (IResult)Results.NotFound(new { error = "source_not_found" });
+            }
+
+            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+                    principal,
+                    out var actorId,
+                    out var actorRole))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await permissions.GrantAsync(
+                actorId,
+                actorRole,
+                request.UserId,
+                IdentityResourceTypes.Source,
+                sourceId,
+                request.Permission,
+                ct).ConfigureAwait(false);
+            return ResourcePermissionEndpointResults.AuditedOperation(
+                result,
+                "identity.resource_permission.grant",
+                sourceId,
+                actorId,
+                reason,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
+
+        sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", async (
+            string sourceId,
+            Guid grantId,
+            string? reason,
+            ClaimsPrincipal principal,
+            ISourceRepository sources,
+            IResourcePermissionService permissions,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+                !ResourcePermissionEndpointResults.TryNormalizeReason(reason, out var normalizedReason))
+            {
+                return (IResult)Results.BadRequest(new { error = "invalid_permission_request" });
+            }
+
+            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
+            {
+                return (IResult)Results.NotFound(new { error = "source_not_found" });
+            }
+
+            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+                    principal,
+                    out var actorId,
+                    out var actorRole))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await permissions.RevokeAsync(
+                actorId,
+                actorRole,
+                grantId,
+                IdentityResourceTypes.Source,
+                sourceId,
+                ct).ConfigureAwait(false);
+            return ResourcePermissionEndpointResults.AuditedOperation(
+                result,
+                "identity.resource_permission.revoke",
+                sourceId,
+                actorId,
+                normalizedReason,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
+    }
+
     public const int MaxReasonLength = 512;
 
     public static bool TryGetIdentity(
@@ -88,11 +239,10 @@ public static class ResourcePermissionEndpointResults
             reference: reference);
 
         return new AuditedResult(
-            result,
-            statusCode,
             auditEvent,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(result, statusCode));
     }
 
     public static int StatusCodeFor(ResourcePermissionResultStatus status) => status switch
@@ -119,42 +269,30 @@ public static class ResourcePermissionEndpointResults
         _ => "permission_operation_failed",
     };
 
-    private sealed class AuditedResult(
-        ResourcePermissionOperationResult result,
-        int statusCode,
-        AuditEvent auditEvent,
-        IAuditEventSink auditSink,
-        CancellationToken cancellationToken) : IResult
+    private static IResult CreateResponse(ResourcePermissionOperationResult result, int statusCode)
     {
-        public async Task ExecuteAsync(HttpContext httpContext)
-        {
-            await auditSink.AppendAsync(auditEvent, cancellationToken).ConfigureAwait(false);
-
-            object payload = result.Grant is { } grant
-                ? new
+        object payload = result.Grant is { } grant
+            ? new
+            {
+                status = result.Status.ToString().ToLowerInvariant(),
+                grant = new
                 {
-                    status = result.Status.ToString().ToLowerInvariant(),
-                    grant = new
-                    {
-                        id = grant.Id,
-                        userId = grant.UserId,
-                        permission = grant.Permission,
-                        resourceType = grant.ResourceType,
-                        resourceId = grant.ResourceId,
-                        grantedBy = grant.GrantedBy,
-                        grantedAt = grant.GrantedAt,
-                        revokedAt = grant.RevokedAt,
-                        isActive = grant.IsActive,
-                    },
-                }
-                : new
-                {
-                    error = ErrorFor(result.Status),
-                };
+                    id = grant.Id,
+                    userId = grant.UserId,
+                    permission = grant.Permission,
+                    resourceType = grant.ResourceType,
+                    resourceId = grant.ResourceId,
+                    grantedBy = grant.GrantedBy,
+                    grantedAt = grant.GrantedAt,
+                    revokedAt = grant.RevokedAt,
+                    isActive = grant.IsActive,
+                },
+            }
+            : new
+            {
+                error = ErrorFor(result.Status),
+            };
 
-            await Results.Json(payload, statusCode: statusCode)
-                .ExecuteAsync(httpContext)
-                .ConfigureAwait(false);
-        }
+        return Results.Json(payload, statusCode: statusCode);
     }
 }

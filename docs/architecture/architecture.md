@@ -18,6 +18,12 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 
 ## 2. 模块边界
 
+### 宿主代码导航
+
+API 的 `Program.cs` 只描述启动与中间件顺序；服务注册在 `ApiServiceRegistration.cs`，路由组合在 `ApiEndpoints.cs`，具体处理逻辑按功能放在既有或对应的 `*Endpoints.cs`。审计响应包装统一使用 `AuditedResult.cs`，各功能仍负责自己的事件与响应映射。
+
+Worker / Scheduler 的 `Program.cs` 保留服务注册与启动，后台任务按类名独立成文件，便于定位采集、内容包、保留清理、追更和健康探测。没有新增项目层、框架或依赖；模块关系与对外行为不变。入口与约束索引见 [RepoWiki 模块图](../../repowiki/modules/README.md)。
+
 目标模块：
 
 - Identity：账号、Session、短期 AccessToken、RefreshToken、凭证、Role/Permission 和用户头像；公开注册的首个成功持久化账号为 Administrator，后续账号为 Reader，跨实例引导规则见 ADR 0024。

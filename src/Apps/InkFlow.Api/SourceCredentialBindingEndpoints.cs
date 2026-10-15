@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using InkFlow.Modules.Identity.Application;
 using System.Diagnostics;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Sources.Application;
@@ -22,6 +24,58 @@ public enum SourceCredentialBindingCommandAction
 /// <summary>来源默认凭据引用管理 API 的输入、响应和审计适配器。</summary>
 public static class SourceCredentialBindingEndpointResults
 {
+    public static void Map(RouteGroupBuilder api)
+    {
+        var sourceCredentialManagement = api.MapGroup("/admin/sources")
+            .RequireAuthorization(IdentityPolicies.SourceCredentialManagement);
+
+        sourceCredentialManagement.MapPut("/{sourceId}/credential-binding", async (
+            string sourceId,
+            SourceCredentialBindingRequest? request,
+            ClaimsPrincipal principal,
+            ISourceCredentialBindingService service,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!SourceCredentialBindingEndpointResults.TryNormalizeSourceId(
+                    sourceId,
+                    out var normalizedSourceId) ||
+                request is null ||
+                !SourceCredentialBindingEndpointResults.TryNormalizeReason(
+                    request.Reason,
+                    out var reason))
+            {
+                return (IResult)Results.BadRequest(new { error = "invalid_credential_binding_request" });
+            }
+
+            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+                    principal,
+                    out var actorId,
+                    out _))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await service.SetDefaultAsync(
+                normalizedSourceId,
+                request.CredentialReferenceId,
+                ct).ConfigureAwait(false);
+            return SourceCredentialBindingEndpointResults.Command(
+                result,
+                request.CredentialReferenceId is null
+                    ? SourceCredentialBindingCommandAction.Clear
+                    : SourceCredentialBindingCommandAction.Set,
+                actorId.ToString("D"),
+                reason,
+                httpContext,
+                auditSink,
+                clock,
+                ct);
+        });
+    }
+
     public const int MaxSourceIdLength = 128;
     public const int MaxReasonLength = 512;
 
@@ -104,10 +158,10 @@ public static class SourceCredentialBindingEndpointResults
             reference: $"source:{escapedSourceId};binding:{StatusText(result.Status)}");
 
         return new AuditedResult(
-            result,
             auditEvent,
             auditSink,
-            cancellationToken);
+            cancellationToken,
+            () => CreateResponse(result));
     }
 
     public static int StatusCodeFor(SourceCredentialBindingResultStatus status) => status switch
@@ -126,26 +180,17 @@ public static class SourceCredentialBindingEndpointResults
         _ => "invalid_request",
     };
 
-    private sealed class AuditedResult(
-        SourceCredentialBindingOperationResult result,
-        AuditEvent auditEvent,
-        IAuditEventSink auditSink,
-        CancellationToken cancellationToken) : IResult
+    private static IResult CreateResponse(SourceCredentialBindingOperationResult result)
     {
-        public async Task ExecuteAsync(HttpContext httpContext)
+        var response = result.Status switch
         {
-            await auditSink.AppendAsync(auditEvent, cancellationToken).ConfigureAwait(false);
-
-            var response = result.Status switch
-            {
-                SourceCredentialBindingResultStatus.Updated or
-                SourceCredentialBindingResultStatus.Cleared =>
-                    Results.Ok(ToResponse(result)),
-                SourceCredentialBindingResultStatus.SourceNotFound =>
-                    Results.NotFound(new { error = "source_not_found" }),
-                _ => Results.BadRequest(new { error = "invalid_credential_binding_request" }),
-            };
-            await response.ExecuteAsync(httpContext).ConfigureAwait(false);
-        }
+            SourceCredentialBindingResultStatus.Updated or
+            SourceCredentialBindingResultStatus.Cleared =>
+                Results.Ok(ToResponse(result)),
+            SourceCredentialBindingResultStatus.SourceNotFound =>
+                Results.NotFound(new { error = "source_not_found" }),
+            _ => Results.BadRequest(new { error = "invalid_credential_binding_request" }),
+        };
+        return response;
     }
 }

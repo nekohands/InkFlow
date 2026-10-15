@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http.Features;
+using InkFlow.Modules.Identity.Domain;
+using InkFlow.Modules.Identity.Infrastructure.Authentication;
 using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
@@ -51,6 +54,65 @@ public sealed record AuthTokenResponse(
 
 public static class AuthEndpointResults
 {
+    public static void Map(RouteGroupBuilder api)
+    {
+        var auth = api.MapGroup("/auth");
+
+        auth.MapPost("/register", async (
+            RegisterRequest request,
+            IIdentityService identity,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            var result = await identity.RegisterAsync(
+                request.Email ?? string.Empty,
+                request.Password ?? string.Empty,
+                ct);
+            return AuthEndpointResults.FromIdentityResult(result, clock);
+        });
+
+        auth.MapPost("/login", async (
+            LoginRequest request,
+            IIdentityService identity,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            var result = await identity.LoginAsync(
+                request.Email ?? string.Empty,
+                request.Password ?? string.Empty,
+                ct);
+            return AuthEndpointResults.FromIdentityResult(result, clock);
+        });
+
+        auth.MapPost("/refresh", async (
+            RefreshRequest request,
+            IIdentityService identity,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            var result = await identity.RefreshAsync(request.RefreshToken ?? string.Empty, ct);
+            return AuthEndpointResults.FromIdentityResult(result, clock);
+        });
+
+        auth.MapPost("/logout", async (
+            ClaimsPrincipal principal,
+            IIdentityService identity,
+            CancellationToken ct) =>
+        {
+            var rawSessionId = principal.FindFirstValue(IdentityAuthenticationDefaults.SessionIdClaim);
+            if (!Guid.TryParse(rawSessionId, out var sessionId))
+            {
+                return Results.Unauthorized();
+            }
+
+            await identity.LogoutAsync(sessionId, ct);
+            return Results.NoContent();
+        }).RequireAuthorization();
+
+        auth.MapGet("/me", (ClaimsPrincipal principal) =>
+            AuthEndpointResults.Current(principal)).RequireAuthorization();
+    }
+
     public static IResult FromIdentityResult(
         IdentityOperationResult result,
         TimeProvider clock)
@@ -93,6 +155,200 @@ public static class AuthEndpointResults
 
 public static class AccountEndpointResults
 {
+    public static void Map(RouteGroupBuilder api)
+    {
+        var account = api.MapGroup("/me")
+            .RequireAuthorization();
+
+        account.MapGet("/profile", async (
+            ClaimsPrincipal principal,
+            IIdentityService identity,
+            CancellationToken ct) =>
+        {
+            if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var profile = await identity.GetProfileAsync(userId, ct).ConfigureAwait(false);
+            return profile is null
+                ? Results.Unauthorized()
+                : Results.Ok(AccountEndpointResults.ToResponse(profile));
+        });
+
+        account.MapPut("/profile", async (
+            UpdateProfileRequest? request,
+            ClaimsPrincipal principal,
+            IIdentityService identity,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await identity
+                .UpdateProfileAsync(userId, request?.DisplayName, ct)
+                .ConfigureAwait(false);
+            var statusCode = result.Status switch
+            {
+                ProfileResultStatus.Success => StatusCodes.Status200OK,
+                ProfileResultStatus.NotFound => StatusCodes.Status404NotFound,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            await auditSink.AppendAsync(
+                AccountEndpointResults.CreateAudit(
+                    "identity.profile.update",
+                    principal,
+                    httpContext,
+                    clock,
+                    statusCode,
+                    result.IsSuccess ? "success" : "client_error"),
+                ct).ConfigureAwait(false);
+            return AccountEndpointResults.FromProfile(result);
+        });
+
+        account.MapGet("/profile/avatar", async (
+            ClaimsPrincipal principal,
+            IIdentityService identity,
+            HttpContext httpContext,
+            CancellationToken ct) =>
+        {
+            if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var avatar = await identity.GetAvatarAsync(userId, ct).ConfigureAwait(false);
+            if (avatar is null)
+            {
+                return Results.NotFound(new { error = "avatar_not_found" });
+            }
+
+            httpContext.Response.Headers.CacheControl = "private, no-store";
+            httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            return Results.File(
+                avatar.Content,
+                avatar.ContentType,
+                enableRangeProcessing: false);
+        });
+
+        account.MapPut("/profile/avatar", async (
+            HttpRequest request,
+            ClaimsPrincipal principal,
+            IIdentityService identity,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            if (request.ContentLength is > AvatarImage.MaxMultipartRequestBytes)
+            {
+                return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+            }
+
+            var bodySize = request.HttpContext.Features
+                .Get<IHttpMaxRequestBodySizeFeature>();
+            if (bodySize is { IsReadOnly: false })
+            {
+                bodySize.MaxRequestBodySize = AvatarImage.MaxMultipartRequestBytes;
+            }
+
+            if (!request.HasFormContentType)
+            {
+                return Results.BadRequest(new { error = "multipart_file_required" });
+            }
+
+            IFormCollection form;
+            try
+            {
+                form = await request.ReadFormAsync(ct).ConfigureAwait(false);
+            }
+            catch (InvalidDataException)
+            {
+                return Results.BadRequest(new { error = "invalid_image" });
+            }
+
+            if (form.Files.Count != 1)
+            {
+                return Results.BadRequest(new { error = "one_file_required" });
+            }
+
+            var file = form.Files[0];
+            if (file.Length > AvatarImage.MaxUploadBytes)
+            {
+                return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+            }
+
+            await using var stream = file.OpenReadStream();
+            var result = await identity.UploadAvatarAsync(userId, stream, ct).ConfigureAwait(false);
+            var statusCode = result.Status switch
+            {
+                AvatarResultStatus.Success => StatusCodes.Status204NoContent,
+                AvatarResultStatus.NotFound => StatusCodes.Status404NotFound,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            await auditSink.AppendAsync(
+                AccountEndpointResults.CreateAudit(
+                    "identity.avatar.update",
+                    principal,
+                    httpContext,
+                    clock,
+                    statusCode,
+                    result.IsSuccess ? "success" : "client_error"),
+                ct).ConfigureAwait(false);
+            return AccountEndpointResults.FromAvatarUpload(result);
+        });
+
+        account.MapPost("/password", async (
+            ChangePasswordRequest? request,
+            ClaimsPrincipal principal,
+            IIdentityService identity,
+            HttpContext httpContext,
+            IAuditEventSink auditSink,
+            TimeProvider clock,
+            CancellationToken ct) =>
+        {
+            if (!AccountEndpointResults.TryGetUserId(principal, out var userId))
+            {
+                return (IResult)Results.Unauthorized();
+            }
+
+            var result = await identity
+                .ChangePasswordAsync(
+                    userId,
+                    request?.CurrentPassword ?? string.Empty,
+                    request?.NewPassword ?? string.Empty,
+                    ct)
+                .ConfigureAwait(false);
+            var statusCode = result.Status switch
+            {
+                PasswordChangeResultStatus.Success => StatusCodes.Status204NoContent,
+                PasswordChangeResultStatus.InvalidCredentials or PasswordChangeResultStatus.NotFound =>
+                    StatusCodes.Status401Unauthorized,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            await auditSink.AppendAsync(
+                AccountEndpointResults.CreateAudit(
+                    "identity.password.change",
+                    principal,
+                    httpContext,
+                    clock,
+                    statusCode,
+                    result.IsSuccess ? "success" : "client_error"),
+                ct).ConfigureAwait(false);
+            return AccountEndpointResults.FromPasswordChange(result);
+        });
+    }
+
     public static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
     {
         userId = Guid.Empty;

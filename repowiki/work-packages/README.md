@@ -7,6 +7,7 @@ Parent/root index: [../README.md](../README.md)
 
 ## Package records
 
+- [Project simplification — host composition and audited responses](2026-10-15-project-simplification.md)
 - [Workflow 0.93.0 documentation normalization](2026-10-11-workflow-093-documentation-normalization.md)
 - [5.59 Catalog query pagination and N+1 reduction](2026-10-07-catalog-query-pagination.md)
 - [5.60 Entitlement actor validation](2026-10-07-entitlement-actor-validation.md)
