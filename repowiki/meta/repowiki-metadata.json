@@ -413,6 +413,22 @@
       "status": "documented"
     },
     {
+      "path": "work-packages/2026-10-15-module-refactor.md",
+      "title": "Module refactor — responsibility seams and extension points",
+      "kind": "topic",
+      "scope": null,
+      "sources": [
+        "../../src/Modules/InkFlow.Modules.Sources/",
+        "../../src/Modules/InkFlow.Modules.Sources/Application/RuleBasedSourceAdapter.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Application/RuleListProjector.cs",
+        "../../tests/InkFlow.UnitTests/LinovelibSourceDefinitionTests.cs",
+        "../../tests/InkFlow.UnitTests/RuleBasedSourceAdapterPaginationTests.cs",
+        "../../tests/InkFlow.UnitTests/SourceCredentialTests.cs"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
       "path": "work-packages/2026-10-15-project-simplification.md",
       "title": "Project simplification — host composition and audited responses",
       "kind": "topic",
@@ -563,6 +579,11 @@
       "type": "PARENT_CHILD",
       "parent": "work-packages/README.md",
       "child": "work-packages/2026-10-11-workflow-093-documentation-normalization.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-15-module-refactor.md"
     },
     {
       "type": "PARENT_CHILD",

@@ -45,7 +45,7 @@ CI trigger/status: .github/workflows/ci.yml、docker.yml、security.yml；push/P
 Status vocabulary: Planned; In Progress; Implemented; Locally Validated; CI Green; Accepted; Completed; Blocked（沿用项目自有词汇，见 development-workflow.md §2）
 Known environment blockers: Windows 开发机无 Docker Engine —— Testcontainers Integration 与源码 Compose runtime smoke 本机 BLOCKED，由远端 CI 容器作为证据来源；GitHub 网络（push/API）偶发中断需重试
 RepoWiki/documentation conformance: 2026-10-11 adoption recheck is COMPLIANT after Wiki metadata/source/catalog and docs-index normalization; current/history records normalized again on 2026-10-15
-Initialization intake: grillme recommendation-first selected; project simplification authorized on 2026-10-15
+Initialization intake: grillme recommendation-first selected; module refactor authorized on 2026-10-15
 ```
 
 ## 交付状态记录（当前/历史）
@@ -72,7 +72,7 @@ Initialization intake: grillme recommendation-first selected; project simplifica
 
 ## Work Package
 
-当前：[项目结构简化](../../repowiki/work-packages/2026-10-15-project-simplification.md)，`Implemented / 验证中`。用户选择 grillme 推荐优先，并授权整理与推送；公共行为保持不变。
+当前：[模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md)，`In Progress`。用户授权按模块澄清职责、收敛重复、改善扩展性，并要求每批测试、提交、推送；公共行为保持不变。
 
 当前进度、交接与阻塞使用上表入口。已接受 5.81 及此前包的 profile 快照已原样收录于 [进度历史](../roadmap/progress-history.md)，不再在操作型 profile 重复维护。
 

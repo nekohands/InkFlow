@@ -32,7 +32,7 @@ Human/Wiki counterpart: [docs/architecture/architecture.md](../../docs/architect
 | --- | --- |
 | `Identity` | Users, sessions/tokens (replay detection, family revocation), avatars, permission grants, retention |
 | `Library` | Canonical books/chapters, matching, alignment, private library |
-| `Sources` | Source registry, Rule DSL, capability health, credentials (reference-only) |
+| `Sources` | Source registry, Rule DSL, capability health, credentials (reference-only); bounded rule execution and source adapters |
 | `Crawling` | Tasks/lease/retry/dead-letter, collection runs, discovery, fetch artifacts |
 | `Content` | Content AST, versions (append-only), quality selection, policy/takedown |
 | `Reading` | Reader preferences, progress, shelf/history-facing state |
@@ -56,3 +56,10 @@ Human/Wiki counterpart: [docs/architecture/architecture.md](../../docs/architect
 
 Shared dependencies: [../architecture.md](../architecture.md) for dependency
 direction and invariants every module must keep.
+
+Sources runtime navigation: `RuleBasedSourceAdapter` owns capability-specific
+mapping and source-context normalization; `RuleListProjector` owns shared
+selector traversal, cancellation and result budgets for list capabilities.
+`RuleAdapter` remains the request/session/pagination execution module, while
+`ISelectorEvaluator` is the selector-language seam. Batch evidence is recorded
+in [the module refactor package](../work-packages/2026-10-15-module-refactor.md).
