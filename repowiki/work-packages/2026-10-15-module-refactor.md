@@ -3,7 +3,7 @@
 Audience: Agent-only.
 Agent read instruction: Read when continuing the 2026-10-15 module refactor, changing Sources/Rule Runtime or later module batches, or verifying its commits.
 ID: module-refactor-2026-10-15
-Status: Batch 2 pushed; batch 3 planned
+Status: Batch 2 pushed; Docker RED; CI/Security pending
 Owner: InkFlow maintainers
 Authorization: explicit user request on 2026-10-15 to comprehensively refactor by module, clarify responsibilities, reduce duplication, improve extensibility, and test/commit/push every batch.
 Record mode: FULL (cross-module refactoring with public-contract and security regression gates).
@@ -52,14 +52,14 @@ Next action: inspect the staged selector write set, commit and push this batch, 
 - The public constructor and `ISourceAdapter` contract are unchanged. No schema, migration, dependency, policy, route, external request, or scheduling behavior changed. Existing deadline, result-size/item fail-closed tests cover the shared seam.
 - Delivery: commit `34a0315007551d9ed8333113c7f6729c0fb9cf9a` is pushed to `origin/dev`; local and remote SHA matched. GitHub Actions lookup for this SHA is temporarily blocked by the GitHub API rate limit and remains `NOT CHECKED`, not green by inference.
 
-## Batch 2 result — delivered; CI pending
+## Batch 2 result — delivered; remote gates incomplete
 
 - `RuleSelectorEvaluator` is reduced from 1,458 lines to a 52-line dispatcher. HTML/XML XPath (981 lines) and JSONPath (458 lines) now have separate internal evaluators; CSS keeps its public compatibility class. The internal language seam is 19 lines and shared limits are defined once in `SelectorEvaluationLimits` (11 lines), removing the former mixed-language responsibility without adding a plugin framework.
 - Focused selector/source regressions: 93/93 passed. Full Unit: 630/630; Architecture: 1/1; Contract: 12/12. Restore completed with all projects current; final solution Release Build passed with 0 warnings/errors.
 - The bounded parser implementations and fail-closed document/match/depth limits were preserved. No route, DTO, public interface, authorization, schema/migration, dependency, network, or scheduling behavior changed. Local persistence Integration and Compose Runtime remain not rerun because this batch is internal Sources parsing only; the known Windows Docker Engine blocker remains documented.
-- Diff check passed; no secrets or dependency changes were introduced. Delivery commit `49e3515996431c869558fd56d1be650a4e51ed76` is pushed to `origin/dev`; local and remote SHA matched. Exact-head GitHub Actions runs are pending: CI `38692401199`, Docker `38692401166`, Security `38692401205`. Pending is not treated as green.
+- Diff check passed; no secrets or dependency changes were introduced. Delivery commit `49e3515996431c869558fd56d1be650a4e51ed76` is pushed to `origin/dev`; local and remote SHA matched. The implementation Docker run `38692401166` and final-head Docker run `38692477726` are RED at the existing OTLP collector scan: `otel/opentelemetry-collector:0.160.0` reports four HIGH findings, including `CVE-2026-78669`, `CVE-2026-78667` and `CVE-2026-97031`. Final-head CI `38692477763` and Security `38692477695` remain in progress; no remote result is treated as green before completion.
 
-Next batch: isolate the existing `RuleAdapter` request construction/continuation and response/session responsibilities only where its call graph and regression tests show a real seam, after the pending CI results are checked.
+Next action: resolve or explicitly accept the OTLP image scan blocker and finish final-head CI/Security verification before starting the RuleAdapter execution batch.
 
 ## Sources
 

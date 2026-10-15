@@ -46,7 +46,7 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 - 当前整理范围是按模块澄清职责、收敛重复和保留扩展 seam；已完成宿主组合/审计响应去重，Sources 当前完成两批局部重构，不重写领域模型。
 - Batch 2 本地 Release Build 0 warnings / 0 errors；Unit 630/630、Architecture 1/1、Contract 12/12，Sources 相关回归 93/93。集成测试及 Compose 受本机 Docker 环境阻塞，远端门禁待本批提交。
 - 接续时先读 RepoWiki 工作包，复核实际 diff / HEAD / Actions。`.workbuddy-ai/` 为用户目录，禁止纳入本次变更。
-- 下一步：检查提交 `49e3515` 的 CI/Docker/Security（当前 Pending），再进入 RuleAdapter 执行职责批次；基线 OTLP 镜像漏洞仍是独立发布阻塞。
+- 下一步：处理 `49e3515` / `6989779` 的 OTLP collector Docker 扫描 RED，并等待最终 SHA 的 CI/Security 完成；该远端门禁未清除前不进入 RuleAdapter 执行职责批次。
 
 ## 4. 当前工作包与未完成验收
 
