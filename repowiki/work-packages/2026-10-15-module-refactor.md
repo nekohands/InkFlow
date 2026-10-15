@@ -3,7 +3,7 @@
 Audience: Agent-only.
 Agent read instruction: Read when continuing the 2026-10-15 module refactor, changing Sources/Rule Runtime or later module batches, or verifying its commits.
 ID: module-refactor-2026-10-15
-Status: Batch 1 implemented; local gates pass; commit/push pending
+Status: Batch 1 pushed; batch 2 planned
 Owner: InkFlow maintainers
 Authorization: explicit user request on 2026-10-15 to comprehensively refactor by module, clarify responsibilities, reduce duplication, improve extensibility, and test/commit/push every batch.
 Record mode: FULL (cross-module refactoring with public-contract and security regression gates).
@@ -50,7 +50,9 @@ Next action: implement the list projection seam, run focused Sources tests and R
 - `RuleBasedSourceAdapter` is 367 lines (baseline 406); the new `RuleListProjector` is 55 lines. Search and TOC no longer duplicate response-body traversal, selector invocation, cancellation checks, or result byte/item budget enforcement. Their distinct ID/title/default-author mapping remains local and explicit.
 - Focused Sources regressions: 37/37 passed (`RuleBasedSourceAdapterPaginationTests`, `LinovelibSourceDefinitionTests`, `RuleSelectorEvaluatorTests`, `SourceCredentialTests`). Full Unit: 630/630 passed. Sources project Release Build passed with 0 warnings/errors; solution Release Build was run after the full Unit pass and requires final exit confirmation before staging.
 - The public constructor and `ISourceAdapter` contract are unchanged. No schema, migration, dependency, policy, route, external request, or scheduling behavior changed. Existing deadline, result-size/item fail-closed tests cover the shared seam.
-- Before commit: confirm solution build exit, run Wiki catalog/link/diff checks, stage only this package's docs and Sources files, create a descriptive commit, push `origin/dev`, verify local/remote SHA, and record the result here.
+- Delivery: commit `34a0315007551d9ed8333113c7f6729c0fb9cf9a` is pushed to `origin/dev`; local and remote SHA matched. GitHub Actions lookup for this SHA is temporarily blocked by the GitHub API rate limit and remains `NOT CHECKED`, not green by inference.
+
+Next batch: split selector-language implementations behind the existing `ISelectorEvaluator` seam, preserving bounded CSS/HTML-XPath/JSONPath behavior and the current test contract.
 
 ## Sources
 
