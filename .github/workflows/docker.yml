@@ -10,34 +10,15 @@ permissions:
   packages: write
 
 jobs:
-  scan-compose-images:
-    name: Scan Compose infrastructure images
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Pull pinned OTLP Collector image
-        run: docker pull otel/opentelemetry-collector:0.162.0
-
-      - name: Scan OTLP Collector before publishing application images
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: otel/opentelemetry-collector:0.162.0
-          scanners: vuln
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-
   build-push:
-    needs: scan-compose-images
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
         include:
+          - name: otel-collector
+            dockerfile: deploy/docker/Dockerfile.otel
           - name: api
             dockerfile: deploy/docker/Dockerfile.api
           - name: worker

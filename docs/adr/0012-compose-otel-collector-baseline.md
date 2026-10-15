@@ -9,7 +9,7 @@ Core SLO v1 已由 API、Worker、Scheduler 和 Reader 相关宿主产生低基�
 
 ## 决策
 
-- 在生产镜像 Compose 和源码构建 Compose 中加入官方 core `otel/opentelemetry-collector:0.162.0`，使用仓库内只读配置文件，不使用浮动的 `latest` 标签。
+- 在生产镜像 Compose 和源码构建 Compose 中加入仓库发布的 `ghcr.io/nekohands/inkflow/inkflow-otel-collector:dev`。该镜像从 OpenTelemetry Collector v0.162.0 官方发布源构建，并将 `golang.org/x/net` 固定升级到 v0.60.0；使用仓库内只读配置文件，不使用浮动的 Collector `latest` 标签。
 - Collector 只在 Compose 内部网络监听 OTLP gRPC `4317` 和 HTTP `4318`；不把这两个接收端口发布到宿主机。健康检查扩展监听 `13133`，只绑定宿主机 loopback，供本机/CI smoke 使用。
 - API、Worker、Scheduler 的 Compose 默认 `OTEL_EXPORTER_OTLP_ENDPOINT` 指向 `http://otel-collector:4317`，仍允许部署环境通过同名环境变量覆盖到受管的外部 OTLP 端点。应用依赖 Collector 已启动，但不把 Collector 当作业务事实源或数据库依赖。
 - Collector 使用 `read_only`、`tmpfs`、`no-new-privileges` 和 `cap_drop: ALL`；配置以只读 bind mount 注入。CI Runtime smoke 显式请求 loopback 健康端点，验证接收服务真实启动。
@@ -37,3 +37,7 @@ Docker 发布门禁扫描 `0.159.0` 时发现其内置 `golang.org/x/crypto` 存
 ## 维护更新（2026-10-15）
 
 当前固定镜像升级为官方稳定 `otel/opentelemetry-collector:0.162.0`，用于处理 `0.160.0` 在 Docker 发布门禁中发现的高危依赖扫描结果。两份 Compose、Docker pull 和 Trivy 扫描保持同一版本；Collector 配置、网络暴露、权限、只读挂载和健康检查边界不变。升级后的安全结论必须以绑定候选 SHA 的 Docker Trivy 与 Compose Runtime 结果为准；本机 Docker Engine 不可用时不得以本地应用测试替代。
+
+## 维护更新（2026-10-15，补丁构建）
+
+`0.162.0` 官方镜像仍内置 Go `1.26.8`、`golang.org/x/net v0.59.0`，Docker Trivy 报告可修复的 HIGH 漏洞；同 digest 的 GHCR 镜像和当前 nightly 不能消除该结果。Compose 现改用仓库构建并发布的 Collector 镜像：构建阶段使用 Go `1.26.9`，并通过 OCB manifest 将 `golang.org/x/net` 固定到 v0.60.0；运行阶段保持 scratch、非 root、只读挂载、网络暴露和配置边界不变。官方新稳定镜像可用并通过完整验证后，应优先回迁到官方镜像并删除该补丁构建。

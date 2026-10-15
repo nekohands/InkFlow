@@ -156,11 +156,11 @@ Ordinary administrators cannot silently edit audit history through normal CRUD A
 
 ## 12. Supply Chain and Runtime
 
-CI 现已建立可回归的供应链扫描基线：`.github/workflows/security.yml` 执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞、Secret 与 Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM，并将报告作为构建产物归档。`.github/workflows/docker.yml` 先扫描 Compose 使用的固定版本 OTLP Collector，再对 API、Migrations、Scheduler、Worker 四个镜像执行 Trivy HIGH/CRITICAL 漏洞扫描，只有全部通过后才发布业务镜像标签。
+CI 现已建立可回归的供应链扫描基线：`.github/workflows/security.yml` 执行 NuGet 传递依赖漏洞审计、Trivy 源码/配置/依赖的 HIGH/CRITICAL 漏洞、Secret 与 Misconfiguration 扫描、C# CodeQL SAST 和 CycloneDX 源码 SBOM，并将报告作为构建产物归档。`.github/workflows/docker.yml` 对仓库构建的 OTLP Collector、API、Migrations、Scheduler、Worker 镜像统一执行 Trivy HIGH/CRITICAL 漏洞扫描，只有全部通过后才发布镜像标签。
 
 当前仓库未启用 GitHub Code Scanning API，CodeQL/Trivy 结果保留为工作流产物而不上传到代码扫描面板；`ignore-unfixed` 仍表示无法修复的漏洞不会阻塞本基线。生产镜像准入、扫描报告长期保留、动作版本固定、Secret 轮换和部署环境策略仍需后续治理。
 
-Production containers run non-root where practical, drop unnecessary capabilities, use resource limits and avoid host mounts. Image/runtime versions are pinned rather than relying indefinitely on `latest`; the Compose Collector is likewise pinned to `otel/opentelemetry-collector:0.162.0` and does not expose its OTLP intake ports publicly. The Collector is scanned without a dedicated vulnerability exception.
+Production containers run non-root where practical, drop unnecessary capabilities, use resource limits and avoid host mounts. Image/runtime versions are pinned rather than relying indefinitely on `latest`; the Compose Collector is built from the pinned OpenTelemetry Collector v0.162.0 source with Go 1.26.9 and `golang.org/x/net` v0.60.0, published as `ghcr.io/nekohands/inkflow/inkflow-otel-collector:dev`, and does not expose its OTLP intake ports publicly. The Collector is scanned without a dedicated vulnerability exception.
 
 ## 13. Incident Response
 

@@ -31,7 +31,10 @@ services:
       retries: 10
 
   otel-collector:
-    image: otel/opentelemetry-collector:0.162.0
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.otel
+    image: ghcr.io/nekohands/inkflow/inkflow-otel-collector:dev
     command: ["--config=/etc/otelcol/config.yaml"]
     environment:
       INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY: "${INKFLOW_OTEL_METRICS_DEBUG_VERBOSITY:-basic}"

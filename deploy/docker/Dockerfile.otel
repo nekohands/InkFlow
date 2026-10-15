@@ -1,0 +1,27 @@
+FROM golang:1.26.9-bookworm AS build
+
+ARG OTEL_RELEASE_COMMIT=f6159a775dad1e21433c49bd8450673dd13ed4d3
+
+WORKDIR /src
+RUN git clone --depth 1 --branch v0.162.0 https://github.com/open-telemetry/opentelemetry-collector-releases.git otelcol \
+    && test "$(git -C otelcol rev-parse HEAD)" = "${OTEL_RELEASE_COMMIT}"
+RUN go install -trimpath -ldflags='-s -w' go.opentelemetry.io/collector/cmd/builder@v0.162.0
+
+WORKDIR /src/otelcol/distributions/otelcol
+RUN printf '%s\n' 'replaces:' '  - golang.org/x/net => golang.org/x/net v0.60.0' | cat - manifest.yaml > manifest.patched.yaml \
+    && mv manifest.patched.yaml manifest.yaml \
+    && /go/bin/builder --config manifest.yaml
+
+FROM alpine:3.24 AS certs
+RUN apk --no-cache add ca-certificates
+
+FROM scratch
+
+USER 10001:10001
+
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --chmod=755 --from=build /src/otelcol/distributions/otelcol/_build/otelcol /otelcol
+COPY deploy/observability/otel-collector-config.yaml /etc/otelcol/config.yaml
+
+ENTRYPOINT ["/otelcol"]
+CMD ["--config=/etc/otelcol/config.yaml"]
