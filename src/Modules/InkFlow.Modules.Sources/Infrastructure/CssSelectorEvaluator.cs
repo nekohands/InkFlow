@@ -10,9 +10,11 @@ namespace InkFlow.Modules.Sources.Infrastructure;
 /// 多选择器场景由 <see cref="RuleSelectorEvaluator"/> 统一分派；此类保留为
 /// CSS-only 的兼容实现。
 /// </summary>
-public sealed class CssSelectorEvaluator : ISelectorEvaluator
+public sealed class CssSelectorEvaluator : ISelectorEvaluator, ISelectorLanguageEvaluator
 {
     private static readonly HtmlParser Parser = new();
+
+    SelectorKind ISelectorLanguageEvaluator.Kind => SelectorKind.Css;
 
     public string? EvaluateFirst(
         string documentBody, RuleSelector selector, string? attributeName = null)
