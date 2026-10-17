@@ -31,34 +31,27 @@ public sealed class SourceContentService(
     ISourceHealthReader? healthReader = null,
     ISourceHealthRecorder? healthRecorder = null)
 {
+    private readonly SourceAdapterReader sourceReader =
+        new(adapterFactory, healthReader, healthRecorder);
+
     public async Task<ContentFetchOutcome> FetchChapterContentAsync(
         string sourceId, string externalBookId, string externalChapterId,
         CancellationToken cancellationToken = default,
         SourceExecutionContext? executionContext = null)
     {
-        if (executionContext is not null &&
-            !string.Equals(executionContext.SourceId, sourceId, StringComparison.Ordinal))
+        var preparation = await sourceReader
+            .PrepareAsync(
+                sourceId,
+                SourceCapability.Content,
+                executionContext,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (!preparation.IsSuccess)
         {
-            return ContentFetchOutcome.Fail(["source: execution context is invalid."]);
+            return ContentFetchOutcome.Fail([preparation.Error!]);
         }
 
         // 前置校验全部在触网前完成:适配器、书目、章节必须已存在。
-        if (healthReader is not null && !await healthReader
-                .IsAvailableAsync(sourceId, SourceCapability.Content, cancellationToken)
-                .ConfigureAwait(false))
-        {
-            return ContentFetchOutcome.Fail(
-                [$"source '{sourceId}' capability Content is unavailable; retry later."]);
-        }
-
-        var adapter = await adapterFactory
-            .GetAdapterAsync(sourceId, cancellationToken)
-            .ConfigureAwait(false);
-        if (adapter is null)
-        {
-            return ContentFetchOutcome.Fail([$"source '{sourceId}' does not exist or has no adapter."]);
-        }
-
         var lookup = await sourceBookRepository
             .GetChapterAsync(sourceId, externalBookId, externalChapterId, cancellationToken)
             .ConfigureAwait(false);
@@ -74,49 +67,26 @@ public sealed class SourceContentService(
                 [$"catalog: chapter '{externalChapterId}' is not part of book '{sourceId}/{externalBookId}'."]);
         }
 
-        string? rawContent;
-        try
+        var read = await sourceReader
+            .ReadChapterContentAsync(
+                preparation,
+                sourceId,
+                externalChapterId,
+                cancellationToken,
+                executionContext)
+            .ConfigureAwait(false);
+        if (!read.IsSuccess)
         {
-            rawContent = await adapter
-                .GetChapterContentAsync(externalChapterId, cancellationToken, executionContext)
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            if (healthRecorder is not null)
-            {
-                await healthRecorder.RecordFailureAsync(
-                    sourceId,
-                    SourceCapability.Content,
-                    "adapter-exception",
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            return ContentFetchOutcome.Fail(["content: source request failed for Content."]);
+            return ContentFetchOutcome.Fail([read.Error!]);
         }
 
-        if (string.IsNullOrWhiteSpace(rawContent))
-        {
-            if (healthRecorder is not null)
-            {
-                await healthRecorder.RecordFailureAsync(
-                    sourceId,
-                    SourceCapability.Content,
-                    "empty-content",
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            return ContentFetchOutcome.Fail(
-                [$"content: chapter '{externalChapterId}' returned no content from the source."]);
-        }
-
-        if (healthRecorder is not null)
-        {
-            await healthRecorder.RecordSuccessAsync(
-                sourceId, SourceCapability.Content, cancellationToken).ConfigureAwait(false);
-        }
-
-        var artifact = FetchArtifact.Capture(sourceId, externalBookId, externalChapterId, rawContent, clock.GetUtcNow());
+        var rawContent = read.Value!;
+        var artifact = FetchArtifact.Capture(
+            sourceId,
+            externalBookId,
+            externalChapterId,
+            rawContent,
+            clock.GetUtcNow());
 
         var latest = await artifactRepository
             .GetLatestAsync(sourceId, externalChapterId, cancellationToken)

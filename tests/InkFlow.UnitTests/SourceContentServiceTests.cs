@@ -93,6 +93,7 @@ public sealed class SourceContentServiceTests
     {
         public string SourceId => "example-source";
         public string? Content { get; set; } = content;
+        public bool ThrowOnContent { get; set; }
         public int ContentCallCount { get; private set; }
 
         public Task<IReadOnlyList<SourceSearchResult>> SearchAsync(string keyword, CancellationToken cancellationToken = default)
@@ -107,6 +108,11 @@ public sealed class SourceContentServiceTests
         public Task<string?> GetChapterContentAsync(string externalChapterId, CancellationToken cancellationToken = default)
         {
             ContentCallCount++;
+            if (ThrowOnContent)
+            {
+                return Task.FromException<string?>(new InvalidOperationException("adapter failed"));
+            }
+
             return Task.FromResult<string?>(Content);
         }
     }
@@ -255,6 +261,24 @@ public sealed class SourceContentServiceTests
 
         Assert.IsFalse(outcome.IsSuccess);
         StringAssert.Contains(outcome.Errors[0], "no content");
+    }
+
+    [TestMethod]
+    public async Task Content_Adapter_Exception_Is_Reported_To_Health()
+    {
+        var health = new RecordingHealth();
+        var parts = CreateService("<p>正文</p>", healthRecorder: health);
+        parts.Adapter.ThrowOnContent = true;
+
+        var outcome = await parts.Service
+            .FetchChapterContentAsync("example-source", "10001", "ch-001");
+
+        Assert.IsFalse(outcome.IsSuccess);
+        StringAssert.Contains(outcome.Errors.Single(), "source request failed for Content");
+        Assert.IsTrue(health.Calls.Any(call =>
+            call.Capability == SourceCapability.Content &&
+            !call.Succeeded &&
+            call.Reason == "adapter-exception"));
     }
 
     [TestMethod]

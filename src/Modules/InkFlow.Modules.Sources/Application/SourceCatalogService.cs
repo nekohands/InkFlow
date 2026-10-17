@@ -22,10 +22,10 @@ public sealed class SourceCatalogService(
     ISourceHealthReader? healthReader = null,
     ISourceHealthRecorder? healthRecorder = null)
 {
-    private readonly SourceCatalogSourceReader sourceReader =
+    private readonly SourceAdapterReader sourceReader =
         new(adapterFactory, healthReader, healthRecorder);
 
-    public const int MaxTocEntries = SourceCatalogSourceReader.MaxTocEntries;
+    public const int MaxTocEntries = SourceAdapterReader.MaxTocEntries;
 
     /// <summary>
     /// 抓取并导入一本书的元数据。已存在的书更新元数据，否则创建。

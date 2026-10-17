@@ -2,27 +2,36 @@ using InkFlow.Modules.Sources.Domain;
 
 namespace InkFlow.Modules.Sources.Application;
 
-internal sealed record SourceCatalogReadResult<T>(T? Value, string? Error)
+internal sealed record SourceAdapterReadResult<T>(T? Value, string? Error)
 {
     public bool IsSuccess => Error is null;
 
-    public static SourceCatalogReadResult<T> Success(T value) => new(value, null);
+    public static SourceAdapterReadResult<T> Success(T value) => new(value, null);
 
-    public static SourceCatalogReadResult<T> Failure(string error) => new(default, error);
+    public static SourceAdapterReadResult<T> Failure(string error) => new(default, error);
+}
+
+internal sealed record SourceAdapterPreparation(ISourceAdapter? Adapter, string? Error)
+{
+    public bool IsSuccess => Error is null;
+
+    public static SourceAdapterPreparation Success(ISourceAdapter adapter) => new(adapter, null);
+
+    public static SourceAdapterPreparation Failure(string error) => new(null, error);
 }
 
 /// <summary>
-/// 来源读取边界：校验执行上下文、检查能力健康、调用适配器并记录结果。
-/// 书目聚合的创建与持久化仍由 SourceCatalogService 编排。
+/// 来源适配器读取边界：校验执行上下文、检查能力健康、解析适配器并记录请求结果。
+/// 目录聚合和抓取产物的校验与持久化由各自的应用服务编排。
 /// </summary>
-internal sealed class SourceCatalogSourceReader(
+internal sealed class SourceAdapterReader(
     ISourceAdapterFactory adapterFactory,
     ISourceHealthReader? healthReader,
     ISourceHealthRecorder? healthRecorder)
 {
     public const int MaxTocEntries = SourceRuleExecutionLimits.DefaultMaxResultItems;
 
-    public async Task<SourceCatalogReadResult<SourceBookInfo>> ReadBookInfoAsync(
+    public async Task<SourceAdapterReadResult<SourceBookInfo>> ReadBookInfoAsync(
         string sourceId,
         string externalBookId,
         CancellationToken cancellationToken,
@@ -36,7 +45,7 @@ internal sealed class SourceCatalogSourceReader(
             .ConfigureAwait(false);
         if (!preparation.IsSuccess)
         {
-            return SourceCatalogReadResult<SourceBookInfo>.Failure(preparation.Error!);
+            return SourceAdapterReadResult<SourceBookInfo>.Failure(preparation.Error!);
         }
 
         SourceBookInfo? info;
@@ -54,22 +63,22 @@ internal sealed class SourceCatalogSourceReader(
                     "adapter-exception",
                     cancellationToken)
                 .ConfigureAwait(false);
-            return SourceCatalogReadResult<SourceBookInfo>.Failure(
+            return SourceAdapterReadResult<SourceBookInfo>.Failure(
                 "catalog: source request failed for BookInfo.");
         }
 
         if (info is null)
         {
-            return SourceCatalogReadResult<SourceBookInfo>.Failure(
+            return SourceAdapterReadResult<SourceBookInfo>.Failure(
                 $"catalog: book '{sourceId}/{externalBookId}' was not found at the source.");
         }
 
         await RecordSuccessAsync(sourceId, SourceCapability.BookInfo, cancellationToken)
             .ConfigureAwait(false);
-        return SourceCatalogReadResult<SourceBookInfo>.Success(info);
+        return SourceAdapterReadResult<SourceBookInfo>.Success(info);
     }
 
-    public async Task<SourceCatalogReadResult<IReadOnlyList<SourceTocEntry>>> ReadTocAsync(
+    public async Task<SourceAdapterReadResult<IReadOnlyList<SourceTocEntry>>> ReadTocAsync(
         string sourceId,
         string externalBookId,
         CancellationToken cancellationToken,
@@ -83,7 +92,7 @@ internal sealed class SourceCatalogSourceReader(
             .ConfigureAwait(false);
         if (!preparation.IsSuccess)
         {
-            return SourceCatalogReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
+            return SourceAdapterReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
                 preparation.Error!);
         }
 
@@ -102,7 +111,7 @@ internal sealed class SourceCatalogSourceReader(
                     "adapter-exception",
                     cancellationToken)
                 .ConfigureAwait(false);
-            return SourceCatalogReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
+            return SourceAdapterReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
                 "catalog: source request failed for Toc.");
         }
 
@@ -114,7 +123,7 @@ internal sealed class SourceCatalogSourceReader(
                     "empty-toc",
                     cancellationToken)
                 .ConfigureAwait(false);
-            return SourceCatalogReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
+            return SourceAdapterReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
                 $"catalog: no chapters returned for book '{sourceId}/{externalBookId}'.");
         }
 
@@ -126,16 +135,64 @@ internal sealed class SourceCatalogSourceReader(
                     "toc-result-too-large",
                     cancellationToken)
                 .ConfigureAwait(false);
-            return SourceCatalogReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
+            return SourceAdapterReadResult<IReadOnlyList<SourceTocEntry>>.Failure(
                 $"catalog: Toc result exceeds maximum of {MaxTocEntries} entries.");
         }
 
         await RecordSuccessAsync(sourceId, SourceCapability.Toc, cancellationToken)
             .ConfigureAwait(false);
-        return SourceCatalogReadResult<IReadOnlyList<SourceTocEntry>>.Success(toc);
+        return SourceAdapterReadResult<IReadOnlyList<SourceTocEntry>>.Success(toc);
     }
 
-    private async Task<SourceCatalogPreparation> PrepareAsync(
+    public async Task<SourceAdapterReadResult<string>> ReadChapterContentAsync(
+        SourceAdapterPreparation preparation,
+        string sourceId,
+        string externalChapterId,
+        CancellationToken cancellationToken,
+        SourceExecutionContext? executionContext)
+    {
+        if (!preparation.IsSuccess)
+        {
+            return SourceAdapterReadResult<string>.Failure(preparation.Error!);
+        }
+
+        string? rawContent;
+        try
+        {
+            rawContent = await preparation.Adapter!
+                .GetChapterContentAsync(externalChapterId, cancellationToken, executionContext)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.Content,
+                    "adapter-exception",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return SourceAdapterReadResult<string>.Failure(
+                "content: source request failed for Content.");
+        }
+
+        if (string.IsNullOrWhiteSpace(rawContent))
+        {
+            await RecordFailureAsync(
+                    sourceId,
+                    SourceCapability.Content,
+                    "empty-content",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return SourceAdapterReadResult<string>.Failure(
+                $"content: chapter '{externalChapterId}' returned no content from the source.");
+        }
+
+        await RecordSuccessAsync(sourceId, SourceCapability.Content, cancellationToken)
+            .ConfigureAwait(false);
+        return SourceAdapterReadResult<string>.Success(rawContent);
+    }
+
+    public async Task<SourceAdapterPreparation> PrepareAsync(
         string sourceId,
         SourceCapability capability,
         SourceExecutionContext? executionContext,
@@ -143,21 +200,21 @@ internal sealed class SourceCatalogSourceReader(
     {
         if (!IsExecutionContextValid(sourceId, executionContext))
         {
-            return SourceCatalogPreparation.Failure("source: execution context is invalid.");
+            return SourceAdapterPreparation.Failure("source: execution context is invalid.");
         }
 
         if (!await IsAvailableAsync(sourceId, capability, cancellationToken).ConfigureAwait(false))
         {
-            return SourceCatalogPreparation.Failure(
+            return SourceAdapterPreparation.Failure(
                 $"source '{sourceId}' capability {capability} is unavailable; retry later.");
         }
 
         var adapter = await adapterFactory.GetAdapterAsync(sourceId, cancellationToken)
             .ConfigureAwait(false);
         return adapter is null
-            ? SourceCatalogPreparation.Failure(
+            ? SourceAdapterPreparation.Failure(
                 $"source '{sourceId}' does not exist or has no adapter.")
-            : SourceCatalogPreparation.Success(adapter);
+            : SourceAdapterPreparation.Success(adapter);
     }
 
     private Task<bool> IsAvailableAsync(
@@ -190,13 +247,4 @@ internal sealed class SourceCatalogSourceReader(
         SourceExecutionContext? executionContext) =>
         executionContext is null ||
         string.Equals(executionContext.SourceId, sourceId, StringComparison.Ordinal);
-
-    private sealed record SourceCatalogPreparation(ISourceAdapter? Adapter, string? Error)
-    {
-        public bool IsSuccess => Error is null;
-
-        public static SourceCatalogPreparation Success(ISourceAdapter adapter) => new(adapter, null);
-
-        public static SourceCatalogPreparation Failure(string error) => new(null, error);
-    }
 }
