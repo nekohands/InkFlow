@@ -147,6 +147,33 @@ public sealed class CanonicalChapterMappingServiceTests
     }
 
     [TestMethod]
+    public async Task Unique_Normalized_Title_Reuses_Chapter_When_Source_Index_Shifts()
+    {
+        var sourceBook = SourceBook.Create("example-source", "10001", "剑来", "烽火戏诸侯", T0);
+        sourceBook.SyncChapters(
+            [("c1", "序章"), ("c2", "第二 章")],
+            T0);
+        var canonical = CanonicalBook.Create("剑来", "烽火戏诸侯", T0);
+        var existing = canonical.AddChapter(0, "第二章", T0);
+        var candidate = MatchCandidate.Confirm(canonical.Id, "example-source", "10001", T0);
+        var mappings = new InMemoryMappingRepository();
+        var service = new CanonicalChapterMappingService(
+            new InMemorySourceBookRepository(sourceBook),
+            new InMemoryCandidateRepository(candidate),
+            new InMemoryCanonicalRepo { Book = canonical },
+            mappings);
+
+        var outcome = await service.SyncChapterMappingAsync("example-source", "10001");
+
+        Assert.IsTrue(outcome.IsSuccess, string.Join("; ", outcome.Errors));
+        Assert.AreEqual(2, outcome.NewlyMappedCount);
+        var shifted = await mappings.FindAsync("example-source", "c2");
+        Assert.IsNotNull(shifted);
+        Assert.AreEqual(existing.Id, shifted.CanonicalChapterId);
+        StringAssert.Contains(shifted.AlignmentEvidence, "unique-normalized-title");
+    }
+
+    [TestMethod]
     public async Task Missing_Book_Match_Fails_Clearly()
     {
         var sourceBook = SourceBook.Create("example-source", "10001", "剑来", "作者", T0);

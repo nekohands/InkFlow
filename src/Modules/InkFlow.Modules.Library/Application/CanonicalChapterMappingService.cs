@@ -78,7 +78,7 @@ public sealed class CanonicalChapterMappingService(
                 continue;
             }
 
-            var alignment = FindAlignedChapter(canonicalBook, sourceChapter);
+            var alignment = CanonicalChapterAligner.Align(canonicalBook, sourceChapter);
             var canonicalChapter = alignment.Chapter ?? canonicalBook.AddChapter(
                 canonicalBook.Chapters.Count, sourceChapter.Title, now);
             var mapping = new ChapterMapping(
@@ -100,40 +100,4 @@ public sealed class CanonicalChapterMappingService(
         return ChapterMappingOutcome.Ok(canonicalBook, newlyMapped);
     }
 
-    private static (CanonicalChapter? Chapter, string Evidence) FindAlignedChapter(
-        CanonicalBook canonicalBook, SourceChapter sourceChapter)
-    {
-        var normalizedTitle = NormalizeTitle(sourceChapter.Title);
-
-        // 最强信号：同一目录序号且标题规范化后相同。
-        var samePosition = canonicalBook.Chapters.FirstOrDefault(chapter =>
-            chapter.Index == sourceChapter.Index &&
-            NormalizeTitle(chapter.Title) == normalizedTitle);
-        if (samePosition is not null)
-        {
-            return (
-                samePosition,
-                $"source-index={sourceChapter.Index};canonical-index={samePosition.Index};normalized-title");
-        }
-
-        // 处理某来源插入/缺失少量章节后的序号偏移；标题必须唯一，避免误合并。
-        var sameTitle = canonicalBook.Chapters
-            .Where(chapter => NormalizeTitle(chapter.Title) == normalizedTitle)
-            .ToList();
-        if (sameTitle.Count == 1)
-        {
-            var match = sameTitle[0];
-            return (
-                match,
-                $"source-index={sourceChapter.Index};canonical-index={match.Index};unique-normalized-title");
-        }
-
-        return (
-            null,
-            $"source-index={sourceChapter.Index};new-canonical-chapter");
-    }
-
-    private static string NormalizeTitle(string title) =>
-        string.Concat(title.Where(c => !char.IsWhiteSpace(c) && !char.IsPunctuation(c)))
-            .ToLowerInvariant();
 }
