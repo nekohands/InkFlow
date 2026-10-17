@@ -9,155 +9,43 @@ public sealed class ContentPolicyService(
     IContentPolicyRepository repository,
     TimeProvider clock) : IContentPolicyService
 {
-    public const int MaxListLimit = 100;
+    private readonly ContentPolicyReader reader = new(repository);
+    private readonly ContentPolicyCommands commands = new(repository, clock);
 
-    public async Task<bool> IsTakedownAsync(
+    public const int MaxListLimit = ContentPolicyRules.MaxListLimit;
+
+    public Task<bool> IsTakedownAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-    {
-        var latest = await repository
-            .GetLatestAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
+        => reader.IsTakedownAsync(canonicalBookId, cancellationToken);
 
-        return latest?.Action == ContentPolicyAction.Takedown;
-    }
-
-    public async Task<IReadOnlySet<Guid>> ListTakedownBookIdsAsync(
+    public Task<IReadOnlySet<Guid>> ListTakedownBookIdsAsync(
         IReadOnlyCollection<Guid> canonicalBookIds,
         CancellationToken cancellationToken = default)
-    {
-        var safeIds = canonicalBookIds
-            .Where(id => id != Guid.Empty)
-            .Distinct()
-            .ToArray();
-        if (safeIds.Length == 0)
-        {
-            return new HashSet<Guid>();
-        }
+        => reader.ListTakedownBookIdsAsync(canonicalBookIds, cancellationToken);
 
-        var latest = await repository
-            .ListLatestForBooksAsync(safeIds, cancellationToken)
-            .ConfigureAwait(false);
-
-        return latest
-            .Where(decision => decision.Action == ContentPolicyAction.Takedown)
-            .Select(decision => decision.CanonicalBookId)
-            .ToHashSet();
-    }
-
-    public async Task<ContentPolicyCommandResult> TakedownAsync(
+    public Task<ContentPolicyCommandResult> TakedownAsync(
         Guid canonicalBookId,
         string actorId,
         string reason,
         CancellationToken cancellationToken = default) =>
-        await ApplyAsync(
-            canonicalBookId,
-            ContentPolicyAction.Takedown,
-            actorId,
-            reason,
-            cancellationToken).ConfigureAwait(false);
+        commands.TakedownAsync(canonicalBookId, actorId, reason, cancellationToken);
 
-    public async Task<ContentPolicyCommandResult> RestoreAsync(
+    public Task<ContentPolicyCommandResult> RestoreAsync(
         Guid canonicalBookId,
         string actorId,
         string reason,
         CancellationToken cancellationToken = default) =>
-        await ApplyAsync(
-            canonicalBookId,
-            ContentPolicyAction.Restore,
-            actorId,
-            reason,
-            cancellationToken).ConfigureAwait(false);
+        commands.RestoreAsync(canonicalBookId, actorId, reason, cancellationToken);
 
-    public async Task<ContentPolicyStatus> GetStatusAsync(
+    public Task<ContentPolicyStatus> GetStatusAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-    {
-        EnsureBookId(canonicalBookId);
-        var latest = await repository
-            .GetLatestAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
+        => reader.GetStatusAsync(canonicalBookId, cancellationToken);
 
-        return ToStatus(canonicalBookId, latest);
-    }
-
-    public async Task<IReadOnlyList<ContentPolicyStatus>> ListAsync(
+    public Task<IReadOnlyList<ContentPolicyStatus>> ListAsync(
         bool takenDownOnly,
         int limit,
         CancellationToken cancellationToken = default)
-    {
-        var boundedLimit = Math.Clamp(limit, 1, MaxListLimit);
-        var latest = await repository
-            .ListLatestAsync(takenDownOnly, boundedLimit, cancellationToken)
-            .ConfigureAwait(false);
-
-        return latest
-            .Select(decision => ToStatus(decision.CanonicalBookId, decision))
-            .ToList();
-    }
-
-    private async Task<ContentPolicyCommandResult> ApplyAsync(
-        Guid canonicalBookId,
-        ContentPolicyAction action,
-        string actorId,
-        string reason,
-        CancellationToken cancellationToken)
-    {
-        EnsureBookId(canonicalBookId);
-
-        // 即使命令最终是幂等 no-op，也必须先验证操作者和理由，避免高风险命令绕过审计前置条件。
-        var candidate = ContentPolicyDecision.Create(
-            canonicalBookId,
-            action,
-            actorId,
-            reason,
-            clock.GetUtcNow());
-
-        var latest = await repository
-            .GetLatestAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (latest?.Action == action)
-        {
-            return new ContentPolicyCommandResult(
-                canonicalBookId,
-                action == ContentPolicyAction.Takedown,
-                Changed: false,
-                latest);
-        }
-
-        // Restore 未曾下架时是无状态幂等操作，不制造虚假的恢复历史。
-        if (action == ContentPolicyAction.Restore && latest is null)
-        {
-            return new ContentPolicyCommandResult(
-                canonicalBookId,
-                IsTakedown: false,
-                Changed: false,
-                Decision: null);
-        }
-
-        await repository.AddAsync(candidate, cancellationToken).ConfigureAwait(false);
-
-        return new ContentPolicyCommandResult(
-            canonicalBookId,
-            action == ContentPolicyAction.Takedown,
-            Changed: true,
-            candidate);
-    }
-
-    private static ContentPolicyStatus ToStatus(
-        Guid canonicalBookId,
-        ContentPolicyDecision? latest) =>
-        new(
-            canonicalBookId,
-            latest?.Action == ContentPolicyAction.Takedown,
-            latest);
-
-    private static void EnsureBookId(Guid canonicalBookId)
-    {
-        if (canonicalBookId == Guid.Empty)
-        {
-            throw new ArgumentException("canonicalBookId must not be empty.", nameof(canonicalBookId));
-        }
-    }
+        => reader.ListAsync(takenDownOnly, limit, cancellationToken);
 }

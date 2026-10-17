@@ -71,6 +71,19 @@ public sealed record ContentPolicyCommandResult(
     bool Changed,
     ContentPolicyDecision? Decision);
 
+internal static class ContentPolicyRules
+{
+    internal const int MaxListLimit = 100;
+
+    internal static void EnsureBookId(Guid canonicalBookId)
+    {
+        if (canonicalBookId == Guid.Empty)
+        {
+            throw new ArgumentException("canonicalBookId must not be empty.", nameof(canonicalBookId));
+        }
+    }
+}
+
 public interface IContentPolicyService : IContentPolicyReader
 {
     Task<ContentPolicyCommandResult> TakedownAsync(
