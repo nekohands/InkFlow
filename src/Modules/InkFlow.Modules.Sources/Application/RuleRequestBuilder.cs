@@ -236,29 +236,18 @@ internal static class RuleRequestBuilder
         Uri sourceOrigin,
         out string error)
     {
-        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var target) ||
-            target.Fragment.Length > 0 ||
-            target.UserInfo.Length > 0)
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var target))
         {
             error = "pagination: generated continuation request is not a permitted URL.";
             return false;
         }
 
-        var ssrfErrors = SsrfGuard.InspectLiteral(target);
-        if (ssrfErrors.Count > 0)
-        {
-            error = $"ssrf: {string.Join("; ", ssrfErrors)}";
-            return false;
-        }
-
-        if (!IsSameOrigin(sourceOrigin, target))
-        {
-            error = "pagination: generated continuation request must stay on the source origin.";
-            return false;
-        }
-
-        error = string.Empty;
-        return true;
+        return TryValidateSameOriginUrl(
+            target,
+            sourceOrigin,
+            "pagination: generated continuation request is not a permitted URL.",
+            "pagination: generated continuation request must stay on the source origin.",
+            out error);
     }
 
     public static bool TryBuildNextRequest(
@@ -301,23 +290,13 @@ internal static class RuleRequestBuilder
             return false;
         }
 
-        if (target is null || !target.IsAbsoluteUri ||
-            target.Fragment.Length > 0 || target.UserInfo.Length > 0)
+        if (!TryValidateSameOriginUrl(
+                target,
+                sourceOrigin,
+                "pagination: next link is not a permitted URL.",
+                "pagination: next link must stay on the source origin.",
+                out error))
         {
-            error = "pagination: next link is not a permitted URL.";
-            return false;
-        }
-
-        var ssrfErrors = SsrfGuard.InspectLiteral(target);
-        if (ssrfErrors.Count > 0)
-        {
-            error = $"ssrf: {string.Join("; ", ssrfErrors)}";
-            return false;
-        }
-
-        if (!IsSameOrigin(sourceOrigin, target))
-        {
-            error = "pagination: next link must stay on the source origin.";
             return false;
         }
 
@@ -340,11 +319,33 @@ internal static class RuleRequestBuilder
         Uri sourceOrigin,
         out string error)
     {
-        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var target) ||
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var target))
+        {
+            error = "request: built URL is not a permitted URL.";
+            return false;
+        }
+
+        return TryValidateSameOriginUrl(
+            target,
+            sourceOrigin,
+            "request: built URL is not a permitted URL.",
+            "request: built URL must stay on the source origin.",
+            out error);
+    }
+
+    private static bool TryValidateSameOriginUrl(
+        Uri? target,
+        Uri sourceOrigin,
+        string invalidUrlError,
+        string crossOriginError,
+        out string error)
+    {
+        if (target is null ||
+            !target.IsAbsoluteUri ||
             target.Fragment.Length > 0 ||
             target.UserInfo.Length > 0)
         {
-            error = "request: built URL is not a permitted URL.";
+            error = invalidUrlError;
             return false;
         }
 
@@ -357,7 +358,7 @@ internal static class RuleRequestBuilder
 
         if (!IsSameOrigin(sourceOrigin, target))
         {
-            error = "request: built URL must stay on the source origin.";
+            error = crossOriginError;
             return false;
         }
 
