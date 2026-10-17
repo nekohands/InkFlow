@@ -12,6 +12,7 @@ public sealed class PrivateLibraryContentService(
     TimeProvider clock) : IPrivateLibraryContentService
 {
     private readonly PrivateBookImportUseCase importer = new(repository, parser, clock);
+    private readonly PrivateBookExportUseCase exporter = new(repository);
 
     public Task<PrivateLibraryOperationResult<PrivateBookImportView>> ImportAsync(
         Guid userId,
@@ -54,43 +55,12 @@ public sealed class PrivateLibraryContentService(
         return chapter is null ? null : ToContentView(chapter);
     }
 
-    public async Task<PrivateLibraryOperationResult<PrivateLibraryExport>> ExportAsync(
+    public Task<PrivateLibraryOperationResult<PrivateLibraryExport>> ExportAsync(
         Guid userId,
         Guid privateBookId,
         string? format,
         CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty || privateBookId == Guid.Empty)
-        {
-            return NotFound<PrivateLibraryExport>();
-        }
-
-        if (!TryParseFormat(format, out var exportFormat))
-        {
-            return new(PrivateLibraryResultStatus.InvalidRequest, null);
-        }
-
-        var book = await repository.GetAsync(userId, privateBookId, cancellationToken)
-            .ConfigureAwait(false);
-        if (book is null)
-        {
-            return NotFound<PrivateLibraryExport>();
-        }
-
-        var chapters = await repository
-            .ListChaptersAsync(userId, privateBookId, cancellationToken)
-            .ConfigureAwait(false);
-        return Success(PrivateBookExportFormatter.Export(book, chapters, exportFormat));
-    }
-
-    private static bool TryParseFormat(string? value, out PrivateLibraryExportFormat format)
-    {
-        format = PrivateLibraryExportFormat.Txt;
-        return value is not null &&
-               (string.Equals(value, "txt", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(value, "epub", StringComparison.OrdinalIgnoreCase)) &&
-               Enum.TryParse(value, ignoreCase: true, out format);
-    }
+        => exporter.ExportAsync(userId, privateBookId, format, cancellationToken);
 
     private static PrivateChapterView ToView(PrivateChapter chapter) =>
         new(chapter.Id, chapter.Index, chapter.Title, chapter.ParagraphCount, chapter.CreatedAt);
@@ -103,12 +73,6 @@ public sealed class PrivateLibraryContentService(
             chapter.Title,
             chapter.ContentHash,
             chapter.Content.Paragraphs);
-
-    private static PrivateLibraryOperationResult<T> Success<T>(T value) =>
-        new(PrivateLibraryResultStatus.Success, value);
-
-    private static PrivateLibraryOperationResult<T> NotFound<T>() =>
-        new(PrivateLibraryResultStatus.NotFound, default);
 
 }
 
