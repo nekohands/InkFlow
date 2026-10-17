@@ -1,4 +1,3 @@
-using System.Globalization;
 using InkFlow.Modules.Sources.Domain;
 
 namespace InkFlow.Modules.Sources.Application;
@@ -13,6 +12,7 @@ public sealed class RuleAdapter
     private readonly SourceRuleExecutionLimits _limits;
     private readonly RuleCredentialResolver _credentialResolver;
     private readonly RuleResponseEvaluator _responseEvaluator;
+    private readonly RuleExecutionPreflight _preflight;
     private readonly RulePreRequestExecutor _preRequestExecutor;
     private readonly RulePaginationExecutor _paginationExecutor;
 
@@ -27,6 +27,7 @@ public sealed class RuleAdapter
         _credentialResolver = new RuleCredentialResolver(credentialProvider);
         _limits.Validate();
         _responseEvaluator = new RuleResponseEvaluator(selectorEvaluator, _limits);
+        _preflight = new RuleExecutionPreflight(_limits);
         _preRequestExecutor = new RulePreRequestExecutor(_limits, _responseEvaluator);
         _paginationExecutor = new RulePaginationExecutor(_limits, _responseEvaluator);
     }
@@ -40,95 +41,21 @@ public sealed class RuleAdapter
         CancellationToken cancellationToken = default,
         SourceExecutionContext? executionContext = null)
     {
-        variables ??= new Dictionary<string, string>();
-
-        var variableErrors = RuleRequestBuilder.ValidateVariables(_limits, variables);
-        if (variableErrors.Count > 0)
+        if (!_preflight.TryPrepare(
+                rule,
+                baseUrl,
+                variables,
+                out var plan,
+                out var preflightErrors))
         {
-            return RuleExecutionResult.Fail(variableErrors);
+            return RuleExecutionResult.Fail(preflightErrors);
         }
 
-        var pagination = rule.Pagination;
-        if (pagination is not null)
-        {
-            var paginationErrors = SourceRuleDslValidator.ValidatePagination(rule);
-            if (paginationErrors.Count > 0)
-            {
-                return RuleExecutionResult.Fail(paginationErrors);
-            }
-        }
-
-        if (rule.Session is not null)
-        {
-            var sessionErrors = SourceRuleDslValidator.ValidateSession(rule);
-            if (sessionErrors.Count > 0)
-            {
-                return RuleExecutionResult.Fail(sessionErrors);
-            }
-        }
-
-        var responseVariableDeclarationErrors =
-            SourceRuleDslValidator.ValidateResponseVariables(rule);
-        if (responseVariableDeclarationErrors.Count > 0)
-        {
-            return RuleExecutionResult.Fail(responseVariableDeclarationErrors);
-        }
-
-        var preRequestDeclarationErrors = SourceRuleDslValidator.ValidatePreRequests(rule);
-        if (preRequestDeclarationErrors.Count > 0)
-        {
-            return RuleExecutionResult.Fail(preRequestDeclarationErrors);
-        }
-
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var sourceOrigin))
-        {
-            return RuleExecutionResult.Fail(["request: source base URL must be absolute."]);
-        }
-
-        var preRequests = rule.PreRequests ?? [];
+        var pagination = plan!.Pagination;
+        var preRequests = plan.PreRequests;
         var continuationVariables = new Dictionary<string, string>(
-            variables,
+            plan.InitialVariables,
             StringComparer.Ordinal);
-        var initialParameterName = pagination?.Mode == RulePaginationMode.PageNumber
-            ? pagination.ParameterName
-            : null;
-        var initialParameterValue = pagination?.Mode == RulePaginationMode.PageNumber
-            ? pagination.StartPage.ToString(CultureInfo.InvariantCulture)
-            : null;
-
-        // Inspect the first request before resolving credentials. With a pre-request chain this
-        // is the first step; otherwise it is the capability's main request.
-        var firstRequestDefinition = preRequests.Count > 0
-            ? preRequests[0].Request
-            : rule.Request;
-        var firstBuildErrors = RuleRequestBuilder.TryBuildRequest(
-            firstRequestDefinition,
-            rule.Capability,
-            baseUrl,
-            continuationVariables,
-            preRequests.Count == 0 ? initialParameterName : null,
-            preRequests.Count == 0 ? initialParameterValue : null,
-            out var firstRequest);
-        if (firstBuildErrors.Count > 0)
-        {
-            return RuleExecutionResult.Fail(firstBuildErrors);
-        }
-
-        // 出网前的最后一道闸：字面量 SSRF 校验失败绝不发起请求。
-        if (!RuleRequestBuilder.TryValidateInitialRequest(
-                firstRequest!,
-                sourceOrigin,
-                out var firstRequestError))
-        {
-            return RuleExecutionResult.Fail([firstRequestError]);
-        }
-
-        // A zero request budget is an explicit fail-closed switch and must be checked before
-        // entering the HTTP seam, including when pagination is declared.
-        if (_limits.MaxRequests < 1)
-        {
-            return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
-        }
 
         using var executionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         executionCancellation.CancelAfter(_limits.MaxExecutionTime);
@@ -150,7 +77,7 @@ public sealed class RuleAdapter
             var requestExecutor = new RuleHttpExecutor(
                 _httpClient,
                 _limits,
-                sourceOrigin,
+                plan.SourceOrigin,
                 cookieJar,
                 cancellationToken,
                 executionCancellation.Token);
@@ -162,11 +89,11 @@ public sealed class RuleAdapter
                     .ExecuteAsync(
                         preRequests,
                         rule,
-                        baseUrl,
-                        sourceOrigin,
+                        plan.BaseUrl,
+                        plan.SourceOrigin,
                         credentialResolution.Credential,
                         continuationVariables,
-                        firstRequest!,
+                        plan.FirstRequest,
                         requestExecutor,
                         requestCount,
                         executionCancellation.Token)
@@ -186,7 +113,7 @@ public sealed class RuleAdapter
             if (preRequests.Count == 0)
             {
                 if (!RuleRequestBuilder.TryApplyCredential(
-                        firstRequest!,
+                        plan.FirstRequest,
                         credentialResolution.Credential,
                         out preparedMainRequest,
                         out var mainCredentialError))
@@ -199,10 +126,10 @@ public sealed class RuleAdapter
                 var mainBuildErrors = RuleRequestBuilder.TryBuildRequest(
                     rule.Request,
                     rule.Capability,
-                    baseUrl,
+                    plan.BaseUrl,
                     continuationVariables,
-                    initialParameterName,
-                    initialParameterValue,
+                    plan.InitialParameterName,
+                    plan.InitialParameterValue,
                     out var mainRequest);
                 if (mainBuildErrors.Count > 0)
                 {
@@ -211,7 +138,7 @@ public sealed class RuleAdapter
 
                 if (!RuleRequestBuilder.TryValidateInitialRequest(
                         mainRequest!,
-                        sourceOrigin,
+                        plan.SourceOrigin,
                         out var mainRequestError))
                 {
                     return RuleExecutionResult.Fail([mainRequestError]);
@@ -251,8 +178,8 @@ public sealed class RuleAdapter
 
             return await _paginationExecutor.ExecuteAsync(
                     rule,
-                    baseUrl,
-                    sourceOrigin,
+                    plan.BaseUrl,
+                    plan.SourceOrigin,
                     pagination,
                     preparedMainRequest!,
                     credentialResolution.Credential,
