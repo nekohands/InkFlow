@@ -49,7 +49,7 @@ internal sealed class PrivateBookImportUseCase(
             await repository.AddWithChaptersAsync(book, chapters, cancellationToken)
                 .ConfigureAwait(false);
             return Success<PrivateBookImportView>(new(
-                ToView(book),
+                PrivateLibraryViewMapper.ToView(book),
                 chapters.Length));
         }
         catch (ArgumentException)
@@ -57,9 +57,6 @@ internal sealed class PrivateBookImportUseCase(
             return Invalid<PrivateBookImportView>();
         }
     }
-
-    private static PrivateBookView ToView(PrivateBook book) =>
-        new(book.Id, book.Title, book.Author, book.CreatedAt, book.UpdatedAt, book.Version);
 
     private static PrivateLibraryOperationResult<T> Success<T>(T value) =>
         new(PrivateLibraryResultStatus.Success, value);
