@@ -1,7 +1,4 @@
 using System.Globalization;
-using System.IO;
-using System.Xml;
-using System.Xml.XPath;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using InkFlow.Modules.Sources.Application;
@@ -19,104 +16,31 @@ internal sealed class HtmlXPathSelectorEvaluator : ISelectorLanguageEvaluator
     public string? EvaluateFirst(
         string documentBody,
         RuleSelector selector,
-        string? attributeName = null) =>
-        EvaluateXPathFirst(documentBody, selector.Expression, attributeName);
-
-    public IReadOnlyList<SelectorElementSnapshot> SelectAll(
-        string documentBody,
-        RuleSelector selector) =>
-        SelectXPathAll(documentBody, selector.Expression);
-
-    private static string? EvaluateXPathFirst(
-        string documentBody,
-        string expression,
-        string? attributeName)
+        string? attributeName = null)
     {
         if (ContainsBlockedDtd(documentBody))
         {
             return null;
         }
 
-        try
-        {
-            var document = ParseXml(documentBody);
-            var iterator = document.CreateNavigator().Select(expression);
-            if (iterator.MoveNext() && iterator.Current is { } current)
-            {
-                if (!string.IsNullOrWhiteSpace(attributeName))
-                {
-                    return current.NodeType == XPathNodeType.Element
-                        ? current.GetAttribute(attributeName.Trim(), string.Empty)
-                        : null;
-                }
-
-                return current.Value.Trim();
-            }
-        }
-        catch (XmlException)
-        {
-        }
-        catch (XPathException)
-        {
-        }
-        catch (InvalidOperationException)
-        {
-        }
-        catch (ArgumentException)
-        {
-        }
-
-        return EvaluateHtmlXPathFirst(documentBody, expression, attributeName);
+        return XmlXPathSelectorEvaluator.EvaluateFirst(
+                   documentBody,
+                   selector.Expression,
+                   attributeName)
+               ?? EvaluateHtmlXPathFirst(documentBody, selector.Expression, attributeName);
     }
 
-    private static IReadOnlyList<SelectorElementSnapshot> SelectXPathAll(
+    public IReadOnlyList<SelectorElementSnapshot> SelectAll(
         string documentBody,
-        string expression)
+        RuleSelector selector)
     {
         if (ContainsBlockedDtd(documentBody))
         {
             return [];
         }
 
-        try
-        {
-            var document = ParseXml(documentBody);
-            var iterator = document.CreateNavigator().Select(expression);
-            var result = new List<SelectorElementSnapshot>();
-            while (iterator.MoveNext())
-            {
-                if (iterator.Current is not { } current)
-                {
-                    continue;
-                }
-
-                if (result.Count >= SelectorEvaluationLimits.MaxMatches)
-                {
-                    return [];
-                }
-
-                result.Add(ToXPathSnapshot(current));
-            }
-
-            if (result.Count > 0)
-            {
-                return result;
-            }
-        }
-        catch (XmlException)
-        {
-        }
-        catch (XPathException)
-        {
-        }
-        catch (InvalidOperationException)
-        {
-        }
-        catch (ArgumentException)
-        {
-        }
-
-        return SelectHtmlXPathAll(documentBody, expression);
+        return XmlXPathSelectorEvaluator.SelectAll(documentBody, selector.Expression)
+            ?? SelectHtmlXPathAll(documentBody, selector.Expression);
     }
 
     private static bool ContainsBlockedDtd(string documentBody)
@@ -899,41 +823,6 @@ internal sealed class HtmlXPathSelectorEvaluator : ISelectorLanguageEvaluator
         {
             position++;
         }
-    }
-
-    private static XPathDocument ParseXml(string documentBody)
-    {
-        if (documentBody.Length > SelectorEvaluationLimits.MaxDocumentBytes)
-        {
-            throw new XmlException("selector document exceeds the size limit.");
-        }
-
-        var settings = new XmlReaderSettings
-        {
-            DtdProcessing = DtdProcessing.Prohibit,
-            MaxCharactersInDocument = SelectorEvaluationLimits.MaxDocumentBytes,
-            MaxCharactersFromEntities = 0,
-            XmlResolver = null,
-        };
-        using var reader = XmlReader.Create(new StringReader(documentBody), settings);
-        return new XPathDocument(reader);
-    }
-
-    private static SelectorElementSnapshot ToXPathSnapshot(XPathNavigator current)
-    {
-        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var attributeCursor = current.Clone();
-        if (attributeCursor.NodeType == XPathNodeType.Element &&
-            attributeCursor.MoveToFirstAttribute())
-        {
-            do
-            {
-                attributes[attributeCursor.Name] = attributeCursor.Value;
-            }
-            while (attributeCursor.MoveToNextAttribute());
-        }
-
-        return new(current.Value.Trim(), attributes);
     }
 
     private enum HtmlXPathAxis
