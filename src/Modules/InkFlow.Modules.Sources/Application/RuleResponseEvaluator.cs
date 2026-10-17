@@ -30,26 +30,19 @@ internal sealed class RuleResponseEvaluator
         foreach (var field in rule.Fields)
         {
             executionCancellationToken.ThrowIfCancellationRequested();
-            if (!TryExtractValue(
+            if (!TryExtractAndTransform(
                 body,
                 field.Selector,
                 field.Attribute,
                 field.Regex,
                 $"rules[{rule.Capability}]['{field.Name}']",
+                field.Transforms,
                 executionCancellationToken,
                 errors,
                 out var extracted))
             {
                 continue;
             }
-            if (extracted is null)
-            {
-                errors.Add($"rules[{rule.Capability}]['{field.Name}']: no match found in response.");
-                continue;
-            }
-
-            extracted = ApplyTransforms(extracted, field.Transforms);
-            executionCancellationToken.ThrowIfCancellationRequested();
 
             resultBytes += Encoding.UTF8.GetByteCount(extracted);
             if (resultBytes > _limits.MaxResultSize)
@@ -92,26 +85,21 @@ internal sealed class RuleResponseEvaluator
         {
             executionCancellationToken.ThrowIfCancellationRequested();
             var errorPrefix = $"{prefix}['{variable.Name}']";
-            if (!TryExtractValue(
+            if (!TryExtractAndTransform(
                 body,
                 variable.Selector,
                 variable.Attribute,
                 variable.Regex,
                 errorPrefix,
+                variable.Transforms,
                 executionCancellationToken,
                 errors,
                 out var extracted))
             {
                 continue;
             }
-            if (extracted is null)
-            {
-                errors.Add($"{errorPrefix}: no match found in response.");
-                continue;
-            }
 
-            candidate[variable.Name] = ApplyTransforms(extracted, variable.Transforms);
-            executionCancellationToken.ThrowIfCancellationRequested();
+            candidate[variable.Name] = extracted;
         }
 
         executionCancellationToken.ThrowIfCancellationRequested();
@@ -141,6 +129,42 @@ internal sealed class RuleResponseEvaluator
         var value = _selectorEvaluator.EvaluateFirst(body, selector, attributeName);
         executionCancellationToken.ThrowIfCancellationRequested();
         return value;
+    }
+
+    private bool TryExtractAndTransform(
+        string body,
+        RuleSelector? selector,
+        string? attribute,
+        RuleRegex? regex,
+        string errorPrefix,
+        IReadOnlyList<RuleTransform> transforms,
+        CancellationToken executionCancellationToken,
+        List<string> errors,
+        out string transformed)
+    {
+        transformed = string.Empty;
+        if (!TryExtractValue(
+                body,
+                selector,
+                attribute,
+                regex,
+                errorPrefix,
+                executionCancellationToken,
+                errors,
+                out var extracted))
+        {
+            return false;
+        }
+
+        if (extracted is null)
+        {
+            errors.Add($"{errorPrefix}: no match found in response.");
+            return false;
+        }
+
+        transformed = ApplyTransforms(extracted, transforms);
+        executionCancellationToken.ThrowIfCancellationRequested();
+        return true;
     }
 
     private bool TryExtractValue(
