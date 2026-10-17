@@ -33,6 +33,8 @@ public sealed class SourceContentService(
 {
     private readonly SourceAdapterReader sourceReader =
         new(adapterFactory, healthReader, healthRecorder);
+    private readonly FetchArtifactRecorder artifactRecorder =
+        new(artifactRepository, clock);
 
     public async Task<ContentFetchOutcome> FetchChapterContentAsync(
         string sourceId, string externalBookId, string externalChapterId,
@@ -81,24 +83,14 @@ public sealed class SourceContentService(
         }
 
         var rawContent = read.Value!;
-        var artifact = FetchArtifact.Capture(
-            sourceId,
-            externalBookId,
-            externalChapterId,
-            rawContent,
-            clock.GetUtcNow());
-
-        var latest = await artifactRepository
-            .GetLatestAsync(sourceId, externalChapterId, cancellationToken)
+        var recorded = await artifactRecorder
+            .RecordAsync(
+                sourceId,
+                externalBookId,
+                externalChapterId,
+                rawContent,
+                cancellationToken)
             .ConfigureAwait(false);
-        if (latest is not null && latest.RawHash == artifact.RawHash)
-        {
-            // 复检:相同哈希也记录本次真实抓取,续期保鲜判定的时间锚点。
-            await artifactRepository.AddAsync(artifact, cancellationToken).ConfigureAwait(false);
-            return ContentFetchOutcome.Ok(artifact, unchanged: true, rawContent);
-        }
-
-        await artifactRepository.AddAsync(artifact, cancellationToken).ConfigureAwait(false);
-        return ContentFetchOutcome.Ok(artifact, unchanged: false, rawContent);
+        return ContentFetchOutcome.Ok(recorded.Artifact, recorded.Unchanged, rawContent);
     }
 }
