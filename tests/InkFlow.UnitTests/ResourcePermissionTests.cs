@@ -217,6 +217,44 @@ public sealed class ResourcePermissionTests
         Assert.IsFalse(context.Permissions.Store.Single().IsActive);
     }
 
+    [TestMethod]
+    public async Task List_Returns_Only_Active_Grants_For_The_Requested_Source()
+    {
+        var context = CreateContext();
+        var first = await context.Service.GrantAsync(
+            context.Administrator.Id,
+            UserRole.Administrator,
+            context.Operator.Id,
+            IdentityResourceTypes.Source,
+            "official-a",
+            IdentityPermissions.SourceRead);
+        var second = await context.Service.GrantAsync(
+            context.Administrator.Id,
+            UserRole.Administrator,
+            context.Operator.Id,
+            IdentityResourceTypes.Source,
+            "official-b",
+            IdentityPermissions.SourceManage);
+
+        await context.Service.RevokeAsync(
+            context.Administrator.Id,
+            UserRole.Administrator,
+            second.Grant!.Id,
+            IdentityResourceTypes.Source,
+            "official-b");
+
+        var result = await context.Service.ListAsync(
+            context.Administrator.Id,
+            UserRole.Administrator,
+            "SOURCE",
+            "official-a",
+            ResourcePermissionService.MaxListLimit);
+
+        Assert.AreEqual(ResourcePermissionListStatus.Success, result.Status);
+        Assert.AreEqual(1, result.Grants.Count);
+        Assert.AreEqual(first.Grant!.Id, result.Grants[0].Id);
+    }
+
     private static TestContext CreateContext()
     {
         var users = new InMemoryUserRepository();

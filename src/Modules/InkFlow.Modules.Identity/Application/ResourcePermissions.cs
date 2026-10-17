@@ -214,144 +214,68 @@ public interface IResourceAuthorizationService
         CancellationToken cancellationToken = default);
 }
 
-public sealed class ResourcePermissionService(
-    IUserRepository users,
-    IResourcePermissionRepository permissions,
-    TimeProvider clock) : IResourcePermissionService
+public sealed class ResourcePermissionService : IResourcePermissionService
 {
     public const int MaxListLimit = 100;
 
-    public async Task<ResourcePermissionOperationResult> GrantAsync(
+    private readonly ResourcePermissionCommands commands;
+    private readonly ResourcePermissionQueries queries;
+
+    public ResourcePermissionService(
+        IUserRepository users,
+        IResourcePermissionRepository permissions,
+        TimeProvider clock)
+    {
+        commands = new(users, permissions, clock);
+        queries = new(permissions);
+    }
+
+    public Task<ResourcePermissionOperationResult> GrantAsync(
         Guid actorId,
         UserRole actorRole,
         Guid targetUserId,
         string? resourceType,
         string? resourceId,
         string? permission,
-        CancellationToken cancellationToken = default)
-    {
-        if (actorId == Guid.Empty || actorRole != UserRole.Administrator)
-        {
-            return ResourcePermissionOperationResult.Failure(
-                ResourcePermissionResultStatus.ActorNotAllowed);
-        }
-
-        if (targetUserId == Guid.Empty ||
-            !IdentityResourceAuthorization.IsSource(resourceType) ||
-            !IdentityResourceAuthorization.TryNormalizeSourceId(resourceId, out var normalizedResourceId) ||
-            !IdentityPermissions.TryNormalizeSourcePermission(permission, out var normalizedPermission))
-        {
-            return ResourcePermissionOperationResult.Failure(
-                ResourcePermissionResultStatus.InvalidRequest);
-        }
-
-        var target = await users.GetAsync(targetUserId, cancellationToken).ConfigureAwait(false);
-        if (target is null)
-        {
-            return ResourcePermissionOperationResult.Failure(
-                ResourcePermissionResultStatus.TargetNotFound);
-        }
-
-        if (!target.CanAuthenticate || target.Role != UserRole.Operator)
-        {
-            return ResourcePermissionOperationResult.Failure(
-                ResourcePermissionResultStatus.TargetNotEligible);
-        }
-
-        var existing = await permissions.FindActiveAsync(
-            targetUserId,
-            IdentityResourceTypes.Source,
-            normalizedResourceId,
-            normalizedPermission,
-            cancellationToken).ConfigureAwait(false);
-        if (existing is not null)
-        {
-            return ResourcePermissionOperationResult.AlreadyGranted(existing);
-        }
-
-        var grant = PermissionGrant.Create(
-            targetUserId,
-            normalizedPermission,
-            IdentityResourceTypes.Source,
-            normalizedResourceId,
+        CancellationToken cancellationToken = default) =>
+        commands.GrantAsync(
             actorId,
-            clock.GetUtcNow());
-        await permissions.AddAsync(grant, cancellationToken).ConfigureAwait(false);
-        return ResourcePermissionOperationResult.Success(grant);
-    }
+            actorRole,
+            targetUserId,
+            resourceType,
+            resourceId,
+            permission,
+            cancellationToken);
 
-    public async Task<ResourcePermissionOperationResult> RevokeAsync(
+    public Task<ResourcePermissionOperationResult> RevokeAsync(
         Guid actorId,
         UserRole actorRole,
         Guid grantId,
         string? resourceType,
         string? resourceId,
-        CancellationToken cancellationToken = default)
-    {
-        if (actorId == Guid.Empty || actorRole != UserRole.Administrator)
-        {
-            return ResourcePermissionOperationResult.Failure(
-                ResourcePermissionResultStatus.ActorNotAllowed);
-        }
+        CancellationToken cancellationToken = default) =>
+        commands.RevokeAsync(
+            actorId,
+            actorRole,
+            grantId,
+            resourceType,
+            resourceId,
+            cancellationToken);
 
-        if (grantId == Guid.Empty ||
-            !IdentityResourceAuthorization.IsSource(resourceType) ||
-            !IdentityResourceAuthorization.TryNormalizeSourceId(resourceId, out var normalizedResourceId))
-        {
-            return ResourcePermissionOperationResult.Failure(
-                ResourcePermissionResultStatus.InvalidRequest);
-        }
-
-        var grant = await permissions.GetAsync(grantId, cancellationToken).ConfigureAwait(false);
-        if (grant is null ||
-            !string.Equals(grant.ResourceType, IdentityResourceTypes.Source, StringComparison.Ordinal) ||
-            !string.Equals(grant.ResourceId, normalizedResourceId, StringComparison.Ordinal))
-        {
-            return ResourcePermissionOperationResult.Failure(
-                ResourcePermissionResultStatus.NotFound);
-        }
-
-        if (!grant.IsActive)
-        {
-            return new ResourcePermissionOperationResult(
-                ResourcePermissionResultStatus.AlreadyRevoked,
-                ResourcePermissionGrantInfo.FromDomain(grant));
-        }
-
-        grant.Revoke(clock.GetUtcNow());
-        await permissions.SaveAsync(grant, cancellationToken).ConfigureAwait(false);
-        return ResourcePermissionOperationResult.Success(grant);
-    }
-
-    public async Task<ResourcePermissionListResult> ListAsync(
+    public Task<ResourcePermissionListResult> ListAsync(
         Guid actorId,
         UserRole actorRole,
         string? resourceType,
         string? resourceId,
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        if (actorId == Guid.Empty || actorRole != UserRole.Administrator)
-        {
-            return ResourcePermissionListResult.Failure(
-                ResourcePermissionListStatus.ActorNotAllowed);
-        }
-
-        if (!IdentityResourceAuthorization.IsSource(resourceType) ||
-            !IdentityResourceAuthorization.TryNormalizeSourceId(resourceId, out var normalizedResourceId) ||
-            limit is < 1 or > MaxListLimit)
-        {
-            return ResourcePermissionListResult.Failure(
-                ResourcePermissionListStatus.InvalidRequest);
-        }
-
-        var grants = await permissions.ListActiveForResourceAsync(
-            IdentityResourceTypes.Source,
-            normalizedResourceId,
+        CancellationToken cancellationToken = default) =>
+        queries.ListAsync(
+            actorId,
+            actorRole,
+            resourceType,
+            resourceId,
             limit,
-            cancellationToken).ConfigureAwait(false);
-        return ResourcePermissionListResult.Success(grants);
-    }
+            cancellationToken);
 }
 
 public sealed class ResourceAuthorizationService(
