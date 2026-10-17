@@ -56,34 +56,19 @@ internal sealed class RulePreRequestExecutor(
             }
             else
             {
-                var buildErrors = RuleRequestBuilder.TryBuildRequest(
+                var buildErrors = RuleRequestBuilder.TryBuildAndPrepareInitialRequest(
                     step.Request,
                     rule.Capability,
                     baseUrl,
                     variables,
                     null,
                     null,
-                    out var request);
+                    sourceOrigin,
+                    credential,
+                    out preparedRequest);
                 if (buildErrors.Count > 0)
                 {
                     return RulePreRequestResult.Failure(buildErrors);
-                }
-
-                if (!RuleRequestBuilder.TryValidateInitialRequest(
-                        request!,
-                        sourceOrigin,
-                        out var requestError))
-                {
-                    return RulePreRequestResult.Failure([requestError]);
-                }
-
-                if (!RuleRequestBuilder.TryApplyCredential(
-                        request!,
-                        credential,
-                        out preparedRequest,
-                        out var credentialError))
-                {
-                    return RulePreRequestResult.Failure([credentialError]);
                 }
             }
 

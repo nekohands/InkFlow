@@ -174,6 +174,48 @@ internal static class RuleRequestBuilder
         return errors;
     }
 
+    public static List<string> TryBuildAndPrepareInitialRequest(
+        RuleRequest requestDefinition,
+        SourceCapability capability,
+        string baseUrl,
+        IReadOnlyDictionary<string, string> variables,
+        string? overrideParameterName,
+        string? overrideParameterValue,
+        Uri sourceOrigin,
+        SourceCredential? credential,
+        out SourceHttpRequest? request)
+    {
+        var errors = TryBuildRequest(
+            requestDefinition,
+            capability,
+            baseUrl,
+            variables,
+            overrideParameterName,
+            overrideParameterValue,
+            out var builtRequest);
+        request = null;
+        if (errors.Count > 0)
+        {
+            return errors;
+        }
+
+        if (!TryValidateInitialRequest(builtRequest!, sourceOrigin, out var requestError))
+        {
+            return [requestError];
+        }
+
+        if (!TryApplyCredential(
+                builtRequest!,
+                credential,
+                out request,
+                out var credentialError))
+        {
+            return [credentialError];
+        }
+
+        return [];
+    }
+
     public static bool TryApplyCredential(
         SourceHttpRequest request,
         SourceCredential? credential,

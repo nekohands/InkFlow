@@ -123,34 +123,19 @@ public sealed class RuleAdapter
             }
             else
             {
-                var mainBuildErrors = RuleRequestBuilder.TryBuildRequest(
+                var mainBuildErrors = RuleRequestBuilder.TryBuildAndPrepareInitialRequest(
                     rule.Request,
                     rule.Capability,
                     plan.BaseUrl,
                     continuationVariables,
                     plan.InitialParameterName,
                     plan.InitialParameterValue,
-                    out var mainRequest);
+                    plan.SourceOrigin,
+                    credentialResolution.Credential,
+                    out preparedMainRequest);
                 if (mainBuildErrors.Count > 0)
                 {
                     return RuleExecutionResult.Fail(mainBuildErrors);
-                }
-
-                if (!RuleRequestBuilder.TryValidateInitialRequest(
-                        mainRequest!,
-                        plan.SourceOrigin,
-                        out var mainRequestError))
-                {
-                    return RuleExecutionResult.Fail([mainRequestError]);
-                }
-
-                if (!RuleRequestBuilder.TryApplyCredential(
-                        mainRequest!,
-                        credentialResolution.Credential,
-                        out preparedMainRequest,
-                        out var mainCredentialError))
-                {
-                    return RuleExecutionResult.Fail([mainCredentialError]);
                 }
             }
 
