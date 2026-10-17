@@ -34,6 +34,7 @@ public sealed class ContentFetchChainService(
     public static readonly TimeSpan DefaultStaleAfter = TimeSpan.FromDays(7);
 
     private readonly TimeSpan _staleAfter = staleAfter ?? DefaultStaleAfter;
+    private readonly ContentFetchTaskEnqueuer _taskEnqueuer = new(taskRepository, collectionRuns);
 
     public async Task<int> EnqueuePendingContentFetchesAsync(
         string sourceId,
@@ -76,45 +77,22 @@ public sealed class ContentFetchChainService(
                      fresh,
                      forceRefresh))
         {
-            if (runId is { } activeRunId && collectionRuns is not null &&
-                !await collectionRuns
-                    .CanScheduleFollowUpAsync(activeRunId, cancellationToken)
-                    .ConfigureAwait(false))
+            var result = await _taskEnqueuer
+                .TryEnqueueAsync(
+                    sourceId,
+                    externalBookId,
+                    candidate,
+                    now,
+                    credentialReferenceId,
+                    runId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (result == ContentFetchEnqueueResult.RunStopped)
             {
                 break;
             }
 
-            var task = CrawlerTask.Create(
-                new CrawlPayload(
-                    sourceId,
-                    SourceCapability.Content,
-                    new Dictionary<string, string>
-                    {
-                        ["bookId"] = externalBookId,
-                        ["chapterId"] = candidate.ExternalChapterId,
-                        ["reason"] = candidate.Reason,
-                    },
-                    credentialReferenceId,
-                    runId),
-                createdAt: now);
-            var inserted = runId is { } runIdForEnqueue
-                ? await taskRepository
-                    .TryAddIfNoConflictingTaskForCollectionRunAsync(
-                        task,
-                        runIdForEnqueue,
-                        "chapterId",
-                        candidate.ExternalChapterId,
-                        cancellationToken,
-                        ignoreDeadLettered: true)
-                    .ConfigureAwait(false)
-                : await taskRepository
-                    .TryAddIfNoConflictingTaskAsync(
-                        task,
-                        "chapterId",
-                        candidate.ExternalChapterId,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            if (inserted)
+            if (result == ContentFetchEnqueueResult.Enqueued)
             {
                 enqueued++;
             }
