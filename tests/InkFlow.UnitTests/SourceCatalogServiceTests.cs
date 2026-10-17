@@ -22,6 +22,7 @@ public sealed class SourceCatalogServiceTests
         public string SourceId { get; init; } = "example-source";
         public string InfoTitle { get; set; } = "剑来";
         public string InfoAuthor { get; set; } = "烽火戏诸侯";
+        public bool ThrowOnBookInfo { get; set; }
         public List<SourceTocEntry> Toc { get; set; } =
         [
             new("c1", 0, "第一章"),
@@ -34,7 +35,14 @@ public sealed class SourceCatalogServiceTests
             => Task.FromResult<IReadOnlyList<SourceSearchResult>>([]);
 
         public Task<SourceBookInfo?> GetBookInfoAsync(string externalBookId, CancellationToken cancellationToken = default)
-            => Task.FromResult<SourceBookInfo?>(new SourceBookInfo(InfoTitle, InfoAuthor));
+        {
+            if (ThrowOnBookInfo)
+            {
+                return Task.FromException<SourceBookInfo?>(new InvalidOperationException("adapter failed"));
+            }
+
+            return Task.FromResult<SourceBookInfo?>(new SourceBookInfo(InfoTitle, InfoAuthor));
+        }
 
         public Task<IReadOnlyList<SourceTocEntry>> GetTableOfContentsAsync(string externalBookId, CancellationToken cancellationToken = default)
         {
@@ -116,6 +124,24 @@ public sealed class SourceCatalogServiceTests
 
         Assert.IsFalse(outcome.IsSuccess);
         StringAssert.Contains(outcome.Errors[0], "does not exist or has no adapter");
+    }
+
+    [TestMethod]
+    public async Task Adapter_Exception_Records_Capability_Failure()
+    {
+        var adapter = new FakeAdapter { ThrowOnBookInfo = true };
+        var health = new RecordingHealth();
+        var service = new SourceCatalogService(
+            new FixedAdapterFactory(adapter),
+            new InMemoryBookRepository(),
+            TimeProvider.System,
+            healthRecorder: health);
+
+        var outcome = await service.ImportBookInfoAsync("example-source", "10001");
+
+        Assert.IsFalse(outcome.IsSuccess);
+        StringAssert.Contains(outcome.Errors.Single(), "source request failed for BookInfo");
+        CollectionAssert.Contains(health.FailureReasons, "adapter-exception");
     }
 
     [TestMethod]

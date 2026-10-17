@@ -22,7 +22,10 @@ public sealed class SourceCatalogService(
     ISourceHealthReader? healthReader = null,
     ISourceHealthRecorder? healthRecorder = null)
 {
-    public const int MaxTocEntries = SourceRuleExecutionLimits.DefaultMaxResultItems;
+    private readonly SourceCatalogSourceReader sourceReader =
+        new(adapterFactory, healthReader, healthRecorder);
+
+    public const int MaxTocEntries = SourceCatalogSourceReader.MaxTocEntries;
 
     /// <summary>
     /// 抓取并导入一本书的元数据。已存在的书更新元数据，否则创建。
@@ -33,55 +36,12 @@ public sealed class SourceCatalogService(
         CancellationToken cancellationToken = default,
         SourceExecutionContext? executionContext = null)
     {
-        if (!IsExecutionContextValid(sourceId, executionContext))
+        var read = await sourceReader
+            .ReadBookInfoAsync(sourceId, externalBookId, cancellationToken, executionContext)
+            .ConfigureAwait(false);
+        if (!read.IsSuccess)
         {
-            return ImportOutcome.Fail(["source: execution context is invalid."]);
-        }
-
-        if (!await IsAvailableAsync(sourceId, SourceCapability.BookInfo, cancellationToken)
-                .ConfigureAwait(false))
-        {
-            return ImportOutcome.Fail(
-                [$"source '{sourceId}' capability BookInfo is unavailable; retry later."]);
-        }
-
-        var adapter = await RequireAdapterAsync(sourceId, cancellationToken).ConfigureAwait(false);
-        if (adapter is null)
-        {
-            return ImportOutcome.Fail([$"source '{sourceId}' does not exist or has no adapter."]);
-        }
-
-        SourceBookInfo? info;
-        try
-        {
-            info = await adapter
-                .GetBookInfoAsync(externalBookId, cancellationToken, executionContext)
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            if (healthRecorder is not null)
-            {
-                await healthRecorder.RecordFailureAsync(
-                    sourceId,
-                    SourceCapability.BookInfo,
-                    "adapter-exception",
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            return ImportOutcome.Fail(["catalog: source request failed for BookInfo."]);
-        }
-
-        if (info is null)
-        {
-            return ImportOutcome.Fail(
-                [$"catalog: book '{sourceId}/{externalBookId}' was not found at the source."]);
-        }
-
-        if (healthRecorder is not null)
-        {
-            await healthRecorder.RecordSuccessAsync(
-                sourceId, SourceCapability.BookInfo, cancellationToken).ConfigureAwait(false);
+            return ImportOutcome.Fail([read.Error!]);
         }
 
         var existing = await sourceBookRepository
@@ -90,12 +50,17 @@ public sealed class SourceCatalogService(
 
         if (existing is null)
         {
-            var created = SourceBook.Create(sourceId, externalBookId, info.Title, info.Author, clock.GetUtcNow());
+            var created = SourceBook.Create(
+                sourceId,
+                externalBookId,
+                read.Value!.Title,
+                read.Value.Author,
+                clock.GetUtcNow());
             await sourceBookRepository.AddAsync(created, cancellationToken).ConfigureAwait(false);
             return ImportOutcome.Ok(created);
         }
 
-        existing.UpdateMetadata(info.Title, info.Author, clock.GetUtcNow());
+        existing.UpdateMetadata(read.Value!.Title, read.Value.Author, clock.GetUtcNow());
         await sourceBookRepository.SaveAsync(existing, cancellationToken).ConfigureAwait(false);
         return ImportOutcome.Ok(existing);
     }
@@ -107,79 +72,12 @@ public sealed class SourceCatalogService(
         CancellationToken cancellationToken = default,
         SourceExecutionContext? executionContext = null)
     {
-        if (!IsExecutionContextValid(sourceId, executionContext))
+        var read = await sourceReader
+            .ReadTocAsync(sourceId, externalBookId, cancellationToken, executionContext)
+            .ConfigureAwait(false);
+        if (!read.IsSuccess)
         {
-            return ImportOutcome.Fail(["source: execution context is invalid."]);
-        }
-
-        if (!await IsAvailableAsync(sourceId, SourceCapability.Toc, cancellationToken)
-                .ConfigureAwait(false))
-        {
-            return ImportOutcome.Fail(
-                [$"source '{sourceId}' capability Toc is unavailable; retry later."]);
-        }
-
-        var adapter = await RequireAdapterAsync(sourceId, cancellationToken).ConfigureAwait(false);
-        if (adapter is null)
-        {
-            return ImportOutcome.Fail([$"source '{sourceId}' does not exist or has no adapter."]);
-        }
-
-        IReadOnlyList<SourceTocEntry> toc;
-        try
-        {
-            toc = await adapter
-                .GetTableOfContentsAsync(externalBookId, cancellationToken, executionContext)
-                .ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            if (healthRecorder is not null)
-            {
-                await healthRecorder.RecordFailureAsync(
-                    sourceId,
-                    SourceCapability.Toc,
-                    "adapter-exception",
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            return ImportOutcome.Fail(["catalog: source request failed for Toc."]);
-        }
-
-        if (toc.Count == 0)
-        {
-            if (healthRecorder is not null)
-            {
-                await healthRecorder.RecordFailureAsync(
-                    sourceId,
-                    SourceCapability.Toc,
-                    "empty-toc",
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            return ImportOutcome.Fail(
-                [$"catalog: no chapters returned for book '{sourceId}/{externalBookId}'."]);
-        }
-
-        if (toc.Count > MaxTocEntries)
-        {
-            if (healthRecorder is not null)
-            {
-                await healthRecorder.RecordFailureAsync(
-                    sourceId,
-                    SourceCapability.Toc,
-                    "toc-result-too-large",
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            return ImportOutcome.Fail(
-                [$"catalog: Toc result exceeds maximum of {MaxTocEntries} entries."]);
-        }
-
-        if (healthRecorder is not null)
-        {
-            await healthRecorder.RecordSuccessAsync(
-                sourceId, SourceCapability.Toc, cancellationToken).ConfigureAwait(false);
+            return ImportOutcome.Fail([read.Error!]);
         }
 
         var existing = await sourceBookRepository
@@ -193,25 +91,9 @@ public sealed class SourceCatalogService(
         }
 
         existing.SyncChapters(
-            toc.Select(c => (c.ExternalChapterId, c.Title)), clock.GetUtcNow());
+            read.Value!.Select(c => (c.ExternalChapterId, c.Title)),
+            clock.GetUtcNow());
         await sourceBookRepository.SaveAsync(existing, cancellationToken).ConfigureAwait(false);
         return ImportOutcome.Ok(existing);
     }
-
-    private Task<bool> IsAvailableAsync(
-        string sourceId,
-        SourceCapability capability,
-        CancellationToken cancellationToken) =>
-        healthReader is null
-            ? Task.FromResult(true)
-            : healthReader.IsAvailableAsync(sourceId, capability, cancellationToken);
-
-    private Task<ISourceAdapter?> RequireAdapterAsync(string sourceId, CancellationToken cancellationToken) =>
-        adapterFactory.GetAdapterAsync(sourceId, cancellationToken);
-
-    private static bool IsExecutionContextValid(
-        string sourceId,
-        SourceExecutionContext? executionContext) =>
-        executionContext is null ||
-        string.Equals(executionContext.SourceId, sourceId, StringComparison.Ordinal);
 }
