@@ -310,6 +310,74 @@ public sealed class BookPackageServiceTests
     }
 
     [TestMethod]
+    public async Task ExpireOld_Expires_Completed_Jobs_And_Removes_Artifacts()
+    {
+        var root = Path.Combine(
+            Path.GetTempPath(),
+            $"inkflow-package-expiry-test-{Guid.NewGuid():N}");
+        var options = new BookPackageOptions(
+            root,
+            MaxChapters: 100,
+            MaxPackageBytes: 1_000_000,
+            Retention: TimeSpan.FromDays(7),
+            LeaseDuration: TimeSpan.FromMinutes(10));
+        var artifacts = new FileBookPackageArtifactStore(options);
+        var jobId = Guid.CreateVersion7();
+        var artifactFileName = artifacts.GetArtifactFileName(
+            jobId,
+            leaseAttempt: 1,
+            BookPackageFormat.Txt);
+        var job = BookPackageJob.Rehydrate(
+            jobId,
+            Guid.NewGuid(),
+            BookPackageFormat.Txt,
+            BookPackageJobStatus.Completed,
+            attemptCount: 1,
+            maxAttempts: 3,
+            scheduledAt: null,
+            leaseOwner: null,
+            leaseExpiresAt: null,
+            totalChapterCount: 1,
+            completedChapterCount: 1,
+            artifactFileName,
+            artifactSha256: "hash",
+            artifactLength: 1,
+            failureReason: null,
+            createdAt: T0.AddDays(-2),
+            updatedAt: T0.AddDays(-1),
+            expiresAt: T0.AddMinutes(-1));
+        var jobs = new InMemoryPackageJobRepository();
+        jobs.Items.Add(job);
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(artifacts.GetArtifactPath(artifactFileName), "artifact");
+
+        var service = new BookPackageService(
+            jobs,
+            null!,
+            null!,
+            null!,
+            null!,
+            artifacts,
+            options,
+            new FixedClock(T0));
+
+        try
+        {
+            await service.ExpireOldAsync();
+
+            Assert.AreEqual(BookPackageJobStatus.Expired, job.Status);
+            Assert.IsFalse(File.Exists(artifacts.GetArtifactPath(artifactFileName)));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public void Artifact_Store_Only_Allows_Generated_Artifact_Names()
     {
         var root = Path.Combine(

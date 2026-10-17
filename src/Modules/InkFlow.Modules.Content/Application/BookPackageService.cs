@@ -167,15 +167,7 @@ public sealed class BookPackageService(
             .ConfigureAwait(false);
         foreach (var job in jobsToExpire)
         {
-            if (job.ArtifactFileName is { } fileName)
-            {
-                await artifacts
-                    .DeleteIfExistsAsync(artifacts.GetArtifactPath(fileName), cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            job.Expire(clock.GetUtcNow());
-            await jobs.SaveAsync(job, cancellationToken).ConfigureAwait(false);
+            await ExpireIfNeededAsync(job, cancellationToken).ConfigureAwait(false);
         }
     }
 
