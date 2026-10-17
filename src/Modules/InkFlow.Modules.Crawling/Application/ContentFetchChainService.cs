@@ -70,7 +70,11 @@ public sealed class ContentFetchChainService(
 
         var enqueued = 0;
         var forceRefresh = runId is not null;
-        foreach (var id in chapterIds)
+        foreach (var candidate in ContentFetchPlanner.Plan(
+                     chapterIds,
+                     fetched,
+                     fresh,
+                     forceRefresh))
         {
             if (runId is { } activeRunId && collectionRuns is not null &&
                 !await collectionRuns
@@ -80,13 +84,6 @@ public sealed class ContentFetchChainService(
                 break;
             }
 
-            var neverFetched = !fetched.Contains(id);
-            var stale = fetched.Contains(id) && !fresh.Contains(id);
-            if (!forceRefresh && !neverFetched && !stale)
-            {
-                continue;
-            }
-
             var task = CrawlerTask.Create(
                 new CrawlPayload(
                     sourceId,
@@ -94,10 +91,8 @@ public sealed class ContentFetchChainService(
                     new Dictionary<string, string>
                     {
                         ["bookId"] = externalBookId,
-                        ["chapterId"] = id,
-                        ["reason"] = forceRefresh
-                            ? "collection-run"
-                            : neverFetched ? "new" : "refetch",
+                        ["chapterId"] = candidate.ExternalChapterId,
+                        ["reason"] = candidate.Reason,
                     },
                     credentialReferenceId,
                     runId),
@@ -108,7 +103,7 @@ public sealed class ContentFetchChainService(
                         task,
                         runIdForEnqueue,
                         "chapterId",
-                        id,
+                        candidate.ExternalChapterId,
                         cancellationToken,
                         ignoreDeadLettered: true)
                     .ConfigureAwait(false)
@@ -116,7 +111,7 @@ public sealed class ContentFetchChainService(
                     .TryAddIfNoConflictingTaskAsync(
                         task,
                         "chapterId",
-                        id,
+                        candidate.ExternalChapterId,
                         cancellationToken)
                     .ConfigureAwait(false);
             if (inserted)
