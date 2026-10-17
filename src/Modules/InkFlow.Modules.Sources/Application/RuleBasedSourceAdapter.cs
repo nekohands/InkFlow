@@ -151,12 +151,11 @@ public sealed class RuleBasedSourceAdapter : ISourceAdapter
         }
 
         // v1:Content 规则模板仅依赖 chapterId;bookId 上下文随章节映射增强后提供。
-        var result = await _ruleAdapter
-            .ExecuteAsync(
-                rule, _source.BaseUrl,
+        var result = await ExecuteWithVariablesAsync(
+                rule,
                 new Dictionary<string, string> { ["chapterId"] = externalChapterId },
                 cancellationToken,
-                NormalizeExecutionContext(executionContext))
+                executionContext)
             .ConfigureAwait(false);
 
         return result.IsSuccess && result.Values.TryGetValue("content", out var content)
