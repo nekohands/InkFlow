@@ -152,33 +152,18 @@ internal sealed class RulePaginationExecutor
                                 ["pagination: generated page value exceeds the allowed range."]);
                         }
 
-                        var pageBuildErrors = RuleRequestBuilder.TryBuildRequest(
+                        var continuationErrors = TryBuildVariableContinuationRequest(
                             rule,
                             baseUrl,
-                            continuationVariables,
+                            sourceOrigin,
                             pagination.ParameterName,
                             nextPageValue.ToString(CultureInfo.InvariantCulture),
-                            out var nextRequest);
-                        if (pageBuildErrors.Count > 0)
+                            continuationVariables,
+                            credential,
+                            out var preparedNextRequest);
+                        if (continuationErrors.Count > 0)
                         {
-                            return RuleExecutionResult.Fail(pageBuildErrors);
-                        }
-
-                        if (!RuleRequestBuilder.TryApplyCredential(
-                                nextRequest!,
-                                credential,
-                                out var preparedNextRequest,
-                                out var pageCredentialError))
-                        {
-                            return RuleExecutionResult.Fail([pageCredentialError]);
-                        }
-
-                        if (!RuleRequestBuilder.TryValidateContinuationRequest(
-                                preparedNextRequest!,
-                                sourceOrigin,
-                                out var continuationError))
-                        {
-                            return RuleExecutionResult.Fail([continuationError]);
+                            return RuleExecutionResult.Fail(continuationErrors);
                         }
 
                         currentRequest = preparedNextRequest!;
@@ -234,33 +219,18 @@ internal sealed class RulePaginationExecutor
                             return RuleExecutionResult.Fail(["pagination: cursor cycle detected."]);
                         }
 
-                        var cursorBuildErrors = RuleRequestBuilder.TryBuildRequest(
+                        var continuationErrors = TryBuildVariableContinuationRequest(
                             rule,
                             baseUrl,
-                            continuationVariables,
+                            sourceOrigin,
                             pagination.ParameterName,
                             cursor,
-                            out var nextRequest);
-                        if (cursorBuildErrors.Count > 0)
+                            continuationVariables,
+                            credential,
+                            out var preparedNextRequest);
+                        if (continuationErrors.Count > 0)
                         {
-                            return RuleExecutionResult.Fail(cursorBuildErrors);
-                        }
-
-                        if (!RuleRequestBuilder.TryApplyCredential(
-                                nextRequest!,
-                                credential,
-                                out var preparedNextRequest,
-                                out var cursorCredentialError))
-                        {
-                            return RuleExecutionResult.Fail([cursorCredentialError]);
-                        }
-
-                        if (!RuleRequestBuilder.TryValidateContinuationRequest(
-                                preparedNextRequest!,
-                                sourceOrigin,
-                                out var continuationError))
-                        {
-                            return RuleExecutionResult.Fail([continuationError]);
+                            return RuleExecutionResult.Fail(continuationErrors);
                         }
 
                         currentRequest = preparedNextRequest!;
@@ -271,6 +241,50 @@ internal sealed class RulePaginationExecutor
                     return RuleExecutionResult.Fail(["pagination: mode is not supported."]);
             }
         }
+    }
+
+    private static List<string> TryBuildVariableContinuationRequest(
+        CapabilityRule rule,
+        string baseUrl,
+        Uri sourceOrigin,
+        string? parameterName,
+        string parameterValue,
+        IReadOnlyDictionary<string, string> variables,
+        SourceCredential? credential,
+        out SourceHttpRequest? request)
+    {
+        var errors = RuleRequestBuilder.TryBuildRequest(
+            rule,
+            baseUrl,
+            variables,
+            parameterName,
+            parameterValue,
+            out var builtRequest);
+        request = null;
+        if (errors.Count > 0)
+        {
+            return errors;
+        }
+
+        if (!RuleRequestBuilder.TryApplyCredential(
+                builtRequest!,
+                credential,
+                out var preparedRequest,
+                out var credentialError))
+        {
+            return [credentialError];
+        }
+
+        if (!RuleRequestBuilder.TryValidateContinuationRequest(
+                preparedRequest!,
+                sourceOrigin,
+                out var continuationError))
+        {
+            return [continuationError];
+        }
+
+        request = preparedRequest;
+        return [];
     }
 
     private RuleExecutionResult CompletePagination(
