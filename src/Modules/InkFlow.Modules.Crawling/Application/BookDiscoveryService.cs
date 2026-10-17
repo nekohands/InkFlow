@@ -40,6 +40,8 @@ public sealed class BookDiscoveryService(
 {
     private readonly BookDiscoverySourceReader sourceReader =
         new(adapterFactory, healthReader);
+    private readonly BookDiscoveryHitProcessor hitProcessor =
+        new(catalog, matching);
 
     public const int MaxQueryLength = 256;
     public const int MaxSourceHits = 100;
@@ -97,38 +99,26 @@ public sealed class BookDiscoveryService(
                             break;
                         }
 
-                        var import = await catalog
-                            .ImportBookInfoAsync(source.Id, hit.ExternalBookId, cancellationToken)
+                        var processed = await hitProcessor
+                            .ProcessAsync(source.Id, hit, cancellationToken)
                             .ConfigureAwait(false);
+                        warnings.AddRange(processed.Warnings);
 
-                        if (!import.IsSuccess)
+                        if (!processed.IsSuccess)
                         {
-                            warnings.Add($"import: source '{source.Id}' book '{hit.ExternalBookId}': " +
-                                         string.Join("; ", import.Errors));
                             continue;
                         }
 
-                        var match = await matching
-                            .CreateOrMatchAsync(source.Id, hit.ExternalBookId, cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (!match.IsSuccess || match.Book is null)
+                        if (processed.NewlyCreated)
                         {
-                            warnings.Add($"match: source '{source.Id}' book '{hit.ExternalBookId}': " +
-                                         string.Join("; ", match.Errors));
-                            continue;
+                            newlyCreated.Add(processed.Book!.Id);
                         }
 
-                        if (match.NewlyCreated)
-                        {
-                            newlyCreated.Add(match.Book.Id);
-                        }
-
-                        if (byCanonical.TryGetValue(match.Book.Id, out var existing))
+                        if (byCanonical.TryGetValue(processed.Book!.Id, out var existing))
                         {
                             if (!existing.SourceIds.Contains(source.Id))
                             {
-                                byCanonical[match.Book.Id] = existing with
+                                byCanonical[processed.Book.Id] = existing with
                                 {
                                     SourceIds = [.. existing.SourceIds, source.Id],
                                 };
@@ -136,12 +126,12 @@ public sealed class BookDiscoveryService(
                         }
                         else
                         {
-                            byCanonical[match.Book.Id] = new DiscoveredBook(
-                                match.Book.Id,
-                                match.Book.Title,
-                                match.Book.Author,
+                            byCanonical[processed.Book.Id] = new DiscoveredBook(
+                                processed.Book.Id,
+                                processed.Book.Title,
+                                processed.Book.Author,
                                 [source.Id],
-                                AlreadyInLibrary: !newlyCreated.Contains(match.Book.Id));
+                                AlreadyInLibrary: !newlyCreated.Contains(processed.Book.Id));
                         }
                     }
 
