@@ -70,33 +70,46 @@ internal sealed class RulePaginationExecutor
             var response = responseResult.Response!;
             pageBodies.Add(response.Body);
 
+            if (pagination.Mode is not (RulePaginationMode.NextLink or
+                RulePaginationMode.PageNumber or
+                RulePaginationMode.Cursor))
+            {
+                return RuleExecutionResult.Fail(["pagination: mode is not supported."]);
+            }
+
+            var continuationValue = pagination.Mode == RulePaginationMode.Cursor
+                ? _responseEvaluator.EvaluateFirst(
+                    response.Body,
+                    pagination.CursorSelector!,
+                    pagination.CursorAttribute,
+                    executionCancellationToken)
+                : _responseEvaluator.EvaluateFirst(
+                    response.Body,
+                    pagination.NextPageSelector!,
+                    pagination.NextPageAttribute,
+                    executionCancellationToken);
+            if (string.IsNullOrWhiteSpace(continuationValue))
+            {
+                return CompletePagination(rule, pageBodies, executionCancellationToken);
+            }
+
+            if (!RuleRequestBuilder.TryContinueAfterPage(
+                    page,
+                    requestsUsed,
+                    pagination,
+                    _limits,
+                    out var limitError))
+            {
+                return RuleExecutionResult.Fail([limitError]);
+            }
+
             switch (pagination.Mode)
             {
                 case RulePaginationMode.NextLink:
                     {
-                        var nextLink = _responseEvaluator.EvaluateFirst(
-                            response.Body,
-                            pagination.NextPageSelector!,
-                            pagination.NextPageAttribute,
-                            executionCancellationToken);
-                        if (string.IsNullOrWhiteSpace(nextLink))
-                        {
-                            return CompletePagination(rule, pageBodies, executionCancellationToken);
-                        }
-
-                        if (!RuleRequestBuilder.TryContinueAfterPage(
-                                page,
-                                requestsUsed,
-                                pagination,
-                                _limits,
-                                out var limitError))
-                        {
-                            return RuleExecutionResult.Fail([limitError]);
-                        }
-
                         if (!RuleRequestBuilder.TryBuildNextRequest(
                                 currentRequest,
-                                nextLink,
+                                continuationValue!,
                                 sourceOrigin,
                                 out var nextRequest,
                                 out var nextRequestError))
@@ -110,29 +123,8 @@ internal sealed class RulePaginationExecutor
 
                 case RulePaginationMode.PageNumber:
                     {
-                        var hasNextPage = _responseEvaluator.EvaluateFirst(
-                            response.Body,
-                            pagination.NextPageSelector!,
-                            pagination.NextPageAttribute,
-                            executionCancellationToken);
-                        if (string.IsNullOrWhiteSpace(hasNextPage))
-                        {
-                            return CompletePagination(rule, pageBodies, executionCancellationToken);
-                        }
-
-                        if (!RuleRequestBuilder.TryContinueAfterPage(
-                                page,
-                                requestsUsed,
-                                pagination,
-                                _limits,
-                                out var limitError))
-                        {
-                            return RuleExecutionResult.Fail([limitError]);
-                        }
-
-                        var responseVariableErrors = _responseEvaluator.TryBuildResponseVariables(
-                            rule.ResponseVariables,
-                            $"rules[{rule.Capability}] responseVariables",
+                        var responseVariableErrors = TryUpdateContinuationVariables(
+                            rule,
                             response.Body,
                             continuationVariables,
                             executionCancellationToken,
@@ -172,29 +164,8 @@ internal sealed class RulePaginationExecutor
 
                 case RulePaginationMode.Cursor:
                     {
-                        var rawCursor = _responseEvaluator.EvaluateFirst(
-                            response.Body,
-                            pagination.CursorSelector!,
-                            pagination.CursorAttribute,
-                            executionCancellationToken);
-                        if (string.IsNullOrWhiteSpace(rawCursor))
-                        {
-                            return CompletePagination(rule, pageBodies, executionCancellationToken);
-                        }
-
-                        if (!RuleRequestBuilder.TryContinueAfterPage(
-                                page,
-                                requestsUsed,
-                                pagination,
-                                _limits,
-                                out var limitError))
-                        {
-                            return RuleExecutionResult.Fail([limitError]);
-                        }
-
-                        var responseVariableErrors = _responseEvaluator.TryBuildResponseVariables(
-                            rule.ResponseVariables,
-                            $"rules[{rule.Capability}] responseVariables",
+                        var responseVariableErrors = TryUpdateContinuationVariables(
+                            rule,
                             response.Body,
                             continuationVariables,
                             executionCancellationToken,
@@ -206,7 +177,7 @@ internal sealed class RulePaginationExecutor
 
                         continuationVariables = updatedVariables!;
 
-                        var cursor = rawCursor.Trim();
+                        var cursor = continuationValue!.Trim();
                         if (cursor.Length > SourceRuleDslValidator.MaxPaginationCursorLength ||
                             cursor.Any(char.IsControl))
                         {
@@ -242,6 +213,20 @@ internal sealed class RulePaginationExecutor
             }
         }
     }
+
+    private List<string> TryUpdateContinuationVariables(
+        CapabilityRule rule,
+        string body,
+        IReadOnlyDictionary<string, string> currentVariables,
+        CancellationToken executionCancellationToken,
+        out Dictionary<string, string>? updatedVariables) =>
+        _responseEvaluator.TryBuildResponseVariables(
+            rule.ResponseVariables,
+            $"rules[{rule.Capability}] responseVariables",
+            body,
+            currentVariables,
+            executionCancellationToken,
+            out updatedVariables);
 
     private static List<string> TryBuildVariableContinuationRequest(
         CapabilityRule rule,
