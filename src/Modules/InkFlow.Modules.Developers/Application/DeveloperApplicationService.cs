@@ -9,57 +9,29 @@ public sealed class DeveloperApplicationService(
     IDeveloperUserStatusReader users,
     TimeProvider clock) : IDeveloperApplicationService, IDeveloperApiKeyValidator
 {
+    private readonly DeveloperApplicationCommands applicationCommands =
+        new(applications, users, clock);
+    private readonly DeveloperApplicationQueries applicationQueries =
+        new(applications);
     private readonly DeveloperApiKeyUseCases apiKeys =
         new(applications, keys, secrets, users, clock);
 
-    public async Task<DeveloperOperationResult<DeveloperApplicationView>> CreateApplicationAsync(
+    public Task<DeveloperOperationResult<DeveloperApplicationView>> CreateApplicationAsync(
         Guid userId,
         string? name,
-        CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty || !await users.IsActiveAsync(userId, cancellationToken).ConfigureAwait(false))
-        {
-            return DeveloperOperationResult<DeveloperApplicationView>.Failure(
-                DeveloperOperationStatus.InvalidRequest);
-        }
+        CancellationToken cancellationToken = default) =>
+        applicationCommands.CreateAsync(userId, name, cancellationToken);
 
-        try
-        {
-            var application = DeveloperApplication.Create(userId, name ?? string.Empty, clock.GetUtcNow());
-            if (!await applications.AddAsync(application, cancellationToken).ConfigureAwait(false))
-            {
-                return DeveloperOperationResult<DeveloperApplicationView>.Failure(
-                    DeveloperOperationStatus.LimitReached);
-            }
-
-            return DeveloperOperationResult<DeveloperApplicationView>.Success(ToView(application));
-        }
-        catch (ArgumentException)
-        {
-            return DeveloperOperationResult<DeveloperApplicationView>.Failure(
-                DeveloperOperationStatus.InvalidRequest);
-        }
-    }
-
-    public async Task<IReadOnlyList<DeveloperApplicationView>> ListApplicationsAsync(
+    public Task<IReadOnlyList<DeveloperApplicationView>> ListApplicationsAsync(
         Guid userId,
-        CancellationToken cancellationToken = default)
-    {
-        var items = await applications.ListForUserAsync(userId, cancellationToken).ConfigureAwait(false);
-        return items.Select(ToView).ToList();
-    }
+        CancellationToken cancellationToken = default) =>
+        applicationQueries.ListAsync(userId, cancellationToken);
 
-    public async Task<DeveloperOperationStatus> RevokeApplicationAsync(
+    public Task<DeveloperOperationStatus> RevokeApplicationAsync(
         Guid userId,
         Guid applicationId,
         CancellationToken cancellationToken = default) =>
-        await applications.RevokeAsync(
-            userId,
-            applicationId,
-            clock.GetUtcNow(),
-            cancellationToken).ConfigureAwait(false)
-            ? DeveloperOperationStatus.Success
-            : DeveloperOperationStatus.NotFound;
+        applicationCommands.RevokeAsync(userId, applicationId, cancellationToken);
 
     public Task<DeveloperOperationResult<IssuedDeveloperApiKey>> IssueKeyAsync(
         Guid userId,
@@ -94,14 +66,5 @@ public sealed class DeveloperApplicationService(
         string rawKey,
         CancellationToken cancellationToken = default) =>
         apiKeys.ValidateAsync(rawKey, cancellationToken);
-
-    private static DeveloperApplicationView ToView(DeveloperApplication application) =>
-        new(
-            application.Id,
-            application.UserId,
-            application.Name,
-            application.Environment,
-            application.CreatedAt,
-            application.RevokedAt);
 
 }
