@@ -59,11 +59,11 @@ public sealed class ContentSelectionService(
             // 上游全断时继续提供已有事实内容；首次发布没有 current 时，
             // 仍从全部已落库版本选一个，确保章节不会永远不可读。
             usedFallback = true;
-            selected = current ?? SelectBest(allVersions);
+            selected = current ?? ContentVersionSelector.SelectBest(allVersions);
         }
         else
         {
-            selected = SelectBest(candidates);
+            selected = ContentVersionSelector.SelectBest(candidates);
         }
 
         if (selected is null)
@@ -93,17 +93,6 @@ public sealed class ContentSelectionService(
         await decisions.AddAsync(decision, cancellationToken).ConfigureAwait(false);
 
         return ContentSelectionOutcome.Ok(selected, changed, usedFallback, evidence);
-    }
-
-    private static ContentVersion SelectBest(IReadOnlyList<ContentVersion> candidates)
-    {
-        var best = candidates[0];
-        for (var i = 1; i < candidates.Count; i++)
-        {
-            best = ContentVersion.SelectCurrent(best, candidates[i]);
-        }
-
-        return best;
     }
 
     private static string BuildEvidence(

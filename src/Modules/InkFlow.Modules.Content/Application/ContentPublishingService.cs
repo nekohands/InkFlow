@@ -74,11 +74,7 @@ public sealed class ContentPublishingService(
             .ListForChapterAsync(canonicalChapterId, cancellationToken)
             .ConfigureAwait(false);
 
-        var best = allVersions.Aggregate(
-            (ContentVersion?)null,
-            (current, candidate) => current is null
-                ? candidate
-                : ContentVersion.SelectCurrent(current, candidate));
+        var best = ContentVersionSelector.SelectBest(allVersions);
 
         if (best is not null && !best.IsCurrent)
         {
