@@ -11,7 +11,7 @@ public sealed class RuleAdapter
 {
     private readonly ISourceHttpClient _httpClient;
     private readonly SourceRuleExecutionLimits _limits;
-    private readonly ISourceCredentialProvider? _credentialProvider;
+    private readonly RuleCredentialResolver _credentialResolver;
     private readonly RuleResponseEvaluator _responseEvaluator;
 
     public RuleAdapter(
@@ -22,7 +22,7 @@ public sealed class RuleAdapter
     {
         _httpClient = httpClient;
         _limits = limits ?? SourceRuleExecutionLimits.Default;
-        _credentialProvider = credentialProvider;
+        _credentialResolver = new RuleCredentialResolver(credentialProvider);
         _limits.Validate();
         _responseEvaluator = new RuleResponseEvaluator(selectorEvaluator, _limits);
     }
@@ -132,7 +132,7 @@ public sealed class RuleAdapter
         try
         {
             // 只有请求结构、SSRF 和执行预算都通过后才解析 secret，减少不必要的敏感材料驻留。
-            var credentialResolution = await ResolveCredentialAsync(
+            var credentialResolution = await _credentialResolver.ResolveAsync(
                     executionContext,
                     cancellationToken,
                     executionCancellation.Token)
@@ -525,83 +525,6 @@ public sealed class RuleAdapter
         catch (OperationCanceledException) when (executionCancellation.IsCancellationRequested)
         {
             return RuleExecutionResult.Fail(["execution: time budget exceeded."]);
-        }
-    }
-
-    private async Task<(SourceCredential? Credential, string? Error)> ResolveCredentialAsync(
-        SourceExecutionContext? executionContext,
-        CancellationToken callerCancellationToken,
-        CancellationToken executionCancellationToken)
-    {
-        if (executionContext is null)
-        {
-            return (null, null);
-        }
-
-        if (!executionContext.HasCredentialReference)
-        {
-            return executionContext.CredentialOwnerScope is null ||
-                   executionContext.EffectiveCredentialOwnerScope.IsValid
-                ? (null, null)
-                : (null, "credential: credential owner scope is invalid.");
-        }
-
-        var referenceId = executionContext.CredentialReferenceId!;
-        if (string.IsNullOrWhiteSpace(executionContext.SourceId) ||
-            executionContext.SourceId.Any(char.IsControl))
-        {
-            return (null, "credential: source execution context is invalid.");
-        }
-
-        if (!SourceCredentialReference.IsValid(referenceId))
-        {
-            return (null, "credential: credential reference is invalid.");
-        }
-
-        var ownerScope = executionContext.EffectiveCredentialOwnerScope;
-        if (!ownerScope.IsValid)
-        {
-            return (null, "credential: credential owner scope is invalid.");
-        }
-
-        var resolutionContext = new SourceCredentialResolutionContext(
-            executionContext.SourceId,
-            referenceId,
-            ownerScope);
-        if (!resolutionContext.IsValid)
-        {
-            return (null, "credential: credential resolution context is invalid.");
-        }
-
-        if (_credentialProvider is null)
-        {
-            return (null, "credential: credential provider is unavailable.");
-        }
-
-        try
-        {
-            var credential = await _credentialProvider
-                .ResolveAsync(
-                    resolutionContext,
-                    executionCancellationToken)
-                .WaitAsync(executionCancellationToken)
-                .ConfigureAwait(false);
-            return credential is null
-                ? (null, "credential: credential reference is unavailable.")
-                : (credential, null);
-        }
-        catch (OperationCanceledException) when (callerCancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (OperationCanceledException) when (executionCancellationToken.IsCancellationRequested)
-        {
-            return (null, "credential: credential resolution timed out.");
-        }
-        catch
-        {
-            // Provider exceptions may contain secret-store details; never expose them to the caller.
-            return (null, "credential: credential resolution failed.");
         }
     }
 
