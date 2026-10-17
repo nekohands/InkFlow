@@ -38,6 +38,9 @@ public sealed class BookDiscoveryService(
     CanonicalBookMatchingService matching,
     ISourceHealthReader? healthReader = null)
 {
+    private readonly BookDiscoverySourceReader sourceReader =
+        new(adapterFactory, healthReader);
+
     public const int MaxQueryLength = 256;
     public const int MaxSourceHits = 100;
     public const int MaxDiscoveredBooks = 100;
@@ -80,53 +83,12 @@ public sealed class BookDiscoveryService(
 
                 try
                 {
-                    if (!source.IsEnabled)
-                    {
-                        warnings.Add($"search: source '{source.Id}' skipped (source disabled).");
-                        continue;
-                    }
-
-                    if (healthReader is not null && !await healthReader
-                            .IsAvailableAsync(source.Id, SourceCapability.Search, cancellationToken)
-                            .ConfigureAwait(false))
-                    {
-                        warnings.Add($"search: source '{source.Id}' skipped (Search capability unavailable).");
-                        continue;
-                    }
-
-                    var adapter = await adapterFactory
-                        .GetAdapterAsync(source.Id, cancellationToken)
+                    var read = await sourceReader
+                        .ReadAsync(source, keyword, MaxSourceHits, cancellationToken)
                         .ConfigureAwait(false);
-                    if (adapter is null)
-                    {
-                        warnings.Add($"search: source '{source.Id}' skipped (no usable adapter).");
-                        continue;
-                    }
+                    warnings.AddRange(read.Warnings);
 
-                    IReadOnlyList<SourceSearchResult> hits;
-                    try
-                    {
-                        hits = await adapter.SearchAsync(keyword, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
-                    {
-                        warnings.Add(CreateFailureWarning("search", source.Id));
-                        continue;
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        warnings.Add(CreateFailureWarning("search", source.Id));
-                        continue;
-                    }
-
-                    if (hits.Count > MaxSourceHits)
-                    {
-                        warnings.Add(
-                            $"search: source '{source.Id}' results truncated at {MaxSourceHits}.");
-                        hits = hits.Take(MaxSourceHits).ToArray();
-                    }
-
-                    foreach (var hit in hits)
+                    foreach (var hit in read.Hits)
                     {
                         if (byCanonical.Count >= MaxDiscoveredBooks)
                         {
