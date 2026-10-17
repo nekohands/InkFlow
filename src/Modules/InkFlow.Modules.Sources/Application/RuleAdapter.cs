@@ -13,6 +13,7 @@ public sealed class RuleAdapter
     private readonly SourceRuleExecutionLimits _limits;
     private readonly RuleCredentialResolver _credentialResolver;
     private readonly RuleResponseEvaluator _responseEvaluator;
+    private readonly RulePreRequestExecutor _preRequestExecutor;
     private readonly RulePaginationExecutor _paginationExecutor;
 
     public RuleAdapter(
@@ -26,6 +27,7 @@ public sealed class RuleAdapter
         _credentialResolver = new RuleCredentialResolver(credentialProvider);
         _limits.Validate();
         _responseEvaluator = new RuleResponseEvaluator(selectorEvaluator, _limits);
+        _preRequestExecutor = new RulePreRequestExecutor(_limits, _responseEvaluator);
         _paginationExecutor = new RulePaginationExecutor(_limits, _responseEvaluator);
     }
 
@@ -154,81 +156,30 @@ public sealed class RuleAdapter
                 executionCancellation.Token);
             var requestCount = 0;
 
-            for (var preIndex = 0; preIndex < preRequests.Count; preIndex++)
+            if (preRequests.Count > 0)
             {
-                var step = preRequests[preIndex];
-                SourceHttpRequest? preparedStepRequest;
-                if (preIndex == 0)
-                {
-                    if (!RuleRequestBuilder.TryApplyCredential(
-                            firstRequest!,
-                            credentialResolution.Credential,
-                            out preparedStepRequest,
-                            out var firstCredentialError))
-                    {
-                        return RuleExecutionResult.Fail([firstCredentialError]);
-                    }
-                }
-                else
-                {
-                    var stepBuildErrors = RuleRequestBuilder.TryBuildRequest(
-                        step.Request,
-                        rule.Capability,
+                var preRequestResult = await _preRequestExecutor
+                    .ExecuteAsync(
+                        preRequests,
+                        rule,
                         baseUrl,
+                        sourceOrigin,
+                        credentialResolution.Credential,
                         continuationVariables,
-                        null,
-                        null,
-                        out var stepRequest);
-                    if (stepBuildErrors.Count > 0)
-                    {
-                        return RuleExecutionResult.Fail(stepBuildErrors);
-                    }
-
-                    if (!RuleRequestBuilder.TryValidateInitialRequest(
-                            stepRequest!,
-                            sourceOrigin,
-                            out var stepRequestError))
-                    {
-                        return RuleExecutionResult.Fail([stepRequestError]);
-                    }
-
-                    if (!RuleRequestBuilder.TryApplyCredential(
-                            stepRequest!,
-                            credentialResolution.Credential,
-                            out preparedStepRequest,
-                            out var stepCredentialError))
-                    {
-                        return RuleExecutionResult.Fail([stepCredentialError]);
-                    }
-                }
-
-                if (requestCount >= _limits.MaxRequests)
-                {
-                    return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
-                }
-
-                requestCount++;
-                var stepResult = await requestExecutor
-                    .SendAsync(preparedStepRequest!, "pre-request")
+                        firstRequest!,
+                        requestExecutor,
+                        requestCount,
+                        executionCancellation.Token)
                     .ConfigureAwait(false);
-                if (stepResult.Error is not null)
+                if (!preRequestResult.IsSuccess)
                 {
-                    return RuleExecutionResult.Fail([stepResult.Error]);
+                    return RuleExecutionResult.Fail(preRequestResult.Errors);
                 }
 
-                var stepVariableErrors = _responseEvaluator.TryBuildResponseVariables(
-                    step.ResponseVariables,
-                    $"rules[{rule.Capability}] preRequests[{preIndex}].responseVariables",
-                    stepResult.Response!.Body,
-                    continuationVariables,
-                    executionCancellation.Token,
-                    out var updatedVariables);
-                if (stepVariableErrors.Count > 0)
-                {
-                    return RuleExecutionResult.Fail(stepVariableErrors);
-                }
-
-                continuationVariables = updatedVariables!;
+                continuationVariables = new Dictionary<string, string>(
+                    preRequestResult.Variables,
+                    StringComparer.Ordinal);
+                requestCount = preRequestResult.RequestsUsed;
             }
 
             SourceHttpRequest? preparedMainRequest;
