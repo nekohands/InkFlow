@@ -81,6 +81,13 @@ public sealed class OperationsCenterReader(
     IConsistencyCheckService consistency,
     TimeProvider clock) : IOperationsCenterReader
 {
+    private readonly OperationsSourceSectionReader sourceReader =
+        new(sourceRepository, sourceHealth);
+    private readonly OperationsCrawlerSectionReader crawlerReader =
+        new(crawlerTasks);
+    private readonly OperationsConsistencySectionReader consistencyReader =
+        new(consistency);
+
     public const int DefaultLimit = 50;
     public const int MaxLimit = 100;
 
@@ -104,7 +111,7 @@ public sealed class OperationsCenterReader(
     public async Task<OperationsSourceStatusResponse> ReadSourcesOnlyAsync(
         CancellationToken cancellationToken = default)
     {
-        var sources = await ReadSourcesAsync(null, cancellationToken).ConfigureAwait(false);
+        var sources = await sourceReader.ReadAsync(null, cancellationToken).ConfigureAwait(false);
         return new(
             clock.GetUtcNow(),
             sources.Status,
@@ -117,10 +124,12 @@ public sealed class OperationsCenterReader(
         CancellationToken cancellationToken)
     {
         var boundedLimit = Math.Clamp(limit, 1, MaxLimit);
-        var sources = await ReadSourcesAsync(allowedSourceIds, cancellationToken)
+        var sources = await sourceReader.ReadAsync(allowedSourceIds, cancellationToken)
             .ConfigureAwait(false);
-        var crawler = await ReadCrawlerAsync(boundedLimit, cancellationToken).ConfigureAwait(false);
-        var consistencyReport = await ReadConsistencyAsync(cancellationToken).ConfigureAwait(false);
+        var crawler = await crawlerReader.ReadAsync(boundedLimit, cancellationToken)
+            .ConfigureAwait(false);
+        var consistencyReport = await consistencyReader.ReadAsync(cancellationToken)
+            .ConfigureAwait(false);
         var status = sources.Status == "ready" &&
                      crawler.Status == "ready" &&
                      consistencyReport.Status == "ready"
@@ -133,108 +142,5 @@ public sealed class OperationsCenterReader(
             sources,
             crawler,
             consistencyReport);
-    }
-
-    private async Task<OperationsSection<IReadOnlyList<OperationsSourceView>>> ReadSourcesAsync(
-        IReadOnlySet<string>? allowedSourceIds,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyList<InkFlow.Modules.Sources.Domain.Source> sources;
-        try
-        {
-            sources = await sourceRepository.ListAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            return OperationsSection<IReadOnlyList<OperationsSourceView>>
-                .Unavailable("sources_unavailable");
-        }
-
-        var visibleSources = allowedSourceIds is null
-            ? sources
-            : sources.Where(source => allowedSourceIds.Contains(source.Id)).ToList();
-        var views = new List<OperationsSourceView>(visibleSources.Count);
-        foreach (var source in visibleSources)
-        {
-            try
-            {
-                var health = await sourceHealth
-                    .ListForSourceAsync(source.Id, cancellationToken)
-                    .ConfigureAwait(false);
-                views.Add(new OperationsSourceView(
-                    source.Id,
-                    source.DisplayName,
-                    "ready",
-                    null,
-                    health.Select(SourceHealthEndpointResults.ToResponse).ToList(),
-                    source.IsEnabled));
-            }
-            catch (Exception) when (!cancellationToken.IsCancellationRequested)
-            {
-                views.Add(new OperationsSourceView(
-                    source.Id,
-                    source.DisplayName,
-                    "unavailable",
-                    "source_health_unavailable",
-                    [],
-                    source.IsEnabled));
-            }
-        }
-
-        var unavailableSourceCount = views.Count(view => view.Status != "ready");
-        return unavailableSourceCount == 0
-            ? OperationsSection<IReadOnlyList<OperationsSourceView>>.Ready(views)
-            : OperationsSection<IReadOnlyList<OperationsSourceView>>.Partial(
-                views,
-                "source_health_unavailable");
-    }
-
-    private async Task<OperationsSection<OperationsCrawlerView>> ReadCrawlerAsync(
-        int limit,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            // 多取一条才能准确表达“还有更多”，但永远只向调用方返回有界数据。
-            var rows = await crawlerTasks
-                .ListDeadLettersAsync(limit + 1, cancellationToken)
-                .ConfigureAwait(false);
-            var hasMore = rows.Count > limit;
-            var deadLetters = rows
-                .Take(limit)
-                .Select(deadLetter => new OperationsDeadLetterView(
-                    deadLetter.Id,
-                    deadLetter.TaskId,
-                    deadLetter.SourceId,
-                    deadLetter.Reason,
-                    deadLetter.AttemptCount,
-                    deadLetter.DeadLetteredAt,
-                    deadLetter.IsReplayed,
-                    deadLetter.ReplayTaskId,
-                    deadLetter.ReplayedAt))
-                .ToList();
-
-            return OperationsSection<OperationsCrawlerView>.Ready(
-                new OperationsCrawlerView(deadLetters.Count, hasMore, deadLetters));
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            return OperationsSection<OperationsCrawlerView>.Unavailable("crawler_unavailable");
-        }
-    }
-
-    private async Task<OperationsSection<ConsistencyCheckReport>> ReadConsistencyAsync(
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return OperationsSection<ConsistencyCheckReport>.Ready(
-                await consistency.CheckAsync(cancellationToken).ConfigureAwait(false));
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            return OperationsSection<ConsistencyCheckReport>
-                .Unavailable("consistency_unavailable");
-        }
     }
 }
