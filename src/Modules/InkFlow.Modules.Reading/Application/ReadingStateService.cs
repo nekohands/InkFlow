@@ -8,40 +8,39 @@ namespace InkFlow.Modules.Reading.Application;
 /// <summary>
 /// 用户阅读状态用例：只接受稳定 Canonical 身份，并在写入前确认书籍仍可公开读取。
 /// </summary>
-public sealed class ReadingStateService(
-    IReadingStateRepository repository,
-    ICanonicalBookRepository books,
-    IContentPolicyReader contentPolicy,
-    TimeProvider clock) : IReadingStateService
+public sealed class ReadingStateService : IReadingStateService
 {
-    private readonly ReadingHistoryQuery history = new(repository, books, contentPolicy);
-    private readonly ReaderPreferenceUseCases preferences = new(repository, clock);
+    private readonly IReadingStateRepository repository;
+    private readonly ICanonicalBookRepository books;
+    private readonly TimeProvider clock;
+    private readonly ReadingBookVisibility visibleBooks;
+    private readonly ReadingShelfQuery shelf;
+    private readonly ReadingHistoryQuery history;
+    private readonly ReaderPreferenceUseCases preferences;
+
+    public ReadingStateService(
+        IReadingStateRepository repository,
+        ICanonicalBookRepository books,
+        IContentPolicyReader contentPolicy,
+        TimeProvider clock)
+    {
+        this.repository = repository;
+        this.books = books;
+        this.clock = clock;
+        visibleBooks = new(books, contentPolicy);
+        shelf = new(repository, books, visibleBooks);
+        history = new(repository, books, visibleBooks);
+        preferences = new(repository, clock);
+    }
 
     public const int DefaultPageSize = 50;
     public const int MaxPageSize = 100;
 
-    public async Task<IReadOnlyList<ReadingShelfItem>> ListShelfAsync(
+    public Task<IReadOnlyList<ReadingShelfItem>> ListShelfAsync(
         Guid userId,
         int limit,
         CancellationToken cancellationToken = default)
-    {
-        ValidateUser(userId);
-        var entries = await repository
-            .ListShelfAsync(userId, BoundLimit(limit), cancellationToken)
-            .ConfigureAwait(false);
-        var result = new List<ReadingShelfItem>(entries.Count);
-
-        foreach (var entry in entries)
-        {
-            var item = await MapShelfEntryAsync(userId, entry, cancellationToken).ConfigureAwait(false);
-            if (item is not null)
-            {
-                result.Add(item);
-            }
-        }
-
-        return result;
-    }
+        => shelf.ListAsync(userId, BoundLimit(limit), cancellationToken);
 
     public async Task<ReadingOperationResult<ReadingShelfItem>> PutShelfAsync(
         Guid userId,
@@ -55,7 +54,7 @@ public sealed class ReadingStateService(
                 ReadingResultStatus.InvalidRequest);
         }
 
-        var summary = await GetVisibleBookSummaryAsync(canonicalBookId, cancellationToken)
+        var summary = await visibleBooks.GetAsync(canonicalBookId, cancellationToken)
             .ConfigureAwait(false);
         if (summary is null)
         {
@@ -77,7 +76,7 @@ public sealed class ReadingStateService(
 
         await repository.UpsertShelfAsync(entry, cancellationToken).ConfigureAwait(false);
         return ReadingOperationResult<ReadingShelfItem>.Ok(
-            await MapShelfEntryAsync(userId, entry, cancellationToken, summary).ConfigureAwait(false)
+            await shelf.MapAsync(userId, entry, cancellationToken, summary).ConfigureAwait(false)
             ?? throw new InvalidOperationException("visible shelf book disappeared during mapping."));
     }
 
@@ -113,7 +112,7 @@ public sealed class ReadingStateService(
             return null;
         }
 
-        var summary = await GetVisibleBookSummaryAsync(canonicalBookId, cancellationToken)
+        var summary = await visibleBooks.GetAsync(canonicalBookId, cancellationToken)
             .ConfigureAwait(false);
         if (summary is null)
         {
@@ -149,7 +148,7 @@ public sealed class ReadingStateService(
                 ReadingResultStatus.InvalidRequest);
         }
 
-        var summary = await GetVisibleBookSummaryAsync(canonicalBookId, cancellationToken)
+        var summary = await visibleBooks.GetAsync(canonicalBookId, cancellationToken)
             .ConfigureAwait(false);
         var chapter = summary is null
             ? null
@@ -219,57 +218,6 @@ public sealed class ReadingStateService(
                 theme,
                 cancellationToken);
 
-    private async Task<ReadingShelfItem?> MapShelfEntryAsync(
-        Guid userId,
-        BookshelfEntry entry,
-        CancellationToken cancellationToken,
-        CanonicalBookSummary? knownSummary = null)
-    {
-        var summary = knownSummary ?? await GetVisibleBookSummaryAsync(
-            entry.CanonicalBookId,
-            cancellationToken).ConfigureAwait(false);
-        if (summary is null)
-        {
-            return null;
-        }
-
-        var progress = await repository
-            .GetProgressAsync(userId, entry.CanonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        var chapter = progress is null
-            ? null
-            : await books.GetChapterAsync(
-                summary.Id,
-                progress.CanonicalChapterId,
-                cancellationToken).ConfigureAwait(false);
-
-        return new ReadingShelfItem(
-            summary.Id,
-            summary.Title,
-            summary.Author,
-            summary.ChapterCount,
-            entry.Status.ToString(),
-            entry.AddedAt,
-            entry.UpdatedAt,
-            chapter?.Id,
-            chapter?.Title,
-            progress?.ProgressPercent,
-            progress?.UpdatedAt);
-    }
-
-    private async Task<CanonicalBookSummary?> GetVisibleBookSummaryAsync(
-        Guid canonicalBookId,
-        CancellationToken cancellationToken)
-    {
-        var summary = await books.GetSummaryAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        return summary is null || await contentPolicy
-            .IsTakedownAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false)
-            ? null
-            : summary;
-    }
-
     private static ReadingProgressView MapProgress(
         CanonicalBookSummary summary,
         ReadingProgress progress,
@@ -292,13 +240,5 @@ public sealed class ReadingStateService(
     }
 
     private static int BoundLimit(int limit) => Math.Clamp(limit, 1, MaxPageSize);
-
-    private static void ValidateUser(Guid userId)
-    {
-        if (userId == Guid.Empty)
-        {
-            throw new ArgumentException("user id must not be empty.", nameof(userId));
-        }
-    }
 
 }

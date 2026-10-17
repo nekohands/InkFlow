@@ -1,4 +1,3 @@
-using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Library.Application;
 using InkFlow.Modules.Reading.Domain;
 
@@ -8,7 +7,7 @@ namespace InkFlow.Modules.Reading.Application;
 internal sealed class ReadingHistoryQuery(
     IReadingStateRepository repository,
     ICanonicalBookRepository books,
-    IContentPolicyReader contentPolicy)
+    ReadingBookVisibility visibleBooks)
 {
     public async Task<IReadOnlyList<ReadingHistoryItem>> ListAsync(
         Guid userId,
@@ -23,12 +22,10 @@ internal sealed class ReadingHistoryQuery(
 
         foreach (var entry in entries)
         {
-            var summary = await books
-                .GetSummaryAsync(entry.CanonicalBookId, cancellationToken)
+            var summary = await visibleBooks
+                .GetAsync(entry.CanonicalBookId, cancellationToken)
                 .ConfigureAwait(false);
-            if (summary is null || await contentPolicy
-                .IsTakedownAsync(entry.CanonicalBookId, cancellationToken)
-                .ConfigureAwait(false))
+            if (summary is null)
             {
                 continue;
             }
