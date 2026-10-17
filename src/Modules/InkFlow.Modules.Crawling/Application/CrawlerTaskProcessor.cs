@@ -18,6 +18,8 @@ public sealed class CrawlerTaskProcessor(
     TimeSpan? leaseDuration = null,
     IServiceScopeFactory? scopeFactory = null) : ICrawlerTaskProcessor
 {
+    private readonly CrawlerTaskRunCoordinator runCoordinator =
+        new(collectionRuns);
     private readonly CrawlerTaskExecutionRunner executionRunner =
         new(executor, tasks, clock, leaseDuration, scopeFactory);
     private readonly CrawlerTaskFailureHandler failureHandler =
@@ -31,7 +33,9 @@ public sealed class CrawlerTaskProcessor(
 
         try
         {
-            if (await ShouldCancelTaskAsync(task, cancellationToken).ConfigureAwait(false))
+            if (await runCoordinator
+                    .ShouldCancelBeforeExecutionAsync(task, cancellationToken)
+                    .ConfigureAwait(false))
             {
                 await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
@@ -41,7 +45,7 @@ public sealed class CrawlerTaskProcessor(
                     .TryMarkRunningAsync(task, clock.GetUtcNow(), cancellationToken)
                     .ConfigureAwait(false))
             {
-                await ReconcileRunAsync(task, cancellationToken).ConfigureAwait(false);
+                await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
@@ -50,10 +54,9 @@ public sealed class CrawlerTaskProcessor(
             // the service mutation only as a compatibility fallback for older
             // in-memory repositories, and never advance a run before the task
             // start has been accepted.
-            if (task.Payload.RunId is { } runId && collectionRuns is not null)
-            {
-                await collectionRuns.MarkWorkStartedAsync(runId, cancellationToken).ConfigureAwait(false);
-            }
+            await runCoordinator
+                .MarkWorkStartedAsync(task, cancellationToken)
+                .ConfigureAwait(false);
 
             var outcome = await executionRunner.RunAsync(task, cancellationToken)
                 .ConfigureAwait(false);
@@ -62,7 +65,9 @@ public sealed class CrawlerTaskProcessor(
                 return;
             }
 
-            var runStatus = await GetRunStatusAsync(task, cancellationToken).ConfigureAwait(false);
+            var runStatus = await runCoordinator
+                .GetStatusAsync(task, cancellationToken)
+                .ConfigureAwait(false);
             if (runStatus is CollectionRunStatus.Cancelled or
                 CollectionRunStatus.Failed or
                 CollectionRunStatus.Stopped or
@@ -84,7 +89,7 @@ public sealed class CrawlerTaskProcessor(
                     await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
                 }
 
-                await ReconcileRunAsync(task, cancellationToken).ConfigureAwait(false);
+                await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
@@ -92,7 +97,7 @@ public sealed class CrawlerTaskProcessor(
             {
                 task.Complete(clock.GetUtcNow());
                 await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
-                await ReconcileRunAsync(task, cancellationToken).ConfigureAwait(false);
+                await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
@@ -102,7 +107,7 @@ public sealed class CrawlerTaskProcessor(
                     outcome.FailureReason ?? "unknown",
                     cancellationToken)
                 .ConfigureAwait(false);
-            await ReconcileRunAsync(task, cancellationToken).ConfigureAwait(false);
+            await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -110,7 +115,9 @@ public sealed class CrawlerTaskProcessor(
         }
         catch (Exception)
         {
-            if (await ShouldCancelAfterFailureAsync(task, cancellationToken).ConfigureAwait(false))
+            if (await runCoordinator
+                    .ShouldCancelAfterFailureAsync(task, cancellationToken)
+                    .ConfigureAwait(false))
             {
                 await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
             }
@@ -121,41 +128,10 @@ public sealed class CrawlerTaskProcessor(
                     .ConfigureAwait(false);
             }
 
-            await ReconcileRunAsync(task, cancellationToken)
+            await runCoordinator
+                .ReconcileAsync(task, cancellationToken)
                 .ConfigureAwait(false);
         }
-    }
-
-    private async Task<bool> ShouldCancelTaskAsync(
-        CrawlerTask task,
-        CancellationToken cancellationToken)
-    {
-        var status = await GetRunStatusAsync(task, cancellationToken).ConfigureAwait(false);
-        return status is CollectionRunStatus.Cancelled or
-            CollectionRunStatus.Failed or
-            CollectionRunStatus.Stopped or
-            CollectionRunStatus.Completed;
-    }
-
-    private async Task<bool> ShouldCancelAfterFailureAsync(
-        CrawlerTask task,
-        CancellationToken cancellationToken)
-    {
-        var status = await GetRunStatusAsync(task, cancellationToken).ConfigureAwait(false);
-        return status is CollectionRunStatus.Stopping or
-            CollectionRunStatus.Cancelled or
-            CollectionRunStatus.Failed or
-            CollectionRunStatus.Stopped or
-            CollectionRunStatus.Completed;
-    }
-
-    private async Task<CollectionRunStatus?> GetRunStatusAsync(
-        CrawlerTask task,
-        CancellationToken cancellationToken)
-    {
-        return task.Payload.RunId is { } runId && collectionRuns is not null
-            ? await collectionRuns.GetStatusAsync(runId, cancellationToken).ConfigureAwait(false)
-            : null;
     }
 
     private async Task CancelTaskAsync(
@@ -168,16 +144,6 @@ public sealed class CrawlerTaskProcessor(
         {
             task.Cancel(clock.GetUtcNow());
             await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    private async Task ReconcileRunAsync(
-        CrawlerTask task,
-        CancellationToken cancellationToken)
-    {
-        if (task.Payload.RunId is { } runId && collectionRuns is not null)
-        {
-            await collectionRuns.ReconcileAsync(runId, cancellationToken).ConfigureAwait(false);
         }
     }
 
