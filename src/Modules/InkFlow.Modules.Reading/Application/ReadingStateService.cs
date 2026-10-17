@@ -11,11 +11,11 @@ namespace InkFlow.Modules.Reading.Application;
 public sealed class ReadingStateService : IReadingStateService
 {
     private readonly IReadingStateRepository repository;
-    private readonly ICanonicalBookRepository books;
     private readonly TimeProvider clock;
     private readonly ReadingBookVisibility visibleBooks;
     private readonly ReadingShelfQuery shelf;
     private readonly ReadingHistoryQuery history;
+    private readonly ReadingProgressUseCases progress;
     private readonly ReaderPreferenceUseCases preferences;
 
     public ReadingStateService(
@@ -25,11 +25,11 @@ public sealed class ReadingStateService : IReadingStateService
         TimeProvider clock)
     {
         this.repository = repository;
-        this.books = books;
         this.clock = clock;
         visibleBooks = new(books, contentPolicy);
         shelf = new(repository, books, visibleBooks);
         history = new(repository, books, visibleBooks);
+        progress = new(repository, books, visibleBooks, clock);
         preferences = new(repository, clock);
     }
 
@@ -102,102 +102,26 @@ public sealed class ReadingStateService : IReadingStateService
         CancellationToken cancellationToken = default)
         => history.ListAsync(userId, BoundLimit(limit), cancellationToken);
 
-    public async Task<ReadingProgressView?> GetProgressAsync(
+    public Task<ReadingProgressView?> GetProgressAsync(
         Guid userId,
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty || canonicalBookId == Guid.Empty)
-        {
-            return null;
-        }
+        => progress.GetAsync(userId, canonicalBookId, cancellationToken);
 
-        var summary = await visibleBooks.GetAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        if (summary is null)
-        {
-            return null;
-        }
-
-        var progress = await repository
-            .GetProgressAsync(userId, canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        if (progress is null)
-        {
-            return null;
-        }
-
-        var chapter = await books
-            .GetChapterAsync(canonicalBookId, progress.CanonicalChapterId, cancellationToken)
-            .ConfigureAwait(false);
-        return MapProgress(summary, progress, chapter);
-    }
-
-    public async Task<ReadingOperationResult<ReadingProgressView>> SaveProgressAsync(
+    public Task<ReadingOperationResult<ReadingProgressView>> SaveProgressAsync(
         Guid userId,
         Guid canonicalBookId,
         Guid canonicalChapterId,
         int paragraphIndex,
         int progressPercent,
         CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty || canonicalBookId == Guid.Empty || canonicalChapterId == Guid.Empty ||
-            paragraphIndex < 0 || progressPercent is < 0 or > 100)
-        {
-            return ReadingOperationResult<ReadingProgressView>.Failure(
-                ReadingResultStatus.InvalidRequest);
-        }
-
-        var summary = await visibleBooks.GetAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        var chapter = summary is null
-            ? null
-            : await books.GetChapterAsync(canonicalBookId, canonicalChapterId, cancellationToken)
-                .ConfigureAwait(false);
-        if (summary is null || chapter is null)
-        {
-            return ReadingOperationResult<ReadingProgressView>.Failure(ReadingResultStatus.NotFound);
-        }
-
-        var now = clock.GetUtcNow();
-        var progress = await repository
-            .GetProgressAsync(userId, canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        if (progress is null)
-        {
-            progress = ReadingProgress.Create(
-                userId,
-                canonicalBookId,
-                canonicalChapterId,
-                paragraphIndex,
-                progressPercent,
-                now);
-        }
-        else
-        {
-            progress.Update(canonicalChapterId, paragraphIndex, progressPercent, now);
-        }
-
-        var history = await repository
-            .GetHistoryAsync(userId, canonicalBookId, canonicalChapterId, cancellationToken)
-            .ConfigureAwait(false);
-        if (history is null)
-        {
-            history = ReadingHistoryEntry.Create(
-                userId,
-                canonicalBookId,
-                canonicalChapterId,
-                now);
-        }
-        else
-        {
-            history.Touch(now);
-        }
-
-        await repository.SaveProgressAsync(progress, history, cancellationToken)
-            .ConfigureAwait(false);
-        return ReadingOperationResult<ReadingProgressView>.Ok(MapProgress(summary, progress, chapter));
-    }
+        => progress.SaveAsync(
+            userId,
+            canonicalBookId,
+            canonicalChapterId,
+            paragraphIndex,
+            progressPercent,
+            cancellationToken);
 
     public Task<ReaderPreferenceView> GetPreferencesAsync(
         Guid userId,
@@ -217,27 +141,6 @@ public sealed class ReadingStateService : IReadingStateService
                 lineHeightPercent,
                 theme,
                 cancellationToken);
-
-    private static ReadingProgressView MapProgress(
-        CanonicalBookSummary summary,
-        ReadingProgress progress,
-        CanonicalChapter? chapter)
-    {
-        if (chapter is null)
-        {
-            throw new InvalidOperationException(
-                $"reading progress chapter {progress.CanonicalChapterId} does not belong to book {summary.Id}.");
-        }
-
-        return new ReadingProgressView(
-            summary.Id,
-            chapter.Id,
-            chapter.Title,
-            chapter.Index,
-            progress.ParagraphIndex,
-            progress.ProgressPercent,
-            progress.UpdatedAt);
-    }
 
     private static int BoundLimit(int limit) => Math.Clamp(limit, 1, MaxPageSize);
 
