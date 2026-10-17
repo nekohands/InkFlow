@@ -11,55 +11,15 @@ public sealed class PrivateLibraryContentService(
     IPrivateBookImportParser parser,
     TimeProvider clock) : IPrivateLibraryContentService
 {
-    public async Task<PrivateLibraryOperationResult<PrivateBookImportView>> ImportAsync(
+    private readonly PrivateBookImportUseCase importer = new(repository, parser, clock);
+
+    public Task<PrivateLibraryOperationResult<PrivateBookImportView>> ImportAsync(
         Guid userId,
         string fileName,
         string? contentType,
         Stream content,
         CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty)
-        {
-            return Invalid<PrivateBookImportView>();
-        }
-
-        var parsed = await parser
-            .ParseAsync(fileName, contentType, content, cancellationToken)
-            .ConfigureAwait(false);
-        if (parsed.Status != PrivateLibraryResultStatus.Success || parsed.Draft is null)
-        {
-            return new(parsed.Status, null);
-        }
-
-        try
-        {
-            var now = clock.GetUtcNow();
-            var book = PrivateBook.Create(
-                userId,
-                parsed.Draft.Title,
-                parsed.Draft.Author,
-                now);
-            var chapters = parsed.Draft.Chapters
-                .Select((chapter, index) => PrivateChapter.Create(
-                    userId,
-                    book.Id,
-                    index,
-                    chapter.Title,
-                    PrivateContentDocument.FromParagraphs(chapter.Paragraphs),
-                    now))
-                .ToArray();
-
-            await repository.AddWithChaptersAsync(book, chapters, cancellationToken)
-                .ConfigureAwait(false);
-            return Success<PrivateBookImportView>(new(
-                ToView(book),
-                chapters.Length));
-        }
-        catch (ArgumentException)
-        {
-            return Invalid<PrivateBookImportView>();
-        }
-    }
+        => importer.ImportAsync(userId, fileName, contentType, content, cancellationToken);
 
     public async Task<IReadOnlyList<PrivateChapterView>> ListChaptersAsync(
         Guid userId,
@@ -132,9 +92,6 @@ public sealed class PrivateLibraryContentService(
                Enum.TryParse(value, ignoreCase: true, out format);
     }
 
-    private static PrivateBookView ToView(PrivateBook book) =>
-        new(book.Id, book.Title, book.Author, book.CreatedAt, book.UpdatedAt, book.Version);
-
     private static PrivateChapterView ToView(PrivateChapter chapter) =>
         new(chapter.Id, chapter.Index, chapter.Title, chapter.ParagraphCount, chapter.CreatedAt);
 
@@ -153,8 +110,6 @@ public sealed class PrivateLibraryContentService(
     private static PrivateLibraryOperationResult<T> NotFound<T>() =>
         new(PrivateLibraryResultStatus.NotFound, default);
 
-    private static PrivateLibraryOperationResult<T> Invalid<T>() =>
-        new(PrivateLibraryResultStatus.InvalidRequest, default);
 }
 
 public enum PrivateLibraryExportFormat
