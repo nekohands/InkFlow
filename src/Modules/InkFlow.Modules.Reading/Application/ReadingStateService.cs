@@ -14,6 +14,8 @@ public sealed class ReadingStateService(
     IContentPolicyReader contentPolicy,
     TimeProvider clock) : IReadingStateService
 {
+    private readonly ReaderPreferenceUseCases preferences = new(repository, clock);
+
     public const int DefaultPageSize = 50;
     public const int MaxPageSize = 100;
 
@@ -239,54 +241,24 @@ public sealed class ReadingStateService(
         return ReadingOperationResult<ReadingProgressView>.Ok(MapProgress(summary, progress, chapter));
     }
 
-    public async Task<ReaderPreferenceView> GetPreferencesAsync(
+    public Task<ReaderPreferenceView> GetPreferencesAsync(
         Guid userId,
         CancellationToken cancellationToken = default)
-    {
-        ValidateUser(userId);
-        var preference = await repository
-            .GetPreferencesAsync(userId, cancellationToken)
-            .ConfigureAwait(false)
-            ?? ReaderPreference.CreateDefault(userId, clock.GetUtcNow());
-        return MapPreference(preference);
-    }
+        => preferences.GetAsync(userId, cancellationToken);
 
-    public async Task<ReadingOperationResult<ReaderPreferenceView>> UpdatePreferencesAsync(
+    public Task<ReadingOperationResult<ReaderPreferenceView>> UpdatePreferencesAsync(
         Guid userId,
         int? fontSizePercent,
         int? lineHeightPercent,
         ReaderTheme? theme,
         CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty ||
-            (fontSizePercent is null && lineHeightPercent is null && theme is null))
-        {
-            return ReadingOperationResult<ReaderPreferenceView>.Failure(
-                ReadingResultStatus.InvalidRequest);
-        }
-
-        var preference = await repository
-            .GetPreferencesAsync(userId, cancellationToken)
-            .ConfigureAwait(false)
-            ?? ReaderPreference.CreateDefault(userId, clock.GetUtcNow());
-
-        var nextFontSize = fontSizePercent ?? preference.FontSizePercent;
-        var nextLineHeight = lineHeightPercent ?? preference.LineHeightPercent;
-        var nextTheme = theme ?? preference.Theme;
-        try
-        {
-            preference.Update(nextFontSize, nextLineHeight, nextTheme, clock.GetUtcNow());
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            return ReadingOperationResult<ReaderPreferenceView>.Failure(
-                ReadingResultStatus.InvalidRequest);
-        }
-
-        await repository.UpsertPreferencesAsync(preference, cancellationToken)
-            .ConfigureAwait(false);
-        return ReadingOperationResult<ReaderPreferenceView>.Ok(MapPreference(preference));
-    }
+        => preferences
+            .UpdateAsync(
+                userId,
+                fontSizePercent,
+                lineHeightPercent,
+                theme,
+                cancellationToken);
 
     private async Task<ReadingShelfItem?> MapShelfEntryAsync(
         Guid userId,
@@ -359,13 +331,6 @@ public sealed class ReadingStateService(
             progress.ProgressPercent,
             progress.UpdatedAt);
     }
-
-    private static ReaderPreferenceView MapPreference(ReaderPreference preference) =>
-        new(
-            preference.FontSizePercent,
-            preference.LineHeightPercent,
-            preference.Theme.ToString(),
-            preference.UpdatedAt);
 
     private static int BoundLimit(int limit) => Math.Clamp(limit, 1, MaxPageSize);
 
