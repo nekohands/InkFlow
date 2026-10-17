@@ -14,6 +14,7 @@ public sealed class ReadingStateService(
     IContentPolicyReader contentPolicy,
     TimeProvider clock) : IReadingStateService
 {
+    private readonly ReadingHistoryQuery history = new(repository, books, contentPolicy);
     private readonly ReaderPreferenceUseCases preferences = new(repository, clock);
 
     public const int DefaultPageSize = 50;
@@ -96,53 +97,11 @@ public sealed class ReadingStateService(
         return ReadingResultStatus.Success;
     }
 
-    public async Task<IReadOnlyList<ReadingHistoryItem>> ListHistoryAsync(
+    public Task<IReadOnlyList<ReadingHistoryItem>> ListHistoryAsync(
         Guid userId,
         int limit,
         CancellationToken cancellationToken = default)
-    {
-        ValidateUser(userId);
-        var entries = await repository
-            .ListHistoryAsync(userId, BoundLimit(limit), cancellationToken)
-            .ConfigureAwait(false);
-        var result = new List<ReadingHistoryItem>(entries.Count);
-
-        foreach (var entry in entries)
-        {
-            var summary = await books
-                .GetSummaryAsync(entry.CanonicalBookId, cancellationToken)
-                .ConfigureAwait(false);
-            if (summary is null || await contentPolicy
-                .IsTakedownAsync(entry.CanonicalBookId, cancellationToken)
-                .ConfigureAwait(false))
-            {
-                continue;
-            }
-
-            var chapter = await books
-                .GetChapterAsync(
-                    entry.CanonicalBookId,
-                    entry.CanonicalChapterId,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            if (chapter is null)
-            {
-                continue;
-            }
-
-            result.Add(new ReadingHistoryItem(
-                summary.Id,
-                summary.Title,
-                summary.Author,
-                chapter.Id,
-                chapter.Title,
-                chapter.Index,
-                entry.FirstReadAt,
-                entry.LastReadAt));
-        }
-
-        return result;
-    }
+        => history.ListAsync(userId, BoundLimit(limit), cancellationToken);
 
     public async Task<ReadingProgressView?> GetProgressAsync(
         Guid userId,
