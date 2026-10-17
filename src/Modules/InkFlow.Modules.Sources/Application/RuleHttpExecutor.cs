@@ -115,26 +115,12 @@ internal sealed class RuleHttpExecutor
         SourceHttpResponse response,
         string requestContext,
         out string error)
-    {
-        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var requestUri))
-        {
-            error = $"{requestContext}: request URI is invalid.";
-            return false;
-        }
-
-        var responseUri = response.ResponseUri ?? requestUri;
-        if (!responseUri.IsAbsoluteUri ||
-            responseUri.Fragment.Length > 0 ||
-            responseUri.UserInfo.Length > 0 ||
-            !RuleRequestBuilder.IsSameOrigin(_sourceOrigin, responseUri))
-        {
-            error = $"{requestContext}: response origin changed during redirect.";
-            return false;
-        }
-
-        error = string.Empty;
-        return true;
-    }
+        => TryResolveSameOriginResponseUri(
+            request,
+            response,
+            requestContext,
+            out _,
+            out error);
 
     private bool TryAcceptResponseCookies(
         SourceHttpRequest request,
@@ -147,26 +133,52 @@ internal sealed class RuleHttpExecutor
             return true;
         }
 
-        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var requestUri))
+        if (!TryResolveSameOriginResponseUri(
+                request,
+                response,
+                "session",
+                out var responseUri,
+                out error))
         {
-            error = "session: request URI is invalid.";
             return false;
         }
 
-        var responseUri = response.ResponseUri ?? requestUri;
-        if (!responseUri.IsAbsoluteUri || !RuleRequestBuilder.IsSameOrigin(_sourceOrigin, responseUri))
-        {
-            error = "session: response origin changed during redirect.";
-            return false;
-        }
-
-        var sessionError = _cookieJar.Accept(response.SetCookieHeaders, responseUri);
+        var sessionError = _cookieJar.Accept(response.SetCookieHeaders, responseUri!);
         if (sessionError is not null)
         {
             error = sessionError;
             return false;
         }
 
+        error = string.Empty;
+        return true;
+    }
+
+    private bool TryResolveSameOriginResponseUri(
+        SourceHttpRequest request,
+        SourceHttpResponse response,
+        string requestContext,
+        out Uri? responseUri,
+        out string error)
+    {
+        responseUri = null;
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var requestUri))
+        {
+            error = $"{requestContext}: request URI is invalid.";
+            return false;
+        }
+
+        var candidate = response.ResponseUri ?? requestUri;
+        if (!candidate.IsAbsoluteUri ||
+            candidate.Fragment.Length > 0 ||
+            candidate.UserInfo.Length > 0 ||
+            !RuleRequestBuilder.IsSameOrigin(_sourceOrigin, candidate))
+        {
+            error = $"{requestContext}: response origin changed during redirect.";
+            return false;
+        }
+
+        responseUri = candidate;
         error = string.Empty;
         return true;
     }
