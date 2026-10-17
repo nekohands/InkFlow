@@ -1,6 +1,5 @@
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Library.Application;
-using InkFlow.Modules.Library.Domain;
 using InkFlow.Modules.Reading.Domain;
 
 namespace InkFlow.Modules.Reading.Application;
@@ -10,10 +9,8 @@ namespace InkFlow.Modules.Reading.Application;
 /// </summary>
 public sealed class ReadingStateService : IReadingStateService
 {
-    private readonly IReadingStateRepository repository;
-    private readonly TimeProvider clock;
-    private readonly ReadingBookVisibility visibleBooks;
-    private readonly ReadingShelfQuery shelf;
+    private readonly ReadingShelfQuery shelfQuery;
+    private readonly ReadingShelfCommands shelfCommands;
     private readonly ReadingHistoryQuery history;
     private readonly ReadingProgressUseCases progress;
     private readonly ReaderPreferenceUseCases preferences;
@@ -24,10 +21,9 @@ public sealed class ReadingStateService : IReadingStateService
         IContentPolicyReader contentPolicy,
         TimeProvider clock)
     {
-        this.repository = repository;
-        this.clock = clock;
-        visibleBooks = new(books, contentPolicy);
-        shelf = new(repository, books, visibleBooks);
+        var visibleBooks = new ReadingBookVisibility(books, contentPolicy);
+        shelfQuery = new(repository, books, visibleBooks);
+        shelfCommands = new(repository, visibleBooks, shelfQuery, clock);
         history = new(repository, books, visibleBooks);
         progress = new(repository, books, visibleBooks, clock);
         preferences = new(repository, clock);
@@ -40,61 +36,20 @@ public sealed class ReadingStateService : IReadingStateService
         Guid userId,
         int limit,
         CancellationToken cancellationToken = default)
-        => shelf.ListAsync(userId, BoundLimit(limit), cancellationToken);
+        => shelfQuery.ListAsync(userId, BoundLimit(limit), cancellationToken);
 
-    public async Task<ReadingOperationResult<ReadingShelfItem>> PutShelfAsync(
+    public Task<ReadingOperationResult<ReadingShelfItem>> PutShelfAsync(
         Guid userId,
         Guid canonicalBookId,
         ShelfStatus status,
         CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty || canonicalBookId == Guid.Empty || !Enum.IsDefined(status))
-        {
-            return ReadingOperationResult<ReadingShelfItem>.Failure(
-                ReadingResultStatus.InvalidRequest);
-        }
+        => shelfCommands.PutAsync(userId, canonicalBookId, status, cancellationToken);
 
-        var summary = await visibleBooks.GetAsync(canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        if (summary is null)
-        {
-            return ReadingOperationResult<ReadingShelfItem>.Failure(ReadingResultStatus.NotFound);
-        }
-
-        var now = clock.GetUtcNow();
-        var entry = await repository
-            .GetShelfEntryAsync(userId, canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        if (entry is null)
-        {
-            entry = BookshelfEntry.Create(userId, canonicalBookId, status, now);
-        }
-        else
-        {
-            entry.ChangeStatus(status, now);
-        }
-
-        await repository.UpsertShelfAsync(entry, cancellationToken).ConfigureAwait(false);
-        return ReadingOperationResult<ReadingShelfItem>.Ok(
-            await shelf.MapAsync(userId, entry, cancellationToken, summary).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("visible shelf book disappeared during mapping."));
-    }
-
-    public async Task<ReadingResultStatus> RemoveShelfAsync(
+    public Task<ReadingResultStatus> RemoveShelfAsync(
         Guid userId,
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-    {
-        if (userId == Guid.Empty || canonicalBookId == Guid.Empty)
-        {
-            return ReadingResultStatus.InvalidRequest;
-        }
-
-        // 删除是幂等的；即使书籍已被下架或删除，也允许用户清理自己的引用。
-        await repository.RemoveShelfAsync(userId, canonicalBookId, cancellationToken)
-            .ConfigureAwait(false);
-        return ReadingResultStatus.Success;
-    }
+        => shelfCommands.RemoveAsync(userId, canonicalBookId, cancellationToken);
 
     public Task<IReadOnlyList<ReadingHistoryItem>> ListHistoryAsync(
         Guid userId,
