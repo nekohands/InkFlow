@@ -13,6 +13,7 @@ public sealed class RuleAdapter
     private readonly SourceRuleExecutionLimits _limits;
     private readonly RuleCredentialResolver _credentialResolver;
     private readonly RuleResponseEvaluator _responseEvaluator;
+    private readonly RulePaginationExecutor _paginationExecutor;
 
     public RuleAdapter(
         ISourceHttpClient httpClient,
@@ -25,6 +26,7 @@ public sealed class RuleAdapter
         _credentialResolver = new RuleCredentialResolver(credentialProvider);
         _limits.Validate();
         _responseEvaluator = new RuleResponseEvaluator(selectorEvaluator, _limits);
+        _paginationExecutor = new RulePaginationExecutor(_limits, _responseEvaluator);
     }
 
     public SourceRuleExecutionLimits Limits => _limits;
@@ -274,249 +276,40 @@ public sealed class RuleAdapter
                 }
             }
 
-            var currentRequest = preparedMainRequest!;
-            var pageBodies = new List<string>();
-            var visitedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
-
-            for (var page = 1; ; page++)
+            if (pagination is null)
             {
                 if (requestCount >= _limits.MaxRequests)
                 {
                     return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
                 }
 
-                if (pagination is not null && page > pagination.MaxPages)
-                {
-                    return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
-                }
-
-                if (pagination?.Mode == RulePaginationMode.NextLink &&
-                    !visitedUrls.Add(currentRequest.Url))
-                {
-                    return RuleExecutionResult.Fail(["pagination: next-link cycle detected."]);
-                }
-
                 requestCount++;
                 var responseResult = await requestExecutor
-                    .SendAsync(currentRequest, "request")
+                    .SendAsync(preparedMainRequest!, "request")
                     .ConfigureAwait(false);
                 if (responseResult.Error is not null)
                 {
                     return RuleExecutionResult.Fail([responseResult.Error]);
                 }
 
-                var response = responseResult.Response!;
-                pageBodies.Add(response.Body);
-                if (pagination is null)
-                {
-                    return _responseEvaluator.ExtractFields(
-                        rule,
-                        response.Body,
-                        executionCancellation.Token);
-                }
-
-                switch (pagination.Mode)
-                {
-                    case RulePaginationMode.NextLink:
-                        {
-                            var nextLink = _responseEvaluator.EvaluateFirst(
-                                response.Body,
-                                pagination.NextPageSelector!,
-                                pagination.NextPageAttribute,
-                                executionCancellation.Token);
-                            if (string.IsNullOrWhiteSpace(nextLink))
-                            {
-                                return CompletePagination(rule, pageBodies, executionCancellation.Token);
-                            }
-
-                            if (!RuleRequestBuilder.TryContinueAfterPage(
-                                    page,
-                                    requestCount,
-                                    pagination,
-                                    _limits,
-                                    out var limitError))
-                            {
-                                return RuleExecutionResult.Fail([limitError]);
-                            }
-
-                            if (!RuleRequestBuilder.TryBuildNextRequest(
-                                    currentRequest,
-                                    nextLink,
-                                    sourceOrigin,
-                                    out var nextRequest,
-                                    out var nextRequestError))
-                            {
-                                return RuleExecutionResult.Fail([nextRequestError]);
-                            }
-
-                            currentRequest = nextRequest!;
-                            break;
-                        }
-
-                    case RulePaginationMode.PageNumber:
-                        {
-                            var hasNextPage = _responseEvaluator.EvaluateFirst(
-                                response.Body,
-                                pagination.NextPageSelector!,
-                                pagination.NextPageAttribute,
-                                executionCancellation.Token);
-                            if (string.IsNullOrWhiteSpace(hasNextPage))
-                            {
-                                return CompletePagination(rule, pageBodies, executionCancellation.Token);
-                            }
-
-                            if (!RuleRequestBuilder.TryContinueAfterPage(
-                                    page,
-                                    requestCount,
-                                    pagination,
-                                    _limits,
-                                    out var limitError))
-                            {
-                                return RuleExecutionResult.Fail([limitError]);
-                            }
-
-                            var responseVariableErrors = _responseEvaluator.TryBuildResponseVariables(
-                                rule.ResponseVariables,
-                                $"rules[{rule.Capability}] responseVariables",
-                                response.Body,
-                                continuationVariables,
-                                executionCancellation.Token,
-                                out var updatedVariables);
-                            if (responseVariableErrors.Count > 0)
-                            {
-                                return RuleExecutionResult.Fail(responseVariableErrors);
-                            }
-
-                            continuationVariables = updatedVariables!;
-
-                            var nextPageValue = (long)pagination.StartPage +
-                                (long)page * pagination.PageStep;
-                            if (nextPageValue > SourceRuleDslValidator.MaxPaginationPageValue)
-                            {
-                                return RuleExecutionResult.Fail(
-                                    ["pagination: generated page value exceeds the allowed range."]);
-                            }
-
-                            var pageBuildErrors = RuleRequestBuilder.TryBuildRequest(
-                                rule,
-                                baseUrl,
-                                continuationVariables,
-                                pagination.ParameterName,
-                                nextPageValue.ToString(CultureInfo.InvariantCulture),
-                                out var nextRequest);
-                            if (pageBuildErrors.Count > 0)
-                            {
-                                return RuleExecutionResult.Fail(pageBuildErrors);
-                            }
-
-                            if (!RuleRequestBuilder.TryApplyCredential(
-                                    nextRequest!,
-                                    credentialResolution.Credential,
-                                    out var preparedNextRequest,
-                                    out var pageCredentialError))
-                            {
-                                return RuleExecutionResult.Fail([pageCredentialError]);
-                            }
-
-                            if (!RuleRequestBuilder.TryValidateContinuationRequest(
-                                    preparedNextRequest!,
-                                    sourceOrigin,
-                                    out var continuationError))
-                            {
-                                return RuleExecutionResult.Fail([continuationError]);
-                            }
-
-                            currentRequest = preparedNextRequest!;
-                            break;
-                        }
-
-                    case RulePaginationMode.Cursor:
-                        {
-                            var rawCursor = _responseEvaluator.EvaluateFirst(
-                                response.Body,
-                                pagination.CursorSelector!,
-                                pagination.CursorAttribute,
-                                executionCancellation.Token);
-                            if (string.IsNullOrWhiteSpace(rawCursor))
-                            {
-                                return CompletePagination(rule, pageBodies, executionCancellation.Token);
-                            }
-
-                            if (!RuleRequestBuilder.TryContinueAfterPage(
-                                    page,
-                                    requestCount,
-                                    pagination,
-                                    _limits,
-                                    out var limitError))
-                            {
-                                return RuleExecutionResult.Fail([limitError]);
-                            }
-
-                            var responseVariableErrors = _responseEvaluator.TryBuildResponseVariables(
-                                rule.ResponseVariables,
-                                $"rules[{rule.Capability}] responseVariables",
-                                response.Body,
-                                continuationVariables,
-                                executionCancellation.Token,
-                                out var updatedVariables);
-                            if (responseVariableErrors.Count > 0)
-                            {
-                                return RuleExecutionResult.Fail(responseVariableErrors);
-                            }
-
-                            continuationVariables = updatedVariables!;
-
-                            var cursor = rawCursor.Trim();
-                            if (cursor.Length > SourceRuleDslValidator.MaxPaginationCursorLength ||
-                                cursor.Any(char.IsControl))
-                            {
-                                return RuleExecutionResult.Fail(
-                                    ["pagination: cursor value is invalid or too long."]);
-                            }
-
-                            if (!visitedCursors.Add(cursor))
-                            {
-                                return RuleExecutionResult.Fail(["pagination: cursor cycle detected."]);
-                            }
-
-                            var cursorBuildErrors = RuleRequestBuilder.TryBuildRequest(
-                                rule,
-                                baseUrl,
-                                continuationVariables,
-                                pagination.ParameterName,
-                                cursor,
-                                out var nextRequest);
-                            if (cursorBuildErrors.Count > 0)
-                            {
-                                return RuleExecutionResult.Fail(cursorBuildErrors);
-                            }
-
-                            if (!RuleRequestBuilder.TryApplyCredential(
-                                    nextRequest!,
-                                    credentialResolution.Credential,
-                                    out var preparedNextRequest,
-                                    out var cursorCredentialError))
-                            {
-                                return RuleExecutionResult.Fail([cursorCredentialError]);
-                            }
-
-                            if (!RuleRequestBuilder.TryValidateContinuationRequest(
-                                    preparedNextRequest!,
-                                    sourceOrigin,
-                                    out var continuationError))
-                            {
-                                return RuleExecutionResult.Fail([continuationError]);
-                            }
-
-                            currentRequest = preparedNextRequest!;
-                            break;
-                        }
-
-                    default:
-                        return RuleExecutionResult.Fail(["pagination: mode is not supported."]);
-                }
+                return _responseEvaluator.ExtractFields(
+                    rule,
+                    responseResult.Response!.Body,
+                    executionCancellation.Token);
             }
+
+            return await _paginationExecutor.ExecuteAsync(
+                    rule,
+                    baseUrl,
+                    sourceOrigin,
+                    pagination,
+                    preparedMainRequest!,
+                    credentialResolution.Credential,
+                    continuationVariables,
+                    requestCount,
+                    requestExecutor,
+                    executionCancellation.Token)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -528,17 +321,4 @@ public sealed class RuleAdapter
         }
     }
 
-    private RuleExecutionResult CompletePagination(
-        CapabilityRule rule,
-        IReadOnlyList<string> pageBodies,
-        CancellationToken executionCancellationToken)
-    {
-        var extracted = _responseEvaluator.ExtractFields(
-            rule,
-            pageBodies[0],
-            executionCancellationToken);
-        return extracted.IsSuccess
-            ? extracted with { PageBodies = pageBodies.ToArray() }
-            : extracted;
-    }
 }
