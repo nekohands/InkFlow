@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using InkFlow.Modules.Crawling.Application;
@@ -42,6 +41,8 @@ public sealed class EfCrawlerTaskRepository(
     CrawlingDbContext db,
     ITransactionalOutboxWriter outbox) : ICrawlerTaskRepository, ICrawlerTaskRepairRepository
 {
+    private readonly CrawlerTaskDeadLetterStore deadLetterStore = new(db);
+
     public async Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
         await using var transaction = await db.Database
@@ -358,141 +359,22 @@ public sealed class EfCrawlerTaskRepository(
         return entities.Select(CrawlerTaskMapper.ToDomain).ToList();
     }
 
-    public async Task AddDeadLetterAsync(DeadLetterTask deadLetter, CancellationToken cancellationToken = default)
-    {
-        AddDeadLetterRow(deadLetter);
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task AddDeadLetterAsync(
+        DeadLetterTask deadLetter,
+        CancellationToken cancellationToken = default) =>
+        deadLetterStore.AddAsync(deadLetter, cancellationToken);
 
-    /// <summary>
-    /// 死信行与 DeadLettered 任务终态在同一 ReadCommitted 事务内提交：
-    /// 任一写失败（如任务行不存在）整体回滚，不会留下半一致状态。
-    /// </summary>
-    public async Task AddDeadLetterWithTaskAsync(
+    public Task AddDeadLetterWithTaskAsync(
         DeadLetterTask deadLetter,
         CrawlerTask task,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(task);
+        CancellationToken cancellationToken = default) =>
+        deadLetterStore.AddWithTaskAsync(deadLetter, task, cancellationToken);
 
-        await using var transaction = await db.Database
-            .BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)
-            .ConfigureAwait(false);
-
-        AddDeadLetterRow(deadLetter);
-
-        var entity = await db.Tasks.FindAsync([task.Id], cancellationToken).ConfigureAwait(false)
-                     ?? throw new InvalidOperationException(
-                         $"crawler task {task.Id} does not exist; use {nameof(AddAsync)} first.");
-        CrawlerTaskMapper.ApplyDomain(task, entity);
-
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private void AddDeadLetterRow(DeadLetterTask deadLetter)
-    {
-        db.DeadLetters.Add(new DeadLetterEntity
-        {
-            Id = deadLetter.Id,
-            TaskId = deadLetter.TaskId,
-            SourceId = deadLetter.SourceId,
-            Reason = deadLetter.Reason,
-            AttemptCount = deadLetter.AttemptCount,
-            DeadLetteredAt = deadLetter.DeadLetteredAt,
-            ReplayTaskId = deadLetter.ReplayTaskId,
-            ReplayedAt = deadLetter.ReplayedAt,
-            ReplayRequestedBy = deadLetter.ReplayRequestedBy,
-            ReplayReason = deadLetter.ReplayReason,
-        });
-    }
-
-    public async Task<DeadLetterReplayResult> ReplayDeadLetterAsync(
+    public Task<DeadLetterReplayResult> ReplayDeadLetterAsync(
         DeadLetterReplayCommand command,
         DateTimeOffset now,
-        CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await db.Database
-            .BeginTransactionAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        // 重放是修复命令：锁住死信行，避免两个操作员同时创建两个重放任务。
-        var deadLetter = await db.DeadLetters
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "crawler"."dead_letters"
-                WHERE "Id" = {command.DeadLetterId}
-                FOR UPDATE
-                """)
-            .AsNoTracking()
-            .SingleOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (deadLetter is null)
-        {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new(DeadLetterReplayStatus.NotFound);
-        }
-
-        if (deadLetter.ReplayTaskId is { } existingReplayTaskId)
-        {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new(DeadLetterReplayStatus.AlreadyReplayed, existingReplayTaskId);
-        }
-
-        // 锁住原任务并再次核对状态，防止修复入口绕过聚合状态机。
-        var taskEntity = await db.Tasks
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "crawler"."tasks"
-                WHERE "Id" = {deadLetter.TaskId}
-                FOR UPDATE
-                """)
-            .AsNoTracking()
-            .SingleOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        if (taskEntity is null)
-        {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new(DeadLetterReplayStatus.OriginalTaskMissing);
-        }
-
-        if (taskEntity.Status != (int)CrawlerTaskStatus.DeadLettered)
-        {
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new(DeadLetterReplayStatus.OriginalTaskNotDeadLettered);
-        }
-
-        var originalTask = CrawlerTaskMapper.ToDomain(taskEntity);
-        var replayTask = CrawlerTask.Create(
-            originalTask.Payload,
-            maxAttempts: originalTask.MaxAttempts,
-            createdAt: now);
-
-        db.Tasks.Add(CrawlerTaskMapper.ToEntity(replayTask));
-        // AddDeadLetterAsync 可能刚在同一个 DbContext 中写入并仍在 Local 缓存；
-        // 优先复用已跟踪实例，避免同键实体冲突，同时保留 FOR UPDATE 的锁语义。
-        var trackedDeadLetter = db.DeadLetters.Local
-            .SingleOrDefault(candidate => candidate.Id == deadLetter.Id);
-        if (trackedDeadLetter is not null)
-        {
-            deadLetter = trackedDeadLetter;
-        }
-        else
-        {
-            db.DeadLetters.Attach(deadLetter);
-        }
-
-        deadLetter.ReplayTaskId = replayTask.Id;
-        deadLetter.ReplayedAt = now;
-        deadLetter.ReplayRequestedBy = command.RequestedBy;
-        deadLetter.ReplayReason = command.ReplayReason;
-
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        return new(DeadLetterReplayStatus.Replayed, replayTask.Id);
-    }
+        CancellationToken cancellationToken = default) =>
+        deadLetterStore.ReplayAsync(command, now, cancellationToken);
 
     public async Task<bool> HasActiveTaskAsync(
         string sourceId, SourceCapability capability, CancellationToken cancellationToken = default)
@@ -700,26 +582,8 @@ public sealed class EfCrawlerTaskRepository(
             variables.TryGetValue(variableName, out var value) && value == variableValue);
     }
 
-    public async Task<IReadOnlyList<DeadLetterTask>> ListDeadLettersAsync(int limit, CancellationToken cancellationToken = default)
-    {
-        var entities = await db.DeadLetters
-            .OrderByDescending(d => d.DeadLetteredAt)
-            .Take(limit)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities
-            .Select(e => new DeadLetterTask(
-                e.Id,
-                e.TaskId,
-                e.SourceId,
-                e.Reason,
-                e.AttemptCount,
-                e.DeadLetteredAt,
-                e.ReplayTaskId,
-                e.ReplayedAt,
-                e.ReplayRequestedBy,
-                e.ReplayReason))
-            .ToList();
-    }
+    public Task<IReadOnlyList<DeadLetterTask>> ListDeadLettersAsync(
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        deadLetterStore.ListAsync(limit, cancellationToken);
 }
