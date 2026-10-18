@@ -14,6 +14,9 @@ public sealed class ContentSelectionService(
     IContentSelectionDecisionRepository decisions,
     TimeProvider clock) : IContentSelectionService
 {
+    private readonly ContentVersionAvailabilityEvaluator availabilityEvaluator =
+        new(sourceHealth);
+
     public async Task<ContentSelectionOutcome> SelectCurrentAsync(
         Guid canonicalChapterId,
         CancellationToken cancellationToken = default)
@@ -32,14 +35,9 @@ public sealed class ContentSelectionService(
             .GetCurrentForChapterAsync(canonicalChapterId, cancellationToken)
             .ConfigureAwait(false);
 
-        var availability = new List<(ContentVersion Version, bool IsAvailable)>(allVersions.Count);
-        foreach (var version in allVersions)
-        {
-            var isAvailable = await sourceHealth
-                .IsAvailableAsync(version.SourceId, SourceCapability.Content, cancellationToken)
-                .ConfigureAwait(false);
-            availability.Add((version, isAvailable));
-        }
+        var availability = await availabilityEvaluator
+            .EvaluateAsync(allVersions, cancellationToken)
+            .ConfigureAwait(false);
 
         var eligible = availability
             .Where(item => item.IsAvailable)
