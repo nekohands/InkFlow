@@ -128,15 +128,11 @@ internal sealed class CrawlerTaskDedupeStore(
         // Controls and this enqueue gate lock the same parent row. If a stop or
         // cancel commits first, the gate re-reads the durable state and rejects
         // the follow-up; if enqueue commits first, the later control observes it.
-        var runEntity = await db.Runs
-            .FromSqlInterpolated($"""
-                SELECT *
-                FROM "crawler"."runs"
-                WHERE "Id" = {runId}
-                FOR UPDATE
-                """)
-            .AsNoTracking()
-            .SingleOrDefaultAsync(cancellationToken)
+        var runEntity = await CrawlerParentRunLock.LockAsync(
+                db,
+                runId,
+                cancellationToken,
+                asNoTracking: true)
             .ConfigureAwait(false);
         if (runEntity is null || runEntity.Status is not (
                 (int)CollectionRunStatus.Pending or
