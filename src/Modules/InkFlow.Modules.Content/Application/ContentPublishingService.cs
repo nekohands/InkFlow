@@ -21,52 +21,40 @@ public sealed class ContentPublishingService(
     IContentVersionRepository repository,
     IContentSelectionService? selectionService = null)
 {
-    private readonly TimeProvider _clock = TimeProvider.System;
+    private readonly ContentVersionIngestor ingestor = new(repository);
 
     public async Task<PublishOutcome> PublishAsync(
         Guid canonicalBookId, Guid canonicalChapterId, string sourceId,
         string rawContent, CancellationToken cancellationToken = default)
     {
-        var document = ContentNormalizer.Normalize(rawContent);
-        if (document.Paragraphs.Count == 0)
+        var ingestion = await ingestor
+            .IngestAsync(
+                canonicalBookId,
+                canonicalChapterId,
+                sourceId,
+                rawContent,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (!ingestion.IsSuccess)
         {
             return new PublishOutcome(false, null, false,
-                ["publish: raw content normalized to an empty document."]);
+                ingestion.Errors);
         }
 
-        var canonicalHash = QualityEngine.ComputeCanonicalHash(document);
-
-        var duplicate = await repository
-            .FindByHashAsync(canonicalChapterId, canonicalHash, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (duplicate is not null)
-        {
-            if (selectionService is not null)
-            {
-                var selection = await selectionService
-                    .SelectCurrentAsync(canonicalChapterId, cancellationToken)
-                    .ConfigureAwait(false);
-                return selection.IsSuccess
-                    ? PublishOutcome.Ok(selection.SelectedVersion ?? duplicate, unchanged: true)
-                    : new PublishOutcome(false, duplicate, true, selection.Errors);
-            }
-
-            return PublishOutcome.Ok(duplicate, unchanged: true);
-        }
-
-        var version = ContentVersion.Create(
-            canonicalBookId, canonicalChapterId, sourceId, document, _clock.GetUtcNow());
-        await repository.AddAsync(version, cancellationToken).ConfigureAwait(false);
-
+        var version = ingestion.Version!;
         if (selectionService is not null)
         {
             var selection = await selectionService
                 .SelectCurrentAsync(canonicalChapterId, cancellationToken)
                 .ConfigureAwait(false);
             return selection.IsSuccess
-                ? PublishOutcome.Ok(selection.SelectedVersion ?? version, unchanged: false)
-                : new PublishOutcome(false, version, false, selection.Errors);
+                ? PublishOutcome.Ok(selection.SelectedVersion ?? version, ingestion.Unchanged)
+                : new PublishOutcome(false, version, ingestion.Unchanged, selection.Errors);
+        }
+
+        if (ingestion.Unchanged)
+        {
+            return PublishOutcome.Ok(version, unchanged: true);
         }
 
         // 选优:新版本与既有版本(含自己)比较,胜者成为当前版本。
