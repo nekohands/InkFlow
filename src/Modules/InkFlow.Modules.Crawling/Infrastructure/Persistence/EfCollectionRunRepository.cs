@@ -13,6 +13,7 @@ public sealed class EfCollectionRunRepository(
 {
     private readonly CollectionRunCleanupStore cleanupStore = new(db);
     private readonly CollectionRunBootstrapStore bootstrapStore = new(db, outbox);
+    private readonly CollectionRunQueryStore queryStore = new(db);
     private readonly CollectionRunTaskProgressReader progressReader = new(db);
     private readonly CollectionRunAtomicMutationStore mutationStore = new(db);
 
@@ -53,17 +54,10 @@ public sealed class EfCollectionRunRepository(
         CancellationToken cancellationToken = default) =>
         bootstrapStore.TryAddAsync(run, task, cancellationToken);
 
-    public async Task<CollectionRun?> GetAsync(
+    public Task<CollectionRun?> GetAsync(
         Guid id,
-        CancellationToken cancellationToken = default)
-    {
-        var entity = await db.Runs
-            .AsNoTracking()
-            .SingleOrDefaultAsync(run => run.Id == id, cancellationToken)
-            .ConfigureAwait(false);
-
-        return entity is null ? null : CollectionRunMapper.ToDomain(entity);
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.GetAsync(id, cancellationToken);
 
     public Task<CollectionRun?> ApplyControlAsync(
         Guid id,
@@ -85,73 +79,22 @@ public sealed class EfCollectionRunRepository(
         CancellationToken cancellationToken = default)
         => mutationStore.MutateAsync(id, mutation, now, cancellationToken);
 
-    public async Task<CollectionRun?> FindActiveAsync(
+    public Task<CollectionRun?> FindActiveAsync(
         string sourceId,
         string externalBookId,
-        CancellationToken cancellationToken = default)
-    {
-        var activeStatuses = new[]
-        {
-            (int)CollectionRunStatus.Pending,
-            (int)CollectionRunStatus.Running,
-            (int)CollectionRunStatus.Paused,
-            (int)CollectionRunStatus.Stopping,
-        };
+        CancellationToken cancellationToken = default) =>
+        queryStore.FindActiveAsync(sourceId, externalBookId, cancellationToken);
 
-        var entity = await db.Runs
-            .AsNoTracking()
-            .Where(run => run.SourceId == sourceId &&
-                          run.ExternalBookId == externalBookId &&
-                          activeStatuses.Contains(run.Status))
-            .OrderByDescending(run => run.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entity is null ? null : CollectionRunMapper.ToDomain(entity);
-    }
-
-    public async Task<IReadOnlyList<CollectionRun>> ListAsync(
+    public Task<IReadOnlyList<CollectionRun>> ListAsync(
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        var page = await ListPageAsync(limit, null, cancellationToken).ConfigureAwait(false);
-        return page.Entries;
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListAsync(limit, cancellationToken);
 
-    public async Task<CollectionRunPage> ListPageAsync(
+    public Task<CollectionRunPage> ListPageAsync(
         int limit,
         CollectionRunCursor? before = null,
-        CancellationToken cancellationToken = default)
-    {
-        var safeLimit = Math.Clamp(limit, 1, 100);
-        var query = db.Runs
-            .AsNoTracking()
-            .AsQueryable();
-        if (before is not null)
-        {
-            query = query.Where(run =>
-                run.UpdatedAt < before.UpdatedAt ||
-                (run.UpdatedAt == before.UpdatedAt &&
-                 run.Id.CompareTo(before.Id) < 0));
-        }
-
-        var entities = await query
-            .OrderByDescending(run => run.UpdatedAt)
-            .ThenByDescending(run => run.Id)
-            .Take(safeLimit + 1)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-        var hasMore = entities.Count > safeLimit;
-        var pageEntities = entities.Take(safeLimit).ToList();
-        var entries = pageEntities.Select(CollectionRunMapper.ToDomain).ToList();
-        var nextCursor = hasMore && pageEntities.Count > 0
-            ? new CollectionRunCursor(
-                pageEntities[^1].UpdatedAt,
-                pageEntities[^1].Id)
-            : null;
-
-        return new(entries, nextCursor);
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListPageAsync(limit, before, cancellationToken);
 
     public Task<bool?> DeleteFailedAsync(
         Guid id,
