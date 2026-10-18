@@ -12,6 +12,7 @@ public sealed class EfCollectionRunRepository(
     ITransactionalOutboxWriter outbox) : ICollectionRunRepository
 {
     private readonly CollectionRunCleanupStore cleanupStore = new(db);
+    private readonly CollectionRunTaskProgressReader progressReader = new(db);
 
     public async Task AddAsync(CollectionRun run, CancellationToken cancellationToken = default)
     {
@@ -176,20 +177,9 @@ public sealed class EfCollectionRunRepository(
             return null;
         }
 
-        var progressStatuses = await db.Tasks
-            .AsNoTracking()
-            .Where(task => task.RunId == id)
-            .Select(task => task.Status)
-            .ToListAsync(cancellationToken)
+        var progress = await progressReader
+            .ReadAsync(id, cancellationToken)
             .ConfigureAwait(false);
-        var progress = new CollectionRunTaskProgress(
-            progressStatuses.Count,
-            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Pending),
-            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Leased),
-            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Running),
-            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Completed),
-            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.DeadLettered),
-            progressStatuses.Count(status => status == (int)CrawlerTaskStatus.Cancelled));
 
         var run = CollectionRunMapper.ToDomain(entity);
         run.Reconcile(progress, now);
@@ -341,24 +331,8 @@ public sealed class EfCollectionRunRepository(
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<CollectionRunTaskProgress> GetTaskProgressAsync(
+    public Task<CollectionRunTaskProgress> GetTaskProgressAsync(
         Guid runId,
-        CancellationToken cancellationToken = default)
-    {
-        var statuses = await db.Tasks
-            .AsNoTracking()
-            .Where(task => task.RunId == runId)
-            .Select(task => task.Status)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return new(
-            statuses.Count,
-            statuses.Count(status => status == (int)CrawlerTaskStatus.Pending),
-            statuses.Count(status => status == (int)CrawlerTaskStatus.Leased),
-            statuses.Count(status => status == (int)CrawlerTaskStatus.Running),
-            statuses.Count(status => status == (int)CrawlerTaskStatus.Completed),
-            statuses.Count(status => status == (int)CrawlerTaskStatus.DeadLettered),
-            statuses.Count(status => status == (int)CrawlerTaskStatus.Cancelled));
-    }
+        CancellationToken cancellationToken = default) =>
+        progressReader.ReadAsync(runId, cancellationToken);
 }
