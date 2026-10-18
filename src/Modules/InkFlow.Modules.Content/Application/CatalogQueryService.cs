@@ -94,9 +94,7 @@ public sealed class CatalogQueryService(
         Guid bookId,
         CancellationToken cancellationToken = default)
     {
-        if (await policyReader
-            .IsTakedownAsync(bookId, cancellationToken)
-            .ConfigureAwait(false))
+        if (!await IsVisibleAsync(bookId, cancellationToken).ConfigureAwait(false))
         {
             return null;
         }
@@ -111,9 +109,7 @@ public sealed class CatalogQueryService(
 
     public async Task<BookDetail?> GetBookAsync(Guid bookId, CancellationToken cancellationToken = default)
     {
-        if (await policyReader
-            .IsTakedownAsync(bookId, cancellationToken)
-            .ConfigureAwait(false))
+        if (!await IsVisibleAsync(bookId, cancellationToken).ConfigureAwait(false))
         {
             return null;
         }
@@ -137,9 +133,7 @@ public sealed class CatalogQueryService(
         Guid bookId,
         CancellationToken cancellationToken = default)
     {
-        if (await policyReader
-            .IsTakedownAsync(bookId, cancellationToken)
-            .ConfigureAwait(false))
+        if (!await IsVisibleAsync(bookId, cancellationToken).ConfigureAwait(false))
         {
             return null;
         }
@@ -161,4 +155,11 @@ public sealed class CatalogQueryService(
     public Task<ChapterContent?> GetChapterContentAsync(
         Guid chapterId, CancellationToken cancellationToken = default) =>
         contentReader.ReadAsync(chapterId, cancellationToken);
+
+    private async Task<bool> IsVisibleAsync(
+        Guid bookId,
+        CancellationToken cancellationToken) =>
+        !await policyReader
+            .IsTakedownAsync(bookId, cancellationToken)
+            .ConfigureAwait(false);
 }
