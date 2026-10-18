@@ -11,6 +11,7 @@ public sealed class RuleAdapter
     private readonly ISourceHttpClient _httpClient;
     private readonly SourceRuleExecutionLimits _limits;
     private readonly RuleCredentialResolver _credentialResolver;
+    private readonly RuleResponseValueExtractor _responseValueExtractor;
     private readonly RuleResponseEvaluator _responseEvaluator;
     private readonly RuleExecutionPreflight _preflight;
     private readonly RulePreRequestExecutor _preRequestExecutor;
@@ -26,10 +27,14 @@ public sealed class RuleAdapter
         _limits = limits ?? SourceRuleExecutionLimits.Default;
         _credentialResolver = new RuleCredentialResolver(credentialProvider);
         _limits.Validate();
-        _responseEvaluator = new RuleResponseEvaluator(selectorEvaluator, _limits);
+        _responseValueExtractor = new RuleResponseValueExtractor(selectorEvaluator, _limits);
+        _responseEvaluator = new RuleResponseEvaluator(_responseValueExtractor, _limits);
         _preflight = new RuleExecutionPreflight(_limits);
         _preRequestExecutor = new RulePreRequestExecutor(_limits, _responseEvaluator);
-        _paginationExecutor = new RulePaginationExecutor(_limits, _responseEvaluator);
+        _paginationExecutor = new RulePaginationExecutor(
+            _limits,
+            _responseEvaluator,
+            _responseValueExtractor);
     }
 
     public SourceRuleExecutionLimits Limits => _limits;

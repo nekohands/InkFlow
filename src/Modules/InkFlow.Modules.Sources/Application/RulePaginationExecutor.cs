@@ -11,13 +11,16 @@ internal sealed class RulePaginationExecutor
 {
     private readonly SourceRuleExecutionLimits _limits;
     private readonly RuleResponseEvaluator _responseEvaluator;
+    private readonly RuleResponseValueExtractor _responseValueExtractor;
 
     public RulePaginationExecutor(
         SourceRuleExecutionLimits limits,
-        RuleResponseEvaluator responseEvaluator)
+        RuleResponseEvaluator responseEvaluator,
+        RuleResponseValueExtractor responseValueExtractor)
     {
         _limits = limits;
         _responseEvaluator = responseEvaluator;
+        _responseValueExtractor = responseValueExtractor;
     }
 
     public async Task<RuleExecutionResult> ExecuteAsync(
@@ -78,12 +81,12 @@ internal sealed class RulePaginationExecutor
             }
 
             var continuationValue = pagination.Mode == RulePaginationMode.Cursor
-                ? _responseEvaluator.EvaluateFirst(
+                ? _responseValueExtractor.EvaluateFirst(
                     response.Body,
                     pagination.CursorSelector!,
                     pagination.CursorAttribute,
                     executionCancellationToken)
-                : _responseEvaluator.EvaluateFirst(
+                : _responseValueExtractor.EvaluateFirst(
                     response.Body,
                     pagination.NextPageSelector!,
                     pagination.NextPageAttribute,
