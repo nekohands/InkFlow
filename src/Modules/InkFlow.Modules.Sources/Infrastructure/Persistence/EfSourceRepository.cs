@@ -107,12 +107,10 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
 public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
 {
     private readonly SourceQueryStore queryStore = new(db);
+    private readonly SourceWriteStore writeStore = new(db);
 
-    public async Task AddAsync(Source source, CancellationToken cancellationToken = default)
-    {
-        db.Sources.Add(ToEntity(source));
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task AddAsync(Source source, CancellationToken cancellationToken = default) =>
+        writeStore.AddAsync(source, cancellationToken);
 
     public Task<Source?> GetAsync(
         string sourceId,
@@ -134,38 +132,8 @@ public sealed class EfSourceRepository(SourcesDbContext db) : ISourceRepository
         CancellationToken cancellationToken = default) =>
         queryStore.ListPageAsync(after, limit, cancellationToken);
 
-    public async Task SaveAsync(Source source, CancellationToken cancellationToken = default)
-    {
-        var entity = await db.Sources.FindAsync([source.Id], cancellationToken).ConfigureAwait(false)
-                     ?? throw new InvalidOperationException(
-                         $"source '{source.Id}' does not exist; use AddAsync first.");
-
-        ApplyDomain(source, entity);
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    internal static SourceEntity ToEntity(Source source) => new()
-    {
-        Id = source.Id,
-        DisplayName = source.DisplayName,
-        BaseUrl = source.BaseUrl,
-        RuleDslJson = source.RuleDsl is null ? null : SourcesDbContext.SerializeRuleDsl(source.RuleDsl),
-        DefaultCredentialReferenceId = source.DefaultCredentialReferenceId,
-        IsEnabled = source.IsEnabled,
-        CreatedAt = source.CreatedAt,
-        UpdatedAt = source.UpdatedAt,
-    };
-
-    internal static void ApplyDomain(Source source, SourceEntity entity)
-    {
-        var fresh = ToEntity(source);
-        entity.DisplayName = fresh.DisplayName;
-        entity.BaseUrl = fresh.BaseUrl;
-        entity.RuleDslJson = fresh.RuleDslJson;
-        entity.DefaultCredentialReferenceId = fresh.DefaultCredentialReferenceId;
-        entity.IsEnabled = fresh.IsEnabled;
-        entity.UpdatedAt = fresh.UpdatedAt;
-    }
+    public Task SaveAsync(Source source, CancellationToken cancellationToken = default) =>
+        writeStore.SaveAsync(source, cancellationToken);
 }
 
 /// <summary>dotnet-ef 设计时工厂。</summary>
