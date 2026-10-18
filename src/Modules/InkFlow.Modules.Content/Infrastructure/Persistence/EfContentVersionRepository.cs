@@ -126,6 +126,9 @@ public sealed class EfContentSelectionDecisionRepository(ContentDbContext db)
 
 public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVersionRepository
 {
+    private readonly ContentVersionQueryStore queryStore = new(db);
+    private readonly ContentVersionCurrentStore currentStore = new(db);
+
     public async Task AddAsync(ContentVersion version, CancellationToken cancellationToken = default)
     {
         db.Versions.Add(new ContentVersionEntity
@@ -149,90 +152,30 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
 
     public async Task<ContentVersion?> FindByHashAsync(
         Guid canonicalChapterId, string canonicalHash, CancellationToken cancellationToken = default)
-    {
-        var entity = await db.Versions
-            .SingleOrDefaultAsync(
-                v => v.CanonicalChapterId == canonicalChapterId && v.CanonicalHash == canonicalHash,
-                cancellationToken)
+        => await queryStore.FindByHashAsync(canonicalChapterId, canonicalHash, cancellationToken)
             .ConfigureAwait(false);
 
-        return entity is null ? null : ContentDbContext.ToDomain(entity);
-    }
-
-    public async Task<IReadOnlyList<ContentVersion>> ListForChapterAsync(
+    public Task<IReadOnlyList<ContentVersion>> ListForChapterAsync(
         Guid canonicalChapterId, CancellationToken cancellationToken = default)
-    {
-        var entities = await db.Versions
-            .Where(v => v.CanonicalChapterId == canonicalChapterId)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        => queryStore.ListForChapterAsync(canonicalChapterId, cancellationToken);
 
-        return entities.Select(ContentDbContext.ToDomain).ToList();
-    }
-
-    public async Task<ContentVersion?> GetCurrentForChapterAsync(
+    public Task<ContentVersion?> GetCurrentForChapterAsync(
         Guid canonicalChapterId, CancellationToken cancellationToken = default)
-    {
-        var entity = await db.Versions
-            .SingleOrDefaultAsync(
-                v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent,
-                cancellationToken)
-            .ConfigureAwait(false);
+        => queryStore.GetCurrentForChapterAsync(canonicalChapterId, cancellationToken);
 
-        return entity is null ? null : ContentDbContext.ToDomain(entity);
-    }
-
-    public async Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
+    public Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-    {
-        var entities = await db.Versions
-            .AsNoTracking()
-            .Where(v => v.CanonicalBookId == canonicalBookId && v.IsCurrent)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities.Select(ContentDbContext.ToDomain).ToList();
-    }
+        => queryStore.ListCurrentForBookAsync(canonicalBookId, cancellationToken);
 
     public Task<Guid?> GetCurrentCanonicalBookIdAsync(
         Guid canonicalChapterId,
         CancellationToken cancellationToken = default) =>
-        db.Versions
-            .Where(v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent)
-            .Select(v => (Guid?)v.CanonicalBookId)
-            .SingleOrDefaultAsync(cancellationToken);
+        queryStore.GetCurrentCanonicalBookIdAsync(canonicalChapterId, cancellationToken);
 
-    /// <summary>在同一事务内原子切换当前版本，并拒绝跨章节版本。</summary>
-    public async Task SetCurrentAsync(
-        Guid chapterId, Guid versionId, CancellationToken cancellationToken = default)
-    {
-        await using var transaction = await db.Database
-            .BeginTransactionAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var targetExists = await db.Versions
-            .AnyAsync(
-                v => v.Id == versionId && v.CanonicalChapterId == chapterId,
-                cancellationToken)
-            .ConfigureAwait(false);
-        if (!targetExists)
-        {
-            throw new InvalidOperationException(
-                $"content version '{versionId}' does not belong to chapter '{chapterId}'.");
-        }
-
-        // 单条 UPDATE 同时把同章节其它版本置为 false，并将目标置为 true，
-        // 避免两条语句之间暴露“没有当前版本”的中间状态。
-        await db.Versions
-            .Where(v => v.CanonicalChapterId == chapterId)
-            .ExecuteUpdateAsync(
-                s => s.SetProperty(v => v.IsCurrent, v => v.Id == versionId),
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task SetCurrentAsync(
+        Guid chapterId, Guid versionId, CancellationToken cancellationToken = default) =>
+        currentStore.SetCurrentAsync(chapterId, versionId, cancellationToken);
 }
 
 public sealed class EfContentPolicyRepository(ContentDbContext db) : IContentPolicyRepository
