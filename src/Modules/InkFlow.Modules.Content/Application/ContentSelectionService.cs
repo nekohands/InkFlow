@@ -16,6 +16,8 @@ public sealed class ContentSelectionService(
 {
     private readonly ContentVersionAvailabilityEvaluator availabilityEvaluator =
         new(sourceHealth);
+    private readonly ContentSelectionDecisionRecorder decisionRecorder =
+        new(decisions, clock);
 
     public async Task<ContentSelectionOutcome> SelectCurrentAsync(
         Guid canonicalChapterId,
@@ -78,50 +80,15 @@ public sealed class ContentSelectionService(
                 .ConfigureAwait(false);
         }
 
-        var evidence = BuildEvidence(
-            canonicalChapterId,
-            selected,
-            availability,
-            usedFallback);
-        var decision = ContentSelectionDecision.Create(
-            canonicalChapterId,
-            selected.Id,
-            evidence,
-            clock.GetUtcNow());
-        await decisions.AddAsync(decision, cancellationToken).ConfigureAwait(false);
+        var evidence = await decisionRecorder
+            .RecordAsync(
+                canonicalChapterId,
+                selected,
+                availability,
+                usedFallback,
+                cancellationToken)
+            .ConfigureAwait(false);
 
         return ContentSelectionOutcome.Ok(selected, changed, usedFallback, evidence);
-    }
-
-    private static string BuildEvidence(
-        Guid chapterId,
-        ContentVersion selected,
-        IReadOnlyList<(ContentVersion Version, bool IsAvailable)> availability,
-        bool usedFallback)
-    {
-        var excludedSources = availability
-            .Where(item => !item.IsAvailable)
-            .Select(item => item.Version.SourceId)
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-        var excludedText = excludedSources.Length == 0
-            ? "none"
-            : string.Join(',', excludedSources);
-
-        var evidence =
-            $"algorithm={ContentSelectionAlgorithm.Version};" +
-            $"chapter={chapterId};" +
-            $"candidates={availability.Count};" +
-            $"eligible={availability.Count(item => item.IsAvailable)};" +
-            $"excluded={availability.Count(item => !item.IsAvailable)};" +
-            $"selected={selected.Id};" +
-            $"selectedSource={selected.SourceId};" +
-            $"fallback={usedFallback};" +
-            $"excludedSources={excludedText}";
-
-        return evidence.Length <= ContentSelectionAlgorithm.MaxEvidenceLength
-            ? evidence
-            : evidence[..ContentSelectionAlgorithm.MaxEvidenceLength];
     }
 }
