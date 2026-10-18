@@ -82,7 +82,7 @@ internal sealed class RuleHttpExecutor
                 response,
                 _sourceOrigin,
                 requestContext,
-                out _,
+                out var responseUri,
                 out var originError))
         {
             return new(null, originError);
@@ -94,7 +94,7 @@ internal sealed class RuleHttpExecutor
             return new(null, "execution: response exceeded byte budget.");
         }
 
-        if (!TryAcceptResponseCookies(request, response, out var sessionError))
+        if (!TryAcceptResponseCookies(response, responseUri!, out var sessionError))
         {
             return new(null, sessionError);
         }
@@ -117,8 +117,8 @@ internal sealed class RuleHttpExecutor
     }
 
     private bool TryAcceptResponseCookies(
-        SourceHttpRequest request,
         SourceHttpResponse response,
+        Uri responseUri,
         out string error)
     {
         if (_cookieJar is null)
@@ -127,18 +127,7 @@ internal sealed class RuleHttpExecutor
             return true;
         }
 
-        if (!RuleResponseOriginPolicy.TryResolve(
-                request,
-                response,
-                _sourceOrigin,
-                "session",
-                out var responseUri,
-                out error))
-        {
-            return false;
-        }
-
-        var sessionError = _cookieJar.Accept(response.SetCookieHeaders, responseUri!);
+        var sessionError = _cookieJar.Accept(response.SetCookieHeaders, responseUri);
         if (sessionError is not null)
         {
             error = sessionError;
