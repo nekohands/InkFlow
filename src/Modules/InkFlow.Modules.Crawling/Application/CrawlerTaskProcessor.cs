@@ -8,22 +8,32 @@ namespace InkFlow.Modules.Crawling.Application;
 /// 任务执行的唯一编排模块：把已领取任务推进到 Running，执行能力处理器，
 /// 再将成功、可重试失败或死信写回 CrawlerTask 权威事实。
 /// </summary>
-public sealed class CrawlerTaskProcessor(
-    ICrawlerTaskExecutor executor,
-    ICrawlerTaskRepository tasks,
-    TimeProvider clock,
-    RetryPolicy retryPolicy,
-    CrawlerFailureReporter failureReporter,
-    CollectionRunService? collectionRuns = null,
-    TimeSpan? leaseDuration = null,
-    IServiceScopeFactory? scopeFactory = null) : ICrawlerTaskProcessor
+public sealed class CrawlerTaskProcessor : ICrawlerTaskProcessor
 {
-    private readonly CrawlerTaskRunCoordinator runCoordinator =
-        new(collectionRuns);
-    private readonly CrawlerTaskExecutionRunner executionRunner =
-        new(executor, tasks, clock, leaseDuration, scopeFactory);
-    private readonly CrawlerTaskFailureHandler failureHandler =
-        new(tasks, clock, retryPolicy, failureReporter);
+    private readonly ICrawlerTaskRepository tasks;
+    private readonly TimeProvider clock;
+    private readonly CrawlerTaskRunCoordinator runCoordinator;
+    private readonly CrawlerTaskExecutionRunner executionRunner;
+    private readonly CrawlerTaskFailureHandler failureHandler;
+    private readonly CrawlerTaskOutcomeHandler outcomeHandler;
+
+    public CrawlerTaskProcessor(
+        ICrawlerTaskExecutor executor,
+        ICrawlerTaskRepository tasks,
+        TimeProvider clock,
+        RetryPolicy retryPolicy,
+        CrawlerFailureReporter failureReporter,
+        CollectionRunService? collectionRuns = null,
+        TimeSpan? leaseDuration = null,
+        IServiceScopeFactory? scopeFactory = null)
+    {
+        this.tasks = tasks;
+        this.clock = clock;
+        runCoordinator = new(collectionRuns);
+        executionRunner = new(executor, tasks, clock, leaseDuration, scopeFactory);
+        failureHandler = new(tasks, clock, retryPolicy, failureReporter);
+        outcomeHandler = new(tasks, clock, runCoordinator, failureHandler);
+    }
 
     public async Task ProcessAsync(
         CrawlerTask task,
@@ -37,7 +47,7 @@ public sealed class CrawlerTaskProcessor(
                     .ShouldCancelBeforeExecutionAsync(task, cancellationToken)
                     .ConfigureAwait(false))
             {
-                await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
+                await outcomeHandler.CancelAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
@@ -65,44 +75,9 @@ public sealed class CrawlerTaskProcessor(
                 return;
             }
 
-            var runStatus = await runCoordinator
-                .GetStatusAsync(task, cancellationToken)
+            await outcomeHandler
+                .HandleAsync(task, outcome, cancellationToken)
                 .ConfigureAwait(false);
-            if (CrawlerTaskRunCoordinator.IsTerminal(runStatus))
-            {
-                await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (runStatus == CollectionRunStatus.Stopping)
-            {
-                if (outcome.Succeeded)
-                {
-                    await CompleteTaskAsync(task, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
-                }
-
-                await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (outcome.Succeeded)
-            {
-                await CompleteTaskAsync(task, cancellationToken).ConfigureAwait(false);
-                await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            await failureHandler
-                .HandleAsync(
-                    task,
-                    outcome.FailureReason ?? "unknown",
-                    cancellationToken)
-                .ConfigureAwait(false);
-            await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -110,44 +85,9 @@ public sealed class CrawlerTaskProcessor(
         }
         catch (Exception)
         {
-            if (await runCoordinator
-                    .ShouldCancelAfterFailureAsync(task, cancellationToken)
-                    .ConfigureAwait(false))
-            {
-                await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await failureHandler
-                    .HandleAsync(task, "crawler task execution failed.", cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            await runCoordinator
-                .ReconcileAsync(task, cancellationToken)
+            await outcomeHandler
+                .HandleExceptionAsync(task, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
-
-    private async Task CompleteTaskAsync(
-        CrawlerTask task,
-        CancellationToken cancellationToken)
-    {
-        task.Complete(clock.GetUtcNow());
-        await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task CancelTaskAsync(
-        CrawlerTask task,
-        CancellationToken cancellationToken)
-    {
-        if (task.Status is not (CrawlerTaskStatus.Completed or
-            CrawlerTaskStatus.DeadLettered or
-            CrawlerTaskStatus.Cancelled))
-        {
-            task.Cancel(clock.GetUtcNow());
-            await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
 }
