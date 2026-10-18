@@ -66,8 +66,12 @@ public sealed class CrawlerTask
     public bool IsLeasable(DateTimeOffset now) =>
         (Status == CrawlerTaskStatus.Pending &&
          (ScheduledAt is null || ScheduledAt <= now)) ||
-        ((Status is CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) &&
-         LeaseExpiresAt is { } expiry && expiry <= now);
+        IsLeaseExpired(now);
+
+    /// <summary>判断当前任务是否持有已到期的租约。</summary>
+    internal bool IsLeaseExpired(DateTimeOffset now) =>
+        (Status is CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) &&
+        LeaseExpiresAt is { } expiry && expiry <= now;
 
     public void Lease(string owner, DateTimeOffset now, TimeSpan leaseDuration)
     {
@@ -172,8 +176,7 @@ public sealed class CrawlerTask
     /// <summary>把过期租约强制回收为 Pending（由维护流程调用，不消耗尝试次数）。</summary>
     public void ReleaseExpiredLease(DateTimeOffset now)
     {
-        if (Status is not (CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) ||
-            LeaseExpiresAt is not { } expiry || expiry > now)
+        if (!IsLeaseExpired(now))
         {
             throw new InvalidOperationException(
                 "only an expired leased or running task can be released.");

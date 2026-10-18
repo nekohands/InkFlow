@@ -14,8 +14,7 @@ public sealed class CrawlerLeaseService(TimeProvider clock)
     public bool TryLease(CrawlerTask task, string owner)
     {
         var now = clock.GetUtcNow();
-        if ((task.Status is CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) &&
-            task.LeaseExpiresAt is { } expiry && expiry <= now)
+        if (task.IsLeaseExpired(now))
         {
             task.ReleaseExpiredLease(now);
         }
@@ -37,8 +36,7 @@ public sealed class CrawlerLeaseService(TimeProvider clock)
 
         foreach (var task in candidates)
         {
-            if ((task.Status is CrawlerTaskStatus.Leased or CrawlerTaskStatus.Running) &&
-                task.LeaseExpiresAt is { } expiry && expiry <= now)
+            if (task.IsLeaseExpired(now))
             {
                 task.ReleaseExpiredLease(now);
                 released.Add(task);
