@@ -9,7 +9,8 @@ public sealed class ContentPolicyService(
     IContentPolicyRepository repository,
     TimeProvider clock) : IContentPolicyService
 {
-    private readonly ContentPolicyReader reader = new(repository);
+    private readonly ContentPolicyVisibilityReader visibilityReader = new(repository);
+    private readonly ContentPolicyStatusReader statusReader = new(repository);
     private readonly ContentPolicyCommands commands = new(repository, clock);
 
     public const int MaxListLimit = ContentPolicyRules.MaxListLimit;
@@ -17,12 +18,12 @@ public sealed class ContentPolicyService(
     public Task<bool> IsTakedownAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-        => reader.IsTakedownAsync(canonicalBookId, cancellationToken);
+        => visibilityReader.IsTakedownAsync(canonicalBookId, cancellationToken);
 
     public Task<IReadOnlySet<Guid>> ListTakedownBookIdsAsync(
         IReadOnlyCollection<Guid> canonicalBookIds,
         CancellationToken cancellationToken = default)
-        => reader.ListTakedownBookIdsAsync(canonicalBookIds, cancellationToken);
+        => visibilityReader.ListTakedownBookIdsAsync(canonicalBookIds, cancellationToken);
 
     public Task<ContentPolicyCommandResult> TakedownAsync(
         Guid canonicalBookId,
@@ -41,11 +42,11 @@ public sealed class ContentPolicyService(
     public Task<ContentPolicyStatus> GetStatusAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-        => reader.GetStatusAsync(canonicalBookId, cancellationToken);
+        => statusReader.GetStatusAsync(canonicalBookId, cancellationToken);
 
     public Task<IReadOnlyList<ContentPolicyStatus>> ListAsync(
         bool takenDownOnly,
         int limit,
         CancellationToken cancellationToken = default)
-        => reader.ListAsync(takenDownOnly, limit, cancellationToken);
+        => statusReader.ListAsync(takenDownOnly, limit, cancellationToken);
 }
