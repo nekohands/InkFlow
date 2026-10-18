@@ -80,7 +80,9 @@ public sealed record CollectionRunCleanupOutcome(
 /// </summary>
 public sealed class CollectionRunService
 {
-    private readonly CollectionRunCommands commands;
+    private readonly CollectionRunStartCommands startCommands;
+    private readonly CollectionRunControlCommands controlCommands;
+    private readonly CollectionRunProgressCommands progressCommands;
     private readonly CollectionRunQueries queries;
 
     public CollectionRunService(
@@ -89,13 +91,15 @@ public sealed class CollectionRunService
         TimeProvider clock)
     {
         queries = new(runs);
-        commands = new(urlResolver, runs, clock, queries);
+        progressCommands = new(runs, clock);
+        startCommands = new(urlResolver, runs, clock, queries, progressCommands);
+        controlCommands = new(runs, clock, queries, progressCommands);
     }
 
     public Task<CollectionRunStartOutcome> StartFromUrlAsync(
         string? inputUrl,
         CancellationToken cancellationToken = default) =>
-        commands.StartFromUrlAsync(inputUrl, cancellationToken);
+        startCommands.StartFromUrlAsync(inputUrl, cancellationToken);
 
     public Task<CollectionRunView?> GetViewAsync(
         Guid runId,
@@ -117,19 +121,19 @@ public sealed class CollectionRunService
         Guid runId,
         string? reason,
         CancellationToken cancellationToken = default) =>
-        commands.DeleteFailedAsync(runId, reason, cancellationToken);
+        controlCommands.DeleteFailedAsync(runId, reason, cancellationToken);
 
     public Task<CollectionRunCleanupOutcome> DeleteCancelledAsync(
         string? reason,
         CancellationToken cancellationToken = default) =>
-        commands.DeleteCancelledAsync(reason, cancellationToken);
+        controlCommands.DeleteCancelledAsync(reason, cancellationToken);
 
     public Task<CollectionRunControlOutcome> ControlAsync(
         Guid runId,
         string? action,
         string? reason,
         CancellationToken cancellationToken = default) =>
-        commands.ControlAsync(runId, action, reason, cancellationToken);
+        controlCommands.ControlAsync(runId, action, reason, cancellationToken);
 
     public Task<bool> CanScheduleFollowUpAsync(
         Guid runId,
@@ -145,21 +149,21 @@ public sealed class CollectionRunService
         Guid runId,
         Guid canonicalBookId,
         CancellationToken cancellationToken = default) =>
-        commands.SetCanonicalBookAsync(runId, canonicalBookId, cancellationToken);
+        progressCommands.SetCanonicalBookAsync(runId, canonicalBookId, cancellationToken);
 
     public Task AdvanceStageAsync(
         Guid runId,
         CollectionRunStage stage,
         CancellationToken cancellationToken = default) =>
-        commands.AdvanceStageAsync(runId, stage, cancellationToken);
+        progressCommands.AdvanceStageAsync(runId, stage, cancellationToken);
 
     public Task MarkWorkStartedAsync(
         Guid runId,
         CancellationToken cancellationToken = default) =>
-        commands.MarkWorkStartedAsync(runId, cancellationToken);
+        progressCommands.MarkWorkStartedAsync(runId, cancellationToken);
 
     public Task ReconcileAsync(
         Guid runId,
         CancellationToken cancellationToken = default) =>
-        commands.ReconcileAsync(runId, cancellationToken);
+        progressCommands.ReconcileAsync(runId, cancellationToken);
 }
