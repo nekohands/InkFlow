@@ -13,6 +13,7 @@ public sealed class EfCrawlerTaskRepository(
     ITransactionalOutboxWriter outbox) : ICrawlerTaskRepository, ICrawlerTaskRepairRepository
 {
     private readonly CrawlerTaskDeadLetterStore deadLetterStore = new(db);
+    private readonly CrawlerTaskReplayStore replayStore = new(db);
     private readonly CrawlerTaskDedupeStore dedupeStore = new(db, outbox);
     private readonly CrawlerTaskLeaseStore leaseStore = new(db);
 
@@ -111,7 +112,7 @@ public sealed class EfCrawlerTaskRepository(
         DeadLetterReplayCommand command,
         DateTimeOffset now,
         CancellationToken cancellationToken = default) =>
-        deadLetterStore.ReplayAsync(command, now, cancellationToken);
+        replayStore.ReplayAsync(command, now, cancellationToken);
 
     public Task<bool> HasActiveTaskAsync(
         string sourceId, SourceCapability capability, CancellationToken cancellationToken = default) =>
