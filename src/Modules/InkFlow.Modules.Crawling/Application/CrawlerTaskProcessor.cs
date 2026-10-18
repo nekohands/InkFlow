@@ -68,10 +68,7 @@ public sealed class CrawlerTaskProcessor(
             var runStatus = await runCoordinator
                 .GetStatusAsync(task, cancellationToken)
                 .ConfigureAwait(false);
-            if (runStatus is CollectionRunStatus.Cancelled or
-                CollectionRunStatus.Failed or
-                CollectionRunStatus.Stopped or
-                CollectionRunStatus.Completed)
+            if (CrawlerTaskRunCoordinator.IsTerminal(runStatus))
             {
                 await CancelTaskAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
@@ -81,8 +78,7 @@ public sealed class CrawlerTaskProcessor(
             {
                 if (outcome.Succeeded)
                 {
-                    task.Complete(clock.GetUtcNow());
-                    await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
+                    await CompleteTaskAsync(task, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -95,8 +91,7 @@ public sealed class CrawlerTaskProcessor(
 
             if (outcome.Succeeded)
             {
-                task.Complete(clock.GetUtcNow());
-                await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
+                await CompleteTaskAsync(task, cancellationToken).ConfigureAwait(false);
                 await runCoordinator.ReconcileAsync(task, cancellationToken).ConfigureAwait(false);
                 return;
             }
@@ -132,6 +127,14 @@ public sealed class CrawlerTaskProcessor(
                 .ReconcileAsync(task, cancellationToken)
                 .ConfigureAwait(false);
         }
+    }
+
+    private async Task CompleteTaskAsync(
+        CrawlerTask task,
+        CancellationToken cancellationToken)
+    {
+        task.Complete(clock.GetUtcNow());
+        await tasks.SaveAsync(task, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task CancelTaskAsync(

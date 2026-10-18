@@ -9,10 +9,7 @@ internal sealed class CrawlerTaskRunCoordinator(CollectionRunService? collection
         CancellationToken cancellationToken)
     {
         var status = await GetStatusAsync(task, cancellationToken).ConfigureAwait(false);
-        return status is CollectionRunStatus.Cancelled or
-            CollectionRunStatus.Failed or
-            CollectionRunStatus.Stopped or
-            CollectionRunStatus.Completed;
+        return IsTerminal(status);
     }
 
     public async Task<bool> ShouldCancelAfterFailureAsync(
@@ -20,12 +17,14 @@ internal sealed class CrawlerTaskRunCoordinator(CollectionRunService? collection
         CancellationToken cancellationToken)
     {
         var status = await GetStatusAsync(task, cancellationToken).ConfigureAwait(false);
-        return status is CollectionRunStatus.Stopping or
-            CollectionRunStatus.Cancelled or
-            CollectionRunStatus.Failed or
-            CollectionRunStatus.Stopped or
-            CollectionRunStatus.Completed;
+        return status == CollectionRunStatus.Stopping || IsTerminal(status);
     }
+
+    public static bool IsTerminal(CollectionRunStatus? status) => status is
+        CollectionRunStatus.Cancelled or
+        CollectionRunStatus.Failed or
+        CollectionRunStatus.Stopped or
+        CollectionRunStatus.Completed;
 
     public Task<CollectionRunStatus?> GetStatusAsync(
         CrawlerTask task,

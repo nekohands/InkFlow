@@ -29,6 +29,43 @@ public sealed class CrawlerTaskProcessorTests
     }
 
     [TestMethod]
+    public async Task Stopping_Run_Completes_Successful_Active_Task()
+    {
+        var run = CollectionRun.Create(
+            "official-a",
+            "book-1",
+            "https://books.example.com/book-1",
+            T0);
+        run.RequestStop(T0);
+
+        var task = CrawlerTask.Create(
+            new CrawlPayload(
+                "official-a",
+                SourceCapability.Toc,
+                new Dictionary<string, string> { ["bookId"] = "book-1" },
+                RunId: run.Id),
+            maxAttempts: 2,
+            T0);
+        task.Lease(CrawlerTaskExecutionDefaults.Owner, T0, CrawlerTaskExecutionDefaults.LeaseDuration);
+
+        var taskRepository = new InMemoryTaskRepository();
+        var runRepository = new InMemoryCollectionRunRepository(run);
+        var collectionRuns = new CollectionRunService(
+            urlResolver: null!,
+            runs: runRepository,
+            clock: new FixedTimeProvider(T0.AddSeconds(10)));
+        var processor = CreateProcessor(
+            taskRepository,
+            new RecordingExecutor(CrawlOutcome.Ok()),
+            collectionRuns);
+
+        await processor.ProcessAsync(task);
+
+        Assert.AreEqual(CrawlerTaskStatus.Completed, task.Status);
+        Assert.AreEqual(2, taskRepository.SaveCount);
+    }
+
+    [TestMethod]
     public async Task Failed_Execution_Returns_Task_To_Pending_With_A_Schedule()
     {
         var task = LeaseTask(maxAttempts: 2);
