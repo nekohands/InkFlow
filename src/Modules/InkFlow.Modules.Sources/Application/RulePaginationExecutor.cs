@@ -93,21 +93,21 @@ internal sealed class RulePaginationExecutor
                 return CompletePagination(rule, pageBodies, executionCancellationToken);
             }
 
-            if (!RuleRequestBuilder.TryContinueAfterPage(
-                    page,
-                    requestsUsed,
-                    pagination,
-                    _limits,
-                    out var limitError))
+            if (page >= pagination.MaxPages)
             {
-                return RuleExecutionResult.Fail([limitError]);
+                return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
+            }
+
+            if (requestsUsed >= _limits.MaxRequests)
+            {
+                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
             }
 
             switch (pagination.Mode)
             {
                 case RulePaginationMode.NextLink:
                     {
-                        if (!RuleRequestBuilder.TryBuildNextRequest(
+                        if (!RuleRequestUrlPolicy.TryBuildNextRequest(
                                 currentRequest,
                                 continuationValue!,
                                 sourceOrigin,
@@ -260,7 +260,7 @@ internal sealed class RulePaginationExecutor
             return [credentialError];
         }
 
-        if (!RuleRequestBuilder.TryValidateContinuationRequest(
+        if (!RuleRequestUrlPolicy.TryValidateContinuationRequest(
                 preparedRequest!,
                 sourceOrigin,
                 out var continuationError))

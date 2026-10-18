@@ -172,7 +172,7 @@ internal sealed class RuleHttpExecutor
         if (!candidate.IsAbsoluteUri ||
             candidate.Fragment.Length > 0 ||
             candidate.UserInfo.Length > 0 ||
-            !RuleRequestBuilder.IsSameOrigin(_sourceOrigin, candidate))
+            !RuleRequestUrlPolicy.IsSameOrigin(_sourceOrigin, candidate))
         {
             error = $"{requestContext}: response origin changed during redirect.";
             return false;

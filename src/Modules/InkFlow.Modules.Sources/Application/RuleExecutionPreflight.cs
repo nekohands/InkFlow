@@ -109,7 +109,7 @@ internal sealed class RuleExecutionPreflight(SourceRuleExecutionLimits limits)
         }
 
         // 出网前的最后一道闸：字面量 SSRF 校验失败绝不发起请求。
-        if (!RuleRequestBuilder.TryValidateInitialRequest(
+        if (!RuleRequestUrlPolicy.TryValidateInitialRequest(
                 firstRequest!,
                 sourceOrigin,
                 out var firstRequestError))
