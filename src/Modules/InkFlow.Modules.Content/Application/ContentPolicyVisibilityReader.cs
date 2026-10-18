@@ -16,7 +16,7 @@ internal sealed class ContentPolicyVisibilityReader(IContentPolicyRepository rep
             .GetLatestAsync(canonicalBookId, cancellationToken)
             .ConfigureAwait(false);
 
-        return latest?.Action == ContentPolicyAction.Takedown;
+        return latest?.IsTakedown == true;
     }
 
     public async Task<IReadOnlySet<Guid>> ListTakedownBookIdsAsync(
@@ -37,7 +37,7 @@ internal sealed class ContentPolicyVisibilityReader(IContentPolicyRepository rep
             .ConfigureAwait(false);
 
         return latest
-            .Where(decision => decision.Action == ContentPolicyAction.Takedown)
+            .Where(decision => decision.IsTakedown)
             .Select(decision => decision.CanonicalBookId)
             .ToHashSet();
     }

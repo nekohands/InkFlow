@@ -39,6 +39,6 @@ internal sealed class ContentPolicyStatusReader(IContentPolicyRepository reposit
         ContentPolicyDecision? latest) =>
         new(
             canonicalBookId,
-            latest?.Action == ContentPolicyAction.Takedown,
+            latest?.IsTakedown == true,
             latest);
 }

@@ -55,7 +55,7 @@ internal sealed class ContentPolicyCommands(
         {
             return new ContentPolicyCommandResult(
                 canonicalBookId,
-                action == ContentPolicyAction.Takedown,
+                latest.IsTakedown,
                 Changed: false,
                 latest);
         }
@@ -74,7 +74,7 @@ internal sealed class ContentPolicyCommands(
 
         return new ContentPolicyCommandResult(
             canonicalBookId,
-            action == ContentPolicyAction.Takedown,
+            candidate.IsTakedown,
             Changed: true,
             candidate);
     }

@@ -17,6 +17,7 @@ public sealed class ContentPolicyDecision
     public Guid Id { get; private set; }
     public Guid CanonicalBookId { get; private set; }
     public ContentPolicyAction Action { get; private set; }
+    public bool IsTakedown => Action == ContentPolicyAction.Takedown;
     public string ActorId { get; private set; } = null!;
     public string Reason { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }

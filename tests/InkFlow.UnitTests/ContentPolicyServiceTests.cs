@@ -85,6 +85,27 @@ public sealed class ContentPolicyServiceTests
             T0));
     }
 
+    [TestMethod]
+    public void Decision_Exposes_Derived_Takedown_State()
+    {
+        var bookId = Guid.CreateVersion7();
+        var takedown = ContentPolicyDecision.Create(
+            bookId,
+            ContentPolicyAction.Takedown,
+            "admin-1",
+            "待核实内容",
+            T0);
+        var restore = ContentPolicyDecision.Create(
+            bookId,
+            ContentPolicyAction.Restore,
+            "admin-1",
+            "授权核验完成",
+            T0.AddMinutes(1));
+
+        Assert.IsTrue(takedown.IsTakedown);
+        Assert.IsFalse(restore.IsTakedown);
+    }
+
     private sealed class InMemoryPolicyRepository : IContentPolicyRepository
     {
         public List<ContentPolicyDecision> Store { get; } = [];
@@ -109,7 +130,7 @@ public sealed class ContentPolicyServiceTests
                     .OrderByDescending(decision => decision.CreatedAt)
                     .ThenByDescending(decision => decision.Id)
                     .First())
-                .Where(decision => !takenDownOnly || decision.Action == ContentPolicyAction.Takedown)
+                .Where(decision => !takenDownOnly || decision.IsTakedown)
                 .OrderByDescending(decision => decision.CreatedAt)
                 .ThenByDescending(decision => decision.Id)
                 .Take(limit)
