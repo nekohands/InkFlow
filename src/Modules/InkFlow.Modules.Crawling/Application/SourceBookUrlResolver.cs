@@ -29,8 +29,8 @@ public sealed class SourceBookUrlResolver(
     ISourceAdapterFactory adapterFactory)
 {
     private const int MaxUrlLength = 2048;
-    private const int MaxExternalIdLength = 512;
-    private const int MaxSourcesPerPage = 100;
+    private readonly RegisteredSourceBookUrlLookup sourceLookup =
+        new(sourceRepository, adapterFactory);
 
     public async Task<SourceBookUrlResolution> ResolveAsync(
         string? input,
@@ -74,54 +74,12 @@ public sealed class SourceBookUrlResolver(
                 "source-url.port", "non-default URL ports are not supported.");
         }
 
-        SourceScanCursor? after = null;
-        while (true)
+        var resolution = await sourceLookup
+            .ResolveAsync(uri, cancellationToken)
+            .ConfigureAwait(false);
+        if (resolution is not null)
         {
-            var page = await sourceRepository
-                .ListPageAsync(after, MaxSourcesPerPage, cancellationToken)
-                .ConfigureAwait(false);
-            foreach (var source in page.Sources)
-            {
-                if (!source.IsEnabled)
-                {
-                    continue;
-                }
-
-                if (!MatchesRegisteredBase(uri, source.BaseUrl))
-                {
-                    continue;
-                }
-
-                var adapter = await adapterFactory
-                    .GetAdapterAsync(source.Id, cancellationToken)
-                    .ConfigureAwait(false);
-                if (adapter is null)
-                {
-                    continue;
-                }
-
-                if (!adapter.TryResolveBookUrl(uri, out var externalBookId) ||
-                    string.IsNullOrWhiteSpace(externalBookId) ||
-                    externalBookId.Length > MaxExternalIdLength ||
-                    externalBookId.Any(char.IsControl))
-                {
-                    continue;
-                }
-
-                var normalized = uri.GetLeftPart(UriPartial.Path);
-                return SourceBookUrlResolution.Success(
-                    source.Id,
-                    externalBookId.Trim(),
-                    normalized);
-            }
-
-            if (!page.HasMore)
-            {
-                break;
-            }
-
-            after = page.NextCursor ?? throw new InvalidOperationException(
-                "source page reported more entries without a continuation cursor.");
+            return resolution;
         }
 
         return SourceBookUrlResolution.Failure(
@@ -129,29 +87,8 @@ public sealed class SourceBookUrlResolver(
             "the URL is not a supported book page of a registered public source.");
     }
 
-    private static bool MatchesRegisteredBase(Uri input, string baseUrl)
-    {
-        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var registered) ||
-            !string.Equals(input.Scheme, registered.Scheme, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(input.Host, registered.Host, StringComparison.OrdinalIgnoreCase) ||
-            EffectivePort(input) != EffectivePort(registered))
-        {
-            return false;
-        }
-
-        var basePath = registered.AbsolutePath.TrimEnd('/');
-        return basePath.Length == 0 ||
-            string.Equals(input.AbsolutePath, basePath, StringComparison.Ordinal) ||
-            input.AbsolutePath.StartsWith(basePath + "/", StringComparison.Ordinal);
-    }
-
     private static bool IsDefaultPort(Uri uri) =>
         uri.Port < 0 ||
         (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) && uri.Port == 80) ||
         (uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) && uri.Port == 443);
-
-    private static int EffectivePort(Uri uri) =>
-        uri.Port >= 0
-            ? uri.Port
-            : uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? 443 : 80;
 }
