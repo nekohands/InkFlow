@@ -118,21 +118,18 @@ public sealed class HealthProbeService(
         ISourceAdapter adapter,
         string sourceId,
         CancellationToken cancellationToken)
-    {
-        try
-        {
-            await adapter.SearchAsync(ProbeKeyword, cancellationToken).ConfigureAwait(false);
-            await recorder.RecordSuccessAsync(sourceId, SourceCapability.Search, cancellationToken)
-                .ConfigureAwait(false);
-            return new HealthProbeResult(sourceId, SourceCapability.Search, Recovered: true, null);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            return await ReportFailureAsync(
-                    sourceId, SourceCapability.Search, "transport failure.", cancellationToken)
-                .ConfigureAwait(false);
-        }
-    }
+        => await ExecuteProbeAsync(
+                sourceId,
+                SourceCapability.Search,
+                async () =>
+                {
+                    await adapter
+                        .SearchAsync(ProbeKeyword, cancellationToken)
+                        .ConfigureAwait(false);
+                    return null;
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
 
     private async Task<HealthProbeResult?> ProbeTocAsync(
         ISourceAdapter adapter,
@@ -149,28 +146,46 @@ public sealed class HealthProbeService(
             return null;
         }
 
+        return await ExecuteProbeAsync(
+                sourceId,
+                SourceCapability.Toc,
+                async () =>
+                {
+                    var entries = await adapter
+                        .GetTableOfContentsAsync(sample.ExternalBookId, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    // 与目录同步同语义:空目录视为能力故障。
+                    return entries is null || entries.Count == 0 ? "empty-toc" : null;
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<HealthProbeResult> ExecuteProbeAsync(
+        string sourceId,
+        SourceCapability capability,
+        Func<Task<string?>> probe,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            var entries = await adapter
-                .GetTableOfContentsAsync(sample.ExternalBookId, cancellationToken)
-                .ConfigureAwait(false);
-
-            // 与目录同步同语义:空目录视为能力故障。
-            if (entries is null || entries.Count == 0)
+            var failureReason = await probe().ConfigureAwait(false);
+            if (failureReason is not null)
             {
                 return await ReportFailureAsync(
-                        sourceId, SourceCapability.Toc, "empty-toc", cancellationToken)
+                        sourceId, capability, failureReason, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            await recorder.RecordSuccessAsync(sourceId, SourceCapability.Toc, cancellationToken)
+            await recorder.RecordSuccessAsync(sourceId, capability, cancellationToken)
                 .ConfigureAwait(false);
-            return new HealthProbeResult(sourceId, SourceCapability.Toc, Recovered: true, null);
+            return new HealthProbeResult(sourceId, capability, Recovered: true, null);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return await ReportFailureAsync(
-                    sourceId, SourceCapability.Toc, "transport failure.", cancellationToken)
+                    sourceId, capability, "transport failure.", cancellationToken)
                 .ConfigureAwait(false);
         }
     }
