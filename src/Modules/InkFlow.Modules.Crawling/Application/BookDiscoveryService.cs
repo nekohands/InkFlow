@@ -63,9 +63,7 @@ public sealed class BookDiscoveryService(
         }
 
         var warnings = new List<string>();
-        var byCanonical = new Dictionary<Guid, DiscoveredBook>();
-        var newlyCreated = new HashSet<Guid>();
-        var totalTruncated = false;
+        var accumulator = new DiscoveredBookAccumulator(MaxDiscoveredBooks);
         SourceScanCursor? after = null;
 
         while (true)
@@ -76,10 +74,8 @@ public sealed class BookDiscoveryService(
 
             foreach (var source in page.Sources)
             {
-                if (byCanonical.Count >= MaxDiscoveredBooks)
+                if (!accumulator.HasCapacity(warnings))
                 {
-                    warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
-                    totalTruncated = true;
                     break;
                 }
 
@@ -92,10 +88,8 @@ public sealed class BookDiscoveryService(
 
                     foreach (var hit in read.Hits)
                     {
-                        if (byCanonical.Count >= MaxDiscoveredBooks)
+                        if (!accumulator.HasCapacity(warnings))
                         {
-                            warnings.Add($"search: results truncated at {MaxDiscoveredBooks}.");
-                            totalTruncated = true;
                             break;
                         }
 
@@ -109,33 +103,10 @@ public sealed class BookDiscoveryService(
                             continue;
                         }
 
-                        if (processed.NewlyCreated)
-                        {
-                            newlyCreated.Add(processed.Book!.Id);
-                        }
-
-                        if (byCanonical.TryGetValue(processed.Book!.Id, out var existing))
-                        {
-                            if (!existing.SourceIds.Contains(source.Id))
-                            {
-                                byCanonical[processed.Book.Id] = existing with
-                                {
-                                    SourceIds = [.. existing.SourceIds, source.Id],
-                                };
-                            }
-                        }
-                        else
-                        {
-                            byCanonical[processed.Book.Id] = new DiscoveredBook(
-                                processed.Book.Id,
-                                processed.Book.Title,
-                                processed.Book.Author,
-                                [source.Id],
-                                AlreadyInLibrary: !newlyCreated.Contains(processed.Book.Id));
-                        }
+                        accumulator.Add(source.Id, processed);
                     }
 
-                    if (totalTruncated)
+                    if (accumulator.IsTruncated)
                     {
                         break;
                     }
@@ -151,7 +122,7 @@ public sealed class BookDiscoveryService(
                 }
             }
 
-            if (totalTruncated || !page.HasMore)
+            if (accumulator.IsTruncated || !page.HasMore)
             {
                 break;
             }
@@ -160,11 +131,7 @@ public sealed class BookDiscoveryService(
                 "source page reported more entries without a continuation cursor.");
         }
 
-        var books = byCanonical.Values
-            .OrderBy(b => b.Title, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return new DiscoveryOutcome(books, warnings);
+        return new DiscoveryOutcome(accumulator.Build(), warnings);
     }
 
     private static string CreateFailureWarning(string phase, string sourceId) =>
