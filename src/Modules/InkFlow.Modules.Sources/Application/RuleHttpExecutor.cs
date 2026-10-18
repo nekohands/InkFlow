@@ -77,7 +77,13 @@ internal sealed class RuleHttpExecutor
             return new(null, $"http: upstream returned status {response.StatusCode}.");
         }
 
-        if (!TryValidateResponseOrigin(request, response, requestContext, out var originError))
+        if (!RuleResponseOriginPolicy.TryResolve(
+                request,
+                response,
+                _sourceOrigin,
+                requestContext,
+                out _,
+                out var originError))
         {
             return new(null, originError);
         }
@@ -110,18 +116,6 @@ internal sealed class RuleHttpExecutor
         };
     }
 
-    private bool TryValidateResponseOrigin(
-        SourceHttpRequest request,
-        SourceHttpResponse response,
-        string requestContext,
-        out string error)
-        => TryResolveSameOriginResponseUri(
-            request,
-            response,
-            requestContext,
-            out _,
-            out error);
-
     private bool TryAcceptResponseCookies(
         SourceHttpRequest request,
         SourceHttpResponse response,
@@ -133,9 +127,10 @@ internal sealed class RuleHttpExecutor
             return true;
         }
 
-        if (!TryResolveSameOriginResponseUri(
+        if (!RuleResponseOriginPolicy.TryResolve(
                 request,
                 response,
+                _sourceOrigin,
                 "session",
                 out var responseUri,
                 out error))
@@ -150,35 +145,6 @@ internal sealed class RuleHttpExecutor
             return false;
         }
 
-        error = string.Empty;
-        return true;
-    }
-
-    private bool TryResolveSameOriginResponseUri(
-        SourceHttpRequest request,
-        SourceHttpResponse response,
-        string requestContext,
-        out Uri? responseUri,
-        out string error)
-    {
-        responseUri = null;
-        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var requestUri))
-        {
-            error = $"{requestContext}: request URI is invalid.";
-            return false;
-        }
-
-        var candidate = response.ResponseUri ?? requestUri;
-        if (!candidate.IsAbsoluteUri ||
-            candidate.Fragment.Length > 0 ||
-            candidate.UserInfo.Length > 0 ||
-            !RuleRequestUrlPolicy.IsSameOrigin(_sourceOrigin, candidate))
-        {
-            error = $"{requestContext}: response origin changed during redirect.";
-            return false;
-        }
-
-        responseUri = candidate;
         error = string.Empty;
         return true;
     }
