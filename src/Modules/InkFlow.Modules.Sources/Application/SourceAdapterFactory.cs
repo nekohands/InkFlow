@@ -23,18 +23,16 @@ public sealed class SourceAdapterFactory(
     ISelectorEvaluator selectorEvaluator,
     IEnumerable<ISourceAdapter> codeAdapters) : ISourceAdapterFactory
 {
-    private readonly Dictionary<string, ISourceAdapter> _codeAdapters =
-        codeAdapters.ToDictionary(a => a.SourceId, StringComparer.Ordinal);
+    private readonly RegisteredCodeAdapterResolver _registeredCodeAdapters =
+        new(sourceRepository, codeAdapters);
 
     public async Task<ISourceAdapter?> GetAdapterAsync(string sourceId, CancellationToken cancellationToken = default)
     {
-        if (_codeAdapters.TryGetValue(sourceId, out var custom))
+        if (_registeredCodeAdapters.IsRegistered(sourceId))
         {
-            return await sourceRepository
-                .GetEnabledAsync(sourceId, cancellationToken)
-                .ConfigureAwait(false) is true
-                ? custom
-                : null;
+            return await _registeredCodeAdapters
+                .ResolveAsync(sourceId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         var source = await sourceRepository.GetAsync(sourceId, cancellationToken).ConfigureAwait(false);

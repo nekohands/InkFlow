@@ -87,6 +87,21 @@ public sealed class SourceAdapterFactoryTests
         Assert.AreEqual(2, repository.GetEnabledCallCount);
     }
 
+    [TestMethod]
+    public async Task Registered_Code_Adapter_Does_Not_Fall_Back_To_Rule_Source_When_Disabled()
+    {
+        var source = CreateRuleSource();
+        source.Disable(T0.AddMinutes(1));
+        var repository = new TrackingSourceRepository(source);
+        var factory = CreateFactory(repository, [new StubAdapter(source.Id)]);
+
+        var result = await factory.GetAdapterAsync(source.Id);
+
+        Assert.IsNull(result);
+        Assert.AreEqual(0, repository.GetCallCount);
+        Assert.AreEqual(1, repository.GetEnabledCallCount);
+    }
+
     private static SourceAdapterFactory CreateFactory(
         TrackingSourceRepository repository,
         IEnumerable<ISourceAdapter>? codeAdapters = null)
