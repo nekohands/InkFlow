@@ -56,7 +56,7 @@ internal sealed class RulePreRequestExecutor(
             }
             else
             {
-                var buildErrors = RuleRequestBuilder.TryBuildAndPrepareInitialRequest(
+                var buildErrors = RuleRequestPreparer.TryBuildInitialRequest(
                     step.Request,
                     rule.Capability,
                     baseUrl,

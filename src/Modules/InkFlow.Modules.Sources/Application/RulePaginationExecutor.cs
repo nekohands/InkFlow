@@ -147,7 +147,7 @@ internal sealed class RulePaginationExecutor
                                 ["pagination: generated page value exceeds the allowed range."]);
                         }
 
-                        var continuationErrors = TryBuildVariableContinuationRequest(
+                        var continuationErrors = RuleRequestPreparer.TryBuildContinuationRequest(
                             rule,
                             baseUrl,
                             sourceOrigin,
@@ -193,7 +193,7 @@ internal sealed class RulePaginationExecutor
                             return RuleExecutionResult.Fail(["pagination: cursor cycle detected."]);
                         }
 
-                        var continuationErrors = TryBuildVariableContinuationRequest(
+                        var continuationErrors = RuleRequestPreparer.TryBuildContinuationRequest(
                             rule,
                             baseUrl,
                             sourceOrigin,
@@ -230,50 +230,6 @@ internal sealed class RulePaginationExecutor
             currentVariables,
             executionCancellationToken,
             out updatedVariables);
-
-    private static List<string> TryBuildVariableContinuationRequest(
-        CapabilityRule rule,
-        string baseUrl,
-        Uri sourceOrigin,
-        string? parameterName,
-        string parameterValue,
-        IReadOnlyDictionary<string, string> variables,
-        SourceCredential? credential,
-        out SourceHttpRequest? request)
-    {
-        var errors = RuleRequestBuilder.TryBuildRequest(
-            rule,
-            baseUrl,
-            variables,
-            parameterName,
-            parameterValue,
-            out var builtRequest);
-        request = null;
-        if (errors.Count > 0)
-        {
-            return errors;
-        }
-
-        if (!RuleCredentialRequestApplier.TryApply(
-                builtRequest!,
-                credential,
-                out var preparedRequest,
-                out var credentialError))
-        {
-            return [credentialError];
-        }
-
-        if (!RuleRequestUrlPolicy.TryValidateContinuationRequest(
-                preparedRequest!,
-                sourceOrigin,
-                out var continuationError))
-        {
-            return [continuationError];
-        }
-
-        request = preparedRequest;
-        return [];
-    }
 
     private RuleExecutionResult CompletePagination(
         CapabilityRule rule,

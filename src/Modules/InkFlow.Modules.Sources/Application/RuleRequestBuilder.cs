@@ -6,7 +6,7 @@ namespace InkFlow.Modules.Sources.Application;
 
 /// <summary>
 /// Builds and validates transient requests used by a rule execution.
-/// It owns template rendering and continuation URL policy; it does not perform I/O.
+/// It owns template rendering and request construction; it does not perform I/O.
 /// </summary>
 internal static class RuleRequestBuilder
 {
@@ -121,51 +121,6 @@ internal static class RuleRequestBuilder
             formBody);
 
         return errors;
-    }
-
-    public static List<string> TryBuildAndPrepareInitialRequest(
-        RuleRequest requestDefinition,
-        SourceCapability capability,
-        string baseUrl,
-        IReadOnlyDictionary<string, string> variables,
-        string? overrideParameterName,
-        string? overrideParameterValue,
-        Uri sourceOrigin,
-        SourceCredential? credential,
-        out SourceHttpRequest? request)
-    {
-        var errors = TryBuildRequest(
-            requestDefinition,
-            capability,
-            baseUrl,
-            variables,
-            overrideParameterName,
-            overrideParameterValue,
-            out var builtRequest);
-        request = null;
-        if (errors.Count > 0)
-        {
-            return errors;
-        }
-
-        if (!RuleRequestUrlPolicy.TryValidateInitialRequest(
-                builtRequest!,
-                sourceOrigin,
-                out var requestError))
-        {
-            return [requestError];
-        }
-
-        if (!RuleCredentialRequestApplier.TryApply(
-                builtRequest!,
-                credential,
-                out request,
-                out var credentialError))
-        {
-            return [credentialError];
-        }
-
-        return [];
     }
 
     private static string FillTemplate(

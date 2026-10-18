@@ -128,7 +128,7 @@ public sealed class RuleAdapter
             }
             else
             {
-                var mainBuildErrors = RuleRequestBuilder.TryBuildAndPrepareInitialRequest(
+                var mainBuildErrors = RuleRequestPreparer.TryBuildInitialRequest(
                     rule.Request,
                     rule.Capability,
                     plan.BaseUrl,
