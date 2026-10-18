@@ -7,6 +7,7 @@ namespace InkFlow.Modules.Content.Infrastructure.Persistence;
 /// <summary>书籍包任务仓储；领取使用数据库行锁，避免多个 Worker 生成同一任务。</summary>
 public sealed class EfBookPackageJobRepository(ContentDbContext db) : IBookPackageJobRepository
 {
+    private readonly BookPackageJobQueryStore queryStore = new(db);
     private readonly BookPackageJobLeaseStore leaseStore = new(db);
 
     public async Task AddAsync(BookPackageJob job, CancellationToken cancellationToken = default)
@@ -15,32 +16,15 @@ public sealed class EfBookPackageJobRepository(ContentDbContext db) : IBookPacka
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<BookPackageJob?> GetAsync(
+    public Task<BookPackageJob?> GetAsync(
         Guid id,
-        CancellationToken cancellationToken = default)
-    {
-        var entity = await db.PackageJobs
-            .AsNoTracking()
-            .SingleOrDefaultAsync(job => job.Id == id, cancellationToken)
-            .ConfigureAwait(false);
-        return entity is null ? null : BookPackageJobMapper.ToDomain(entity);
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.GetAsync(id, cancellationToken);
 
-    public async Task<IReadOnlyList<BookPackageJob>> ListAsync(
+    public Task<IReadOnlyList<BookPackageJob>> ListAsync(
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        var safeLimit = Math.Clamp(limit, 1, 200);
-        var entities = await db.PackageJobs
-            .AsNoTracking()
-            .OrderByDescending(job => job.UpdatedAt)
-            .ThenByDescending(job => job.Id)
-            .Take(safeLimit)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities.Select(BookPackageJobMapper.ToDomain).ToList();
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListAsync(limit, cancellationToken);
 
     public Task<BookPackageJob?> TryLeaseAsync(
         DateTimeOffset now,
@@ -76,21 +60,9 @@ public sealed class EfBookPackageJobRepository(ContentDbContext db) : IBookPacka
         CancellationToken cancellationToken = default) =>
         leaseStore.SaveLeasedAsync(job, leaseOwner, leaseAttempt, now, cancellationToken);
 
-    public async Task<IReadOnlyList<BookPackageJob>> ListExpiredAsync(
+    public Task<IReadOnlyList<BookPackageJob>> ListExpiredAsync(
         DateTimeOffset now,
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        var safeLimit = Math.Clamp(limit, 1, 200);
-        var entities = await db.PackageJobs
-            .AsNoTracking()
-            .Where(job => job.Status == (int)BookPackageJobStatus.Completed &&
-                          job.ExpiresAt <= now)
-            .OrderBy(job => job.ExpiresAt)
-            .Take(safeLimit)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities.Select(BookPackageJobMapper.ToDomain).ToList();
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListExpiredAsync(now, limit, cancellationToken);
 }
