@@ -53,47 +53,30 @@ internal sealed class CrawlerTaskLeaseStore(CrawlingDbContext db)
             .ConfigureAwait(false);
 
         // PostgreSQL 在事务内锁定候选行并跳过已被其他 Worker 锁住的行，
-        // 使“筛选 + 状态流转”成为一个跨进程原子领取操作。
-        var candidates = taskId is { } targetedTaskId
-            ? await db.Tasks
-                .FromSqlInterpolated($"""
-                    SELECT *
-                    FROM "crawler"."tasks"
-                    WHERE "Id" = {targetedTaskId}
-                      AND ("RunId" IS NULL OR EXISTS (
-                          SELECT 1 FROM "crawler"."runs" r
-                          WHERE r."Id" = "RunId"
-                            AND r."Status" IN ({(int)CollectionRunStatus.Pending}, {(int)CollectionRunStatus.Running})))
-                      AND (("Status" = {(int)CrawlerTaskStatus.Pending}
-                            AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
-                       OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
-                           AND "LeaseExpiresAt" IS NOT NULL
-                           AND "LeaseExpiresAt" <= {now}))
-                    LIMIT 1
-                    FOR UPDATE SKIP LOCKED
-                    """)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false)
-            : await db.Tasks
-                .FromSqlInterpolated($"""
-                    SELECT *
-                    FROM "crawler"."tasks"
-                    WHERE ("RunId" IS NULL OR EXISTS (
-                              SELECT 1 FROM "crawler"."runs" r
-                              WHERE r."Id" = "RunId"
-                                AND r."Status" IN ({(int)CollectionRunStatus.Pending}, {(int)CollectionRunStatus.Running})))
-                      AND (("Status" = {(int)CrawlerTaskStatus.Pending}
-                           AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
-                       OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
-                           AND "LeaseExpiresAt" IS NOT NULL
-                           AND "LeaseExpiresAt" <= {now})
-                      )
-                    ORDER BY "CreatedAt", "Id"
-                    LIMIT 1
-                    FOR UPDATE SKIP LOCKED
-                    """)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
+        // 使“筛选 + 状态流转”成为一个跨进程原子领取操作。目标任务使用布尔参数
+        // 参与同一候选策略，避免定向领取与普通领取复制两套可领取条件。
+        var hasTarget = taskId.HasValue;
+        var targetId = taskId.GetValueOrDefault();
+        var candidates = await db.Tasks
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."tasks"
+                WHERE ({hasTarget} = FALSE OR "Id" = {targetId})
+                  AND ("RunId" IS NULL OR EXISTS (
+                      SELECT 1 FROM "crawler"."runs" r
+                      WHERE r."Id" = "RunId"
+                        AND r."Status" IN ({(int)CollectionRunStatus.Pending}, {(int)CollectionRunStatus.Running})))
+                  AND (("Status" = {(int)CrawlerTaskStatus.Pending}
+                        AND ("ScheduledAt" IS NULL OR "ScheduledAt" <= {now}))
+                   OR ("Status" IN ({(int)CrawlerTaskStatus.Leased}, {(int)CrawlerTaskStatus.Running})
+                       AND "LeaseExpiresAt" IS NOT NULL
+                       AND "LeaseExpiresAt" <= {now}))
+                ORDER BY "CreatedAt", "Id"
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+                """)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var entity = candidates.SingleOrDefault();
         if (entity is null)
