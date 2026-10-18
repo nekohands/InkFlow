@@ -21,6 +21,7 @@ public sealed class UpdateScanService(
     ISourceHealthReader? healthReader = null)
 {
     public const int MaxBooksPerRun = 100;
+    private readonly TocScanTaskEnqueuer taskEnqueuer = new(taskRepository);
 
     public async Task<int> EnqueueTocScansAsync(CancellationToken cancellationToken = default)
     {
@@ -47,17 +48,11 @@ public sealed class UpdateScanService(
                 continue;
             }
 
-            var task = CrawlerTask.Create(
-                new CrawlPayload(
-                    book.SourceId,
-                    SourceCapability.Toc,
-                    new Dictionary<string, string> { ["bookId"] = book.ExternalBookId }),
-                createdAt: now);
-            if (await taskRepository
-                    .TryAddIfNoConflictingTaskAsync(
-                        task,
-                        "bookId",
+            if (await taskEnqueuer
+                    .TryEnqueueAsync(
+                        book.SourceId,
                         book.ExternalBookId,
+                        now,
                         cancellationToken)
                     .ConfigureAwait(false))
             {
