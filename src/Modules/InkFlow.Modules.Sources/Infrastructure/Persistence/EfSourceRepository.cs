@@ -183,6 +183,8 @@ public sealed class SourcesDbContextFactory : IDesignTimeDbContextFactory<Source
 
 public sealed class EfFetchArtifactRepository(SourcesDbContext db) : IFetchArtifactRepository
 {
+    private readonly FetchArtifactQueryStore queryStore = new(db);
+
     public async Task AddAsync(FetchArtifact artifact, CancellationToken cancellationToken = default)
     {
         db.FetchArtifacts.Add(new FetchArtifactEntity
@@ -199,64 +201,21 @@ public sealed class EfFetchArtifactRepository(SourcesDbContext db) : IFetchArtif
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<FetchArtifact?> GetLatestAsync(
-        string sourceId, string externalChapterId, CancellationToken cancellationToken = default)
-    {
-        var entity = await db.FetchArtifacts
-            .Where(a => a.SourceId == sourceId && a.ExternalChapterId == externalChapterId)
-            .OrderByDescending(a => a.FetchedAt)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+    public Task<FetchArtifact?> GetLatestAsync(
+        string sourceId, string externalChapterId, CancellationToken cancellationToken = default) =>
+        queryStore.GetLatestAsync(sourceId, externalChapterId, cancellationToken);
 
-        return entity is null
-            ? null
-            : new FetchArtifact(
-                entity.Id, entity.SourceId, entity.ExternalBookId, entity.ExternalChapterId,
-                entity.RawHash, entity.BodyLength, entity.FetchedAt);
-    }
-
-    public async Task<IReadOnlySet<string>> ListFetchedExternalChapterIdsAsync(
+    public Task<IReadOnlySet<string>> ListFetchedExternalChapterIdsAsync(
         string sourceId,
         IEnumerable<string> externalChapterIds,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = externalChapterIds.ToArray();
-        if (ids.Length == 0)
-        {
-            return new HashSet<string>(StringComparer.Ordinal);
-        }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListFetchedExternalChapterIdsAsync(sourceId, externalChapterIds, cancellationToken);
 
-        var fetched = await db.FetchArtifacts
-            .Where(a => a.SourceId == sourceId && ids.Contains(a.ExternalChapterId))
-            .Select(a => a.ExternalChapterId)
-            .Distinct()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return new HashSet<string>(fetched, StringComparer.Ordinal);
-    }
-
-    public async Task<IReadOnlySet<string>> ListRecentlyFetchedExternalChapterIdsAsync(
+    public Task<IReadOnlySet<string>> ListRecentlyFetchedExternalChapterIdsAsync(
         string sourceId,
         IEnumerable<string> externalChapterIds,
         DateTimeOffset since,
-        CancellationToken cancellationToken = default)
-    {
-        var ids = externalChapterIds.ToArray();
-        if (ids.Length == 0)
-        {
-            return new HashSet<string>(StringComparer.Ordinal);
-        }
-
-        var recent = await db.FetchArtifacts
-            .Where(a => a.SourceId == sourceId &&
-                        a.FetchedAt >= since &&
-                        ids.Contains(a.ExternalChapterId))
-            .Select(a => a.ExternalChapterId)
-            .Distinct()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return new HashSet<string>(recent, StringComparer.Ordinal);
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListRecentlyFetchedExternalChapterIdsAsync(
+            sourceId, externalChapterIds, since, cancellationToken);
 }
