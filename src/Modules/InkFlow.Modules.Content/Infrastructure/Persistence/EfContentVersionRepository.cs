@@ -180,73 +180,23 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
 
 public sealed class EfContentPolicyRepository(ContentDbContext db) : IContentPolicyRepository
 {
-    public async Task<ContentPolicyDecision?> GetLatestAsync(
+    private readonly ContentPolicyQueryStore queryStore = new(db);
+
+    public Task<ContentPolicyDecision?> GetLatestAsync(
         Guid canonicalBookId,
-        CancellationToken cancellationToken = default)
-    {
-        var entity = await db.PolicyDecisions
-            .AsNoTracking()
-            .Where(x => x.CanonicalBookId == canonicalBookId)
-            .OrderByDescending(x => x.CreatedAt)
-            .ThenByDescending(x => x.Id)
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        queryStore.GetLatestAsync(canonicalBookId, cancellationToken);
 
-        return entity is null ? null : ToDomain(entity);
-    }
-
-    public async Task<IReadOnlyList<ContentPolicyDecision>> ListLatestForBooksAsync(
+    public Task<IReadOnlyList<ContentPolicyDecision>> ListLatestForBooksAsync(
         IReadOnlyCollection<Guid> canonicalBookIds,
-        CancellationToken cancellationToken = default)
-    {
-        var safeIds = canonicalBookIds
-            .Where(id => id != Guid.Empty)
-            .Distinct()
-            .ToArray();
-        if (safeIds.Length == 0)
-        {
-            return [];
-        }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListLatestForBooksAsync(canonicalBookIds, cancellationToken);
 
-        var entities = await db.PolicyDecisions
-            .AsNoTracking()
-            .Where(x => safeIds.Contains(x.CanonicalBookId))
-            .Where(decision => !db.PolicyDecisions.Any(other =>
-                other.CanonicalBookId == decision.CanonicalBookId &&
-                (other.CreatedAt > decision.CreatedAt ||
-                 (other.CreatedAt == decision.CreatedAt && other.Id > decision.Id))))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities.Select(ToDomain).ToList();
-    }
-
-    public async Task<IReadOnlyList<ContentPolicyDecision>> ListLatestAsync(
+    public Task<IReadOnlyList<ContentPolicyDecision>> ListLatestAsync(
         bool takenDownOnly,
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        var query = db.PolicyDecisions
-            .AsNoTracking()
-            .Where(decision => !db.PolicyDecisions.Any(other =>
-                other.CanonicalBookId == decision.CanonicalBookId &&
-                (other.CreatedAt > decision.CreatedAt ||
-                 (other.CreatedAt == decision.CreatedAt && other.Id > decision.Id))));
-
-        if (takenDownOnly)
-        {
-            query = query.Where(decision => decision.Action == ContentPolicyAction.Takedown);
-        }
-
-        var entities = await query
-            .OrderByDescending(x => x.CreatedAt)
-            .ThenByDescending(x => x.Id)
-            .Take(limit)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities.Select(ToDomain).ToList();
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListLatestAsync(takenDownOnly, limit, cancellationToken);
 
     public async Task AddAsync(
         ContentPolicyDecision decision,
@@ -265,14 +215,6 @@ public sealed class EfContentPolicyRepository(ContentDbContext db) : IContentPol
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static ContentPolicyDecision ToDomain(ContentPolicyDecisionEntity entity) =>
-        ContentPolicyDecision.Rehydrate(
-            entity.Id,
-            entity.CanonicalBookId,
-            entity.Action,
-            entity.ActorId,
-            entity.Reason,
-            entity.CreatedAt);
 }
 
 /// <summary>dotnet-ef 设计时工厂。</summary>
