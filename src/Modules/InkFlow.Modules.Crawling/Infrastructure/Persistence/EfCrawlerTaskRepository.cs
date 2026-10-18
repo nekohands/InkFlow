@@ -16,6 +16,7 @@ public sealed class EfCrawlerTaskRepository(
     private readonly CrawlerTaskReplayStore replayStore = new(db);
     private readonly CrawlerTaskDedupeStore dedupeStore = new(db, outbox);
     private readonly CrawlerTaskLeaseStore leaseStore = new(db);
+    private readonly CrawlerTaskQueryStore queryStore = new(db);
 
     public async Task AddAsync(CrawlerTask task, CancellationToken cancellationToken = default)
     {
@@ -32,11 +33,8 @@ public sealed class EfCrawlerTaskRepository(
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        var entity = await db.Tasks.FindAsync([id], cancellationToken).ConfigureAwait(false);
-        return entity is null ? null : CrawlerTaskMapper.ToDomain(entity);
-    }
+    public Task<CrawlerTask?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
+        queryStore.GetAsync(id, cancellationToken);
 
     public Task<CrawlerTask?> TryLeaseAsync(
         DateTimeOffset now,
@@ -76,26 +74,11 @@ public sealed class EfCrawlerTaskRepository(
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<CrawlerTask>> FindLeasableAsync(DateTimeOffset now, int limit, CancellationToken cancellationToken = default)
-    {
-        var entities = await db.Tasks
-            .Where(t =>
-                (t.RunId == null || db.Runs.Any(r =>
-                    r.Id == t.RunId &&
-                    (r.Status == (int)CollectionRunStatus.Pending ||
-                     r.Status == (int)CollectionRunStatus.Running))) &&
-                ((t.Status == (int)CrawlerTaskStatus.Pending &&
-                 (t.ScheduledAt == null || t.ScheduledAt <= now)) ||
-                ((t.Status == (int)CrawlerTaskStatus.Leased ||
-                  t.Status == (int)CrawlerTaskStatus.Running) &&
-                 t.LeaseExpiresAt != null && t.LeaseExpiresAt <= now)))
-            .OrderBy(t => t.CreatedAt)
-            .Take(limit)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities.Select(CrawlerTaskMapper.ToDomain).ToList();
-    }
+    public Task<IReadOnlyList<CrawlerTask>> FindLeasableAsync(
+        DateTimeOffset now,
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        queryStore.FindLeasableAsync(now, limit, cancellationToken);
 
     public Task AddDeadLetterAsync(
         DeadLetterTask deadLetter,
