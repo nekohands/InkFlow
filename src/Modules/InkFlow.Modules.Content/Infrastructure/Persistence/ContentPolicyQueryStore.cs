@@ -36,13 +36,8 @@ internal sealed class ContentPolicyQueryStore(ContentDbContext db)
             return [];
         }
 
-        var entities = await db.PolicyDecisions
-            .AsNoTracking()
+        var entities = await LatestPerBookQuery()
             .Where(x => safeIds.Contains(x.CanonicalBookId))
-            .Where(decision => !db.PolicyDecisions.Any(other =>
-                other.CanonicalBookId == decision.CanonicalBookId &&
-                (other.CreatedAt > decision.CreatedAt ||
-                 (other.CreatedAt == decision.CreatedAt && other.Id > decision.Id))))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -54,12 +49,7 @@ internal sealed class ContentPolicyQueryStore(ContentDbContext db)
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var query = db.PolicyDecisions
-            .AsNoTracking()
-            .Where(decision => !db.PolicyDecisions.Any(other =>
-                other.CanonicalBookId == decision.CanonicalBookId &&
-                (other.CreatedAt > decision.CreatedAt ||
-                 (other.CreatedAt == decision.CreatedAt && other.Id > decision.Id))));
+        var query = LatestPerBookQuery();
 
         if (takenDownOnly)
         {
@@ -75,6 +65,14 @@ internal sealed class ContentPolicyQueryStore(ContentDbContext db)
 
         return entities.Select(ToDomain).ToList();
     }
+
+    private IQueryable<ContentPolicyDecisionEntity> LatestPerBookQuery() =>
+        db.PolicyDecisions
+            .AsNoTracking()
+            .Where(decision => !db.PolicyDecisions.Any(other =>
+                other.CanonicalBookId == decision.CanonicalBookId &&
+                (other.CreatedAt > decision.CreatedAt ||
+                 (other.CreatedAt == decision.CreatedAt && other.Id > decision.Id))));
 
     private static ContentPolicyDecision ToDomain(ContentPolicyDecisionEntity entity) =>
         ContentPolicyDecision.Rehydrate(
