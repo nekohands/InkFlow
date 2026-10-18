@@ -37,6 +37,14 @@ public sealed record SourceRuleExecutionLimits
 
     public static SourceRuleExecutionLimits Default { get; } = new();
 
+    /// <summary>Resolves optional caller limits and validates the bounded execution policy.</summary>
+    public static SourceRuleExecutionLimits Resolve(SourceRuleExecutionLimits? limits)
+    {
+        var value = limits ?? Default;
+        value.Validate();
+        return value;
+    }
+
     public void Validate()
     {
         ValidateRange(MaxRequests, 0, 32, nameof(MaxRequests));

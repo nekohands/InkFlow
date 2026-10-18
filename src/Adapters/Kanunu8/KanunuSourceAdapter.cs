@@ -16,24 +16,38 @@ namespace InkFlow.Sources.Adapters.Kanunu8;
 /// - externalBookId = "book/{id}"(相对目录);
 /// - externalChapterId = "book/{id}/{chapterFile}"(相对正文路径)。
 /// </summary>
-public sealed class KanunuSourceAdapter(
-    HttpClient http,
-    IIpAddressResolver resolver,
-    SourceRuleExecutionLimits? limits = null) : ISourceAdapter
+public sealed class KanunuSourceAdapter : ISourceAdapter
 {
     public const string SourceIdValue = "kanunu8";
     public const string DisplayNameValue = "努努书坊(kanunu8)";
     public const string BaseUrlValue = "https://www.kanunu8.com";
 
     private static readonly HtmlParserHolder ParserHolder = new();
-    private readonly int _maxResponseBytes = ValidateLimits(limits).MaxBytes;
-    private readonly int _maxResultItems = (limits ?? SourceRuleExecutionLimits.Default).MaxResultItems;
-    private readonly Regex _chapterLinkPattern = NewRegex(
-        @"href=""(\d+[0-9]*\.html)""[^>]*>([^<]+)</a>",
-        (limits ?? SourceRuleExecutionLimits.Default).MaxRegexTime);
-    private readonly Regex _titleByAuthorPattern = NewRegex(
-        @"\s+by\s+(.+?)\s+-",
-        (limits ?? SourceRuleExecutionLimits.Default).MaxRegexTime);
+    private readonly HttpClient _http;
+    private readonly IIpAddressResolver _resolver;
+    private readonly SourceRuleExecutionLimits _limits;
+    private readonly int _maxResponseBytes;
+    private readonly int _maxResultItems;
+    private readonly Regex _chapterLinkPattern;
+    private readonly Regex _titleByAuthorPattern;
+
+    public KanunuSourceAdapter(
+        HttpClient http,
+        IIpAddressResolver resolver,
+        SourceRuleExecutionLimits? limits = null)
+    {
+        _http = http;
+        _resolver = resolver;
+        _limits = SourceRuleExecutionLimits.Resolve(limits);
+        _maxResponseBytes = _limits.MaxBytes;
+        _maxResultItems = _limits.MaxResultItems;
+        _chapterLinkPattern = NewRegex(
+            @"href=""(\d+[0-9]*\.html)""[^>]*>([^<]+)</a>",
+            _limits.MaxRegexTime);
+        _titleByAuthorPattern = NewRegex(
+            @"\s+by\s+(.+?)\s+-",
+            _limits.MaxRegexTime);
+    }
 
     public string SourceId => SourceIdValue;
 
@@ -148,13 +162,13 @@ public sealed class KanunuSourceAdapter(
         }
 
         // 与其他出网请求一致,先过 SSRF 安全校验。
-        var errors = await SsrfGuard.InspectResolvedAsync(uri, resolver, cancellationToken).ConfigureAwait(false);
+        var errors = await SsrfGuard.InspectResolvedAsync(uri, _resolver, cancellationToken).ConfigureAwait(false);
         if (errors.Count > 0)
         {
             throw new InvalidOperationException($"ssrf: {string.Join("; ", errors)}");
         }
 
-        using var response = await http
+        using var response = await _http
             .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
@@ -167,13 +181,6 @@ public sealed class KanunuSourceAdapter(
 
     private const string BaseUrl = BaseUrlValue;
     private static readonly Encoding Gb18030 = SourceEncodings.Gb18030;
-
-    private static SourceRuleExecutionLimits ValidateLimits(SourceRuleExecutionLimits? limits)
-    {
-        var value = limits ?? SourceRuleExecutionLimits.Default;
-        value.Validate();
-        return value;
-    }
 
     private static Regex NewRegex(string pattern, TimeSpan timeout) =>
         new(pattern, RegexOptions.Compiled, timeout);

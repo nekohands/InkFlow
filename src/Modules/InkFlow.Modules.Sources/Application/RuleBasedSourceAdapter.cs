@@ -27,7 +27,7 @@ public sealed class RuleBasedSourceAdapter : ISourceAdapter
     {
         _source = source;
         _ruleAdapter = ruleAdapter;
-        _limits = ResolveLimits(ruleAdapter, limits);
+        _limits = SourceRuleExecutionLimits.Resolve(limits ?? ruleAdapter.Limits);
         _listProjector = new RuleListProjector(selectorEvaluator, _limits);
     }
 
@@ -228,15 +228,6 @@ public sealed class RuleBasedSourceAdapter : ISourceAdapter
             _source.Id,
             credentialReferenceId,
             ownerScope);
-    }
-
-    private static SourceRuleExecutionLimits ResolveLimits(
-        RuleAdapter ruleAdapter,
-        SourceRuleExecutionLimits? limits)
-    {
-        var value = limits ?? ruleAdapter.Limits;
-        value.Validate();
-        return value;
     }
 
 }

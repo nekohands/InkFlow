@@ -15,10 +15,7 @@ namespace InkFlow.Sources.Adapters.SeventeenK;
 /// 付费章节只读取上游明确标记为免费的正文；未购买的 VIP 章节返回 null，
 /// 不尝试绕过登录、订阅或访问控制。
 /// </summary>
-public sealed class SeventeenKSourceAdapter(
-    HttpClient http,
-    IIpAddressResolver resolver,
-    SourceRuleExecutionLimits? limits = null) : ISourceAdapter
+public sealed class SeventeenKSourceAdapter : ISourceAdapter
 {
     public const string SourceIdValue = "17k";
     public const string DisplayNameValue = "17K小说网";
@@ -37,8 +34,23 @@ public sealed class SeventeenKSourceAdapter(
             ApiHost,
             WebHost,
         };
-    private readonly int _maxResponseBytes = ValidateLimits(limits).MaxBytes;
-    private readonly int _maxResultItems = (limits ?? SourceRuleExecutionLimits.Default).MaxResultItems;
+    private readonly HttpClient _http;
+    private readonly IIpAddressResolver _resolver;
+    private readonly SourceRuleExecutionLimits _limits;
+    private readonly int _maxResponseBytes;
+    private readonly int _maxResultItems;
+
+    public SeventeenKSourceAdapter(
+        HttpClient http,
+        IIpAddressResolver resolver,
+        SourceRuleExecutionLimits? limits = null)
+    {
+        _http = http;
+        _resolver = resolver;
+        _limits = SourceRuleExecutionLimits.Resolve(limits);
+        _maxResponseBytes = _limits.MaxBytes;
+        _maxResultItems = _limits.MaxResultItems;
+    }
 
     public string SourceId => SourceIdValue;
 
@@ -311,14 +323,14 @@ public sealed class SeventeenKSourceAdapter(
         }
 
         var errors = await SsrfGuard
-            .InspectResolvedAsync(uri, resolver, cancellationToken)
+            .InspectResolvedAsync(uri, _resolver, cancellationToken)
             .ConfigureAwait(false);
         if (errors.Count > 0)
         {
             throw new InvalidOperationException($"ssrf: {string.Join("; ", errors)}");
         }
 
-        using var response = await http
+        using var response = await _http
             .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
@@ -348,13 +360,6 @@ public sealed class SeventeenKSourceAdapter(
 
     private static Uri BuildUri(string host, string pathAndQuery) =>
         new($"https://{host}{pathAndQuery}", UriKind.Absolute);
-
-    private static SourceRuleExecutionLimits ValidateLimits(SourceRuleExecutionLimits? limits)
-    {
-        var value = limits ?? SourceRuleExecutionLimits.Default;
-        value.Validate();
-        return value;
-    }
 
     private static bool TryParseChapterReference(
         string? externalChapterId,

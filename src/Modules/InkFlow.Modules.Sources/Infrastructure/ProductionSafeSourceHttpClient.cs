@@ -15,7 +15,7 @@ public sealed class ProductionSafeSourceHttpClient(
     IIpAddressResolver resolver,
     SourceRuleExecutionLimits? limits = null) : ISourceHttpClient
 {
-    private readonly SourceRuleExecutionLimits _limits = ValidateLimits(limits);
+    private readonly SourceRuleExecutionLimits _limits = SourceRuleExecutionLimits.Resolve(limits);
 
     public async Task<SourceHttpResponse> SendAsync(
         SourceHttpRequest request, CancellationToken cancellationToken = default)
@@ -73,13 +73,6 @@ public sealed class ProductionSafeSourceHttpClient(
             body,
             setCookieHeaders,
             response.RequestMessage?.RequestUri ?? uri);
-    }
-
-    private static SourceRuleExecutionLimits ValidateLimits(SourceRuleExecutionLimits? limits)
-    {
-        var value = limits ?? SourceRuleExecutionLimits.Default;
-        value.Validate();
-        return value;
     }
 
     private static string Decode(byte[] bytes, string? charset)

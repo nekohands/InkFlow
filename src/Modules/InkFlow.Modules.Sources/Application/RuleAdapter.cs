@@ -24,9 +24,8 @@ public sealed class RuleAdapter
         ISourceCredentialProvider? credentialProvider = null)
     {
         _httpClient = httpClient;
-        _limits = limits ?? SourceRuleExecutionLimits.Default;
+        _limits = SourceRuleExecutionLimits.Resolve(limits);
         _credentialResolver = new RuleCredentialResolver(credentialProvider);
-        _limits.Validate();
         _responseValueExtractor = new RuleResponseValueExtractor(selectorEvaluator, _limits);
         _responseEvaluator = new RuleResponseEvaluator(_responseValueExtractor, _limits);
         _preflight = new RuleExecutionPreflight(_limits);
