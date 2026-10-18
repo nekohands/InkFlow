@@ -1,6 +1,5 @@
 using InkFlow.Modules.Content.Application;
 using InkFlow.Modules.Library.Application;
-using InkFlow.Modules.Library.Domain;
 
 namespace InkFlow.Modules.Content.Application;
 
@@ -27,25 +26,23 @@ public sealed class CatalogQueryService(
     IContentPolicyReader policyReader,
     IContentSelectionService? selectionService = null)
 {
+    private readonly CatalogBookReader bookReader =
+        new(bookRepository, policyReader);
+
     private readonly CatalogContentReader contentReader =
         new(bookRepository, versionRepository, policyReader, selectionService);
 
-    public const int DefaultPageSize = 100;
-    public const int MaxPageSize = 100;
+    public const int DefaultPageSize = CatalogBookReader.DefaultPageSize;
+    public const int MaxPageSize = CatalogBookReader.MaxPageSize;
 
     public Task<IReadOnlyList<BookListItem>> ListBooksAsync(
         CancellationToken cancellationToken = default) =>
-        ListBooksAsync(DefaultPageSize, cancellationToken);
+        bookReader.ListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<BookListItem>> ListBooksAsync(
+    public Task<IReadOnlyList<BookListItem>> ListBooksAsync(
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        var summaries = await bookRepository
-            .ListSummariesAsync(Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
-            .ConfigureAwait(false);
-        return await MapVisibleBooksAsync(summaries, cancellationToken).ConfigureAwait(false);
-    }
+        CancellationToken cancellationToken = default) =>
+        bookReader.ListAsync(limit, cancellationToken);
 
     /// <summary>
     /// 按关键词过滤落库正典书目:书名或作者大小写不敏感包含匹配(v1 简单查询过滤;
@@ -56,110 +53,31 @@ public sealed class CatalogQueryService(
     public Task<IReadOnlyList<BookListItem>> SearchBooksAsync(
         string query,
         CancellationToken cancellationToken = default) =>
-        SearchBooksAsync(query, DefaultPageSize, cancellationToken);
+        bookReader.SearchAsync(query, cancellationToken);
 
-    public async Task<IReadOnlyList<BookListItem>> SearchBooksAsync(
+    public Task<IReadOnlyList<BookListItem>> SearchBooksAsync(
         string query,
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        var keyword = query?.Trim() ?? string.Empty;
-        var summaries = await bookRepository
-            .SearchSummariesAsync(keyword, Math.Clamp(limit, 1, MaxPageSize), cancellationToken)
-            .ConfigureAwait(false);
-        return await MapVisibleBooksAsync(summaries, cancellationToken).ConfigureAwait(false);
-    }
+        CancellationToken cancellationToken = default) =>
+        bookReader.SearchAsync(query, limit, cancellationToken);
 
-    private async Task<IReadOnlyList<BookListItem>> MapVisibleBooksAsync(
-        IReadOnlyList<CanonicalBookSummary> summaries,
-        CancellationToken cancellationToken)
-    {
-        var takenDownBookIds = await policyReader
-            .ListTakedownBookIdsAsync(summaries.Select(book => book.Id).ToArray(), cancellationToken)
-            .ConfigureAwait(false);
-
-        var items = new List<BookListItem>(summaries.Count);
-        foreach (var book in summaries)
-        {
-            if (!takenDownBookIds.Contains(book.Id))
-            {
-                items.Add(new BookListItem(book.Id, book.Title, book.Author, book.ChapterCount));
-            }
-        }
-
-        return items;
-    }
-
-    public async Task<BookListItem?> GetBookSummaryAsync(
+    public Task<BookListItem?> GetBookSummaryAsync(
         Guid bookId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!await IsVisibleAsync(bookId, cancellationToken).ConfigureAwait(false))
-        {
-            return null;
-        }
+        CancellationToken cancellationToken = default) =>
+        bookReader.GetSummaryAsync(bookId, cancellationToken);
 
-        var book = await bookRepository
-            .GetSummaryAsync(bookId, cancellationToken)
-            .ConfigureAwait(false);
-        return book is null
-            ? null
-            : new BookListItem(book.Id, book.Title, book.Author, book.ChapterCount);
-    }
-
-    public async Task<BookDetail?> GetBookAsync(Guid bookId, CancellationToken cancellationToken = default)
-    {
-        if (!await IsVisibleAsync(bookId, cancellationToken).ConfigureAwait(false))
-        {
-            return null;
-        }
-
-        var book = await bookRepository.GetAsync(bookId, cancellationToken).ConfigureAwait(false);
-        if (book is null)
-        {
-            return null;
-        }
-
-        return new BookDetail(
-            book.Id,
-            book.Title,
-            book.Author,
-            book.Chapters
-                .Select(c => new ChapterListItem(c.Id, c.Index, c.Title))
-                .ToList());
-    }
-
-    public async Task<IReadOnlyList<ChapterListItem>?> GetChapterListAsync(
+    public Task<BookDetail?> GetBookAsync(
         Guid bookId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!await IsVisibleAsync(bookId, cancellationToken).ConfigureAwait(false))
-        {
-            return null;
-        }
+        CancellationToken cancellationToken = default) =>
+        bookReader.GetAsync(bookId, cancellationToken);
 
-        if (await bookRepository.GetSummaryAsync(bookId, cancellationToken).ConfigureAwait(false) is null)
-        {
-            return null;
-        }
-
-        var chapters = await bookRepository
-            .ListChapterSummariesAsync(bookId, cancellationToken)
-            .ConfigureAwait(false);
-        return chapters
-            .Select(chapter => new ChapterListItem(chapter.Id, chapter.Index, chapter.Title))
-            .ToList();
-    }
+    public Task<IReadOnlyList<ChapterListItem>?> GetChapterListAsync(
+        Guid bookId,
+        CancellationToken cancellationToken = default) =>
+        bookReader.ListChaptersAsync(bookId, cancellationToken);
 
     /// <summary>读取章节正文:返回当前版本的规范化段落。未发布内容时返回 null。</summary>
     public Task<ChapterContent?> GetChapterContentAsync(
         Guid chapterId, CancellationToken cancellationToken = default) =>
         contentReader.ReadAsync(chapterId, cancellationToken);
-
-    private async Task<bool> IsVisibleAsync(
-        Guid bookId,
-        CancellationToken cancellationToken) =>
-        !await policyReader
-            .IsTakedownAsync(bookId, cancellationToken)
-            .ConfigureAwait(false);
 }
