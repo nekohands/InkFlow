@@ -4,24 +4,20 @@ namespace InkFlow.Modules.Sources.Application;
 
 internal sealed record RulePreRequestResult(
     IReadOnlyDictionary<string, string> Variables,
-    int RequestsUsed,
     IReadOnlyList<string> Errors)
 {
     public bool IsSuccess => Errors.Count == 0;
 
     public static RulePreRequestResult Success(
-        IReadOnlyDictionary<string, string> variables,
-        int requestsUsed) =>
-        new(variables, requestsUsed, []);
+        IReadOnlyDictionary<string, string> variables) =>
+        new(variables, []);
 
     public static RulePreRequestResult Failure(IReadOnlyList<string> errors) =>
-        new(new Dictionary<string, string>(StringComparer.Ordinal), 0, errors);
+        new(new Dictionary<string, string>(StringComparer.Ordinal), errors);
 }
 
 /// <summary>Executes the bounded serial pre-request chain and carries response variables forward.</summary>
-internal sealed class RulePreRequestExecutor(
-    SourceRuleExecutionLimits limits,
-    RuleResponseEvaluator responseEvaluator)
+internal sealed class RulePreRequestExecutor(RuleResponseEvaluator responseEvaluator)
 {
     public async Task<RulePreRequestResult> ExecuteAsync(
         IReadOnlyList<RuleRequestStep> preRequests,
@@ -32,7 +28,7 @@ internal sealed class RulePreRequestExecutor(
         IReadOnlyDictionary<string, string> initialVariables,
         SourceHttpRequest firstRequest,
         RuleHttpExecutor requestExecutor,
-        int requestsUsed,
+        RuleRequestBudget requestBudget,
         CancellationToken executionCancellationToken)
     {
         var variables = new Dictionary<string, string>(
@@ -72,13 +68,11 @@ internal sealed class RulePreRequestExecutor(
                 }
             }
 
-            if (requestsUsed >= limits.MaxRequests)
+            if (!requestBudget.TryConsume(out var requestBudgetError))
             {
-                return RulePreRequestResult.Failure(
-                    ["execution: request budget exceeded."]);
+                return RulePreRequestResult.Failure([requestBudgetError]);
             }
 
-            requestsUsed++;
             var responseResult = await requestExecutor
                 .SendAsync(preparedRequest!, "pre-request")
                 .ConfigureAwait(false);
@@ -102,6 +96,6 @@ internal sealed class RulePreRequestExecutor(
             variables = updatedVariables!;
         }
 
-        return RulePreRequestResult.Success(variables, requestsUsed);
+        return RulePreRequestResult.Success(variables);
     }
 }

@@ -31,7 +31,7 @@ internal sealed class RulePaginationExecutor
         SourceHttpRequest initialRequest,
         SourceCredential? credential,
         IReadOnlyDictionary<string, string> initialVariables,
-        int requestsUsed,
+        RuleRequestBudget requestBudget,
         RuleHttpExecutor requestExecutor,
         CancellationToken executionCancellationToken)
     {
@@ -45,9 +45,9 @@ internal sealed class RulePaginationExecutor
 
         for (var page = 1; ; page++)
         {
-            if (requestsUsed >= _limits.MaxRequests)
+            if (!requestBudget.TryConsume(out var requestBudgetError))
             {
-                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+                return RuleExecutionResult.Fail([requestBudgetError]);
             }
 
             if (page > pagination.MaxPages)
@@ -61,7 +61,6 @@ internal sealed class RulePaginationExecutor
                 return RuleExecutionResult.Fail(["pagination: next-link cycle detected."]);
             }
 
-            requestsUsed++;
             var responseResult = await requestExecutor
                 .SendAsync(currentRequest, "request")
                 .ConfigureAwait(false);
@@ -101,9 +100,9 @@ internal sealed class RulePaginationExecutor
                 return RuleExecutionResult.Fail(["pagination: page limit exceeded."]);
             }
 
-            if (requestsUsed >= _limits.MaxRequests)
+            if (!requestBudget.HasCapacity)
             {
-                return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+                return RuleExecutionResult.Fail([RuleRequestBudget.ExceededError]);
             }
 
             switch (pagination.Mode)

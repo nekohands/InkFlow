@@ -30,7 +30,7 @@ public sealed class RuleAdapter
         _responseValueExtractor = new RuleResponseValueExtractor(selectorEvaluator, _limits);
         _responseEvaluator = new RuleResponseEvaluator(_responseValueExtractor, _limits);
         _preflight = new RuleExecutionPreflight(_limits);
-        _preRequestExecutor = new RulePreRequestExecutor(_limits, _responseEvaluator);
+        _preRequestExecutor = new RulePreRequestExecutor(_responseEvaluator);
         _paginationExecutor = new RulePaginationExecutor(
             _limits,
             _responseEvaluator,
@@ -86,7 +86,7 @@ public sealed class RuleAdapter
                 cookieJar,
                 cancellationToken,
                 executionCancellation.Token);
-            var requestCount = 0;
+            var requestBudget = new RuleRequestBudget(_limits.MaxRequests);
 
             if (preRequests.Count > 0)
             {
@@ -100,7 +100,7 @@ public sealed class RuleAdapter
                         continuationVariables,
                         plan.FirstRequest,
                         requestExecutor,
-                        requestCount,
+                        requestBudget,
                         executionCancellation.Token)
                     .ConfigureAwait(false);
                 if (!preRequestResult.IsSuccess)
@@ -111,7 +111,6 @@ public sealed class RuleAdapter
                 continuationVariables = new Dictionary<string, string>(
                     preRequestResult.Variables,
                     StringComparer.Ordinal);
-                requestCount = preRequestResult.RequestsUsed;
             }
 
             SourceHttpRequest? preparedMainRequest;
@@ -146,12 +145,11 @@ public sealed class RuleAdapter
 
             if (pagination is null)
             {
-                if (requestCount >= _limits.MaxRequests)
+                if (!requestBudget.TryConsume(out var requestBudgetError))
                 {
-                    return RuleExecutionResult.Fail(["execution: request budget exceeded."]);
+                    return RuleExecutionResult.Fail([requestBudgetError]);
                 }
 
-                requestCount++;
                 var responseResult = await requestExecutor
                     .SendAsync(preparedMainRequest!, "request")
                     .ConfigureAwait(false);
@@ -174,7 +172,7 @@ public sealed class RuleAdapter
                     preparedMainRequest!,
                     credentialResolution.Credential,
                     continuationVariables,
-                    requestCount,
+                    requestBudget,
                     requestExecutor,
                     executionCancellation.Token)
                 .ConfigureAwait(false);
