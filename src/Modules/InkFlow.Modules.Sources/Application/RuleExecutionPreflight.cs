@@ -29,7 +29,7 @@ internal sealed class RuleExecutionPreflight(SourceRuleExecutionLimits limits)
         plan = null;
         variables ??= new Dictionary<string, string>();
 
-        var variableErrors = RuleRequestBuilder.ValidateVariables(limits, variables);
+        var variableErrors = RuleVariableContextValidator.Validate(limits, variables);
         if (variableErrors.Count > 0)
         {
             errors = variableErrors;

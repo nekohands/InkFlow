@@ -108,7 +108,7 @@ internal sealed class RuleResponseEvaluator
             return errors;
         }
 
-        var variableErrors = RuleRequestBuilder.ValidateVariables(_limits, candidate);
+        var variableErrors = RuleVariableContextValidator.Validate(_limits, candidate);
         if (variableErrors.Count > 0)
         {
             return variableErrors;
