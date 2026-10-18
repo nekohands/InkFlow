@@ -37,23 +37,19 @@ internal static class SourceHealthAdvisoryLock
 
 public sealed class EfSourceHealthRepository(SourcesDbContext db) : ISourceHealthRepository
 {
-    public async Task<SourceCapabilityHealth?> GetAsync(
+    private readonly SourceHealthQueryStore queryStore = new(db);
+
+    public Task<SourceCapabilityHealth?> GetAsync(
         string sourceId,
         SourceCapability capability,
-        CancellationToken cancellationToken = default)
-    {
-        var entity = await db.CapabilityHealth
-            .FindAsync([sourceId, capability], cancellationToken)
-            .ConfigureAwait(false);
-
-        return entity is null ? null : ToDomain(entity);
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.GetAsync(sourceId, capability, cancellationToken);
 
     public async Task AddAsync(
         SourceCapabilityHealth health,
         CancellationToken cancellationToken = default)
     {
-        db.CapabilityHealth.Add(ToEntity(health));
+        db.CapabilityHealth.Add(SourceHealthMapper.ToEntity(health));
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -67,7 +63,7 @@ public sealed class EfSourceHealthRepository(SourcesDbContext db) : ISourceHealt
             ?? throw new InvalidOperationException(
                 $"source capability health '{health.SourceId}/{health.Capability}' does not exist; use AddAsync first.");
 
-        ApplyDomain(health, entity);
+        SourceHealthMapper.ApplyDomain(health, entity);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -94,16 +90,16 @@ public sealed class EfSourceHealthRepository(SourcesDbContext db) : ISourceHealt
 
         var health = entity is null
             ? SourceCapabilityHealth.Create(sourceId, capability, occurredAt)
-            : ToDomain(entity);
+            : SourceHealthMapper.ToDomain(entity);
         ApplyMutation(health, mutation, reason, occurredAt);
 
         if (entity is null)
         {
-            db.CapabilityHealth.Add(ToEntity(health));
+            db.CapabilityHealth.Add(SourceHealthMapper.ToEntity(health));
         }
         else
         {
-            ApplyDomain(health, entity);
+            SourceHealthMapper.ApplyDomain(health, entity);
         }
 
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -111,110 +107,20 @@ public sealed class EfSourceHealthRepository(SourcesDbContext db) : ISourceHealt
         return health;
     }
 
-    public async Task<IReadOnlyList<SourceCapabilityHealth>> ListForSourceAsync(
+    public Task<IReadOnlyList<SourceCapabilityHealth>> ListForSourceAsync(
         string sourceId,
-        CancellationToken cancellationToken = default)
-    {
-        var entities = await db.CapabilityHealth
-            .Where(x => x.SourceId == sourceId)
-            .OrderBy(x => x.Capability)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListForSourceAsync(sourceId, cancellationToken);
 
-        return entities.Select(ToDomain).ToList();
-    }
+    public Task<IReadOnlyList<SourceCapabilityHealth>> ListUnhealthyAsync(
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListUnhealthyAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<SourceCapabilityHealth>> ListUnhealthyAsync(
-        CancellationToken cancellationToken = default)
-    {
-        var entities = await db.CapabilityHealth
-            .Where(x => x.Status == SourceHealthStatus.Unhealthy)
-            .OrderBy(x => x.SourceId)
-            .ThenBy(x => x.Capability)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return entities.Select(ToDomain).ToList();
-    }
-
-    public async Task<SourceHealthPage> ListUnhealthyPageAsync(
+    public Task<SourceHealthPage> ListUnhealthyPageAsync(
         SourceHealthScanCursor? after,
         int limit,
-        CancellationToken cancellationToken = default)
-    {
-        if (limit < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(limit));
-        }
-
-        var query = db.CapabilityHealth
-            .AsNoTracking()
-            .Where(x => x.Status == SourceHealthStatus.Unhealthy);
-        if (after is not null)
-        {
-            var sourceId = after.SourceId;
-            var capability = after.Capability;
-            query = query.Where(x => x.SourceId.CompareTo(sourceId) > 0
-                || (x.SourceId == sourceId && x.Capability > capability));
-        }
-
-        var entities = await query
-            .OrderBy(x => x.SourceId)
-            .ThenBy(x => x.Capability)
-            .Take(limit + 1)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var hasMore = entities.Count > limit;
-        if (hasMore)
-        {
-            entities.RemoveAt(limit);
-        }
-
-        var health = entities.Select(ToDomain).ToList();
-        var nextCursor = hasMore
-            ? new SourceHealthScanCursor(health[^1].SourceId, health[^1].Capability)
-            : null;
-        return new SourceHealthPage(health, nextCursor, hasMore);
-    }
-
-    private static SourceCapabilityHealthEntity ToEntity(SourceCapabilityHealth health) => new()
-    {
-        SourceId = health.SourceId,
-        Capability = health.Capability,
-        Status = health.Status,
-        ConsecutiveFailures = health.ConsecutiveFailures,
-        LastSuccessAt = health.LastSuccessAt,
-        LastFailureAt = health.LastFailureAt,
-        LastFailureReason = health.LastFailureReason,
-        AlgorithmVersion = health.AlgorithmVersion,
-        UpdatedAt = health.UpdatedAt,
-    };
-
-    private static SourceCapabilityHealth ToDomain(SourceCapabilityHealthEntity entity) =>
-        SourceCapabilityHealth.Rehydrate(
-            entity.SourceId,
-            entity.Capability,
-            entity.Status,
-            entity.ConsecutiveFailures,
-            entity.LastSuccessAt,
-            entity.LastFailureAt,
-            entity.LastFailureReason,
-            entity.AlgorithmVersion,
-            entity.UpdatedAt);
-
-    private static void ApplyDomain(
-        SourceCapabilityHealth health,
-        SourceCapabilityHealthEntity entity)
-    {
-        entity.Status = health.Status;
-        entity.ConsecutiveFailures = health.ConsecutiveFailures;
-        entity.LastSuccessAt = health.LastSuccessAt;
-        entity.LastFailureAt = health.LastFailureAt;
-        entity.LastFailureReason = health.LastFailureReason;
-        entity.AlgorithmVersion = health.AlgorithmVersion;
-        entity.UpdatedAt = health.UpdatedAt;
-    }
+        CancellationToken cancellationToken = default) =>
+        queryStore.ListUnhealthyPageAsync(after, limit, cancellationToken);
 
     private static void ApplyMutation(
         SourceCapabilityHealth health,
