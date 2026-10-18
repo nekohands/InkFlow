@@ -150,7 +150,7 @@ public sealed class OperationsAlertReader(
     IInboxDeadLetterReader inboxDeadLetters,
     OperationsAlertOptions options,
     TimeProvider clock,
-    IOperationsAlertHistoryRepository? history = null,
+    IOperationsAlertHistoryRecorder? history = null,
     ILogger<OperationsAlertReader>? logger = null) : IOperationsAlertReader
 {
     public const int DefaultLimit = 50;

@@ -148,7 +148,7 @@ public static class OperationsEndpoints
             int? limit,
             string? cursor,
             ClaimsPrincipal principal,
-            IOperationsAlertHistoryRepository history,
+            IOperationsAlertHistoryReader history,
             CancellationToken ct) =>
         {
             if (!ResourcePermissionEndpointResults.TryGetIdentity(

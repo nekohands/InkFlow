@@ -286,7 +286,13 @@ public static class ApiServiceRegistration
         builder.Services.AddSingleton(
             OperationsAlertOptions.FromConfiguration(builder.Configuration));
         builder.Services.AddScoped<IOperationsAlertReader, OperationsAlertReader>();
-        builder.Services.AddScoped<IOperationsAlertHistoryRepository, EfOperationsAlertHistoryRepository>();
+        builder.Services.AddScoped<EfOperationsAlertHistoryRepository>();
+        builder.Services.AddScoped<IOperationsAlertHistoryRepository>(sp =>
+            sp.GetRequiredService<EfOperationsAlertHistoryRepository>());
+        builder.Services.AddScoped<IOperationsAlertHistoryRecorder>(sp =>
+            sp.GetRequiredService<EfOperationsAlertHistoryRepository>());
+        builder.Services.AddScoped<IOperationsAlertHistoryReader>(sp =>
+            sp.GetRequiredService<EfOperationsAlertHistoryRepository>());
         builder.Services.AddScoped<IReadingStateRepository, EfReadingStateRepository>();
         builder.Services.AddScoped<IReadingStateService, ReadingStateService>();
         builder.Services.AddScoped<CatalogQueryService>();
