@@ -12,9 +12,9 @@ internal sealed class ContentVersionCurrentQueryStore(ContentDbContext db)
         Guid canonicalChapterId,
         CancellationToken cancellationToken = default)
     {
-        var entity = await db.Versions
+        var entity = await CurrentVersionQuery()
             .SingleOrDefaultAsync(
-                v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent,
+                v => v.CanonicalChapterId == canonicalChapterId,
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -25,9 +25,9 @@ internal sealed class ContentVersionCurrentQueryStore(ContentDbContext db)
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
     {
-        var entities = await db.Versions
+        var entities = await CurrentVersionQuery()
             .AsNoTracking()
-            .Where(v => v.CanonicalBookId == canonicalBookId && v.IsCurrent)
+            .Where(v => v.CanonicalBookId == canonicalBookId)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -37,8 +37,11 @@ internal sealed class ContentVersionCurrentQueryStore(ContentDbContext db)
     public Task<Guid?> GetCurrentCanonicalBookIdAsync(
         Guid canonicalChapterId,
         CancellationToken cancellationToken = default) =>
-        db.Versions
-            .Where(v => v.CanonicalChapterId == canonicalChapterId && v.IsCurrent)
+        CurrentVersionQuery()
+            .Where(v => v.CanonicalChapterId == canonicalChapterId)
             .Select(v => (Guid?)v.CanonicalBookId)
             .SingleOrDefaultAsync(cancellationToken);
+
+    private IQueryable<ContentVersionEntity> CurrentVersionQuery() =>
+        db.Versions.Where(version => version.IsCurrent);
 }
