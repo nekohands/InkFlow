@@ -45,7 +45,7 @@ internal sealed class RulePreRequestExecutor(
             SourceHttpRequest? preparedRequest;
             if (preIndex == 0)
             {
-                if (!RuleRequestBuilder.TryApplyCredential(
+                if (!RuleCredentialRequestApplier.TryApply(
                         firstRequest,
                         credential,
                         out preparedRequest,

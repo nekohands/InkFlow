@@ -254,7 +254,7 @@ internal sealed class RulePaginationExecutor
             return errors;
         }
 
-        if (!RuleRequestBuilder.TryApplyCredential(
+        if (!RuleCredentialRequestApplier.TryApply(
                 builtRequest!,
                 credential,
                 out var preparedRequest,

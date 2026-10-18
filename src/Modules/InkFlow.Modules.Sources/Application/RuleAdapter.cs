@@ -117,7 +117,7 @@ public sealed class RuleAdapter
             SourceHttpRequest? preparedMainRequest;
             if (preRequests.Count == 0)
             {
-                if (!RuleRequestBuilder.TryApplyCredential(
+                if (!RuleCredentialRequestApplier.TryApply(
                         plan.FirstRequest,
                         credentialResolution.Credential,
                         out preparedMainRequest,
