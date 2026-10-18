@@ -90,14 +90,7 @@ internal sealed class CrawlerTaskLeaseStore(CrawlingDbContext db)
             // The candidate query can observe a parent run before a concurrent
             // control transaction commits. Lock and re-read that parent before
             // mutating the task so a lease cannot commit after pause/stop/cancel.
-            var runEntity = await db.Runs
-                .FromSqlInterpolated($"""
-                    SELECT *
-                    FROM "crawler"."runs"
-                    WHERE "Id" = {runId}
-                    FOR UPDATE
-                    """)
-                .SingleOrDefaultAsync(cancellationToken)
+            var runEntity = await LockParentRunAsync(runId, cancellationToken)
                 .ConfigureAwait(false);
             if (runEntity is null || runEntity.Status is not (
                     (int)CollectionRunStatus.Pending or
@@ -157,15 +150,10 @@ internal sealed class CrawlerTaskLeaseStore(CrawlingDbContext db)
             // No-tracking is intentional: a scoped DbContext may still hold an
             // older run entity from a previous application operation. The lock
             // query must classify the durable row returned by PostgreSQL.
-            var runEntity = await db.Runs
-                .FromSqlInterpolated($"""
-                    SELECT *
-                    FROM "crawler"."runs"
-                    WHERE "Id" = {runId}
-                    FOR UPDATE
-                    """)
-                .AsNoTracking()
-                .SingleOrDefaultAsync(cancellationToken)
+            var runEntity = await LockParentRunAsync(
+                    runId,
+                    cancellationToken,
+                    asNoTracking: true)
                 .ConfigureAwait(false);
 
             if (runEntity is null || runEntity.Status is not (
@@ -254,5 +242,27 @@ internal sealed class CrawlerTaskLeaseStore(CrawlingDbContext db)
 
         task.RenewLease(now, leaseDuration);
         return true;
+    }
+
+    private async Task<CollectionRunEntity?> LockParentRunAsync(
+        Guid runId,
+        CancellationToken cancellationToken,
+        bool asNoTracking = false)
+    {
+        var query = db.Runs
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "crawler"."runs"
+                WHERE "Id" = {runId}
+                FOR UPDATE
+                """);
+        if (asNoTracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 }
