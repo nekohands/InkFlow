@@ -126,7 +126,8 @@ public sealed class EfContentSelectionDecisionRepository(ContentDbContext db)
 
 public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVersionRepository
 {
-    private readonly ContentVersionQueryStore queryStore = new(db);
+    private readonly ContentVersionHistoryQueryStore historyQueryStore = new(db);
+    private readonly ContentVersionCurrentQueryStore currentQueryStore = new(db);
     private readonly ContentVersionCurrentStore currentStore = new(db);
 
     public async Task AddAsync(ContentVersion version, CancellationToken cancellationToken = default)
@@ -152,26 +153,26 @@ public sealed class EfContentVersionRepository(ContentDbContext db) : IContentVe
 
     public async Task<ContentVersion?> FindByHashAsync(
         Guid canonicalChapterId, string canonicalHash, CancellationToken cancellationToken = default)
-        => await queryStore.FindByHashAsync(canonicalChapterId, canonicalHash, cancellationToken)
+        => await historyQueryStore.FindByHashAsync(canonicalChapterId, canonicalHash, cancellationToken)
             .ConfigureAwait(false);
 
     public Task<IReadOnlyList<ContentVersion>> ListForChapterAsync(
         Guid canonicalChapterId, CancellationToken cancellationToken = default)
-        => queryStore.ListForChapterAsync(canonicalChapterId, cancellationToken);
+        => historyQueryStore.ListForChapterAsync(canonicalChapterId, cancellationToken);
 
     public Task<ContentVersion?> GetCurrentForChapterAsync(
         Guid canonicalChapterId, CancellationToken cancellationToken = default)
-        => queryStore.GetCurrentForChapterAsync(canonicalChapterId, cancellationToken);
+        => currentQueryStore.GetCurrentForChapterAsync(canonicalChapterId, cancellationToken);
 
     public Task<IReadOnlyList<ContentVersion>> ListCurrentForBookAsync(
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
-        => queryStore.ListCurrentForBookAsync(canonicalBookId, cancellationToken);
+        => currentQueryStore.ListCurrentForBookAsync(canonicalBookId, cancellationToken);
 
     public Task<Guid?> GetCurrentCanonicalBookIdAsync(
         Guid canonicalChapterId,
         CancellationToken cancellationToken = default) =>
-        queryStore.GetCurrentCanonicalBookIdAsync(canonicalChapterId, cancellationToken);
+        currentQueryStore.GetCurrentCanonicalBookIdAsync(canonicalChapterId, cancellationToken);
 
     public Task SetCurrentAsync(
         Guid chapterId, Guid versionId, CancellationToken cancellationToken = default) =>
