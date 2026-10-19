@@ -120,7 +120,7 @@ public static class ResourcePermissionEndpointResults
                 ct));
     }
 
-    public const int MaxReasonLength = 512;
+    public const int MaxReasonLength = SourceEndpointRules.MaxReasonLength;
 
     public static bool TryGetIdentity(
         ClaimsPrincipal principal,
@@ -128,25 +128,8 @@ public static class ResourcePermissionEndpointResults
         out UserRole role) =>
         ApiIdentity.TryGetIdentity(principal, out userId, out role);
 
-    public static bool TryNormalizeReason(string? reason, out string normalized)
-    {
-        normalized = string.Empty;
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            return false;
-        }
-
-        var candidate = reason.Trim().Replace('\r', ' ').Replace('\n', ' ');
-        if (candidate.Length == 0 ||
-            candidate.Length > MaxReasonLength ||
-            candidate.Any(char.IsControl))
-        {
-            return false;
-        }
-
-        normalized = candidate;
-        return true;
-    }
+    public static bool TryNormalizeReason(string? reason, out string normalized) =>
+        SourceEndpointRules.TryNormalizeReason(reason, out normalized);
 
     private static async Task<IResult> HandleMutationAsync(
         string sourceId,

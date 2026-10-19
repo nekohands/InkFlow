@@ -2,6 +2,28 @@ namespace InkFlow.Api;
 
 internal static class SourceEndpointRules
 {
-    public static bool IsValidSourceId(string sourceId) =>
+    internal const int MaxReasonLength = 512;
+
+    internal static bool IsValidSourceId(string sourceId) =>
         !string.IsNullOrWhiteSpace(sourceId) && !sourceId.Any(char.IsWhiteSpace);
+
+    internal static bool TryNormalizeReason(string? reason, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return false;
+        }
+
+        var candidate = reason.Trim().Replace('\r', ' ').Replace('\n', ' ');
+        if (candidate.Length == 0 ||
+            candidate.Length > MaxReasonLength ||
+            candidate.Any(char.IsControl))
+        {
+            return false;
+        }
+
+        normalized = candidate;
+        return true;
+    }
 }

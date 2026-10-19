@@ -125,7 +125,7 @@ public static class SourceLifecycleEndpointResults
 
         if (!SourceEndpointRules.IsValidSourceId(sourceId) ||
             request is null ||
-            !ResourcePermissionEndpointResults.TryNormalizeReason(request.Reason, out var reason))
+            !SourceEndpointRules.TryNormalizeReason(request.Reason, out var reason))
         {
             return Results.BadRequest(new { error = "invalid_source_lifecycle_request" });
         }

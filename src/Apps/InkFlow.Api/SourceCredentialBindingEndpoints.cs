@@ -77,7 +77,7 @@ public static class SourceCredentialBindingEndpointResults
     }
 
     public const int MaxSourceIdLength = 128;
-    public const int MaxReasonLength = ResourcePermissionEndpointResults.MaxReasonLength;
+    public const int MaxReasonLength = SourceEndpointRules.MaxReasonLength;
 
     public static bool TryNormalizeSourceId(string? sourceId, out string normalized)
     {
@@ -101,7 +101,7 @@ public static class SourceCredentialBindingEndpointResults
     }
 
     public static bool TryNormalizeReason(string? reason, out string normalized) =>
-        ResourcePermissionEndpointResults.TryNormalizeReason(reason, out normalized);
+        SourceEndpointRules.TryNormalizeReason(reason, out normalized);
 
     public static SourceCredentialBindingResponse ToResponse(
         SourceCredentialBindingOperationResult result) =>
