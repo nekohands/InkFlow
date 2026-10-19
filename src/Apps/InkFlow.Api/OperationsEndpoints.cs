@@ -10,6 +10,18 @@ namespace InkFlow.Api;
 
 public static class OperationsEndpoints
 {
+    private static Task<IReadOnlySet<string>> ListAllowedSourceIdsAsync(
+        Guid userId,
+        UserRole role,
+        IResourceAuthorizationService authorization,
+        CancellationToken cancellationToken) =>
+        authorization.ListAllowedResourceIdsAsync(
+            userId,
+            role,
+            IdentityPermissions.SourceRead,
+            IdentityResourceTypes.Source,
+            cancellationToken);
+
     public static void Map(RouteGroupBuilder api)
     {
         var operationsRead = api.MapGroup("/admin")
@@ -102,11 +114,10 @@ public static class OperationsEndpoints
                 ? await operations.ReadAsync(boundedLimit, ct).ConfigureAwait(false)
                 : await operations.ReadForSourcesAsync(
                         boundedLimit,
-                        await authorization.ListAllowedResourceIdsAsync(
+                        await ListAllowedSourceIdsAsync(
                             userId,
                             role,
-                            IdentityPermissions.SourceRead,
-                            IdentityResourceTypes.Source,
+                            authorization,
                             ct).ConfigureAwait(false),
                         ct)
                     .ConfigureAwait(false);
@@ -133,11 +144,10 @@ public static class OperationsEndpoints
                 ? await alerts.ReadAsync(boundedLimit, ct).ConfigureAwait(false)
                 : await alerts.ReadForSourcesAsync(
                         boundedLimit,
-                        await authorization.ListAllowedResourceIdsAsync(
+                        await ListAllowedSourceIdsAsync(
                             userId,
                             role,
-                            IdentityPermissions.SourceRead,
-                            IdentityResourceTypes.Source,
+                            authorization,
                             ct).ConfigureAwait(false),
                         ct)
                     .ConfigureAwait(false);
