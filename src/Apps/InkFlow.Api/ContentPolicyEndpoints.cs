@@ -33,7 +33,7 @@ public static class ContentPolicyEndpointResults
             return Results.Ok(statuses);
         });
 
-        contentPolicy.MapPost("/takedowns", async (
+        contentPolicy.MapPost("/takedowns", (
             ContentPolicyTakedownRequest? request,
             ClaimsPrincipal principal,
             ICanonicalBookRepository books,
@@ -41,42 +41,19 @@ public static class ContentPolicyEndpointResults
             HttpContext httpContext,
             IAuditEventSink auditSink,
             TimeProvider clock,
-            CancellationToken ct) =>
-        {
-            if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
-            {
-                return (IResult)Results.Unauthorized();
-            }
-
-            if (request is null || request.BookId == Guid.Empty || string.IsNullOrWhiteSpace(request.Reason))
-            {
-                return Results.BadRequest(new { error = "book_id_and_reason_required" });
-            }
-
-            if (request.Reason.Trim().Length > ContentPolicyDecision.MaxReasonLength)
-            {
-                return Results.BadRequest(new { error = "reason_too_long" });
-            }
-
-            if (await books.GetAsync(request.BookId, ct) is null)
-            {
-                return Results.NotFound();
-            }
-
-            var reason = request.Reason.Trim();
-            var result = await policy.TakedownAsync(request.BookId, actorId, reason, ct);
-            return ContentPolicyEndpointResults.Command(
-                result,
+            CancellationToken ct) => HandleCommandAsync(
+                request?.BookId ?? Guid.Empty,
+                request?.Reason,
+                principal,
+                books,
+                policy,
                 ContentPolicyAction.Takedown,
-                actorId,
-                reason,
                 httpContext,
                 auditSink,
                 clock,
-                ct);
-        });
+                ct));
 
-        contentPolicy.MapPost("/takedowns/{bookId:guid}/restore", async (
+        contentPolicy.MapPost("/takedowns/{bookId:guid}/restore", (
             Guid bookId,
             ContentPolicyRestoreRequest? request,
             ClaimsPrincipal principal,
@@ -85,40 +62,64 @@ public static class ContentPolicyEndpointResults
             HttpContext httpContext,
             IAuditEventSink auditSink,
             TimeProvider clock,
-            CancellationToken ct) =>
-        {
-            if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
-            {
-                return (IResult)Results.Unauthorized();
-            }
-
-            if (request is null || bookId == Guid.Empty || string.IsNullOrWhiteSpace(request.Reason))
-            {
-                return Results.BadRequest(new { error = "book_id_and_reason_required" });
-            }
-
-            if (request.Reason.Trim().Length > ContentPolicyDecision.MaxReasonLength)
-            {
-                return Results.BadRequest(new { error = "reason_too_long" });
-            }
-
-            if (await books.GetAsync(bookId, ct) is null)
-            {
-                return Results.NotFound();
-            }
-
-            var reason = request.Reason.Trim();
-            var result = await policy.RestoreAsync(bookId, actorId, reason, ct);
-            return ContentPolicyEndpointResults.Command(
-                result,
+            CancellationToken ct) => HandleCommandAsync(
+                bookId,
+                request?.Reason,
+                principal,
+                books,
+                policy,
                 ContentPolicyAction.Restore,
-                actorId,
-                reason,
                 httpContext,
                 auditSink,
                 clock,
-                ct);
-        });
+                ct));
+    }
+
+    private static async Task<IResult> HandleCommandAsync(
+        Guid bookId,
+        string? rawReason,
+        ClaimsPrincipal principal,
+        ICanonicalBookRepository books,
+        IContentPolicyService policy,
+        ContentPolicyAction action,
+        HttpContext httpContext,
+        IAuditEventSink auditSink,
+        TimeProvider clock,
+        CancellationToken cancellationToken)
+    {
+        if (!RepairEndpointResults.TryGetActor(principal, out var actorId))
+        {
+            return Results.Unauthorized();
+        }
+
+        if (bookId == Guid.Empty || string.IsNullOrWhiteSpace(rawReason))
+        {
+            return Results.BadRequest(new { error = "book_id_and_reason_required" });
+        }
+
+        if (rawReason.Trim().Length > ContentPolicyDecision.MaxReasonLength)
+        {
+            return Results.BadRequest(new { error = "reason_too_long" });
+        }
+
+        if (await books.GetAsync(bookId, cancellationToken) is null)
+        {
+            return Results.NotFound();
+        }
+
+        var reason = rawReason.Trim();
+        var result = action == ContentPolicyAction.Takedown
+            ? await policy.TakedownAsync(bookId, actorId, reason, cancellationToken)
+            : await policy.RestoreAsync(bookId, actorId, reason, cancellationToken);
+        return Command(
+            result,
+            action,
+            actorId,
+            reason,
+            httpContext,
+            auditSink,
+            clock,
+            cancellationToken);
     }
 
     public static IResult Command(
