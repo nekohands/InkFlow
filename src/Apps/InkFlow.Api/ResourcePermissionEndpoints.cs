@@ -38,7 +38,7 @@ public static class ResourcePermissionEndpointResults
                 return (IResult)Results.NotFound(new { error = "source_not_found" });
             }
 
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            if (!ApiIdentity.TryGetIdentity(
                     principal,
                     out var actorId,
                     out var actorRole))
@@ -125,19 +125,8 @@ public static class ResourcePermissionEndpointResults
     public static bool TryGetIdentity(
         ClaimsPrincipal principal,
         out Guid userId,
-        out UserRole role)
-    {
-        role = default;
-        if (!ApiIdentity.TryGetUserId(principal, out userId))
-        {
-            return false;
-        }
-
-        var rawRole = principal.FindFirstValue(ClaimTypes.Role) ??
-                      principal.FindFirstValue("role");
-        return Enum.TryParse(rawRole, ignoreCase: true, out role) &&
-               Enum.IsDefined(role);
-    }
+        out UserRole role) =>
+        ApiIdentity.TryGetIdentity(principal, out userId, out role);
 
     public static bool TryNormalizeReason(string? reason, out string normalized)
     {
@@ -182,7 +171,7 @@ public static class ResourcePermissionEndpointResults
             return Results.NotFound(new { error = "source_not_found" });
         }
 
-        if (!TryGetIdentity(principal, out var actorId, out var actorRole))
+        if (!ApiIdentity.TryGetIdentity(principal, out var actorId, out var actorRole))
         {
             return Results.Unauthorized();
         }

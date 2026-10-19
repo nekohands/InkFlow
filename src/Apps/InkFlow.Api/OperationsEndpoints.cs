@@ -84,7 +84,7 @@ public static class OperationsEndpoints
             IResourceAuthorizationService authorization,
             CancellationToken ct) =>
         {
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            if (!ApiIdentity.TryGetIdentity(
                     principal,
                     out var userId,
                     out var role))
@@ -120,7 +120,7 @@ public static class OperationsEndpoints
             IResourceAuthorizationService authorization,
             CancellationToken ct) =>
         {
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            if (!ApiIdentity.TryGetIdentity(
                     principal,
                     out var userId,
                     out var role))
@@ -151,7 +151,7 @@ public static class OperationsEndpoints
             IOperationsAlertHistoryReader history,
             CancellationToken ct) =>
         {
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            if (!ApiIdentity.TryGetIdentity(
                     principal,
                     out _,
                     out var role))

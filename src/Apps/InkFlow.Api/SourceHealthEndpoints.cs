@@ -53,7 +53,7 @@ public static class SourceHealthEndpointResults
                 return (IResult)Results.NotFound(new { error = "source_not_found" });
             }
 
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            if (!ApiIdentity.TryGetIdentity(
                     principal,
                     out var userId,
                     out var role))
@@ -144,7 +144,7 @@ public static class SourceHealthEndpointResults
         TimeProvider clock,
         CancellationToken cancellationToken)
     {
-        if (!ResourcePermissionEndpointResults.TryGetIdentity(
+        if (!ApiIdentity.TryGetIdentity(
                 principal,
                 out var actorUserId,
                 out var actorRole))

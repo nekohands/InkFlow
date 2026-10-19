@@ -115,7 +115,7 @@ public static class SourceLifecycleEndpointResults
         TimeProvider clock,
         CancellationToken cancellationToken)
     {
-        if (!ResourcePermissionEndpointResults.TryGetIdentity(
+        if (!ApiIdentity.TryGetIdentity(
                 principal,
                 out var actorUserId,
                 out var actorRole))

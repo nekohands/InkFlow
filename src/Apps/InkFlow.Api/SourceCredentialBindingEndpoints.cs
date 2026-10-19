@@ -50,7 +50,7 @@ public static class SourceCredentialBindingEndpointResults
                 return (IResult)Results.BadRequest(new { error = "invalid_credential_binding_request" });
             }
 
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
+            if (!ApiIdentity.TryGetIdentity(
                     principal,
                     out var actorId,
                     out _))
