@@ -36,6 +36,25 @@ public sealed class ResourcePermissionTests
     }
 
     [TestMethod]
+    public void Source_Resource_Normalization_Requires_Source_Type_And_Safe_Id()
+    {
+        Assert.IsTrue(IdentityResourceAuthorization.TryNormalizeSource(
+            " SOURCE ",
+            " official-a ",
+            out var normalized));
+        Assert.AreEqual("official-a", normalized);
+
+        Assert.IsFalse(IdentityResourceAuthorization.TryNormalizeSource(
+            "book",
+            "official-a",
+            out _));
+        Assert.IsFalse(IdentityResourceAuthorization.TryNormalizeSource(
+            "source",
+            "official a",
+            out _));
+    }
+
+    [TestMethod]
     public async Task Grant_Is_Idempotent_And_Only_Administrator_Can_Manage_It()
     {
         var context = CreateContext();

@@ -54,6 +54,16 @@ public static class IdentityResourceAuthorization
         return true;
     }
 
+    public static bool TryNormalizeSource(
+        string? resourceType,
+        string? resourceId,
+        out string normalizedResourceId)
+    {
+        normalizedResourceId = string.Empty;
+        return IsSource(resourceType) &&
+               TryNormalizeSourceId(resourceId, out normalizedResourceId);
+    }
+
     public static bool IsSource(string? raw) =>
         string.Equals(raw?.Trim(), IdentityResourceTypes.Source, StringComparison.OrdinalIgnoreCase);
 }
@@ -292,8 +302,10 @@ public sealed class ResourceAuthorizationService(
         CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty ||
-            !IdentityResourceAuthorization.IsSource(resourceType) ||
-            !IdentityResourceAuthorization.TryNormalizeSourceId(resourceId, out var normalizedResourceId) ||
+            !IdentityResourceAuthorization.TryNormalizeSource(
+                resourceType,
+                resourceId,
+                out var normalizedResourceId) ||
             !IdentityPermissions.TryNormalizeSourcePermission(permission, out var normalizedPermission))
         {
             return false;

@@ -6,18 +6,6 @@ internal static class ResourcePermissionRules
 {
     public static bool IsAdministrator(Guid actorId, UserRole actorRole) =>
         actorId != Guid.Empty && actorRole == UserRole.Administrator;
-
-    public static bool TryNormalizeSource(
-        string? resourceType,
-        string? resourceId,
-        out string normalizedResourceId)
-    {
-        normalizedResourceId = string.Empty;
-        return IdentityResourceAuthorization.IsSource(resourceType) &&
-               IdentityResourceAuthorization.TryNormalizeSourceId(
-                   resourceId,
-                   out normalizedResourceId);
-    }
 }
 
 internal sealed class ResourcePermissionCommands(
@@ -41,7 +29,7 @@ internal sealed class ResourcePermissionCommands(
         }
 
         if (targetUserId == Guid.Empty ||
-            !ResourcePermissionRules.TryNormalizeSource(
+            !IdentityResourceAuthorization.TryNormalizeSource(
                 resourceType,
                 resourceId,
                 out var normalizedResourceId) ||
@@ -101,7 +89,7 @@ internal sealed class ResourcePermissionCommands(
         }
 
         if (grantId == Guid.Empty ||
-            !ResourcePermissionRules.TryNormalizeSource(
+            !IdentityResourceAuthorization.TryNormalizeSource(
                 resourceType,
                 resourceId,
                 out var normalizedResourceId))

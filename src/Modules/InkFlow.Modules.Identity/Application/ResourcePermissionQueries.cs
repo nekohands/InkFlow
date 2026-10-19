@@ -18,7 +18,7 @@ internal sealed class ResourcePermissionQueries(IResourcePermissionRepository pe
                 ResourcePermissionListStatus.ActorNotAllowed);
         }
 
-        if (!ResourcePermissionRules.TryNormalizeSource(
+        if (!IdentityResourceAuthorization.TryNormalizeSource(
                 resourceType,
                 resourceId,
                 out var normalizedResourceId) ||
