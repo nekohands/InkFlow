@@ -35,8 +35,7 @@ internal sealed class FetchArtifactQueryStore(SourcesDbContext db)
             return new HashSet<string>(StringComparer.Ordinal);
         }
 
-        var fetched = await db.FetchArtifacts
-            .Where(a => a.SourceId == sourceId && ids.Contains(a.ExternalChapterId))
+        var fetched = await FetchedArtifactsQuery(sourceId, ids)
             .Select(a => a.ExternalChapterId)
             .Distinct()
             .ToListAsync(cancellationToken)
@@ -57,10 +56,8 @@ internal sealed class FetchArtifactQueryStore(SourcesDbContext db)
             return new HashSet<string>(StringComparer.Ordinal);
         }
 
-        var recent = await db.FetchArtifacts
-            .Where(a => a.SourceId == sourceId &&
-                        a.FetchedAt >= since &&
-                        ids.Contains(a.ExternalChapterId))
+        var recent = await FetchedArtifactsQuery(sourceId, ids)
+            .Where(a => a.FetchedAt >= since)
             .Select(a => a.ExternalChapterId)
             .Distinct()
             .ToListAsync(cancellationToken)
@@ -68,4 +65,10 @@ internal sealed class FetchArtifactQueryStore(SourcesDbContext db)
 
         return new HashSet<string>(recent, StringComparer.Ordinal);
     }
+
+    private IQueryable<FetchArtifactEntity> FetchedArtifactsQuery(
+        string sourceId,
+        IReadOnlyCollection<string> externalChapterIds) =>
+        db.FetchArtifacts.Where(a =>
+            a.SourceId == sourceId && externalChapterIds.Contains(a.ExternalChapterId));
 }
