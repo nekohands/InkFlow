@@ -48,9 +48,8 @@ internal sealed class CollectionRunCleanupStore(CrawlingDbContext db)
         }
 
         // A follow-up writer may have inserted a task before the run lock was acquired.
-        var taskIds = await db.Tasks
+        var taskIds = await TasksForRun(id)
             .AsNoTracking()
-            .Where(task => task.RunId == id)
             .Select(task => task.Id)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -60,8 +59,7 @@ internal sealed class CollectionRunCleanupStore(CrawlingDbContext db)
                 .Where(deadLetter => taskIds.Contains(deadLetter.TaskId))
                 .ExecuteDeleteAsync(cancellationToken)
                 .ConfigureAwait(false);
-            await db.Tasks
-                .Where(task => task.RunId == id)
+            await TasksForRun(id)
                 .ExecuteDeleteAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -123,9 +121,8 @@ internal sealed class CollectionRunCleanupStore(CrawlingDbContext db)
             return 0;
         }
 
-        var taskIds = await db.Tasks
+        var taskIds = await TasksForRuns(runIds)
             .AsNoTracking()
-            .Where(task => task.RunId.HasValue && runIds.Contains(task.RunId.Value))
             .Select(task => task.Id)
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -135,8 +132,7 @@ internal sealed class CollectionRunCleanupStore(CrawlingDbContext db)
                 .Where(deadLetter => taskIds.Contains(deadLetter.TaskId))
                 .ExecuteDeleteAsync(cancellationToken)
                 .ConfigureAwait(false);
-            await db.Tasks
-                .Where(task => task.RunId.HasValue && runIds.Contains(task.RunId.Value))
+            await TasksForRuns(runIds)
                 .ExecuteDeleteAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -149,4 +145,10 @@ internal sealed class CollectionRunCleanupStore(CrawlingDbContext db)
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return deleted;
     }
+
+    private IQueryable<CrawlerTaskEntity> TasksForRun(Guid runId) =>
+        db.Tasks.Where(task => task.RunId == runId);
+
+    private IQueryable<CrawlerTaskEntity> TasksForRuns(Guid[] runIds) =>
+        db.Tasks.Where(task => task.RunId.HasValue && runIds.Contains(task.RunId.Value));
 }
