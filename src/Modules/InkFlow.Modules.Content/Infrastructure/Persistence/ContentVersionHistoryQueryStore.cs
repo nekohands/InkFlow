@@ -13,10 +13,8 @@ internal sealed class ContentVersionHistoryQueryStore(ContentDbContext db)
         string canonicalHash,
         CancellationToken cancellationToken = default)
     {
-        var entity = await db.Versions
-            .SingleOrDefaultAsync(
-                v => v.CanonicalChapterId == canonicalChapterId && v.CanonicalHash == canonicalHash,
-                cancellationToken)
+        var entity = await ChapterVersionQuery(canonicalChapterId)
+            .SingleOrDefaultAsync(v => v.CanonicalHash == canonicalHash, cancellationToken)
             .ConfigureAwait(false);
 
         return entity is null ? null : ContentDbContext.ToDomain(entity);
@@ -26,11 +24,13 @@ internal sealed class ContentVersionHistoryQueryStore(ContentDbContext db)
         Guid canonicalChapterId,
         CancellationToken cancellationToken = default)
     {
-        var entities = await db.Versions
-            .Where(v => v.CanonicalChapterId == canonicalChapterId)
+        var entities = await ChapterVersionQuery(canonicalChapterId)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
         return entities.Select(ContentDbContext.ToDomain).ToList();
     }
+
+    private IQueryable<ContentVersionEntity> ChapterVersionQuery(Guid canonicalChapterId) =>
+        db.Versions.Where(version => version.CanonicalChapterId == canonicalChapterId);
 }
