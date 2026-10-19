@@ -35,8 +35,7 @@ internal sealed class SourceHealthQueryStore(SourcesDbContext db)
     public async Task<IReadOnlyList<SourceCapabilityHealth>> ListUnhealthyAsync(
         CancellationToken cancellationToken = default)
     {
-        var entities = await db.CapabilityHealth
-            .Where(x => x.Status == SourceHealthStatus.Unhealthy)
+        var entities = await UnhealthyQuery()
             .OrderBy(x => x.SourceId)
             .ThenBy(x => x.Capability)
             .ToListAsync(cancellationToken)
@@ -55,9 +54,7 @@ internal sealed class SourceHealthQueryStore(SourcesDbContext db)
             throw new ArgumentOutOfRangeException(nameof(limit));
         }
 
-        var query = db.CapabilityHealth
-            .AsNoTracking()
-            .Where(x => x.Status == SourceHealthStatus.Unhealthy);
+        var query = UnhealthyQuery().AsNoTracking();
         if (after is not null)
         {
             var sourceId = after.SourceId;
@@ -85,4 +82,7 @@ internal sealed class SourceHealthQueryStore(SourcesDbContext db)
             : null;
         return new SourceHealthPage(health, nextCursor, hasMore);
     }
+
+    private IQueryable<SourceCapabilityHealthEntity> UnhealthyQuery() =>
+        db.CapabilityHealth.Where(x => x.Status == SourceHealthStatus.Unhealthy);
 }
