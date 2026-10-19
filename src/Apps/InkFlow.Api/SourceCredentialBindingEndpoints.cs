@@ -3,6 +3,7 @@ using InkFlow.Modules.Identity.Application;
 using System.Diagnostics;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Sources.Application;
+using InkFlow.Modules.Sources.Domain;
 
 namespace InkFlow.Api;
 
@@ -76,29 +77,11 @@ public static class SourceCredentialBindingEndpointResults
         });
     }
 
-    public const int MaxSourceIdLength = 128;
+    public const int MaxSourceIdLength = SourceIdRules.MaxLength;
     public const int MaxReasonLength = SourceEndpointRules.MaxReasonLength;
 
     public static bool TryNormalizeSourceId(string? sourceId, out string normalized)
-    {
-        normalized = string.Empty;
-        if (string.IsNullOrWhiteSpace(sourceId))
-        {
-            return false;
-        }
-
-        var candidate = sourceId.Trim();
-        if (candidate.Length == 0 ||
-            candidate.Length > MaxSourceIdLength ||
-            candidate.Any(character =>
-                char.IsWhiteSpace(character) || char.IsControl(character)))
-        {
-            return false;
-        }
-
-        normalized = candidate;
-        return true;
-    }
+        => SourceIdRules.TryNormalize(sourceId, out normalized);
 
     public static bool TryNormalizeReason(string? reason, out string normalized) =>
         SourceEndpointRules.TryNormalizeReason(reason, out normalized);

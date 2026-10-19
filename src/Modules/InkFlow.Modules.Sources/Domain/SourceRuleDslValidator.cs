@@ -17,7 +17,7 @@ public static class SourceRuleDslValidator
     public const int MaxResponseVariablesPerRule = 32;
     public const int MaxTransformsPerField = 16;
     public const int MaxMapEntries = 64;
-    public const int MaxSourceIdLength = 128;
+    public const int MaxSourceIdLength = SourceIdRules.MaxLength;
     public const int MaxFieldNameLength = 128;
     public const int MaxMapKeyLength = 256;
     public const int MaxMapValueLength = 2_048;
@@ -56,13 +56,11 @@ public static class SourceRuleDslValidator
             errors.Add($"schemaVersion: only '{SupportedSchemaVersion}' is supported, got '{dsl.SchemaVersion}'.");
         }
 
-        if (string.IsNullOrWhiteSpace(dsl.SourceId) ||
-            dsl.SourceId.Any(char.IsWhiteSpace))
+        if (!SourceIdRules.IsValid(dsl.SourceId))
         {
-            errors.Add("sourceId: must be non-empty and contain no whitespace.");
+            errors.Add(
+                $"sourceId: must be non-empty, at most {SourceIdRules.MaxLength} characters, and contain no whitespace or control characters.");
         }
-
-        ValidateMaxLength(dsl.SourceId, MaxSourceIdLength, "sourceId", errors);
 
         if (dsl.Rules is null)
         {

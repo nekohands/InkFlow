@@ -62,6 +62,13 @@ public sealed class SourceRuleDslValidatorTests
     }
 
     [TestMethod]
+    public void Control_Character_SourceId_Is_Rejected()
+    {
+        var dsl = ValidDsl() with { SourceId = "my\0source" };
+        Assert.IsTrue(SourceRuleDslValidator.Validate(dsl).Any(e => e.Contains("sourceId")));
+    }
+
+    [TestMethod]
     public void Duplicate_Capability_Rule_Is_Rejected()
     {
         var dsl = ValidDsl();

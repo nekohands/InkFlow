@@ -30,8 +30,6 @@ public sealed class SourceCredentialBindingService(
     ISourceRepository repository,
     TimeProvider clock) : ISourceCredentialBindingService
 {
-    private const int MaxSourceIdLength = 128;
-
     public async Task<SourceCredentialBindingOperationResult> SetDefaultAsync(
         string sourceId,
         string? credentialReferenceId,
@@ -70,8 +68,5 @@ public sealed class SourceCredentialBindingService(
     }
 
     private static bool IsValidSourceId(string? sourceId) =>
-        !string.IsNullOrWhiteSpace(sourceId) &&
-        sourceId.Length <= MaxSourceIdLength &&
-        !sourceId.Any(character =>
-            char.IsWhiteSpace(character) || char.IsControl(character));
+        SourceIdRules.IsValid(sourceId);
 }

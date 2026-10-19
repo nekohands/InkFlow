@@ -40,6 +40,28 @@ public sealed class SourceAggregateTests
     }
 
     [TestMethod]
+    public void Source_Id_Rule_Is_Bounded_And_Cannot_Be_Bypassed_By_Rehydrate()
+    {
+        var overlong = new string('x', SourceIdRules.MaxLength + 1);
+
+        Assert.IsTrue(SourceIdRules.IsValid(new string('x', SourceIdRules.MaxLength)));
+        Assert.IsFalse(SourceIdRules.IsValid(overlong));
+        Assert.IsFalse(SourceIdRules.IsValid("source\0id"));
+        Assert.ThrowsExactly<ArgumentException>(() => Source.Create(
+            overlong,
+            "示例",
+            "https://books.example.com",
+            T0));
+        Assert.ThrowsExactly<ArgumentException>(() => Source.Rehydrate(
+            overlong,
+            "示例",
+            "https://books.example.com",
+            null,
+            T0,
+            T0));
+    }
+
+    [TestMethod]
     public void Invalid_Rule_Dsl_Is_Rejected_By_Aggregate()
     {
         var source = Source.Create("example-source", "示例", "https://books.example.com", T0);

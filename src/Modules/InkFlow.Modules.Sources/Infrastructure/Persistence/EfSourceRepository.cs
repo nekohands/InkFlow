@@ -24,7 +24,7 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
         {
             b.ToTable("sources");
             b.HasKey(s => s.Id);
-            b.Property(s => s.Id).HasMaxLength(128).IsRequired();
+            b.Property(s => s.Id).HasMaxLength(SourceIdRules.MaxLength).IsRequired();
             b.Property(s => s.DisplayName).HasMaxLength(256).IsRequired();
             b.Property(s => s.BaseUrl).HasMaxLength(1024).IsRequired();
             b.Property(s => s.RuleDslJson).HasColumnType("jsonb");
@@ -36,7 +36,7 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
         {
             b.ToTable("source_books");
             b.HasKey(x => x.Id);
-            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.SourceId).HasMaxLength(SourceIdRules.MaxLength).IsRequired();
             b.Property(x => x.ExternalBookId).HasMaxLength(512).IsRequired();
             b.Property(x => x.Title).HasMaxLength(512).IsRequired();
             b.Property(x => x.Author).HasMaxLength(256).IsRequired();
@@ -62,7 +62,7 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
         {
             b.ToTable("fetch_artifacts");
             b.HasKey(x => x.Id);
-            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.SourceId).HasMaxLength(SourceIdRules.MaxLength).IsRequired();
             b.Property(x => x.ExternalBookId).HasMaxLength(512).IsRequired();
             b.Property(x => x.ExternalChapterId).HasMaxLength(512).IsRequired();
             b.Property(x => x.RawHash).HasMaxLength(64).IsRequired();
@@ -74,7 +74,7 @@ public sealed class SourcesDbContext(DbContextOptions<SourcesDbContext> options)
         {
             b.ToTable("capability_health");
             b.HasKey(x => new { x.SourceId, x.Capability });
-            b.Property(x => x.SourceId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.SourceId).HasMaxLength(SourceIdRules.MaxLength).IsRequired();
             b.Property(x => x.Capability).HasConversion<int>().IsRequired();
             b.Property(x => x.Status).HasConversion<int>().IsRequired();
             b.Property(x => x.LastFailureReason).HasMaxLength(SourceHealthPolicy.MaxFailureReasonLength);

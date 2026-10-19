@@ -1,3 +1,5 @@
+using InkFlow.Modules.Sources.Domain;
+
 namespace InkFlow.Api;
 
 internal static class SourceEndpointRules
@@ -5,7 +7,7 @@ internal static class SourceEndpointRules
     internal const int MaxReasonLength = 512;
 
     internal static bool IsValidSourceId(string sourceId) =>
-        !string.IsNullOrWhiteSpace(sourceId) && !sourceId.Any(char.IsWhiteSpace);
+        SourceIdRules.IsValid(sourceId);
 
     internal static bool TryNormalizeReason(string? reason, out string normalized)
     {

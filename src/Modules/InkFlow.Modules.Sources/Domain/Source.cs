@@ -46,6 +46,7 @@ public sealed class Source
         string? defaultCredentialReferenceId = null,
         bool isEnabled = true)
     {
+        ValidateId(id);
         ValidateDefaultCredentialReference(defaultCredentialReferenceId);
 
         return new Source
@@ -129,9 +130,11 @@ public sealed class Source
 
     private static void ValidateId(string id)
     {
-        if (string.IsNullOrWhiteSpace(id) || id.Any(char.IsWhiteSpace))
+        if (!SourceIdRules.IsValid(id))
         {
-            throw new ArgumentException("source id must be non-empty without whitespace.", nameof(id));
+            throw new ArgumentException(
+                $"source id must be non-empty, at most {SourceIdRules.MaxLength} characters, and contain no whitespace or control characters.",
+                nameof(id));
         }
     }
 

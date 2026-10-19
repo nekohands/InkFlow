@@ -124,6 +124,10 @@ public sealed class SourceCredentialBindingEndpointTests
             SourceCredentialBindingEndpointResults.TryNormalizeSourceId(
                 new string('x', 129),
                 out _));
+        Assert.IsFalse(
+            SourceCredentialBindingEndpointResults.TryNormalizeSourceId(
+                "official\0a",
+                out _));
 
         Assert.IsTrue(
             SourceCredentialBindingEndpointResults.TryNormalizeReason(
