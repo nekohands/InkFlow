@@ -43,7 +43,7 @@ public static class SourceHealthEndpointResults
             IResourceAuthorizationService authorization,
             CancellationToken ct) =>
         {
-            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId))
+            if (!SourceEndpointRules.IsValidSourceId(sourceId))
             {
                 return (IResult)Results.BadRequest(new { error = "invalid_source_id" });
             }
@@ -153,7 +153,7 @@ public static class SourceHealthEndpointResults
         }
         var actorId = actorUserId.ToString("D");
 
-        if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+        if (!SourceEndpointRules.IsValidSourceId(sourceId) ||
             !SourceHealthEndpointResults.TryParseCapability(rawCapability, out var capability) ||
             request is null ||
             !SourceHealthEndpointResults.TryNormalizeReason(request.Reason, out var reason))
@@ -192,7 +192,7 @@ public static class SourceHealthEndpointResults
     }
 
     public static bool IsValidSourceId(string sourceId) =>
-        !string.IsNullOrWhiteSpace(sourceId) && !sourceId.Any(char.IsWhiteSpace);
+        SourceEndpointRules.IsValidSourceId(sourceId);
 
     public static bool TryParseCapability(
         string rawCapability,

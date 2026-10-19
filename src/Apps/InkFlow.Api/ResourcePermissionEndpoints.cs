@@ -28,7 +28,7 @@ public static class ResourcePermissionEndpointResults
             IResourcePermissionService permissions,
             CancellationToken ct) =>
         {
-            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId))
+            if (!SourceEndpointRules.IsValidSourceId(sourceId))
             {
                 return (IResult)Results.BadRequest(new { error = "invalid_source_id" });
             }
@@ -160,7 +160,7 @@ public static class ResourcePermissionEndpointResults
         TimeProvider clock,
         CancellationToken cancellationToken)
     {
-        if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+        if (!SourceEndpointRules.IsValidSourceId(sourceId) ||
             !TryNormalizeReason(rawReason, out var reason))
         {
             return Results.BadRequest(new { error = "invalid_permission_request" });

@@ -57,6 +57,9 @@ public sealed class SourceHealthEndpointTests
     [TestMethod]
     public void Capability_And_Reason_Validation_Is_Bounded()
     {
+        Assert.IsTrue(SourceHealthEndpointResults.IsValidSourceId("official-a"));
+        Assert.IsFalse(SourceHealthEndpointResults.IsValidSourceId("official a"));
+
         Assert.IsTrue(SourceHealthEndpointResults.TryParseCapability("content", out var capability));
         Assert.AreEqual(SourceCapability.Content, capability);
         Assert.IsFalse(SourceHealthEndpointResults.TryParseCapability("unknown-capability", out _));

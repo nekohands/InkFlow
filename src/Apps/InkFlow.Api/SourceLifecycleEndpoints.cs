@@ -123,7 +123,7 @@ public static class SourceLifecycleEndpointResults
             return Results.Unauthorized();
         }
 
-        if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+        if (!SourceEndpointRules.IsValidSourceId(sourceId) ||
             request is null ||
             !ResourcePermissionEndpointResults.TryNormalizeReason(request.Reason, out var reason))
         {
