@@ -12,11 +12,9 @@ internal sealed class ReadingShelfStore(ReadingDbContext db)
         Guid canonicalBookId,
         CancellationToken cancellationToken = default)
     {
-        var entity = await db.ShelfEntries
+        var entity = await ShelfEntryQuery(userId, canonicalBookId)
             .AsNoTracking()
-            .SingleOrDefaultAsync(
-                entry => entry.UserId == userId && entry.CanonicalBookId == canonicalBookId,
-                cancellationToken)
+            .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
         return entity is null ? null : ReadingMapper.ToDomain(entity);
     }
@@ -55,8 +53,13 @@ internal sealed class ReadingShelfStore(ReadingDbContext db)
         Guid userId,
         Guid canonicalBookId,
         CancellationToken cancellationToken = default) =>
-        await db.ShelfEntries
-            .Where(entry => entry.UserId == userId && entry.CanonicalBookId == canonicalBookId)
+        await ShelfEntryQuery(userId, canonicalBookId)
             .ExecuteDeleteAsync(cancellationToken)
             .ConfigureAwait(false);
+
+    private IQueryable<BookshelfEntryEntity> ShelfEntryQuery(
+        Guid userId,
+        Guid canonicalBookId) =>
+        db.ShelfEntries.Where(entry =>
+            entry.UserId == userId && entry.CanonicalBookId == canonicalBookId);
 }
