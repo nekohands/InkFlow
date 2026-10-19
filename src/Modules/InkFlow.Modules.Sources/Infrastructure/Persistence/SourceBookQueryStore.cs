@@ -9,8 +9,8 @@ internal sealed class SourceBookQueryStore(SourcesDbContext db)
     public async Task<SourceBook?> GetAsync(
         string sourceId, string externalBookId, CancellationToken cancellationToken = default)
     {
-        var entity = await db.SourceBooks
-            .SingleOrDefaultAsync(b => b.SourceId == sourceId && b.ExternalBookId == externalBookId, cancellationToken)
+        var entity = await BookQuery(sourceId, externalBookId)
+            .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
         if (entity is null)
@@ -32,9 +32,8 @@ internal sealed class SourceBookQueryStore(SourcesDbContext db)
         string externalBookId,
         CancellationToken cancellationToken = default)
     {
-        return await db.SourceBooks
+        return await BookQuery(sourceId, externalBookId)
             .AsNoTracking()
-            .Where(book => book.SourceId == sourceId && book.ExternalBookId == externalBookId)
             .Select(book => new SourceBookMetadata(book.Title, book.Author))
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -46,8 +45,7 @@ internal sealed class SourceBookQueryStore(SourcesDbContext db)
         CancellationToken cancellationToken = default)
     {
         return await (
-                from book in db.SourceBooks.AsNoTracking()
-                where book.SourceId == sourceId && book.ExternalBookId == externalBookId
+                from book in BookQuery(sourceId, externalBookId).AsNoTracking()
                 join chapter in db.SourceChapters.AsNoTracking()
                     on book.Id equals chapter.SourceBookId
                 orderby chapter.ChapterIndex
@@ -63,8 +61,7 @@ internal sealed class SourceBookQueryStore(SourcesDbContext db)
         CancellationToken cancellationToken = default)
     {
         var result = await (
-            from book in db.SourceBooks.AsNoTracking()
-            where book.SourceId == sourceId && book.ExternalBookId == externalBookId
+            from book in BookQuery(sourceId, externalBookId).AsNoTracking()
             join chapter in db.SourceChapters.AsNoTracking()
                     .Where(chapter => chapter.ExternalChapterId == externalChapterId)
                 on book.Id equals chapter.SourceBookId into matchingChapters
@@ -159,6 +156,12 @@ internal sealed class SourceBookQueryStore(SourcesDbContext db)
             : null;
         return new SourceBookPage(books, nextCursor, hasMore);
     }
+
+    private IQueryable<SourceBookEntity> BookQuery(
+        string sourceId,
+        string externalBookId) =>
+        db.SourceBooks.Where(book =>
+            book.SourceId == sourceId && book.ExternalBookId == externalBookId);
 
     private static SourceBook ToDomain(
         SourceBookEntity entity,
