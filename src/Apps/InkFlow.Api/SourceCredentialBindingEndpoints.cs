@@ -77,7 +77,7 @@ public static class SourceCredentialBindingEndpointResults
     }
 
     public const int MaxSourceIdLength = 128;
-    public const int MaxReasonLength = 512;
+    public const int MaxReasonLength = ResourcePermissionEndpointResults.MaxReasonLength;
 
     public static bool TryNormalizeSourceId(string? sourceId, out string normalized)
     {
@@ -100,25 +100,8 @@ public static class SourceCredentialBindingEndpointResults
         return true;
     }
 
-    public static bool TryNormalizeReason(string? reason, out string normalized)
-    {
-        normalized = string.Empty;
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            return false;
-        }
-
-        var candidate = reason.Trim().Replace('\r', ' ').Replace('\n', ' ');
-        if (candidate.Length == 0 ||
-            candidate.Length > MaxReasonLength ||
-            candidate.Any(char.IsControl))
-        {
-            return false;
-        }
-
-        normalized = candidate;
-        return true;
-    }
+    public static bool TryNormalizeReason(string? reason, out string normalized) =>
+        ResourcePermissionEndpointResults.TryNormalizeReason(reason, out normalized);
 
     public static SourceCredentialBindingResponse ToResponse(
         SourceCredentialBindingOperationResult result) =>
