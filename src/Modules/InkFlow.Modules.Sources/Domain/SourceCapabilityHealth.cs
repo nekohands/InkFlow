@@ -226,10 +226,11 @@ public sealed class SourceCapabilityHealth
 
     private static void ValidateSourceId(string sourceId)
     {
-        if (string.IsNullOrWhiteSpace(sourceId) || sourceId.Any(char.IsWhiteSpace))
+        if (!SourceIdRules.IsValid(sourceId))
         {
             throw new ArgumentException(
-                "source id must be non-empty without whitespace.", nameof(sourceId));
+                $"source id must be non-empty, at most {SourceIdRules.MaxLength} characters, and contain no whitespace or control characters.",
+                nameof(sourceId));
         }
     }
 

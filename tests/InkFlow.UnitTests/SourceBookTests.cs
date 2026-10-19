@@ -22,6 +22,17 @@ public sealed class SourceBookTests
     }
 
     [TestMethod]
+    public void Create_And_Rehydrate_Reject_Invalid_Source_Id()
+    {
+        var overlong = new string('x', SourceIdRules.MaxLength + 1);
+
+        Assert.ThrowsExactly<ArgumentException>(() => SourceBook.Create(
+            overlong, "ext-1", "t", "a", T0));
+        Assert.ThrowsExactly<ArgumentException>(() => SourceBook.Rehydrate(
+            Guid.CreateVersion7(), "source\0id", "ext-1", "t", "a", T0, T0, []));
+    }
+
+    [TestMethod]
     public void SyncChapters_Is_Idempotent_By_External_Id()
     {
         var book = SourceBook.Create("src", "ext-1", "书名", "作者", T0);

@@ -21,9 +21,11 @@ public sealed record FetchArtifact(
         string sourceId, string externalBookId, string externalChapterId,
         string rawBody, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(sourceId))
+        if (!SourceIdRules.IsValid(sourceId))
         {
-            throw new ArgumentException("source id must not be empty.", nameof(sourceId));
+            throw new ArgumentException(
+                $"source id must be non-empty, at most {SourceIdRules.MaxLength} characters, and contain no whitespace or control characters.",
+                nameof(sourceId));
         }
 
         if (string.IsNullOrWhiteSpace(externalChapterId))

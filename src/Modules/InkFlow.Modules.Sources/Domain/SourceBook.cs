@@ -45,6 +45,8 @@ public sealed class SourceBook
         Guid id, string sourceId, string externalBookId, string title, string author,
         DateTimeOffset createdAt, DateTimeOffset updatedAt, IEnumerable<SourceChapter> chapters)
     {
+        ValidateIds(sourceId, externalBookId);
+
         var book = new SourceBook
         {
             Id = id,
@@ -106,9 +108,11 @@ public sealed class SourceBook
 
     private static void ValidateIds(string sourceId, string externalBookId)
     {
-        if (string.IsNullOrWhiteSpace(sourceId))
+        if (!SourceIdRules.IsValid(sourceId))
         {
-            throw new ArgumentException("source id must not be empty.", nameof(sourceId));
+            throw new ArgumentException(
+                $"source id must be non-empty, at most {SourceIdRules.MaxLength} characters, and contain no whitespace or control characters.",
+                nameof(sourceId));
         }
 
         if (string.IsNullOrWhiteSpace(externalBookId))

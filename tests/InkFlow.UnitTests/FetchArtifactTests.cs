@@ -35,5 +35,16 @@ public sealed class FetchArtifactTests
         Assert.AreEqual(64, artifact.RawHash.Length, "SHA-256 十六进制应为 64 字符");
     }
 
+    [TestMethod]
+    public void Capture_Rejects_Invalid_Source_Id()
+    {
+        var overlong = new string('x', SourceIdRules.MaxLength + 1);
+
+        Assert.ThrowsExactly<ArgumentException>(() => FetchArtifact.Capture(
+            overlong, "book-1", "ch-1", "正文", T0));
+        Assert.ThrowsExactly<ArgumentException>(() => FetchArtifact.Capture(
+            "source\0id", "book-1", "ch-1", "正文", T0));
+    }
+
     private static readonly DateTimeOffset T0 = new(2026, 8, 26, 14, 0, 0, TimeSpan.Zero);
 }

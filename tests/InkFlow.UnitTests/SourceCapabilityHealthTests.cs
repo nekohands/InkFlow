@@ -34,6 +34,25 @@ public sealed class SourceCapabilityHealthTests
     }
 
     [TestMethod]
+    public void Create_And_Rehydrate_Reject_Invalid_Source_Id()
+    {
+        var overlong = new string('x', SourceIdRules.MaxLength + 1);
+
+        Assert.ThrowsExactly<ArgumentException>(() => SourceCapabilityHealth.Create(
+            overlong, SourceCapability.Content, T0));
+        Assert.ThrowsExactly<ArgumentException>(() => SourceCapabilityHealth.Rehydrate(
+            "source\0id",
+            SourceCapability.Content,
+            SourceHealthStatus.Unknown,
+            0,
+            null,
+            null,
+            null,
+            null,
+            T0));
+    }
+
+    [TestMethod]
     public void Success_Recovers_And_Resets_The_Failure_Streak()
     {
         var health = SourceCapabilityHealth.Create("official-a", SourceCapability.Toc, T0);
