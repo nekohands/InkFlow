@@ -1,7 +1,4 @@
-using System.Globalization;
-using System.Text;
 using InkFlow.Modules.Operations.Application;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace InkFlow.Api;
 
@@ -40,64 +37,22 @@ public static class OperationsAlertHistoryEndpointResults
 
     public static string? EncodeCursor(OperationsAlertHistoryCursor? cursor)
     {
-        if (cursor is null)
-        {
-            return null;
-        }
-
-        var payload = string.Create(
-            CultureInfo.InvariantCulture,
-            $"{cursor.OccurredAt.ToUniversalTime():O}|{cursor.Id:D}");
-        return WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(payload));
+        return cursor is null ? null : ApiKeysetCursor.Encode(cursor.OccurredAt, cursor.Id);
     }
 
     private static bool TryParseCursor(
         string? raw,
         out OperationsAlertHistoryCursor? cursor)
     {
-        cursor = null;
-        if (string.IsNullOrWhiteSpace(raw))
+        if (!ApiKeysetCursor.TryDecode(raw, out var occurredAt, out var id))
         {
-            return true;
-        }
-
-        if (raw.Length > 256)
-        {
+            cursor = null;
             return false;
         }
 
-        try
-        {
-            var payload = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(raw.Trim()));
-            var separator = payload.IndexOf('|');
-            if (separator <= 0 || separator == payload.Length - 1 ||
-                payload.IndexOf('|', separator + 1) >= 0)
-            {
-                return false;
-            }
-
-            if (!DateTimeOffset.TryParseExact(
-                    payload[..separator],
-                    "O",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind,
-                    out var occurredAt) ||
-                !Guid.TryParseExact(payload[(separator + 1)..], "D", out var id) ||
-                id == Guid.Empty)
-            {
-                return false;
-            }
-
-            cursor = new OperationsAlertHistoryCursor(occurredAt.ToUniversalTime(), id);
-            return true;
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
+        cursor = occurredAt is { } value
+            ? new OperationsAlertHistoryCursor(value, id)
+            : null;
+        return true;
     }
 }

@@ -1,13 +1,10 @@
-using System.Globalization;
 using System.Diagnostics;
 using System.Security.Claims;
-using System.Text;
 using InkFlow.BuildingBlocks.Security;
 using InkFlow.Modules.Crawling.Application;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Identity.Application;
 using InkFlow.Modules.Library.Application;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace InkFlow.Api;
 
@@ -203,65 +200,21 @@ public static class CollectionRunEndpoints
 
     public static string? EncodeCursor(CollectionRunCursor? cursor)
     {
-        if (cursor is null)
-        {
-            return null;
-        }
-
-        var payload = string.Create(
-            CultureInfo.InvariantCulture,
-            $"{cursor.UpdatedAt.ToUniversalTime():O}|{cursor.Id:D}");
-        return WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(payload));
+        return cursor is null ? null : ApiKeysetCursor.Encode(cursor.UpdatedAt, cursor.Id);
     }
 
     private static bool TryParseCursor(
         string? raw,
         out CollectionRunCursor? cursor)
     {
-        cursor = null;
-        if (string.IsNullOrWhiteSpace(raw))
+        if (!ApiKeysetCursor.TryDecode(raw, out var updatedAt, out var id))
         {
-            return true;
-        }
-
-        if (raw.Length > 256)
-        {
+            cursor = null;
             return false;
         }
 
-        try
-        {
-            var payload = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(raw.Trim()));
-            var separator = payload.IndexOf('|');
-            if (separator <= 0 || separator == payload.Length - 1 ||
-                payload.IndexOf('|', separator + 1) >= 0)
-            {
-                return false;
-            }
-
-            if (!DateTimeOffset.TryParseExact(
-                    payload[..separator],
-                    "O",
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind,
-                    out var updatedAt) ||
-                !Guid.TryParseExact(payload[(separator + 1)..], "D", out var id) ||
-                id == Guid.Empty)
-            {
-                return false;
-            }
-
-            cursor = new CollectionRunCursor(updatedAt.ToUniversalTime(), id);
-            return true;
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
+        cursor = updatedAt is { } value ? new CollectionRunCursor(value, id) : null;
+        return true;
     }
 
     public static object ToResponse(CollectionRunView value) => new
