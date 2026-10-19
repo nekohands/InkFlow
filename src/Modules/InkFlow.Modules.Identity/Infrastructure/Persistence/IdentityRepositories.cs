@@ -567,14 +567,13 @@ public sealed class EfResourcePermissionRepository(IdentityDbContext db)
         string permission,
         CancellationToken cancellationToken = default)
     {
-        var entity = await db.PermissionGrants
+        var entity = await ActiveGrantsQuery()
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 grant => grant.UserId == userId &&
                          grant.ResourceType == resourceType &&
                          grant.ResourceId == resourceId &&
-                         grant.Permission == permission &&
-                         grant.RevokedAt == null,
+                         grant.Permission == permission,
                 cancellationToken)
             .ConfigureAwait(false);
         return entity is null ? null : IdentityMapper.ToDomain(entity);
@@ -586,11 +585,10 @@ public sealed class EfResourcePermissionRepository(IdentityDbContext db)
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var entities = await db.PermissionGrants
+        var entities = await ActiveGrantsQuery()
             .AsNoTracking()
             .Where(grant => grant.ResourceType == resourceType &&
-                            grant.ResourceId == resourceId &&
-                            grant.RevokedAt == null)
+                            grant.ResourceId == resourceId)
             .OrderByDescending(grant => grant.GrantedAt)
             .Take(limit)
             .ToListAsync(cancellationToken)
@@ -604,12 +602,11 @@ public sealed class EfResourcePermissionRepository(IdentityDbContext db)
         string resourceId,
         CancellationToken cancellationToken = default)
     {
-        var entities = await db.PermissionGrants
+        var entities = await ActiveGrantsQuery()
             .AsNoTracking()
             .Where(grant => grant.UserId == userId &&
                             grant.ResourceType == resourceType &&
-                            grant.ResourceId == resourceId &&
-                            grant.RevokedAt == null)
+                            grant.ResourceId == resourceId)
             .OrderByDescending(grant => grant.GrantedAt)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -622,17 +619,19 @@ public sealed class EfResourcePermissionRepository(IdentityDbContext db)
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var entities = await db.PermissionGrants
+        var entities = await ActiveGrantsQuery()
             .AsNoTracking()
             .Where(grant => grant.UserId == userId &&
-                            grant.ResourceType == resourceType &&
-                            grant.RevokedAt == null)
+                            grant.ResourceType == resourceType)
             .OrderByDescending(grant => grant.GrantedAt)
             .Take(limit)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         return entities.Select(IdentityMapper.ToDomain).ToList();
     }
+
+    private IQueryable<PermissionGrantEntity> ActiveGrantsQuery() =>
+        db.PermissionGrants.Where(grant => grant.RevokedAt == null);
 
     public async Task AddAsync(
         PermissionGrant grant,
