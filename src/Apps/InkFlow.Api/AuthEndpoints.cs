@@ -198,14 +198,14 @@ public static class AccountEndpointResults
                 ProfileResultStatus.NotFound => StatusCodes.Status404NotFound,
                 _ => StatusCodes.Status400BadRequest,
             };
-            await auditSink.AppendAsync(
-                AccountEndpointResults.CreateAudit(
-                    "identity.profile.update",
-                    principal,
-                    httpContext,
-                    clock,
-                    statusCode,
-                    result.IsSuccess ? "success" : "client_error"),
+            await AccountEndpointResults.AppendAccountAuditAsync(
+                "identity.profile.update",
+                principal,
+                httpContext,
+                auditSink,
+                clock,
+                statusCode,
+                result.IsSuccess,
                 ct).ConfigureAwait(false);
             return AccountEndpointResults.FromProfile(result);
         });
@@ -295,14 +295,14 @@ public static class AccountEndpointResults
                 AvatarResultStatus.NotFound => StatusCodes.Status404NotFound,
                 _ => StatusCodes.Status400BadRequest,
             };
-            await auditSink.AppendAsync(
-                AccountEndpointResults.CreateAudit(
-                    "identity.avatar.update",
-                    principal,
-                    httpContext,
-                    clock,
-                    statusCode,
-                    result.IsSuccess ? "success" : "client_error"),
+            await AccountEndpointResults.AppendAccountAuditAsync(
+                "identity.avatar.update",
+                principal,
+                httpContext,
+                auditSink,
+                clock,
+                statusCode,
+                result.IsSuccess,
                 ct).ConfigureAwait(false);
             return AccountEndpointResults.FromAvatarUpload(result);
         });
@@ -335,14 +335,14 @@ public static class AccountEndpointResults
                     StatusCodes.Status401Unauthorized,
                 _ => StatusCodes.Status400BadRequest,
             };
-            await auditSink.AppendAsync(
-                AccountEndpointResults.CreateAudit(
-                    "identity.password.change",
-                    principal,
-                    httpContext,
-                    clock,
-                    statusCode,
-                    result.IsSuccess ? "success" : "client_error"),
+            await AccountEndpointResults.AppendAccountAuditAsync(
+                "identity.password.change",
+                principal,
+                httpContext,
+                auditSink,
+                clock,
+                statusCode,
+                result.IsSuccess,
                 ct).ConfigureAwait(false);
             return AccountEndpointResults.FromPasswordChange(result);
         });
@@ -385,6 +385,25 @@ public static class AccountEndpointResults
         AvatarResultStatus.NotFound => Results.NotFound(new { error = "not_found" }),
         _ => Results.BadRequest(new { error = "invalid_image" }),
     };
+
+    private static ValueTask AppendAccountAuditAsync(
+        string action,
+        ClaimsPrincipal principal,
+        HttpContext httpContext,
+        IAuditEventSink auditSink,
+        TimeProvider clock,
+        int statusCode,
+        bool isSuccess,
+        CancellationToken cancellationToken) =>
+        auditSink.AppendAsync(
+            CreateAudit(
+                action,
+                principal,
+                httpContext,
+                clock,
+                statusCode,
+                isSuccess ? "success" : "client_error"),
+            cancellationToken);
 
     public static AuditEvent CreateAudit(
         string action,
