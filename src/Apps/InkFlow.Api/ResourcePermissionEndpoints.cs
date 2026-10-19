@@ -63,7 +63,7 @@ public static class ResourcePermissionEndpointResults
             };
         });
 
-        sourcePermissionManagement.MapPost("/{sourceId}/permissions", async (
+        sourcePermissionManagement.MapPost("/{sourceId}/permissions", (
             string sourceId,
             SourcePermissionGrantRequest? request,
             ClaimsPrincipal principal,
@@ -72,49 +72,26 @@ public static class ResourcePermissionEndpointResults
             HttpContext httpContext,
             IAuditEventSink auditSink,
             TimeProvider clock,
-            CancellationToken ct) =>
-        {
-            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
-                request is null ||
-                !ResourcePermissionEndpointResults.TryNormalizeReason(request.Reason, out var reason))
-            {
-                return (IResult)Results.BadRequest(new { error = "invalid_permission_request" });
-            }
-
-            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
-            {
-                return (IResult)Results.NotFound(new { error = "source_not_found" });
-            }
-
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
-                    principal,
-                    out var actorId,
-                    out var actorRole))
-            {
-                return (IResult)Results.Unauthorized();
-            }
-
-            var result = await permissions.GrantAsync(
-                actorId,
-                actorRole,
-                request.UserId,
-                IdentityResourceTypes.Source,
+            CancellationToken ct) => HandleMutationAsync(
                 sourceId,
-                request.Permission,
-                ct).ConfigureAwait(false);
-            return ResourcePermissionEndpointResults.AuditedOperation(
-                result,
+                request?.Reason,
+                principal,
+                sources,
+                (actorId, actorRole, cancellationToken) => permissions.GrantAsync(
+                    actorId,
+                    actorRole,
+                    request!.UserId,
+                    IdentityResourceTypes.Source,
+                    sourceId,
+                    request.Permission,
+                    cancellationToken),
                 "identity.resource_permission.grant",
-                sourceId,
-                actorId,
-                reason,
                 httpContext,
                 auditSink,
                 clock,
-                ct);
-        });
+                ct));
 
-        sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", async (
+        sourcePermissionManagement.MapDelete("/{sourceId}/permissions/{grantId:guid}", (
             string sourceId,
             Guid grantId,
             string? reason,
@@ -124,45 +101,23 @@ public static class ResourcePermissionEndpointResults
             HttpContext httpContext,
             IAuditEventSink auditSink,
             TimeProvider clock,
-            CancellationToken ct) =>
-        {
-            if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
-                !ResourcePermissionEndpointResults.TryNormalizeReason(reason, out var normalizedReason))
-            {
-                return (IResult)Results.BadRequest(new { error = "invalid_permission_request" });
-            }
-
-            if (await sources.GetAsync(sourceId, ct).ConfigureAwait(false) is null)
-            {
-                return (IResult)Results.NotFound(new { error = "source_not_found" });
-            }
-
-            if (!ResourcePermissionEndpointResults.TryGetIdentity(
-                    principal,
-                    out var actorId,
-                    out var actorRole))
-            {
-                return (IResult)Results.Unauthorized();
-            }
-
-            var result = await permissions.RevokeAsync(
-                actorId,
-                actorRole,
-                grantId,
-                IdentityResourceTypes.Source,
+            CancellationToken ct) => HandleMutationAsync(
                 sourceId,
-                ct).ConfigureAwait(false);
-            return ResourcePermissionEndpointResults.AuditedOperation(
-                result,
+                reason,
+                principal,
+                sources,
+                (actorId, actorRole, cancellationToken) => permissions.RevokeAsync(
+                    actorId,
+                    actorRole,
+                    grantId,
+                    IdentityResourceTypes.Source,
+                    sourceId,
+                    cancellationToken),
                 "identity.resource_permission.revoke",
-                sourceId,
-                actorId,
-                normalizedReason,
                 httpContext,
                 auditSink,
                 clock,
-                ct);
-        });
+                ct));
     }
 
     public const int MaxReasonLength = 512;
@@ -202,6 +157,47 @@ public static class ResourcePermissionEndpointResults
 
         normalized = candidate;
         return true;
+    }
+
+    private static async Task<IResult> HandleMutationAsync(
+        string sourceId,
+        string? rawReason,
+        ClaimsPrincipal principal,
+        ISourceRepository sources,
+        Func<Guid, UserRole, CancellationToken, Task<ResourcePermissionOperationResult>> mutation,
+        string action,
+        HttpContext httpContext,
+        IAuditEventSink auditSink,
+        TimeProvider clock,
+        CancellationToken cancellationToken)
+    {
+        if (!SourceHealthEndpointResults.IsValidSourceId(sourceId) ||
+            !TryNormalizeReason(rawReason, out var reason))
+        {
+            return Results.BadRequest(new { error = "invalid_permission_request" });
+        }
+
+        if (await sources.GetAsync(sourceId, cancellationToken).ConfigureAwait(false) is null)
+        {
+            return Results.NotFound(new { error = "source_not_found" });
+        }
+
+        if (!TryGetIdentity(principal, out var actorId, out var actorRole))
+        {
+            return Results.Unauthorized();
+        }
+
+        var result = await mutation(actorId, actorRole, cancellationToken).ConfigureAwait(false);
+        return AuditedOperation(
+            result,
+            action,
+            sourceId,
+            actorId,
+            reason,
+            httpContext,
+            auditSink,
+            clock,
+            cancellationToken);
     }
 
     public static IResult AuditedOperation(
