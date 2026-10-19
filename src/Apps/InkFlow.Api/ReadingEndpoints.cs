@@ -175,11 +175,7 @@ public static class ReadingEndpointResults
     }
 
     public static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
-    {
-        userId = Guid.Empty;
-        return Guid.TryParse(principal.FindFirstValue("sub"), out userId) &&
-               userId != Guid.Empty;
-    }
+        => ApiIdentity.TryGetUserId(principal, out userId);
 
     public static IResult FromResult<T>(ReadingOperationResult<T> result) =>
         result.Status switch

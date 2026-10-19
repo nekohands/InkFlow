@@ -118,11 +118,7 @@ public static class LegadoTokenEndpointResults
     }
 
     public static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
-    {
-        userId = Guid.Empty;
-        var raw = principal.FindFirstValue("sub");
-        return Guid.TryParse(raw, out userId) && userId != Guid.Empty;
-    }
+        => ApiIdentity.TryGetUserId(principal, out userId);
 
     public static LegadoTokenResponse ToResponse(LegadoTokenInfo info) => new(
         info.Id,

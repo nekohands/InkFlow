@@ -650,14 +650,14 @@ public static class DeveloperEndpointMapping
     }
 
     private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId) =>
-        Guid.TryParse(principal.FindFirstValue("sub"), out userId) && userId != Guid.Empty;
+        ApiIdentity.TryGetUserId(principal, out userId);
 
     private static bool TryGetDeveloperIdentity(
         ClaimsPrincipal principal,
         out DeveloperIdentity identity)
     {
         identity = default;
-        if (!Guid.TryParse(principal.FindFirstValue("sub"), out var userId) || userId == Guid.Empty ||
+        if (!ApiIdentity.TryGetUserId(principal, out var userId) ||
             !Guid.TryParse(principal.FindFirstValue(DeveloperAuthenticationDefaults.ApplicationIdClaim), out var applicationId) ||
             applicationId == Guid.Empty ||
             !Guid.TryParse(principal.FindFirstValue(DeveloperAuthenticationDefaults.ApiKeyIdClaim), out var apiKeyId) ||

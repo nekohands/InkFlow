@@ -172,10 +172,8 @@ public static class ResourcePermissionEndpointResults
         out Guid userId,
         out UserRole role)
     {
-        userId = Guid.Empty;
         role = default;
-        if (!Guid.TryParse(principal.FindFirstValue("sub"), out userId) ||
-            userId == Guid.Empty)
+        if (!ApiIdentity.TryGetUserId(principal, out userId))
         {
             return false;
         }

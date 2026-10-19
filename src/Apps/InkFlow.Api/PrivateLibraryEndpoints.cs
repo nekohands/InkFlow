@@ -10,11 +10,7 @@ public sealed record PrivateBookUpdateRequest(string? Title, string? Author, lon
 public static class PrivateLibraryEndpointResults
 {
     public static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
-    {
-        userId = Guid.Empty;
-        return Guid.TryParse(principal.FindFirstValue("sub"), out userId) &&
-               userId != Guid.Empty;
-    }
+        => ApiIdentity.TryGetUserId(principal, out userId);
 
     public static IResult FromOperation<T>(
         PrivateLibraryOperationResult<T> result,

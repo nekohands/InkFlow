@@ -139,10 +139,9 @@ public static class AuthEndpointResults
 
     public static IResult Current(ClaimsPrincipal principal)
     {
-        var userId = principal.FindFirstValue("sub");
         var email = principal.FindFirstValue("email");
         var role = principal.FindFirstValue("role");
-        return !Guid.TryParse(userId, out var parsedUserId) ||
+        return !ApiIdentity.TryGetUserId(principal, out var parsedUserId) ||
                string.IsNullOrWhiteSpace(email) ||
                string.IsNullOrWhiteSpace(role)
             ? Results.Unauthorized()
@@ -350,11 +349,7 @@ public static class AccountEndpointResults
     }
 
     public static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
-    {
-        userId = Guid.Empty;
-        var raw = principal.FindFirstValue("sub");
-        return Guid.TryParse(raw, out userId) && userId != Guid.Empty;
-    }
+        => ApiIdentity.TryGetUserId(principal, out userId);
 
     public static AccountProfileResponse ToResponse(IdentityProfile profile) =>
         new(

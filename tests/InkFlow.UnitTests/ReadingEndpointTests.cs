@@ -19,6 +19,17 @@ public sealed class ReadingEndpointTests
         Assert.IsTrue(ReadingEndpointResults.TryGetUserId(principal, out var parsed));
         Assert.AreEqual(UserId, parsed);
         Assert.IsFalse(ReadingEndpointResults.TryGetUserId(new ClaimsPrincipal(), out _));
+
+        Assert.IsFalse(ReadingEndpointResults.TryGetUserId(
+            new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("sub", "not-a-guid")],
+                authenticationType: "test")),
+            out _));
+        Assert.IsFalse(ReadingEndpointResults.TryGetUserId(
+            new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("sub", Guid.Empty.ToString())],
+                authenticationType: "test")),
+            out _));
     }
 
     [TestMethod]
