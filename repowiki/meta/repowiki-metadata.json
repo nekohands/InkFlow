@@ -421,8 +421,16 @@
         "../../src/Modules/InkFlow.Modules.Sources/",
         "../../src/Modules/InkFlow.Modules.Sources/Application/RuleBasedSourceAdapter.cs",
         "../../src/Modules/InkFlow.Modules.Sources/Application/RuleListProjector.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/CssSelectorEvaluator.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/HtmlXPathSelectorEvaluator.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/ISelectorLanguageEvaluator.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/JsonPathSelectorEvaluator.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/RuleSelectorEvaluator.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/SelectorEvaluationLimits.cs",
         "../../tests/InkFlow.UnitTests/LinovelibSourceDefinitionTests.cs",
+        "../../tests/InkFlow.UnitTests/RuleAdapterTests.cs",
         "../../tests/InkFlow.UnitTests/RuleBasedSourceAdapterPaginationTests.cs",
+        "../../tests/InkFlow.UnitTests/RuleSelectorEvaluatorTests.cs",
         "../../tests/InkFlow.UnitTests/SourceCredentialTests.cs"
       ],
       "parent": "work-packages/README.md",
@@ -440,6 +448,46 @@
         "../architecture.md",
         "../modules/README.md",
         "../operations/verification.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-22-optimization-refactoring-plan.md",
+      "title": "Optimization and refactoring plan — documentation first",
+      "kind": "topic",
+      "scope": "evidence-based assessment, responsibility ownership, ordered work packages, measurement, regression and rollback criteria; documentation only in this delivery.",
+      "sources": [
+        "../../.github/workflows/",
+        "../../docs/architecture/legado-contract.md",
+        "../../docs/architecture/security-model.md",
+        "../../docs/engineering/frontend-design.md",
+        "../../docs/engineering/optimization-refactoring-plan-2026-10-22.md",
+        "../../docs/handoff/handoff.md",
+        "../../docs/roadmap/progress.md",
+        "../../src/Apps/InkFlow.Api/AuditedResult.cs",
+        "../../src/Apps/InkFlow.Api/ConsistencyCheck.cs",
+        "../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs",
+        "../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/MessagingStore.cs",
+        "../../src/Modules/InkFlow.Modules.Content/Application/BookPackageService.cs",
+        "../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs",
+        "../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.Operations.cs",
+        "../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.UserPages.cs",
+        "../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.cs",
+        "../../src/Modules/InkFlow.Modules.Crawling/Application/CrawlerTaskProcessor.cs",
+        "../../src/Modules/InkFlow.Modules.Reading/Application/ReadingStateService.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Application/RuleAdapter.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Domain/SourceRuleDslValidator.cs",
+        "../../src/Modules/InkFlow.Modules.Sources/Infrastructure/HtmlXPathSelectorEvaluator.cs",
+        "../../tests/InkFlow.ArchitectureTests/ModuleBoundarySmokeTests.cs",
+        "../../tests/InkFlow.ContractTests/DeveloperApiContractReleaseGateTests.cs",
+        "../../tests/InkFlow.IntegrationTests/ConsistencyCheckIntegrationTests.cs",
+        "../../tests/InkFlow.IntegrationTests/MessagingPersistenceTests.cs",
+        "../../tests/InkFlow.UnitTests/ConsistencyCheckTests.cs",
+        "../../tests/InkFlow.UnitTests/ReaderHtmlTests.cs",
+        "../architecture.md",
+        "../operations/verification.md",
+        "2026-10-15-module-refactor.md"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"
@@ -589,6 +637,11 @@
       "type": "PARENT_CHILD",
       "parent": "work-packages/README.md",
       "child": "work-packages/2026-10-15-project-simplification.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-22-optimization-refactoring-plan.md"
     }
   ]
 }

@@ -20,9 +20,17 @@ InkFlow 采用 Modular Monolith + 独立运行进程：
 
 ### 宿主代码导航
 
-API 的 `Program.cs` 只描述启动与中间件顺序；服务注册在 `ApiServiceRegistration.cs`，路由组合在 `ApiEndpoints.cs`，具体处理逻辑按功能放在既有或对应的 `*Endpoints.cs`。审计响应包装统一使用 `AuditedResult.cs`，各功能仍负责自己的事件与响应映射。
+API 的 `Program.cs` 只描述启动与中间件顺序；服务注册在 `ApiServiceRegistration.cs`，路由组合在 `ApiEndpoints.cs`，具体处理逻辑按功能放在既有或对应的 `*Endpoints.cs`。需要等待审计成功再执行响应的命令共用 `AuditedResult.cs`，各功能仍负责自己的事件与响应映射。现有 `DeveloperEndpointAudit` 对已经完成的命令使用 `CancellationToken.None` 尽力记录，并捕获非取消审计异常；整理代码时不能静默改变这两种失败/取消行为。
 
 Worker / Scheduler 的 `Program.cs` 保留服务注册与启动，后台任务按类名独立成文件，便于定位采集、内容包、保留清理、追更和健康探测。没有新增项目层、框架或依赖；模块关系与对外行为不变。入口与约束索引见 [RepoWiki 模块图](../../repowiki/modules/README.md)。
+
+### 当前实现导航（2026-10-22 核对）
+
+`RuleAdapter` 已组合预检查、凭据解析、HTTP、前置请求、分页、响应提取和请求预算实现。`CrawlerTaskProcessor` 已区分运行协调、执行、失败和结果处理；`ReadingStateService` 已组合书架查询/命令、历史、进度、偏好与可见性。`CatalogQueryService` 已区分书籍/正文读取，`BookPackageService` 已区分创建、查询与生成职责。
+
+这些是当前源码中已有的拆分。`ReaderHtml*` 仍在 Content.Application，一致性检查 DTO/规则/EF 适配仍在 API；[优化与重构方案](../engineering/optimization-refactoring-plan-2026-10-22.md) 提议调整其职责归属，尚未实施。后续应从当前源码接续，不重复 10 月 15 日旧批次的拆分计划。
+
+### 业务模块
 
 目标模块：
 

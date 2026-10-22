@@ -1,7 +1,7 @@
 # InkFlow 项目工作流档案
 
 Status: Active profile
-Last reviewed: 2026-10-15
+Last reviewed: 2026-10-22
 Owner: InkFlow maintainers
 
 本文件是唯一的操作型工作流 profile。项目自身的强制工程规范仍以
@@ -23,8 +23,8 @@ Owner: InkFlow maintainers
 Project: InkFlow
 Primary stack/runtime: .NET 10 modular monolith; ASP.NET Core; PostgreSQL 18; Redis; Docker Compose; server-rendered Web/PWA
 Project instructions: AGENTS.md; docs/engineering/development-workflow.md（强制）
-Optional code index: CodeGraph queried with `codegraph explore "project structure, entrypoints, and verification commands"`
-Root `.codegraph/` present; same query executed 2026-10-11 with results (37 symbols, 5 files)
+Optional code index: 2026-10-22 实查根 `.codegraph/` 不存在，本轮使用定向源码/文本检查；存在时仍须先用 CodeGraph
+Historical CodeGraph evidence: `codegraph explore "project structure, entrypoints, and verification commands"` executed 2026-10-11 (37 symbols, 5 files)
 Authoritative architecture/invariant docs: docs/architecture/architecture.md; invariants.md; domain-model.md; overview.md; Wiki 镜像 repowiki/architecture.md
 Security/input/permission docs: docs/architecture/security-model.md; AGENTS.md 安全与不变量章节
 Public/external contracts: docs/architecture/legado-contract.md; docs/architecture/developer-api.md; docs/contracts/source-rule-dsl-v1.schema.json; tests/InkFlow.ContractTests
@@ -43,9 +43,9 @@ Runtime smoke: `docker compose -f docker-compose.build.yml config --quiet`; `doc
 Security/scan checks: AGENTS.md SSRF/授权/Secret/Migration 检查；.github/workflows/security.yml；Docker 发布前 Trivy
 CI trigger/status: .github/workflows/ci.yml、docker.yml、security.yml；push/PR 覆盖 main + dev；Completed 前必须确认目标 commit 的强制 Job 全部真实通过
 Status vocabulary: Planned; In Progress; Implemented; Locally Validated; CI Green; Accepted; Completed; Blocked（沿用项目自有词汇，见 development-workflow.md §2）
-Known environment blockers: Windows 开发机无 Docker Engine —— Testcontainers Integration 与源码 Compose runtime smoke 本机 BLOCKED，由远端 CI 容器作为证据来源；GitHub 网络（push/API）偶发中断需重试
+Known environment observations: 历史记录中 Windows Docker Engine 不可用，Integration/Compose 由远端 CI 提供证据；2026-10-22 文档工作未重新检查本机 Docker，后续执行前须复核。历史 GitHub 网络偶发中断不作为当前阻塞结论
 RepoWiki/documentation conformance: 2026-10-11 adoption recheck is COMPLIANT after Wiki metadata/source/catalog and docs-index normalization; current/history records normalized again on 2026-10-15
-Initialization intake: grillme recommendation-first selected; module refactor authorized on 2026-10-15
+Initialization intake: grillme recommendation-first selected; historical module refactor authorized on 2026-10-15; current 2026-10-22 request is documentation-first optimization/refactoring planning
 ```
 
 ## 交付状态记录（当前/历史）
@@ -72,7 +72,9 @@ Initialization intake: grillme recommendation-first selected; module refactor au
 
 ## Work Package
 
-当前：[模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md)，`In Progress`。用户授权按模块澄清职责、收敛重复、改善扩展性，并要求每批测试、提交、推送；公共行为保持不变。
+当前：[优化与重构方案](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md)，`Planned`，文档先行。中文方案见 [工程文档](../engineering/optimization-refactoring-plan-2026-10-22.md)。本轮只审查和写文档，不实施代码工作包或提交/推送。
+
+2026-10-22 复核基线为 `dev` / `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`，该 SHA 的 CI/Docker/Security 均已通过；这不替代新候选提交门禁或真实环境验收。[前序模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md) 保留历史状态，当前源码已超出其 Batch 2 记录，不直接沿用旧“下一步”或将整包标记 Accepted。
 
 当前进度、交接与阻塞使用上表入口。已接受 5.81 及此前包的 profile 快照已原样收录于 [进度历史](../roadmap/progress-history.md)，不再在操作型 profile 重复维护。
 
@@ -82,4 +84,4 @@ Initialization intake: grillme recommendation-first selected; module refactor au
 替换为实测值。见 [adoption-2026-10-02.md](adoption-2026-10-02.md)。
 
 2026-10-11 执行 workflow 0.93.0 文档符合性复核与规范化；见同一记录中的
-“2026-10-11 规范化复核”。该阶段的 intake 等待已由本次用户授权结束；2026-10-15 当前/历史记录再整理见当前工作包。
+“2026-10-11 规范化复核”。该阶段的 intake 等待已由 2026-10-15 的模块重构授权结束；当时的当前/历史记录整理见前序模块化重构工作包。2026-10-22 的文档先行范围见上方 Work Package。

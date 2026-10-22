@@ -5,8 +5,8 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：当前为模块化重构工作包，按批次记录职责收敛、验证与远端门禁；5.81 及前序已接受记录见对应历史文件。
-- 最后更新日期：2026-10-15
+- 文档状态：当前为优化与重构方案，文档先行，后续代码工作包为 Planned；前序重构证据和未完成验收继续保留。
+- 最后更新日期：2026-10-22
 
 ## 1. 总体状态
 
@@ -45,7 +45,17 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 当前工作包：模块化重构（2026-10-15，Batch 2 Pushed / Remote Gates Incomplete）
+### 当前工作包：优化与重构方案（2026-10-22，Planned / 文档先行）
+
+- 中文产物：[优化与重构方案](../engineering/optimization-refactoring-plan-2026-10-22.md)；合同、源码与证据：[RepoWiki 工作包](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md)。
+- 完成现状审查与分阶段计划，优先补齐架构测试，再处理一致性检查、展示层归属和 Developer API；性能优化先测量，消息/解析器为条件性后续项。
+- 代码基线为 `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`，通过 `gh` 复核该 SHA 的 CI `39240297876`、Docker `39240297898`、Security `39240298102`：所有 Job 成功。旧 Batch 2 的失败记录不再代表当前 HEAD，也不据此追认所有历史批次 Accepted。
+- 本轮只变更文档；本地 Restore/Build/Tests/Runtime/性能基准 `NOT RUN`，文档 CI `NOT TRIGGERED`，无新增 Commit。文档检查结果见 Wiki 工作包。
+- 后续代码工作均未开始；本机 Docker 本轮未复核，真实设备/账户/来源/生产验收仍按下方清单保持开放。下一实施入口为 RF-01 架构保护网。
+
+### 前序工作包快照：模块化重构（2026-10-15，Batch 2 Pushed / Remote Gates Incomplete）
+
+以下是当时记录，当前基线以上方 2026-10-22 工作包为准。
 
 - 已完成宿主组合与审计包装器归并；当前继续按模块收敛 Sources 职责。
 - Batch 1 统一规则 Search/TOC 列表投影；Batch 2 将选择器分派、CSS、HTML/XML XPath、JSONPath 及共享安全上限分开，保留公共接口和有界解析行为。

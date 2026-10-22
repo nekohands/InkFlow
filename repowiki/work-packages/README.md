@@ -7,6 +7,7 @@ Parent/root index: [../README.md](../README.md)
 
 ## Package records
 
+- [Optimization and refactoring plan — documentation first](2026-10-22-optimization-refactoring-plan.md)
 - [Module refactor — responsibility seams and extension points](2026-10-15-module-refactor.md)
 - [Project simplification — host composition and audited responses](2026-10-15-project-simplification.md)
 - [Workflow 0.93.0 documentation normalization](2026-10-11-workflow-093-documentation-normalization.md)

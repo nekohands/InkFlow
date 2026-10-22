@@ -12,6 +12,18 @@ Parent/root index: [../README.md](../README.md)
 
 Operations index: [README.md](README.md)
 
+## Current baseline clarification (2026-10-22)
+
+The [optimization/refactoring plan](../work-packages/2026-10-22-optimization-refactoring-plan.md)
+records rechecked, successful CI/Docker/Security runs at
+`ca15cadbe1df97adf99150df0c9d3d7bc95e32af`. These are baseline results, not
+verification of the uncommitted plan or later code changes. The current
+Architecture test only checks module assembly loading; it does not enforce
+dependency direction. RF-01 proposes that missing guard. Local Docker was not
+rechecked during this documentation-only delivery; the dated environment and
+test-count observations below remain historical. Human delivery status is
+mirrored in the [Chinese plan](../../docs/engineering/optimization-refactoring-plan-2026-10-22.md).
+
 ## Sources
 
 - [Project workflow profile](../../docs/delivery/PROJECT_WORKFLOW.md)

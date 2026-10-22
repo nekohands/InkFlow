@@ -5,9 +5,9 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：当前为模块化重构工作包，按批次记录职责收敛、验证与远端门禁；5.81 及前序已接受记录见对应历史文件。
+- 文档状态：当前为优化与重构方案，文档先行；后续代码工作包为 Planned，历史重构记录与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-10-15；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
 ## 1. 接手顺序
 
@@ -42,15 +42,26 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 
 ## 3. 当前真实仓库状态
 
+- 当前代码基线：`dev` / `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`，本轮开始时工作树干净；新增内容仅为未提交文档。
+- 先读 [RepoWiki 当前方案](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md) 与 [中文优化重构方案](../engineering/optimization-refactoring-plan-2026-10-22.md)。用户要求“先出文档”；本轮未实施代码、未提交/推送，旧包的提交要求不扩展本轮范围。
+- 2026-10-22 用 `gh` 复核该 SHA 的 CI `39240297876`、Docker `39240297898`、Security `39240298102`，所有 Job 已成功；旧 Collector 失败是历史证据。基线绿色不等于本方案实施完毕，也不替代真实环境验收。
+- 当前 RuleAdapter、CrawlerTaskProcessor、ReadingStateService 及部分 Catalog/BookPackage 职责已拆分。新计划首先补齐架构依赖守卫，再按证据处理一致性检查、展示层和 Developer API，避免重复旧批次。
+- `.codegraph/` 本次实查不存在；Docker 可用性未复核。后续实施前重新检查环境和 HEAD，保持 `.workbuddy-ai/` 不变。
+- 本轮 Build/Tests/Runtime/基准 `NOT RUN`，CI `NOT TRIGGERED`；文档校验以 Wiki 当前方案结果为准。下一实施入口：RF-01。
+
+### 2026-10-15 历史交接快照
+
+以下保留当时状态与下一步，不作为当前阻塞或实施指令：
+
 - `dev` 是唯一开发主线，包含现有业务实现；旧骨架说明与旧验证数字已归档，不是当前状态。
 - 当前整理范围是按模块澄清职责、收敛重复和保留扩展 seam；已完成宿主组合/审计响应去重，Sources 当前完成两批局部重构，不重写领域模型。
 - Batch 2 本地 Release Build 0 warnings / 0 errors；Unit 630/630、Architecture 1/1、Contract 12/12，Sources 相关回归 93/93。集成测试及 Compose 受本机 Docker 环境阻塞，远端门禁待本批提交。
 - 接续时先读 RepoWiki 工作包，复核实际 diff / HEAD / Actions。`.workbuddy-ai/` 为用户目录，禁止纳入本次变更。
-- 下一步：处理 `49e3515` / `6989779` 的 OTLP collector Docker 扫描 RED，并等待最终 SHA 的 CI/Security 完成；该远端门禁未清除前不进入 RuleAdapter 执行职责批次。
+- 当时下一步：处理 `49e3515` / `6989779` 的 OTLP collector Docker 扫描 RED，并等待最终 SHA 的 CI/Security 完成；该远端门禁未清除前不进入 RuleAdapter 执行职责批次。当前复核结果见本节上方。
 
 ## 4. 当前工作包与未完成验收
 
-当前工作包见 [模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md)；已完成包及早期证据见 [历史交接](handoff-history.md)。
+当前工作包见 [优化与重构方案](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md)；前序 [模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md) 保留当时证据；已完成包及早期记录见 [历史交接](handoff-history.md)。下方待定验收项不由文档计划或基线 CI 自动关闭。
 
 ### 4.2 待定事项（人工/真实环境，后续处理）
 

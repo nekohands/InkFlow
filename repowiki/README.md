@@ -32,10 +32,10 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
   archives completed/superseded progress, handoff and profile blocks into the
   existing docs histories, preserves pending acceptance items, and updates host
   navigation; the current package below supersedes the old no-active-work state.
-- Current work package: [Module refactor](work-packages/2026-10-15-module-refactor.md),
-  authorized by the explicit 2026-10-15 user request; responsibility-centered
-  Sources/Crawling/Reading batches are in progress. The preceding host organization
-  package remains historical delivery evidence.
+- Current work package: [Optimization and refactoring plan](work-packages/2026-10-22-optimization-refactoring-plan.md),
+  authorized on 2026-10-22 as documentation first. Code packages remain Planned.
+  The [module refactor](work-packages/2026-10-15-module-refactor.md) preserves its
+  historical checkpoint; current source has advanced beyond its Batch 2 record.
 - Required project gates: Restore, Release Build, affected Unit/Architecture/
   Integration/Contract checks, applicable Runtime/Security, exact target-SHA
   CI/Docker/Security, then Progress/Handoff and RepoWiki sync. Local Docker is
@@ -43,13 +43,18 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 - Status vocabulary: Planned, In Progress, Implemented, Locally Validated,
   CI Green, Accepted, Completed, Blocked. A local pass or pending CI is not
   completion.
-- CodeGraph: `.codegraph/` is present; `codegraph explore "project structure,
-  entrypoints, and verification commands"` was executed on 2026-10-11 and
-  returned 37 symbols across 5 files.
+- CodeGraph: `.codegraph/` is absent in the checkout inspected on 2026-10-22;
+  directed source/text inspection is used. Historical evidence: the directory
+  was present on 2026-10-11, when `codegraph explore "project structure,
+  entrypoints, and verification commands"` returned 37 symbols across 5 files.
 
 ## Current work
 
-Active work package: [Module refactor](work-packages/2026-10-15-module-refactor.md). The preceding [Project simplification](work-packages/2026-10-15-project-simplification.md) remains delivery evidence. 5.81 [Reading state bounded metadata projection](work-packages/2026-10-08-reading-state-bounded-projection.md) remains Accepted.
+Current work: [Optimization and refactoring plan](work-packages/2026-10-22-optimization-refactoring-plan.md), documentation first; proposed code packages are Planned. Human plan: [优化与重构方案](../docs/engineering/optimization-refactoring-plan-2026-10-22.md).
+
+Baseline rechecked on 2026-10-22: `dev` at `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`; exact-SHA CI `39240297876`, Docker `39240297898` and Security `39240298102` all completed successfully. This is baseline evidence, not CI for the uncommitted plan or acceptance of all previous batches. The old Collector failure is historical; local Docker availability was not rechecked. See the current package for source findings, run links and verification scope.
+
+The preceding [Module refactor](work-packages/2026-10-15-module-refactor.md) and [Project simplification](work-packages/2026-10-15-project-simplification.md) remain delivery evidence. 5.81 [Reading state bounded metadata projection](work-packages/2026-10-08-reading-state-bounded-projection.md) remains Accepted.
 - Last completed: Reading state bounded metadata projection (5.81) — implementation SHA `e85dbc143fb6b7d20030403239aceedb34ec43d9` passed exact-head CI `37775920297`, Docker `37775919950`, and Security `37775919947`; local ReadingState `9/9`, Unit `627/627`, Architecture `1/1`, Contract `12/12`, Release Restore/Build, migration model `11/11`, diff and secret checks passed. Focused PostgreSQL Integration remained blocked by the Windows Docker named pipe; CI supplied migrations, PostgreSQL/Redis, runtime smoke, SLO, backup/restore, and diagnostics.
 - Last completed: Legado book-info metadata projection (5.80) — implementation SHA `4eb63e5a1a0a95872ec6dc9814ab0fcba126a0f0` passed exact-head CI `37771778894`, Docker `37771778862`, and Security `37771778935`; local Unit/Architecture/Contract, Release Restore/Build, migration model `11/11`, script syntax, diff, and secret checks passed, while the focused PostgreSQL Integration regression was blocked by the Windows Docker named pipe. CI supplied migrations, PostgreSQL/Redis, runtime smoke, SLO, backup/restore, and diagnostics; Docker and Security passed their complete gates.
 -Last completed: Legado TOC canonical chapter projection (5.79) — implementation SHA `c0aefc08682e9ed1bb22b201ec16b4c5a9b7ba10` passed exact-head CI `37768061749`, Docker `37768061718`, and Security `37768061741`; local Unit/Architecture/Contract, Release Build, migration model, diff, and secret checks passed, while the focused PostgreSQL Integration regression was blocked by the Windows Docker named pipe. CI supplied migrations, PostgreSQL/Redis, runtime smoke, SLO, backup/restore, and diagnostics; Docker and Security passed their complete gates.
@@ -120,6 +125,7 @@ Navigation is grouped by RepoWiki folder; topic pages retain their own source ci
   - [Workflow 0.93.0 documentation normalization](work-packages/2026-10-11-workflow-093-documentation-normalization.md)
   - [Module refactor — responsibility seams and extension points](work-packages/2026-10-15-module-refactor.md)
   - [Project simplification — host composition and audited responses](work-packages/2026-10-15-project-simplification.md)
+  - [Optimization and refactoring plan — documentation first](work-packages/2026-10-22-optimization-refactoring-plan.md) — evidence-based assessment, responsibility ownership, ordered work packages, measurement, regression and rollback criteria; documentation only in this delivery.
 - [Architecture](architecture.md) — binding invariants, dependency direction, data consistency, and source
 
 Catalog metadata: [meta/repowiki-metadata.json](meta/repowiki-metadata.json)

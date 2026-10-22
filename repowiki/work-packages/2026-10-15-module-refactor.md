@@ -3,11 +3,25 @@
 Audience: Agent-only.
 Agent read instruction: Read when continuing the 2026-10-15 module refactor, changing Sources/Rule Runtime or later module batches, or verifying its commits.
 ID: module-refactor-2026-10-15
-Status: Batch 2 pushed; Docker RED; CI/Security pending
+Status: Historical checkpoint (2026-10-15): Batch 2 pushed; Docker RED; CI/Security pending. Current baseline reconciliation is linked below; the overall package is not retrospectively marked Accepted.
 Owner: InkFlow maintainers
 Authorization: explicit user request on 2026-10-15 to comprehensively refactor by module, clarify responsibilities, reduce duplication, improve extensibility, and test/commit/push every batch.
 Record mode: FULL (cross-module refactoring with public-contract and security regression gates).
 Parent/root: [Work packages](README.md) / [RepoWiki](../README.md).
+
+## 2026-10-22 reconciliation
+
+This record preserves the 2026-10-15 checkpoint and its then-next actions, not
+the current implementation state. Later source/commits already extracted
+RuleAdapter execution, Crawling coordination, Reading use cases and portions
+of Content. At current baseline `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`,
+exact-SHA CI `39240297876`, Docker `39240297898` and Security `39240298102`
+were rechecked via `gh` on 2026-10-22: all jobs completed successfully. This
+does not rewrite the old failed runs or prove individual acceptance of every
+intervening batch. Current scope is documentation first; read the
+[optimization/refactoring plan](2026-10-22-optimization-refactoring-plan.md)
+before resuming implementation. Historical commit/push authorization here
+does not expand that current documentation-only scope.
 
 ## Objective and boundaries
 
@@ -37,13 +51,13 @@ Baseline target: `9e10b1bbacc81e00fa0631cb2023d0ac84a65b09` on `dev`, pushed to 
 - AC-4: Applicable Architecture/Contract/Integration/Runtime/Security/CI results remain truthful; Docker and host blockers are not converted to passes.
 - AC-5: RepoWiki module navigation, work-package evidence and current delivery pointers stay synchronized after each batch.
 
-## Current batch: Sources selector languages
+## Historical current batch (2026-10-15): Sources selector languages
 
 Design: `RuleSelectorEvaluator` retains common input validation and language dispatch, while internal CSS, HTML/XML XPath and JSONPath evaluators each own one bounded language implementation. The existing public `ISelectorEvaluator`, `RuleSelectorEvaluator` and `CssSelectorEvaluator` contracts remain unchanged. Shared document/match/depth limits live in one internal policy type; no new public interface or dependency.
 
 Affected source/test paths: `src/Modules/InkFlow.Modules.Sources/Infrastructure/RuleSelectorEvaluator.cs`, `CssSelectorEvaluator.cs`, new `HtmlXPathSelectorEvaluator.cs`, `JsonPathSelectorEvaluator.cs`, `ISelectorLanguageEvaluator.cs`, `SelectorEvaluationLimits.cs`, plus existing selector, adapter, and source credential tests.
 
-Next action: inspect the staged selector write set, commit and push this batch, then rebind the evidence to the pushed SHA before starting RuleAdapter execution refactoring.
+Historical next action: inspect the staged selector write set, commit and push this batch, then rebind the evidence to the pushed SHA before starting RuleAdapter execution refactoring.
 
 ## Batch 1 result — delivered
 
@@ -59,7 +73,7 @@ Next action: inspect the staged selector write set, commit and push this batch, 
 - The bounded parser implementations and fail-closed document/match/depth limits were preserved. No route, DTO, public interface, authorization, schema/migration, dependency, network, or scheduling behavior changed. Local persistence Integration and Compose Runtime remain not rerun because this batch is internal Sources parsing only; the known Windows Docker Engine blocker remains documented.
 - Diff check passed; no secrets or dependency changes were introduced. Delivery commit `49e3515996431c869558fd56d1be650a4e51ed76` is pushed to `origin/dev`; local and remote SHA matched. The implementation Docker run `38692401166` and final-head Docker run `38692477726` are RED at the existing OTLP collector scan: `otel/opentelemetry-collector:0.160.0` reports four HIGH findings, including `CVE-2026-78669`, `CVE-2026-78667` and `CVE-2026-97031`. Final-head CI `38692477763` and Security `38692477695` remain in progress; no remote result is treated as green before completion.
 
-Next action: resolve or explicitly accept the OTLP image scan blocker and finish final-head CI/Security verification before starting the RuleAdapter execution batch.
+Historical next action: resolve or explicitly accept the OTLP image scan blocker and finish final-head CI/Security verification before starting the RuleAdapter execution batch. See the 2026-10-22 reconciliation before acting on this checkpoint.
 
 ## Sources
 
