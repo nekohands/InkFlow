@@ -44,7 +44,7 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 
 - RF-00 方案保存在 `df6c701`；用户随后明确授权先实施 RF-01。先读 [RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md) 与 [中文架构保护网](../engineering/architecture-guards.md)。
 - 已实现四类编译依赖规则、11 模块显式图、项目引用和清单检查，保留加载 smoke。正反例暴露并修复 internal 嵌套类型筛选漏检；临时模块清单探针失败/清理后通过。
-- 本地 Restore/Release Build PASS，Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。全量 Integration：8 通过、128 DockerUnavailable 失败、3 跳过；本地 Runtime BLOCKED，候选 CI/Docker/Security 尚未触发。
+- 本地 Restore/Release Build PASS，Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。全量 Integration：8 通过、128 DockerUnavailable 失败、3 跳过；本地 Runtime BLOCKED。候选 `34cfa8f` 远端全量测试、Security 通过，CI 继续运行时验证；Docker 在 Collector Go 标准库 CVE-2026-111943 处失败，已准备 1.26.10 工具链补丁，等待新候选完整门禁。
 - `.codegraph/` 实查不存在；SDK 10.0.402。`docker` 不在 PATH，Testcontainers 无法连接 `npipe://./pipe/docker_engine`，不能把容器验证标为本地通过。`.workbuddy-ai/` 保持不变。
 - 下一步先完成 RF-01 同一候选 SHA 的远端门禁和文档收口，未通过前不启动 RF-02。RF-02 及以后仍为 Planned；既有真实设备、来源、账户、生产 OTLP/SLO 等验收不在本包关闭。
 

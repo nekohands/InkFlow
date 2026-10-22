@@ -2,9 +2,9 @@
 
 Audience: Agent-only.
 Agent read instruction: Read before implementing, verifying or continuing RF-01; use the policy and compiled fixtures as executable dependency evidence.
-Scope: test-only architecture guards, explicit module dependency inventory, negative/positive fixtures and synchronized delivery documentation.
+Scope: architecture-test guards, explicit module inventory, negative/positive fixtures and synchronized documentation; minimal Collector Go patch required by the mandatory Docker gate.
 ID: rf01-architecture-guards-2026-10-22
-Status: Implemented; local verification recorded below, candidate CI pending.
+Status: Implemented; candidate `34cfa8f` Docker gate failed; minimal toolchain fix awaiting fresh candidate gates.
 Authorization: explicit follow-up, “继续，按方案开始实施，先做 RF-01 架构保护网。” This supersedes the plan's documentation-only restriction for RF-01, including its candidate-commit/CI delivery gates; later packages remain Planned.
 Parent/root: [Work packages](README.md) / [RepoWiki](../README.md).
 Human counterpart: [Architecture guards](../../docs/engineering/architecture-guards.md); parent [optimization/refactoring plan](../../docs/engineering/optimization-refactoring-plan-2026-10-22.md).
@@ -15,8 +15,10 @@ Enforce Domain infrastructure restrictions, module-to-host prohibition, foreign
 module infrastructure isolation and the explicit module dependency graph using
 compiled type/method-body references. Preserve the assembly-load smoke. Verify
 that forbidden compiled fixtures fail and legitimate dependencies pass; new
-module projects must not silently escape the inventory. No production behavior,
-public contract, schema, migration or runtime configuration change is planned.
+module projects must not silently escape the inventory. No application behavior,
+public contract, schema, migration or runtime configuration change. The original
+test-only scope was extended solely to fix the Collector toolchain vulnerability
+discovered by the mandatory image gate; see the dated evidence below.
 
 Baseline code: `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`; the reviewed RF-00
 documents were preserved separately in `df6c701` before RF-01 implementation.
@@ -52,8 +54,9 @@ container jobs for PostgreSQL/Redis/runtime/security evidence. Test-library
 compatibility and false negatives are primary risks. Reflection strings/runtime
 dynamic loading are outside static dependency proof and remain a review concern.
 
-Rollback is an atomic revert of test/dependency/doc changes; no persisted data
-changes are involved. Any discovered production violation is investigated and
+Rollback of the guard is an atomic revert of test/dependency/doc changes; no persisted data
+changes are involved. The separate Collector patch should not be reverted to a
+known vulnerable toolchain merely to undo the tests. Any discovered production violation is investigated and
 handled explicitly, never hidden by a wildcard exemption.
 
 ## Evidence
@@ -83,11 +86,36 @@ handled explicitly, never hidden by a wildcard exemption.
   opt-in live-source tests and Redis without `INKFLOW_REDIS_CONNECTION`). CI must
   provide PostgreSQL and its separate configured Redis check; opt-in live tests
   remain outside this package's acceptance.
-- Remote CI/Docker/Security not yet triggered for RF-01. No Accepted/Completed claim.
+- Candidate `34cfa8f6dcec56f6032af93b88f02fe47c876197` was pushed to dev.
+  [Security 39756402387](https://github.com/nekohands/InkFlow/actions/runs/39756402387)
+  passed all four jobs; [CI 39756402266](https://github.com/nekohands/InkFlow/actions/runs/39756402266)
+  passed Restore/Build/Migration/Test and is finishing runtime checks.
+  [Docker 39756402267](https://github.com/nekohands/InkFlow/actions/runs/39756402267)
+  failed Collector scanning; four application image jobs passed, published Compose
+  verification was skipped. This candidate is not Accepted/Completed.
 - Documentation: Wiki catalog/metadata regenerated and checked (35 pages);
   local links checked in 14 changed Markdown files (230 targets, no missing
-  target). Diff/known-secret-pattern review passed; production source, workflows,
-  contracts and migrations are unchanged. Remote security scan remains pending.
+  target). Diff/known-secret-pattern review passed; application source, workflows,
+  contracts and migrations are unchanged. Follow-up documentation also records the
+  minimal Dockerfile patch below.
+
+### Mandatory gate repair: Collector toolchain (2026-10-22)
+
+The failed image scan reports one HIGH finding in `otelcol`'s Go standard library:
+`CVE-2026-111943`, installed 1.26.9, fixed 1.26.10 / 1.27.3. The Go release history
+confirms the 1.26.10 crypto/x509 security fix; `gh` verified upstream tag
+`go1.26.10` and docker-library's `1.26.10-bookworm` official-image entry.
+Upgrade only the existing Docker build toolchain to 1.26.10, retaining Collector
+0.162.0, x/net 0.60.0 and its source commit, scratch/non-root runtime, network,
+configuration and scan thresholds. No ignore entry or forced major upgrade.
+This is a required gate repair, not RF-02 or a new refactoring batch. A fresh
+candidate must pass image scan/publish/pull and full runtime/OTLP checks.
+
+The binary includes the affected X.509 implementation. Current OTLP intake is
+internal and the exporter is debug; the scan is not evidence of exploitation or
+of a currently exercised vulnerable TLS path. A patch is available, so no reachability
+exemption is needed. Keep the existing upstream-image return condition from
+[ADR 0012](../../docs/adr/0012-compose-otel-collector-baseline.md).
 
 ## Legal graph and coverage
 

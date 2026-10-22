@@ -41,3 +41,7 @@ Docker 发布门禁扫描 `0.159.0` 时发现其内置 `golang.org/x/crypto` 存
 ## 维护更新（2026-10-15，补丁构建）
 
 `0.162.0` 官方镜像仍内置 Go `1.26.8`、`golang.org/x/net v0.59.0`，Docker Trivy 报告可修复的 HIGH 漏洞；同 digest 的 GHCR 镜像和当前 nightly 不能消除该结果。Compose 现改用仓库构建并发布的 Collector 镜像：构建阶段使用 Go `1.26.9`，并通过 OCB manifest 将 `golang.org/x/net` 固定到 v0.60.0；运行阶段保持 scratch、非 root、只读挂载、网络暴露和配置边界不变。官方新稳定镜像可用并通过完整验证后，应优先回迁到官方镜像并删除该补丁构建。
+
+## 维护更新（2026-10-22）
+
+RF-01 候选 `34cfa8f` 的 [Docker 门禁](https://github.com/nekohands/InkFlow/actions/runs/39756402267)在 Collector 二进制中检出 Go 标准库 `CVE-2026-111943`（HIGH，已安装 1.26.9，修复版本 1.26.10 / 1.27.3），因而没有发布 Collector，发布 Compose 拉取验证也未执行。依据 [Go 官方发布记录](https://go.dev/doc/devel/release#go1.26.10)，将现有构建工具链最小升级到 `golang:1.26.10-bookworm`；官方镜像标签已核对。Collector 源码、x/net 覆盖版本和部署边界沿用既定决策，不增加漏洞忽略项。修复候选须重新通过 Docker Trivy、发布镜像拉取及 Compose/OTLP Runtime 门禁；原失败记录保留。

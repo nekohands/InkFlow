@@ -196,7 +196,9 @@ dotnet test InkFlow.sln -c Release
 - 合并前比较保留接口、权限/审计顺序、缓存、取消、查询计数、租约与运行时结果；不以文件变短、测试数量增加或“已实现”代替验收。
 - 用户目录 `.workbuddy-ai/` 不纳入修改。Release Candidate 的真机、真实来源、真实账户、生产 OTLP/SLO/备份治理验收保持未完成，见 [Progress](../roadmap/progress.md) 与 [Handoff](../handoff/handoff.md)。
 
-## 9. 本轮文档交付状态
+## 9. RF-00 原文档交付状态（历史时点）
+
+下表保留文档先行轮次的原始结果；该方案后来保存为 `df6c701`。后续已授权实施 RF-01，其代码与验收结果见 [架构保护网](architecture-guards.md)，不再沿用表中的“未实施”作为当前状态。
 
 | 项目 | 结果 |
 | --- | --- |

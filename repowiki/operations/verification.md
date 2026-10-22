@@ -20,7 +20,9 @@ Architecture 51/51, Unit 648/648, Contract 12/12 and model drift 11/11 passed.
 Full Integration ran: 8 passed, 128 DockerUnavailable failures, 3 skips (two
 opt-in live cases and Redis configuration). `docker` is absent from PATH and
 Testcontainers cannot connect to `npipe://./pipe/docker_engine`. Candidate
-CI/Docker/Security remain pending; baseline `ca15cad` runs are not RF-01 evidence.
+`34cfa8f` passed the remote Test step and Security; CI runtime is still running,
+while Docker failed on Collector Go stdlib CVE-2026-111943. A minimal Go 1.26.10
+build-toolchain patch requires new candidate gates. Baseline `ca15cad` runs are not RF-01 evidence.
 The dated table below remains historical. Human counterpart:
 [architecture guards](../../docs/engineering/architecture-guards.md).
 

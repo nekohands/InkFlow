@@ -496,7 +496,7 @@
       "path": "work-packages/2026-10-22-rf01-architecture-guards.md",
       "title": "RF-01 — executable architecture guards",
       "kind": "topic",
-      "scope": "test-only architecture guards, explicit module dependency inventory, negative/positive fixtures and synchronized delivery documentation.",
+      "scope": "architecture-test guards, explicit module inventory, negative/positive fixtures and synchronized documentation; minimal Collector Go patch required by the mandatory Docker gate.",
       "sources": [
         "../../Directory.Packages.props",
         "../../src/Modules/",

@@ -4,7 +4,7 @@
 
 ## 目标与边界
 
-将既定模块边界变成可执行检查，为后续重构提供保护。实现仅涉及测试、测试依赖与文档，未改变生产业务、公共协议、数据库或部署配置；RF-02 及之后的工作包保持 Planned。
+将既定模块边界变成可执行检查，为后续重构提供保护。主体实现涉及测试、测试依赖与文档；强制 Docker 门禁另外发现既有 Collector 的 Go 标准库漏洞，补充了最小工具链补丁，详见下方记录。生产业务、公共协议、数据库与部署配置语义不变；RF-02 及之后的工作包保持 Planned。
 
 模块内的 Domain、Application、Infrastructure 目前共用程序集，因此使用固定版本 `NetArchTest.Rules 1.3.2` 检查编译后的类型与方法体，不能用程序集引用代替分层检查。依赖只在 ArchitectureTests 中使用，标记 `PrivateAssets=all`。
 
@@ -58,3 +58,9 @@ dotnet test tests/InkFlow.ArchitectureTests -c Release
 本机 SDK 10.0.402。Restore/Release Build 通过（0 警告、0 错误），Unit 648/648、Contract 12/12、Migration 模型 11/11 通过。全量 Integration 实际结果为 8 通过、128 失败、3 跳过；128 项均因 Docker 初始化失败，3 项为两项可选真实源与未配置 Redis。`docker` 不在 PATH，Testcontainers 也无法连接 Docker named pipe，本地 Runtime 因此阻塞，候选 CI/Docker/Security 尚待验证。不能以局部测试通过代替交付验收。
 
 源码入口：[策略](../../tests/InkFlow.ArchitectureTests/ModuleDependencyPolicy.cs)、[生产模块检查](../../tests/InkFlow.ArchitectureTests/ModuleBoundaryTests.cs)、[策略回归](../../tests/InkFlow.ArchitectureTests/ModuleDependencyPolicyTests.cs)、[编译夹具](../../tests/InkFlow.ArchitectureTests/Fixtures/DependencyFixtures.cs)。
+
+## 强制门禁中的 Collector 修复
+
+候选 `34cfa8f` 的 Security 全部通过，CI 已通过全量测试并继续运行时验收；[Docker 39756402267](https://github.com/nekohands/InkFlow/actions/runs/39756402267)在 Collector 扫描发现 `CVE-2026-111943`（Go 1.26.9 标准库 HIGH）而失败，发布镜像拉取验证未执行。
+
+依据 [Go 官方 1.26.10 发布说明](https://go.dev/doc/devel/release#go1.26.10)，仅将 Collector 的既有 Go 构建工具链升级一个补丁版本至 1.26.10，保留 Collector 0.162.0、x/net 0.60.0 和扫描门槛。该修复属于完成强制门禁所需的最小范围扩展，维护决策已记入 [ADR 0012](../adr/0012-compose-otel-collector-baseline.md)，待新候选验证后收口。

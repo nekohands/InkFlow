@@ -221,7 +221,7 @@ Core SLO v1 以 `public_api`、`legado_api`、`developer_api` 和 `reader` 四�
 
 `CoreSloEvidenceEvaluator` 对外部聚合出的明确时间窗口执行纯函数评估：四个服务面必须具备正请求量、匹配的延迟样本和合法 p95，结果区分 Passed、Failed、InsufficientEvidence 与 InvalidEvidence，并计算错误预算剩余量。它不保存或发送观测事实，真实 Collector、探针、告警和保留策略仍属于部署治理。
 
-两份 Compose 编排提供仓库构建的固定版本 OTLP Collector 作为观测接收基线：API、Worker、Scheduler 默认经内部网络发送到 `otel-collector:4317`，4317/4318 不发布到宿主机，健康端口 13133 仅绑定 loopback。Collector 基于固定的 OpenTelemetry Collector v0.162.0 源码、Go 1.26.9 和 `golang.org/x/net` v0.60.0 构建，配置只读挂载，并启用只读文件系统、临时目录、`no-new-privileges` 和全量 capability drop。当前 debug exporter 只服务本地/CI 诊断，不是生产事实存储；生产 OTLP 后端、窗口聚合、告警与保留策略仍需单独治理，详见 ADR 0012。
+两份 Compose 编排提供仓库构建的固定版本 OTLP Collector 作为观测接收基线：API、Worker、Scheduler 默认经内部网络发送到 `otel-collector:4317`，4317/4318 不发布到宿主机，健康端口 13133 仅绑定 loopback。Collector 基于固定的 OpenTelemetry Collector v0.162.0 源码、Go 1.26.10 和 `golang.org/x/net` v0.60.0 构建，配置只读挂载，并启用只读文件系统、临时目录、`no-new-privileges` 和全量 capability drop。当前 debug exporter 只服务本地/CI 诊断，不是生产事实存储；生产 OTLP 后端、窗口聚合、告警与保留策略仍需单独治理，详见 ADR 0012。
 
 CI Runtime smoke 使用 `scripts/core-slo-runtime-smoke.sh` 对四个服务面执行固定、有界的合成请求，并输出包含请求数、5xx 数、延迟样本数和 p95 的 UTC JSON 证据；每个服务面先执行一次不计入统计、但仍校验状态码的预热请求，以隔离源码 Compose 冷启动初始化，随后要求 `public_api` / `developer_api` p95 ≤ 750ms、`legado_api` / `reader` p95 ≤ 1000ms。空查询 Legado 与未授权 Developer API 用于避免真实来源和凭据依赖。该证据只能作为 Compose/CI 短窗口基线，不能替代生产 OTLP 窗口、告警、保留治理或人工验收，详见 ADR 0013。
 

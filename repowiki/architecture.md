@@ -65,6 +65,11 @@ boundary and static-analysis limits are recorded in that package and the
 
 ## Source runtime constraints
 
+- Collector baseline uses pinned OTel 0.162.0 with x/net 0.60.0, built using Go
+  1.26.10 after the RF-01 Docker gate exposed CVE-2026-111943 in 1.26.9. This
+  maintenance patch keeps existing composition/security boundaries; verification
+  is tracked in RF-01 and [ADR 0012](../docs/adr/0012-compose-otel-collector-baseline.md).
+
 - Hierarchy: `ISourceAdapter` → `RuleAdapter` (DSL, most sites) / trusted
   `CodeAdapter` (Kanunu8, SeventeenK). Community sources: restricted DSL only.
 - Outbound HTTP passes `SsrfGuard` (literal + DNS) and connection-level
