@@ -5,13 +5,13 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-03 一致性性能优化 In Progress，复测与目标冻结完成，验证尚未完成；RF-02 一致性检查职责拆分与测量已在 `3a38ad1` 验收；RF-01 已验收，其他历史与真实环境待验收项继续保留。
+- 文档状态：RF-03 一致性性能优化已在 `0a6e641` 验收，所有候选 SHA 门禁通过；RF-02 一致性检查职责拆分与测量已在 `3a38ad1` 验收；RF-01 已验收，其他历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
 ## RF-03 当前工作包
 
-复测基线与量化目标已先于生产优化冻结。直接建字典与最多 1,000 条问题示例保留已实现，精确全量计数/排序/公共报告不变。当前验证 In Progress，尚未 Accepted；证据与限制见 [性能记录](../engineering/consistency-check-performance.md)。真实环境待验收清单继续保留。
+复测基线与量化目标已先于生产优化冻结。直接建字典与最多 1,000 条问题示例保留已实现，精确全量计数/排序/公共报告不变。已在 `0a6e641` Accepted / Completed；Unit 659、Architecture 51、Contract 12、真实 PostgreSQL/Redis、Runtime/SLO/备份及 CI/Docker/Security 全部通过。本地 Docker 缺失由远端真实证据补足；证据与限制见 [性能记录](../engineering/consistency-check-performance.md)。真实环境待验收清单继续保留。
 
 ## 1. 接手顺序
 
@@ -53,7 +53,7 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 - 本地 Restore/Release Build 零警告通过，Unit 656/656、Architecture 51/51、Contract 12/12、迁移模型 11/11 通过；Integration 8 passed / 128 DockerUnavailable / 3 skipped。本地 Runtime 仍 BLOCKED。
 - 规则前后各 720 次采样完整报告等价；远端 PostgreSQL 720 次测量通过。100k 章节读取 500,005 行、13 条 SQL，健康/孤儿 p50 约 1.13/1.36 秒、分配约 448/530 MiB；原始数据与限制已归档，不宣称提速。
 - 验收实现 `3a38ad1`：CI 39766807840（attempt 2）、Docker 39766808118、Security 39766807728 全部 Job 通过；Integration 136 passed / 3 skipped，Redis 独立 1/1；Admin/Operations、SLO/OTLP、备份恢复通过。首轮 Ubuntu 索引哈希不一致保留为历史失败，重跑未绕过完整性检查。收尾增加直接一致性报告字段断言，由收尾 CI 执行。
-- RF-03 未开始；需稳定重测并先冻结目标/容忍度。既有真实设备、账户、来源与生产治理验收仍开放。
+- RF-02 交付时 RF-03 尚未开始；现已复测、冻结目标并实施，当前状态见本文 RF-03 区块。既有真实设备、账户、来源与生产治理验收仍开放。
 
 ### RF-01 验收历史
 

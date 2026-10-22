@@ -229,4 +229,4 @@ CI 同时将 metrics 周期导出缩短到 1 秒，Collector metrics batch 缩�
 
 当前 CI 在 Runtime smoke 产生真实审计数据后执行 PostgreSQL custom-format 备份恢复演练：恢复到隔离数据库，并比较所有非系统表的行数签名与 `audit.events` 数量。该验证证明数据库归档可恢复，不等同于生产异地备份、审计法律保留、删除授权、RPO/RTO 或告警治理。
 
-RF-03 实现：一致性查找索引直接建字典并保留重复键首条；服务完整计数、用最大堆保留 ordinal 最小的 1,000 条问题。完整验证入口继续用于诊断/等价校验。13 次 EF 全量快照、规则判定、公共 JSON 和非原子读取语义不变。验收仍待完成，见 [性能记录](../engineering/consistency-check-performance.md)。
+RF-03 实现：一致性查找索引直接建字典并保留重复键首条；服务完整计数、用最大堆保留 ordinal 最小的 1,000 条问题。完整验证入口继续用于诊断/等价校验。13 次 EF 全量快照、规则判定、公共 JSON 和非原子读取语义不变。已在 `0a6e641` 验收，见 [性能记录](../engineering/consistency-check-performance.md)。

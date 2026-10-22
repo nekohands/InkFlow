@@ -1,6 +1,6 @@
 # RF-03 一致性检查性能优化
 
-状态：In Progress。基线提交 `2aaefce7ad2e43c782563c8867292ff3146cd4aa`。
+状态：Accepted / Completed，验收实现提交 `0a6e64191e43f2abf32d5088dda4bc0399730bcd`。基线提交 `2aaefce7ad2e43c782563c8867292ff3146cd4aa`。
 
 目标是降低规则计算分配量与大数据集耗时，同时精确统计全部问题、按原 ordinal 顺序返回前 1,000 条。先复测、冻结目标，再改生产实现。范围限 Operations 一致性计算与测量/回归保护；不修改公共 JSON、权限、数据库结构、13 次 EF 查询及其非原子顺序读取语义，不进入 RF-04/05。
 
@@ -20,6 +20,40 @@ AI 权威记录与后续证据：[RF-03 Wiki](../../repowiki/work-packages/2026-
 
 100k 健康：p50 566.56 → 354.79 ms，p95 663.50 → 411.79 ms，分配 290.48 → 159.87 MiB。100k 损坏：p50 915.66 → 356.73 ms，p95 1042.45 → 392.84 ms，分配 379.34 → 217.09 MiB。仅字典优化时损坏 p50 为 603.29 ms，限制示例保留进一步下降 40.9%。所有冻结的本地门槛通过，24 组完整问题/报告哈希与计数一致。[字典阶段原始数据](benchmarks/rf03/lookups-rules.json)、[最终原始数据](benchmarks/rf03/after-rules.json)。
 
-性能检查脚本已加入独立 PostgreSQL CI Job，检查环境/数据等价及冻结门槛；环境漂移必须显式复测。脚本正反例 6/6、一致性测试 15/15、Restore/Release Build（0 警告/错误）通过。全量本地 Unit 659/659、Architecture 51/51、Contract 12/12、Migration 11/11 通过；Integration 8 通过/128 因 Docker 不可用失败/3 跳过，定向一致性集成测试同样在容器初始化失败。候选 CI 待完成；本地 Docker 命令仍不存在，真实容器验收由 CI 提供。
+性能检查脚本已加入独立 PostgreSQL CI Job，检查环境/数据等价及冻结门槛；环境漂移必须显式复测。脚本正反例 6/6、一致性测试 15/15、Restore/Release Build（0 警告/错误）通过。全量本地 Unit 659/659、Architecture 51/51、Contract 12/12、Migration 11/11 通过；Integration 8 通过/128 因 Docker 不可用失败/3 跳过，定向一致性集成测试同样在容器初始化失败。候选 CI 已全部通过；本地 Docker 命令仍不存在，真实容器验收由 CI 提供。
 
 局限：全量快照、索引及重复规则分组仍为 O(rows)，每条问题仍构造消息/对象，仅保留示例有界；13 次非原子顺序读取不变。生命周期峰值不等于单次扫描峰值，不宣称生产负载/SLO 收益，不关闭既有人工/真实环境待验收项。
+
+## 远端 PostgreSQL 复测
+
+候选 `0a6e641` 的 [CI 测量 Job](https://github.com/nekohands/InkFlow/actions/runs/39778042207) 与冻结门槛检查通过；完整 runtime 已通过。[原始结果](benchmarks/rf03/after-postgres.json) 保留 720 个样本，24 组完整问题/报告哈希、13 条 SQL 与完整读取行数均一致，312 个查询计划实际行数合计也与快照一致。
+
+100k 健康：p50 1186.06 → 733.04 ms，p95 1264.52 → 777.75 ms，分配 447.88 → 317.23 MiB。100k 孤儿：p50 1440.73 → 777.71 ms，p95 1521.09 → 814.28 ms，分配 530.48 → 385.98 MiB。优化后三轮 p50 波动为 2.34%/1.41%，各规模回归容忍度和主要收益门槛均通过。
+
+远端进程生命周期峰值 902.87 → 908.53 MiB，**不能宣称进程峰值下降**；其中包括完整诊断结果及序列化。本地对应基线/字典/最终为 663.45/608.55/569.32 MiB，同样不等于扫描专属峰值。当前已达目标，因此本轮不扩展 SQL/流式读取；全量输入内存仍需后续独立测量。
+
+## 复测命令
+
+在仓库根目录串行执行，构建结束后再运行测量，避免并行 Build/Test 干扰；原始基线源码为 `2aaefce`，冻结预算为 `95184eb`，不要用优化后的代码覆盖基线文件。
+
+```powershell
+dotnet build tools/InkFlow.ConsistencyBenchmarks -c Release
+$env:DOTNET_TieredCompilation = '0'
+dotnet tools/InkFlow.ConsistencyBenchmarks/bin/Release/net10.0/InkFlow.ConsistencyBenchmarks.dll artifacts/consistency/current-rules.json
+python scripts/compare-consistency-benchmarks.py docs/engineering/benchmarks/rf03/before-rules.json artifacts/consistency/current-rules.json
+```
+
+PostgreSQL 在 CI 独立 Ubuntu runner 中使用默认 JIT，工具只创建自有临时容器，不接受用户数据库连接：
+
+```sh
+dotnet run --project tools/InkFlow.ConsistencyBenchmarks -c Release -- artifacts/consistency/postgres.json --postgres
+python3 scripts/compare-consistency-benchmarks.py docs/engineering/benchmarks/rf03/before-postgres.json artifacts/consistency/postgres.json
+```
+
+环境不匹配或门槛失败时保留失败样本并调查；变更环境需先明确新的测量范围、重新稳定复测，再冻结新预算，不自动调高阈值。Core SLO 既有门槛独立保留。
+
+## 验收结果
+
+实现提交 `0a6e641` 的 [CI](https://github.com/nekohands/InkFlow/actions/runs/39778042207) 2/2、[Docker](https://github.com/nekohands/InkFlow/actions/runs/39778042314) 6/6、[Security](https://github.com/nekohands/InkFlow/actions/runs/39778042320) 4/4 Job 全部成功。远端 Restore/Release Build、11 上下文 Migration、Unit 659、Architecture 51、Contract 12 通过；真实 PostgreSQL Integration 136 通过/3 跳过，配置 Redis 后独立 1/1 通过。源码 Compose、Reader/Legado/Source failover/质量失败/私有库/Developer/Admin/采集与包/OTLP、Core SLO 和备份恢复均通过。Admin JSON 断言在 12:42:00 UTC 通过，Core SLO 在 12:43:48、备份恢复在 12:43:58 通过。
+
+本地及 PostgreSQL 冻结预算全部达成，两项优化均保留，未降低阈值。基线自比较故意触发收益门槛失败，证明检查会拒绝无收益结果；不是实现失败。37 页 Wiki 目录与修改文档链接校验通过。工作包内无剩余阻塞；本地 Docker 缺失已如实保留并由真实 CI 验证补足。既有真实设备/账户/上游/生产验收仍开放。下一计划为 RF-04，本次未实施。

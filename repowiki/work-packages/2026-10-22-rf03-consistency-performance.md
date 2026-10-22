@@ -6,7 +6,7 @@ Scope: measured Operations consistency evaluation, bounded returned examples, un
 
 ## Contract and sequence
 
-Status: In Progress. User authorized RF-03 after RF-02; remeasure and freeze targets before production edits.
+Status: Accepted / Completed at `0a6e64191e43f2abf32d5088dda4bc0399730bcd`. User authorized RF-03 after RF-02; remeasure and freeze targets before production edits.
 Baseline commit: `2aaefce7ad2e43c782563c8867292ff3146cd4aa`.
 Goal: reduce evaluation allocations and large-fixture latency while counting every issue and retaining the exact ordinal first 1,000 examples.
 Non-goals: RF-04/05, schema/index changes, SQL pagination, stronger snapshot isolation, public JSON/auth changes, production-load acceptance.
@@ -51,6 +51,25 @@ Both stages retained: indexes cut large allocations; bounded sampling additional
 
 [Budget checker](../../scripts/compare-consistency-benchmarks.py) checks exact environment, complete/report equivalence, full sample/round coverage, SQL/rows and frozen numerical thresholds. Six positive/negative script tests pass; baseline-versus-itself fails the required improvement tests as expected. CI enforces the PostgreSQL budgets; environment/version drift requires explicit remeasurement, not silently refreshed limits.
 
-Consistency focused tests 15/15 PASS, including 999/1000/1001 boundaries, reverse arrival, duplicate keys, tied-resource message ordering, complete baseline hashes and cancellation. Release restore/build PASS (0 warnings/errors). Full local run: Unit 659/659, Architecture 51/51, Contract 12/12 PASS; Integration 8 passed / 128 Docker-unavailable failures / 3 skipped. Focused PostgreSQL consistency test reproduces the Docker endpoint failure before test execution. Migration drift 11/11 PASS. Candidate CI pending. Local Docker command still absent; real PostgreSQL/runtime must be evidenced in CI. Scope/security diff review: no foreign module edge, input/payload/authorization, secret, schema or query change.
+Consistency focused tests 15/15 PASS, including 999/1000/1001 boundaries, reverse arrival, duplicate keys, tied-resource message ordering, complete baseline hashes and cancellation. Release restore/build PASS (0 warnings/errors). Full local run: Unit 659/659, Architecture 51/51, Contract 12/12 PASS; Integration 8 passed / 128 Docker-unavailable failures / 3 skipped. Focused PostgreSQL consistency test reproduces the Docker endpoint failure before test execution. Migration drift 11/11 PASS. Candidate CI passed; see acceptance below. Local Docker command still absent; real PostgreSQL/runtime must be evidenced in CI. Scope/security diff review: no foreign module edge, input/payload/authorization, secret, schema or query change.
 
 Limitations: full snapshots, lookup indexes and duplicate-rule grouping remain O(rows). Every issue still constructs its message/record before selection; only retained examples are bounded. Existing sequential cross-schema reads remain non-atomic. Process lifetime peak is diagnostic only. No production SLO/load claim or unrelated manual acceptance closure.
+
+## Candidate PostgreSQL evidence
+
+Candidate `0a6e64191e43f2abf32d5088dda4bc0399730bcd`: [CI 39778042207](https://github.com/nekohands/InkFlow/actions/runs/39778042207) measurement job PASS, including frozen budget gate; runtime validation passed; see acceptance below. [After raw](../../docs/engineering/benchmarks/rf03/after-postgres.json) retains 720 samples, 24 complete/report hashes, 13 unchanged SQL queries and complete row counts per fixture. All 312 query plans retain actual-row totals equal to snapshot rows.
+
+| PostgreSQL shape | Before p50 / p95 ms / allocation MiB | After |
+| --- | --- | --- |
+| 100k healthy | 1186.06 / 1264.52 / 447.88 | 733.04 / 777.75 / 317.23 |
+| 100k orphan | 1440.73 / 1521.09 / 530.48 | 777.71 / 814.28 / 385.98 |
+
+Large-shape after p50 round spread 2.34%/1.41%, well below observed improvements. All per-shape regression tolerances and primary allocation targets PASS. Remote process lifetime peak 902.87 -> 908.53 MiB: **no process peak reduction claim**; this includes full diagnostic validation and serialization. Local lifetime peak baseline/lookup/final 663.45/608.55/569.32 MiB is also diagnostic, not scan-exclusive. SQL/streaming deferred: current targets are met without changing query/isolation semantics; full input memory remains a future measured concern.
+
+## Acceptance
+
+All exact-candidate-SHA jobs completed successfully: [CI 39778042207](https://github.com/nekohands/InkFlow/actions/runs/39778042207) (2/2), [Docker 39778042314](https://github.com/nekohands/InkFlow/actions/runs/39778042314) (6/6), [Security 39778042320](https://github.com/nekohands/InkFlow/actions/runs/39778042320) (4/4). Remote Restore/Release Build, migration drift 11 contexts, Unit 659, Architecture 51, Contract 12 PASS; PostgreSQL Integration 136 passed / 3 skipped, configured Redis 1/1 PASS. Source-build Compose, Reader/Legado/Source failover/quality/private-library/Developer/Admin/collection-package/OTLP runtime, Core SLO and backup/restore passed. Admin report JSON assertion PASS at 12:42:00 UTC; Core SLO PASS 12:43:48; backup PASS 12:43:58.
+
+Frozen budgets/report equivalence passed locally and in real PostgreSQL. Both measured changes retained; no failed optimization attempt or threshold relaxation. Baseline self-comparison intentionally fails improvement checks (gate test), not an implementation failure. Fresh baseline CI 39775842652 also completed successfully at the original `2aaefce` baseline.
+
+Documentation: Wiki/human architecture, plan, navigation, benchmark records, Progress/Handoff/profile synchronized; 37-page catalog and changed Markdown link checks PASS. No outstanding RF-03 blocker. Local Docker remains unavailable, covered by remote evidence; existing real-device/account/upstream/production acceptance remains open. Next planned package RF-04 is not implemented by this delivery.
