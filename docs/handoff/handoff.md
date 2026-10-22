@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-01 架构保护网已实现，本地证据已记录，远端门禁待验证；后续工作包为 Planned，历史与真实环境待验收项继续保留。
+- 文档状态：RF-01 架构保护网已在 `f90e6bd` 验收完成；后续工作包为 Planned，历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
@@ -44,9 +44,10 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 
 - RF-00 方案保存在 `df6c701`；用户随后明确授权先实施 RF-01。先读 [RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md) 与 [中文架构保护网](../engineering/architecture-guards.md)。
 - 已实现四类编译依赖规则、11 模块显式图、项目引用和清单检查，保留加载 smoke。正反例暴露并修复 internal 嵌套类型筛选漏检；临时模块清单探针失败/清理后通过。
-- 本地 Restore/Release Build PASS，Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。全量 Integration：8 通过、128 DockerUnavailable 失败、3 跳过；本地 Runtime BLOCKED。候选 `34cfa8f` 远端全量测试、Security 通过，CI 继续运行时验证；Docker 在 Collector Go 标准库 CVE-2026-111943 处失败，已准备 1.26.10 工具链补丁，等待新候选完整门禁。
+- 本地 Restore/Release Build PASS，Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。全量本地 Integration：8 通过、128 DockerUnavailable 失败、3 跳过，本地 Runtime BLOCKED。候选 `34cfa8f` 的 Docker HIGH 失败保留为历史证据，Collector Go 1.26.10 补丁已修复该门禁。
+- 验收实现 SHA：`f90e6bd658ecc657dc68e34b1936990a4ce99555`；CI `39758029891`、Docker `39758029869`、Security `39758029837` 所有 Job 均成功，证据链接见 RF-01。CI Integration 136 通过/3 跳过，Redis 独立 1/1；Runtime/SLO/OTLP、备份恢复、镜像扫描与发布拉取均通过。
 - `.codegraph/` 实查不存在；SDK 10.0.402。`docker` 不在 PATH，Testcontainers 无法连接 `npipe://./pipe/docker_engine`，不能把容器验证标为本地通过。`.workbuddy-ai/` 保持不变。
-- 下一步先完成 RF-01 同一候选 SHA 的远端门禁和文档收口，未通过前不启动 RF-02。RF-02 及以后仍为 Planned；既有真实设备、来源、账户、生产 OTLP/SLO 等验收不在本包关闭。
+- RF-01 Accepted / Completed，无剩余包内验收阻塞。下一步 RF-02（未开始）；既有真实设备、来源、账户、生产 OTLP/SLO 等验收不在本包关闭。保留静态规则的反射/动态加载限制与本地 Docker 缺失。
 
 ### 2026-10-15 历史交接快照
 

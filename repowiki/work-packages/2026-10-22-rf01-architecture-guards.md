@@ -4,7 +4,7 @@ Audience: Agent-only.
 Agent read instruction: Read before implementing, verifying or continuing RF-01; use the policy and compiled fixtures as executable dependency evidence.
 Scope: architecture-test guards, explicit module inventory, negative/positive fixtures and synchronized documentation; minimal Collector Go patch required by the mandatory Docker gate.
 ID: rf01-architecture-guards-2026-10-22
-Status: Implemented; candidate `34cfa8f` Docker gate failed; minimal toolchain fix awaiting fresh candidate gates.
+Status: Accepted / Completed at implementation SHA `f90e6bd658ecc657dc68e34b1936990a4ce99555`; all required candidate jobs passed. Original `34cfa8f` Docker failure remains evidence.
 Authorization: explicit follow-up, “继续，按方案开始实施，先做 RF-01 架构保护网。” This supersedes the plan's documentation-only restriction for RF-01, including its candidate-commit/CI delivery gates; later packages remain Planned.
 Parent/root: [Work packages](README.md) / [RepoWiki](../README.md).
 Human counterpart: [Architecture guards](../../docs/engineering/architecture-guards.md); parent [optimization/refactoring plan](../../docs/engineering/optimization-refactoring-plan-2026-10-22.md).
@@ -89,10 +89,27 @@ handled explicitly, never hidden by a wildcard exemption.
 - Candidate `34cfa8f6dcec56f6032af93b88f02fe47c876197` was pushed to dev.
   [Security 39756402387](https://github.com/nekohands/InkFlow/actions/runs/39756402387)
   passed all four jobs; [CI 39756402266](https://github.com/nekohands/InkFlow/actions/runs/39756402266)
-  passed Restore/Build/Migration/Test and is finishing runtime checks.
+  passed all steps, including runtime/OTLP, configured Redis and backup/restore.
   [Docker 39756402267](https://github.com/nekohands/InkFlow/actions/runs/39756402267)
   failed Collector scanning; four application image jobs passed, published Compose
   verification was skipped. This candidate is not Accepted/Completed.
+- Remote logs at `34cfa8f`: Architecture 51, Unit 648 and Contract 12 passed;
+  Integration 136 passed / 3 skipped, plus separate configured Redis 1/1 passed.
+  Two opt-in live-source tests stay unrun. Local ignored log:
+  `artifacts/rf01-original-ci.log`.
+- Repair commit `f90e6bd658ecc657dc68e34b1936990a4ce99555` was pushed to dev;
+  [CI 39758029891](https://github.com/nekohands/InkFlow/actions/runs/39758029891)
+  and [Docker 39758029869](https://github.com/nekohands/InkFlow/actions/runs/39758029869)
+  passed all jobs; [Security 39758029837](https://github.com/nekohands/InkFlow/actions/runs/39758029837)
+  passed all four jobs. Exact head SHA verified for all three runs. CI includes
+  Restore/Build, 11-context model drift, all tests, Compose/business runtime,
+  four-surface SLO/OTLP receipt, configured Redis and backup/restore. Docker includes
+  five scanned/published images and the published-Compose pull check. Local Collector
+  build/runtime remain BLOCKED by Docker; those gates passed in CI, not locally.
+- Repair-SHA logs: Unit 648/648, Architecture 51/51, Contract 12/12;
+  Integration 136 passed / 3 skipped and configured Redis 1/1 separately.
+  The two opt-in live-source cases remain outside acceptance. Evidence stored
+  locally in ignored `artifacts/rf01-repair-ci.log` and `artifacts/rf01-gate-*.json`.
 - Documentation: Wiki catalog/metadata regenerated and checked (35 pages);
   local links checked in 14 changed Markdown files (230 targets, no missing
   target). Diff/known-secret-pattern review passed; application source, workflows,
@@ -109,13 +126,30 @@ Upgrade only the existing Docker build toolchain to 1.26.10, retaining Collector
 0.162.0, x/net 0.60.0 and its source commit, scratch/non-root runtime, network,
 configuration and scan thresholds. No ignore entry or forced major upgrade.
 This is a required gate repair, not RF-02 or a new refactoring batch. A fresh
-candidate must pass image scan/publish/pull and full runtime/OTLP checks.
+candidate passed image scan/publish/pull and full runtime/OTLP checks at `f90e6bd`.
 
 The binary includes the affected X.509 implementation. Current OTLP intake is
 internal and the exporter is debug; the scan is not evidence of exploitation or
 of a currently exercised vulnerable TLS path. A patch is available, so no reachability
 exemption is needed. Keep the existing upstream-image return condition from
 [ADR 0012](../../docs/adr/0012-compose-otel-collector-baseline.md).
+
+## Acceptance and handoff
+
+| Criterion | Result |
+| --- | --- |
+| AC-1 — four dependency guards and controls | PASS; compiled negative/positive fixtures and internal-nested regression |
+| AC-2 — complete module coverage | PASS; all 11 modules, explicit graph, inventory mutation and load smoke |
+| AC-3 — real local/remote gates | PASS at `f90e6bd`; local Docker limitation retained, remote container/runtime/security evidence complete |
+| AC-4 — documented contracts and evidence | PASS; human guide, plan, architecture/security, ADR 0012, Progress/Handoff/profile and Wiki synchronized |
+
+No production .NET dependency violation was found within the agreed guards.
+Fixed the nested-type selector false negative and the mandatory Collector image
+scan blocker. No remaining RF-01 acceptance blocker; reflection/dynamic-loading
+limits and the local Docker environment remain explicit. Real-device/accounts,
+live sources and production OTLP/SLO/backup governance are still open project work.
+RF-02 is the next planned package and was not started. RF-01 closeout docs record
+the verified implementation SHA; their follow-up commit carries no code change.
 
 ## Legal graph and coverage
 
@@ -160,3 +194,4 @@ Billing's existing own persistence usage is outside the four agreed guards.
 - [Approved plan](2026-10-22-optimization-refactoring-plan.md), [architecture](../architecture.md), [verification](../operations/verification.md).
 - [Architecture tests](../../tests/InkFlow.ArchitectureTests/), [central packages](../../Directory.Packages.props), [module projects](../../src/Modules/).
 - [NetArchTest package](https://www.nuget.org/packages/NetArchTest.Rules/1.3.2), [upstream source tag](https://github.com/BenMorris/NetArchTest/tree/v1.3.2) (inspected with `gh`).
+- [Collector build](../../deploy/docker/Dockerfile.otel), [ADR 0012](../../docs/adr/0012-compose-otel-collector-baseline.md), [Go release history](https://go.dev/doc/devel/release#go1.26.10), [official Go image definition](https://github.com/docker-library/official-images/blob/master/library/golang) (tag verified with `gh`).

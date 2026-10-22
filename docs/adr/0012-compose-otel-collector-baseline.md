@@ -45,3 +45,5 @@ Docker 发布门禁扫描 `0.159.0` 时发现其内置 `golang.org/x/crypto` 存
 ## 维护更新（2026-10-22）
 
 RF-01 候选 `34cfa8f` 的 [Docker 门禁](https://github.com/nekohands/InkFlow/actions/runs/39756402267)在 Collector 二进制中检出 Go 标准库 `CVE-2026-111943`（HIGH，已安装 1.26.9，修复版本 1.26.10 / 1.27.3），因而没有发布 Collector，发布 Compose 拉取验证也未执行。依据 [Go 官方发布记录](https://go.dev/doc/devel/release#go1.26.10)，将现有构建工具链最小升级到 `golang:1.26.10-bookworm`；官方镜像标签已核对。Collector 源码、x/net 覆盖版本和部署边界沿用既定决策，不增加漏洞忽略项。修复候选须重新通过 Docker Trivy、发布镜像拉取及 Compose/OTLP Runtime 门禁；原失败记录保留。
+
+验证：修复 SHA `f90e6bd658ecc657dc68e34b1936990a4ce99555` 的 [Docker 39758029869](https://github.com/nekohands/InkFlow/actions/runs/39758029869)通过全部镜像扫描/发布及 Compose 拉取，[CI 39758029891](https://github.com/nekohands/InkFlow/actions/runs/39758029891)通过 Compose、Collector 健康、四服务面 SLO/OTLP、业务 smoke、Redis 与备份恢复；[Security 39758029837](https://github.com/nekohands/InkFlow/actions/runs/39758029837)全部通过。本机 Docker 不可用仍保留为本地限制。

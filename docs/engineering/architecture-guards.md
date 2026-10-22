@@ -1,6 +1,6 @@
 # RF-01 架构保护网
 
-日期：2026-10-22。状态：`Implemented`，本地与远端验收进行中。Agent 合同与完整证据见 [RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)。
+日期：2026-10-22。状态：`Accepted / Completed`，验收实现提交 `f90e6bd658ecc657dc68e34b1936990a4ce99555`。Agent 合同与完整证据见 [RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)。
 
 ## 目标与边界
 
@@ -55,12 +55,24 @@ dotnet test tests/InkFlow.ArchitectureTests -c Release
 
 额外的清单变异验证中，临时增加一个未审查模块项目，生产清单测试真实失败；移除临时项目后恢复通过，探针文件已清理。
 
-本机 SDK 10.0.402。Restore/Release Build 通过（0 警告、0 错误），Unit 648/648、Contract 12/12、Migration 模型 11/11 通过。全量 Integration 实际结果为 8 通过、128 失败、3 跳过；128 项均因 Docker 初始化失败，3 项为两项可选真实源与未配置 Redis。`docker` 不在 PATH，Testcontainers 也无法连接 Docker named pipe，本地 Runtime 因此阻塞，候选 CI/Docker/Security 尚待验证。不能以局部测试通过代替交付验收。
+本机 SDK 10.0.402。Restore/Release Build 通过（0 警告、0 错误），Unit 648/648、Contract 12/12、Migration 模型 11/11 通过。全量 Integration 实际结果为 8 通过、128 失败、3 跳过；128 项均因 Docker 初始化失败，3 项为两项可选真实源与未配置 Redis。`docker` 不在 PATH，Testcontainers 也无法连接 Docker named pipe，本地 Runtime 因此阻塞。修复候选的远端门禁已补齐容器/运行时证据，不将其写成本地通过。
 
 源码入口：[策略](../../tests/InkFlow.ArchitectureTests/ModuleDependencyPolicy.cs)、[生产模块检查](../../tests/InkFlow.ArchitectureTests/ModuleBoundaryTests.cs)、[策略回归](../../tests/InkFlow.ArchitectureTests/ModuleDependencyPolicyTests.cs)、[编译夹具](../../tests/InkFlow.ArchitectureTests/Fixtures/DependencyFixtures.cs)。
 
 ## 强制门禁中的 Collector 修复
 
-候选 `34cfa8f` 的 Security 全部通过，CI 已通过全量测试并继续运行时验收；[Docker 39756402267](https://github.com/nekohands/InkFlow/actions/runs/39756402267)在 Collector 扫描发现 `CVE-2026-111943`（Go 1.26.9 标准库 HIGH）而失败，发布镜像拉取验证未执行。
+候选 `34cfa8f` 的 Security 与 CI 全部通过（含运行时/OTLP、Redis、备份恢复）；[Docker 39756402267](https://github.com/nekohands/InkFlow/actions/runs/39756402267)在 Collector 扫描发现 `CVE-2026-111943`（Go 1.26.9 标准库 HIGH）而失败，发布镜像拉取验证未执行，因此该候选不能验收。
 
-依据 [Go 官方 1.26.10 发布说明](https://go.dev/doc/devel/release#go1.26.10)，仅将 Collector 的既有 Go 构建工具链升级一个补丁版本至 1.26.10，保留 Collector 0.162.0、x/net 0.60.0 和扫描门槛。该修复属于完成强制门禁所需的最小范围扩展，维护决策已记入 [ADR 0012](../adr/0012-compose-otel-collector-baseline.md)，待新候选验证后收口。
+依据 [Go 官方 1.26.10 发布说明](https://go.dev/doc/devel/release#go1.26.10)，仅将 Collector 的既有 Go 构建工具链升级一个补丁版本至 1.26.10，保留 Collector 0.162.0、x/net 0.60.0 和扫描门槛。该修复属于完成强制门禁所需的最小范围扩展，维护决策已记入 [ADR 0012](../adr/0012-compose-otel-collector-baseline.md)。修复提交 `f90e6bd` 已推送并通过全部门禁。
+
+## 验收结果
+
+| 门禁 | `f90e6bd` 的真实结果 |
+| --- | --- |
+| CI | [39758029891](https://github.com/nekohands/InkFlow/actions/runs/39758029891) 全部通过：构建、11 个模型、全量测试、Compose/业务 smoke、SLO/OTLP、Redis、备份恢复 |
+| 测试 | Unit 648/648、Architecture 51/51、Contract 12/12；Integration 136 通过、3 跳过，Redis 独立配置后 1/1 通过；两项可选真实源仍未运行 |
+| Docker | [39758029869](https://github.com/nekohands/InkFlow/actions/runs/39758029869) 全部通过：5 个镜像构建/扫描/发布与发布 Compose 镜像拉取 |
+| Security | [39758029837](https://github.com/nekohands/InkFlow/actions/runs/39758029837) 全部通过：NuGet、文件扫描、SBOM、CodeQL |
+| 文档 | 中文说明、计划、ADR、架构/安全文档、Progress/Handoff/profile 与 RepoWiki 已同步；索引和本地链接校验通过 |
+
+RF-01 无剩余验收阻塞。静态检测的反射/动态加载限制与本地 Docker 缺失仍需保留；项目原有真机、真实来源/账户及生产观测治理验收不在本包关闭。下一工作包为 RF-02，目前未开始。

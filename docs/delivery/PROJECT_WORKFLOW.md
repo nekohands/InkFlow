@@ -72,9 +72,9 @@ Initialization intake: grillme recommendation-first selected; historical module 
 
 ## Work Package
 
-当前：[RF-01 架构保护网](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)，`Implemented`，本地证据已记录、远端门禁待验证。中文说明见 [架构保护网](../engineering/architecture-guards.md)。用户在文档先行 RF-00 后明确授权先实施 RF-01；包括候选提交/CI 验证，RF-02 及以后保持 Planned。
+当前：[RF-01 架构保护网](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)，`Accepted / Completed`，验收实现 SHA 为 `f90e6bd658ecc657dc68e34b1936990a4ce99555`；CI `39758029891`、Docker `39758029869`、Security `39758029837` 全部 Job 通过。中文说明见 [架构保护网](../engineering/architecture-guards.md)。RF-02 及以后保持 Planned。
 
-候选 `34cfa8f` 的 Docker 门禁发现既有 Collector Go 标准库 HIGH 漏洞，当前补充最小 Go 1.26.10 工具链修复后重新验证；具体失败/修复证据与范围扩展见 RF-01 及 ADR 0012。
+候选 `34cfa8f` 的 Docker 门禁发现既有 Collector Go 标准库 HIGH 漏洞，最小 Go 1.26.10 工具链补丁已通过镜像与运行时门禁；具体失败/修复证据与范围扩展见 RF-01 及 ADR 0012。本地 Docker 仍不可用，容器/运行时通过结论来自远端实测。
 
 2026-10-22 复核基线为 `dev` / `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`，该 SHA 的 CI/Docker/Security 均已通过；这不替代新候选提交门禁或真实环境验收。[前序模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md) 保留历史状态，当前源码已超出其 Batch 2 记录，不直接沿用旧“下一步”或将整包标记 Accepted。
 

@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-01 架构保护网已实现，本地证据已记录，远端门禁待验证；后续工作包为 Planned，历史与真实环境待验收项继续保留。
+- 文档状态：RF-01 架构保护网已在 `f90e6bd` 验收完成；后续工作包为 Planned，历史与真实环境待验收项继续保留。
 - 最后更新日期：2026-10-22
 
 ## 1. 总体状态
@@ -45,13 +45,14 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 当前工作包：RF-01 架构保护网（2026-10-22，Implemented / 远端门禁待验证）
+### 当前工作包：RF-01 架构保护网（2026-10-22，Accepted / Completed）
 
 - 用户在文档方案后明确授权先实施 RF-01；RF-00 保存在 `df6c701`。中文说明：[架构保护网](../engineering/architecture-guards.md)；合同、源码与证据：[RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)。
 - 已实现 Domain 基础设施、模块到宿主、跨模块 Infrastructure 和显式模块图四类编译依赖规则，覆盖 11 个模块，并检查项目引用/清单。51 项架构测试含正反例与嵌套类型漏检回归；临时新增模块探针证明清单守卫真实失败，清理后恢复通过。
 - Restore/Release Build PASS（0 警告/0 错误）；Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。
-- 全量 Integration 已执行：8 通过、128 因 Docker 初始化不可用失败、3 跳过（两项可选真实源、一项 Redis 配置）。本地 Runtime BLOCKED；`34cfa8f` 的远端全量测试与 Security 通过，CI 继续运行时门禁；Docker 因 Collector 扫描 HIGH 失败，当前不标记 Accepted/Completed。
-- 四类约束未检出生产违规；已修复 internal 嵌套类型筛选漏检。业务、协议、Schema/Migration 不变。Docker 门禁另检出 Go 标准库 CVE-2026-111943，已准备 Collector Go 1.26.9 → 1.26.10 的最小修复，须经新候选门禁；ADR 0012 与安全/架构文档同步。
+- 全量本地 Integration：8 通过、128 因 Docker 初始化不可用失败、3 跳过（两项可选真实源、一项 Redis 配置），本地 Runtime BLOCKED。修复候选 `f90e6bd658ecc657dc68e34b1936990a4ce99555` 的 [CI 39758029891](https://github.com/nekohands/InkFlow/actions/runs/39758029891)、[Docker 39758029869](https://github.com/nekohands/InkFlow/actions/runs/39758029869)、[Security 39758029837](https://github.com/nekohands/InkFlow/actions/runs/39758029837) 全部 Job 通过，head SHA 一致。
+- CI Integration 136 通过、3 跳过，Redis 独立配置后 1/1；业务 Runtime、SLO/OTLP、备份恢复均通过。两项可选真实源未运行，不在本包验收范围。
+- 四类约束未检出生产违规；已修复 internal 嵌套类型筛选漏检。Docker 原候选 `34cfa8f` 检出 Go 标准库 CVE-2026-111943，Collector Go 1.26.9 → 1.26.10 补丁已通过扫描/发布/拉取与 Runtime；ADR 0012 与安全/架构文档同步。业务、协议、Schema/Migration 不变。
 - RF-02 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
 
 ### 前序工作包快照：模块化重构（2026-10-15，Batch 2 Pushed / Remote Gates Incomplete）

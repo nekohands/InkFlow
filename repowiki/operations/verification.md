@@ -19,10 +19,12 @@ dependency, project graph and inventory guards. Local Restore/Release Build,
 Architecture 51/51, Unit 648/648, Contract 12/12 and model drift 11/11 passed.
 Full Integration ran: 8 passed, 128 DockerUnavailable failures, 3 skips (two
 opt-in live cases and Redis configuration). `docker` is absent from PATH and
-Testcontainers cannot connect to `npipe://./pipe/docker_engine`. Candidate
-`34cfa8f` passed the remote Test step and Security; CI runtime is still running,
-while Docker failed on Collector Go stdlib CVE-2026-111943. A minimal Go 1.26.10
-build-toolchain patch requires new candidate gates. Baseline `ca15cad` runs are not RF-01 evidence.
+Testcontainers cannot connect to `npipe://./pipe/docker_engine`. The original
+`34cfa8f` Docker failure (Collector Go stdlib CVE-2026-111943) is preserved.
+The minimal Go 1.26.10 repair at `f90e6bd` passed all jobs in CI `39758029891`,
+Docker `39758029869` and Security `39758029837`. Remote Integration: 136 passed /
+3 skipped, configured Redis separately 1/1. Runtime/SLO/OTLP and backup/restore
+passed; two opt-in live-source cases remain unrun. Baseline `ca15cad` runs are not RF-01 evidence.
 The dated table below remains historical. Human counterpart:
 [architecture guards](../../docs/engineering/architecture-guards.md).
 

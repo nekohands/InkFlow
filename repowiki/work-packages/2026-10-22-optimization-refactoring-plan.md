@@ -4,7 +4,7 @@ Audience: Agent-only.
 Agent read instruction: Read before assessing or implementing the 2026-10-22 optimization/refactoring plan; distinguish verified baseline facts from proposed changes and preserve the historical module-refactor record.
 Scope: evidence-based assessment, responsibility ownership, ordered work packages, measurement, regression and rollback criteria; documentation only in this delivery.
 ID: optimization-refactoring-plan-2026-10-22
-Status: RF-00 preserved in `df6c701`; RF-01 authorized and In Progress; later code packages remain Planned.
+Status: RF-00 preserved in `df6c701`; RF-01 Accepted / Completed at `f90e6bd`; later code packages remain Planned.
 Owner: InkFlow maintainers.
 Authorization: explicit user request on 2026-10-22, “优化重构项目, 先出文档”; the follow-up “继续” continues this documentation-first scope. Previous package instructions to implement/commit/push do not expand this request.
 Subsequent authorization: “继续，按方案开始实施，先做 RF-01 架构保护网。” explicitly starts [RF-01](2026-10-22-rf01-architecture-guards.md), including its candidate-commit/CI gates. The documentation-only authorization and baseline below describe RF-00's original delivery, not a restriction on RF-01.
@@ -71,7 +71,7 @@ Add classes/interfaces only to hide real complexity, remove shared behavior, or 
 | Package | Scope and entry condition | Acceptance / risk |
 | --- | --- | --- |
 | RF-00 | Documentation, baseline reconciliation and navigation preserved in `df6c701`. | Proposal delivered; not code acceptance. |
-| RF-01 | Architecture guards explicitly authorized and started; see the dedicated package. | Type/namespace-aware rules for Domain infrastructure, module-to-host, foreign persistence and allowed module graph; positive and negative fixtures prove detection. Medium risk. |
+| RF-01 | Accepted / Completed at `f90e6bd`; see the dedicated package and gate repair evidence. | Type/namespace-aware rules for Domain infrastructure, module-to-host, foreign persistence and allowed module graph; positive and negative fixtures prove detection. |
 | RF-02 | Consistency responsibility separation and benchmark fixtures after RF-01 gates. | Keep full counts, fields/codes, cancellation, empty/healthy/orphan/duplicate/mismatch and over-1,000-issue behavior; pure rules in Operations, EF adapter in host. Medium risk. |
 | RF-03 | Measured consistency optimization after RF-02; fix quantitative target/tolerance before editing. | Accurate complete count, bounded retained issue examples, preserved relation and defined ordering semantics; SQL/streaming only as evidence warrants. High risk, may be explicitly deferred. |
 | RF-04 | Reader, Account/PWA, then Operations presentation slices after RF-01 and browser baselines. | Keep SSR/URLs/DOM/headers/session/XSS/cache semantics, package resources in release output, update callers/tests and remove migrated implementations. High risk. |
