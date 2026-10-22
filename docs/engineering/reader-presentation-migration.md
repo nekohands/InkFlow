@@ -1,6 +1,6 @@
 # RF-04 Reader 基线与展示层迁移
 
-状态：In Progress。基线提交 `9e9f9eb`。先建立行为与真实浏览器基线，再按 Reader、账户/PWA、Operations 顺序迁移到 API Presentation；当前尚未迁移生产代码。
+状态：In Progress。基线提交 `9e9f9eb`。先建立行为与真实浏览器基线，再按 Reader、账户/PWA、Operations 顺序迁移到 API Presentation；当前已开始展示层迁移。
 
 目标是让 Content 只保留内容业务，把页面、会话/PWA 和浏览器资源放入 API 展示层，并将资源嵌入发布程序集。保持 SSR 输出（仅统一跨平台换行）、URL/DOM/字段/转义、内联资源、会话、缓存、状态码和安全头，不改变设计、数据库、协议、静态资源 URL 或认证方式；删除旧实现，不保留转发壳。
 
@@ -39,3 +39,5 @@ AI 权威记录：[RF-04 Wiki](../../repowiki/work-packages/2026-10-22-rf04-pres
 四种屏宽行为检查通过，无未捕获 JS 错误；控制台仅出现故意注入的 404/503/401 与离线网络错误。运维确认框会预填常用理由，空理由校验须先清空后检查；测试已按当前行为固定。SW 的 `/reader/` scope 不覆盖 `/reader` 根地址，离线检查在 scope 内执行。早期探索轮与并行构建重叠，未纳入冻结数据。
 
 复现：`dotnet run --project tools/InkFlow.ReaderFixtures -c Release -- artifacts/reader-fixtures`；在 `tools/InkFlow.ReaderBrowser` 执行 `npm ci --ignore-scripts`、`npx playwright install chromium`，再执行 `node verify.cjs ../../artifacts/reader-fixtures ../../artifacts/reader-browser [同环境基线目录]`。API 是固定夹具，所有账户/令牌均为测试值，无真实服务连接。
+
+第一切片：基线已提交 `1c258c3`，重复浏览器验证 40 张截图完全一致。三个共享外壳的分部文件整体迁入 API Presentation，先拆出 Reader/共享外壳资源；完整输出哈希 22 项及定向测试 28 项通过。尚待账户/PWA、Operations 资源拆分和完整交付门禁。

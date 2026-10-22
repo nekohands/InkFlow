@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace InkFlow.Modules.Content.Application;
+namespace InkFlow.Api.Presentation;
 
 public static partial class ReaderHtml
 {
