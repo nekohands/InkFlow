@@ -21,6 +21,10 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Measure fixed Developer API PostgreSQL fixtures
         run: dotnet run --project tools/InkFlow.DeveloperBenchmarks -c Release -- artifacts/developer/measurement.json
+      - name: Verify frozen Developer protocol ledger and SQL equivalence
+        run: |
+          python3 scripts/tests/compare-developer-benchmarks.test.py
+          python3 scripts/compare-developer-benchmarks.py docs/engineering/benchmarks/rf05/before-postgres.json artifacts/developer/measurement.json | tee artifacts/developer/comparison.txt
       - name: Upload Developer measurements
         if: always()
         uses: actions/upload-artifact@v4

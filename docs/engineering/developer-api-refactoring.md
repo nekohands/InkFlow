@@ -31,3 +31,5 @@ AI 合同与证据：[RF-05 Wiki](../../repowiki/work-packages/2026-10-23-rf05-d
 诊断程序 `tools/InkFlow.DeveloperBenchmarks` 使用 PostgreSQL 18 Alpine，固定 1 本书/1 章/1 个当前正文、UTC 时钟、并发 1。9 种请求分别预热 3 次，采样 30 次，共 3 轮/810 项。真实持久化密钥认证、Billing 配额账本、Library/Content/政策读取；用户资格、限流计数器、审计 sink 固定，配额缓存为空实现，不启用可选正文重选。记录响应/协议头、账本计数与单位增量、四个上下文 EF 执行 SQL 命令数/哈希及耗时；不输出参数值或原始密钥。行为和 SQL 必须完全等价，耗时仅诊断；完整运行时与 Redis 仍走原门禁。本机 docker 命令缺失，真实 PostgreSQL 基线由 CI 在生产拆分前生成。
 
 本地基线门禁：Restore/Release Build 通过（0 警告/错误）；Unit 726/726、Architecture 53/53、Contract 12/12 通过。已实际执行全量测试：Integration 8 通过、128 项 DockerUnavailable 失败、3 跳过，Windows Docker named pipe 不可用；本地 PostgreSQL/Runtime 为 BLOCKED，等待远端实测。
+
+已冻结生产基线 `4804dc0`：CI `39814163301` 的 developer-measurement Job `119948108625` 在生产改动前成功完成，810 项原始观察保存在 [before-postgres.json](benchmarks/rf05/before-postgres.json)。每请求 SQL 命令数：搜索/列表 10、书详情/目录 11、正文 13、无效密钥 1、无效参数 3、扣费后正文缺失 9、超额 7。比较器拒绝缺失/重复采样及协议/账本/SQL 漂移，故障注入测试通过；Host 组合测试补齐全部 15 条 Developer 路由的策略与限流元数据。此时完整基线 CI 尚未结束，不作为 RF-05 验收。
