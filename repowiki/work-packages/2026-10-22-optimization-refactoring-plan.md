@@ -131,3 +131,5 @@ implementation and gates are recorded in [its package](2026-10-22-rf01-architect
 - [CI configurations](../../.github/workflows/), [security model](../../docs/architecture/security-model.md), [Legado contract](../../docs/architecture/legado-contract.md), [current progress](../../docs/roadmap/progress.md), [handoff](../../docs/handoff/handoff.md).
 
 RF-02 is now Accepted at `3a38ad1` following explicit user authorization and all required gates; see [RF-02](2026-10-22-rf02-consistency.md). The original findings above describe the pre-refactor baseline.
+
+RF-03 is In Progress after explicit authorization: fresh baselines and frozen targets precede production optimization. See [RF-03](2026-10-22-rf03-consistency-performance.md). RF-04/05 remain Planned.

@@ -104,3 +104,5 @@ boundary and static-analysis limits are recorded in that package and the
 - Trusted Kanunu8/17K CodeAdapters use the same `SourceRuleExecutionLimits`:
   `SourceResponseReader` rejects oversized bodies before decode/parse, and
   Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.
+
+RF-03 implementation: first-row lookup dictionaries avoid grouping buffers; the service counts all issues and retains the ordinal smallest 1,000 in a max-priority queue. The complete validator remains available for diagnostics/equivalence. EF snapshots, 13 reads, rule predicates, public JSON and isolation are unchanged. Acceptance pending; see [RF-03](work-packages/2026-10-22-rf03-consistency-performance.md).

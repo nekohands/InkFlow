@@ -11,9 +11,14 @@ public static class ConsistencyCheckValidator
     }
 }
 
-internal sealed partial class ConsistencyRuleEvaluation(ConsistencySnapshot snapshot, ConsistencyValueDefinitions values)
+internal sealed partial class ConsistencyRuleEvaluation(
+    ConsistencySnapshot snapshot, ConsistencyValueDefinitions values, int? maxReturnedIssues = null)
 {
-    private readonly List<ConsistencyIssue> issues = [];
+    private readonly List<ConsistencyIssue>? issues = maxReturnedIssues is null ? [] : null;
+    // Largest retained issue is at the root, so later smaller issues replace it.
+    private readonly PriorityQueue<ConsistencyIssue, ConsistencyIssue> sample = new(
+        Comparer<ConsistencyIssue>.Create((left, right) => CompareIssues(right, left)));
+    public int TotalIssueCount { get; private set; }
     private readonly Dictionary<Guid, CanonicalBookSnapshot> canonicalBooks = FirstByKey(snapshot.CanonicalBooks, book => book.Id);
     private readonly Dictionary<Guid, CanonicalChapterSnapshot> canonicalChapters = FirstByKey(snapshot.CanonicalChapters, chapter => chapter.Id);
     private readonly Dictionary<string, SourceSnapshot> sources = FirstByKey(snapshot.Sources, source => source.Id, StringComparer.Ordinal);
@@ -30,7 +35,7 @@ internal sealed partial class ConsistencyRuleEvaluation(ConsistencySnapshot snap
         CheckLibrary();
         CheckContent();
         CheckCrawling();
-        return issues
+        return (issues ?? sample.UnorderedItems.Select(item => item.Element))
             .OrderBy(issue => issue.Code, StringComparer.Ordinal)
             .ThenBy(issue => issue.ResourceType, StringComparer.Ordinal)
             .ThenBy(issue => issue.ResourceId, StringComparer.Ordinal)
@@ -38,8 +43,29 @@ internal sealed partial class ConsistencyRuleEvaluation(ConsistencySnapshot snap
             .ToList();
     }
 
-    private void Add(string code, string resourceType, string resourceId, string message) =>
-        issues.Add(ConsistencyIssue.Error(code, resourceType, resourceId, message));
+    private void Add(string code, string resourceType, string resourceId, string message)
+    {
+        TotalIssueCount++;
+        var issue = ConsistencyIssue.Error(code, resourceType, resourceId, message);
+        if (issues is not null)
+            issues.Add(issue);
+        else if (sample.Count < maxReturnedIssues)
+            sample.Enqueue(issue, issue);
+        else
+            sample.EnqueueDequeue(issue, issue);
+    }
+
+    private static int CompareIssues(ConsistencyIssue left, ConsistencyIssue right)
+    {
+        var comparison = StringComparer.Ordinal.Compare(left.Code, right.Code);
+        if (comparison != 0) return comparison;
+        comparison = StringComparer.Ordinal.Compare(left.ResourceType, right.ResourceType);
+        if (comparison != 0) return comparison;
+        comparison = StringComparer.Ordinal.Compare(left.ResourceId, right.ResourceId);
+        if (comparison != 0) return comparison;
+        // Severity is always "error"; equal ordering keys are identical issue records.
+        return StringComparer.Ordinal.Compare(left.Message, right.Message);
+    }
 
     private static Dictionary<TKey, T> FirstByKey<T, TKey>(
         IReadOnlyList<T> values,

@@ -53,6 +53,7 @@
         "../../.github/workflows/",
         "../../docs/delivery/PROJECT_WORKFLOW.md",
         "../../docs/engineering/development-workflow.md",
+        "../work-packages/2026-10-22-rf03-consistency-performance.md",
         ".github/workflows/ci.yml",
         ".github/workflows/security.yml",
         "bash scripts/verify-migrations.sh",
@@ -488,7 +489,8 @@
         "../architecture.md",
         "../operations/verification.md",
         "2026-10-15-module-refactor.md",
-        "2026-10-22-rf02-consistency.md"
+        "2026-10-22-rf02-consistency.md",
+        "2026-10-22-rf03-consistency-performance.md"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"
@@ -533,6 +535,22 @@
         "../../tests/InkFlow.IntegrationTests/ConsistencyCheckIntegrationTests.cs",
         "../../tests/InkFlow.UnitTests/ConsistencyCharacterizationTests.cs",
         "../../tools/InkFlow.ConsistencyBenchmarks/"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-22-rf03-consistency-performance.md",
+      "title": "RF-03 consistency performance",
+      "kind": "topic",
+      "scope": "measured Operations consistency evaluation, bounded returned examples, unchanged EF metadata reads.",
+      "sources": [
+        "../../docs/engineering/consistency-check-performance.md",
+        "../../src/Modules/InkFlow.Modules.Operations/Application/Consistency/ConsistencyCheckValidator.cs",
+        "../../tools/InkFlow.ConsistencyBenchmarks/Program.cs",
+        "../architecture.md",
+        "2026-10-22-optimization-refactoring-plan.md",
+        "2026-10-22-rf02-consistency.md"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"
@@ -697,6 +715,11 @@
       "type": "PARENT_CHILD",
       "parent": "work-packages/README.md",
       "child": "work-packages/2026-10-22-rf02-consistency.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-22-rf03-consistency-performance.md"
     }
   ]
 }

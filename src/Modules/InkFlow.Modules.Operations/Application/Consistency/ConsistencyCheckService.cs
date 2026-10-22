@@ -13,15 +13,17 @@ public sealed class ConsistencyCheckService(
         var snapshot = await snapshotReader
             .ReadAsync(cancellationToken)
             .ConfigureAwait(false);
-        var allIssues = ConsistencyCheckValidator.Validate(snapshot, values);
-        var returnedIssues = allIssues.Take(MaxReturnedIssues).ToList();
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(values);
+        var evaluation = new ConsistencyRuleEvaluation(snapshot, values, MaxReturnedIssues);
+        var returnedIssues = evaluation.Run();
 
         return new ConsistencyCheckReport(
             clock.GetUtcNow(),
-            allIssues.Count == 0 ? "healthy" : "issues_found",
-            allIssues.Count,
+            evaluation.TotalIssueCount == 0 ? "healthy" : "issues_found",
+            evaluation.TotalIssueCount,
             returnedIssues.Count,
-            returnedIssues.Count < allIssues.Count,
+            returnedIssues.Count < evaluation.TotalIssueCount,
             returnedIssues);
     }
 }

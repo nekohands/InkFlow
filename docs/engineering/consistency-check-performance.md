@@ -13,3 +13,13 @@
 验证计划：diff 审查、Restore/Release Build/全量测试、Architecture/Contract/真实 PostgreSQL Integration、11 个上下文 Migration 检查、Admin JSON/Core SLO runtime、候选提交完整 CI/Docker/Security。重新确认本地 Docker；不能运行的项目写 BLOCKED/NOT RUN，依赖远端真实证据。未越过噪声或超出回归容忍度的优化撤回。
 
 AI 权威记录与后续证据：[RF-03 Wiki](../../repowiki/work-packages/2026-10-22-rf03-consistency-performance.md)；前置证据：[RF-02](consistency-check-refactoring.md)。
+
+## 实现及本地测量
+
+目标冻结提交 `95184eb` 在生产改动之前。第一步 `0ba30b1` 将九个 GroupBy/First 查找表改为预分配字典/TryAdd，重复键仍取首条。第二步服务用最大堆保留 ordinal 最小的 1,000 条，完整累计每条问题，最后按原四字段排序；完整验证入口与服务共用规则。
+
+100k 健康：p50 566.56 → 354.79 ms，p95 663.50 → 411.79 ms，分配 290.48 → 159.87 MiB。100k 损坏：p50 915.66 → 356.73 ms，p95 1042.45 → 392.84 ms，分配 379.34 → 217.09 MiB。仅字典优化时损坏 p50 为 603.29 ms，限制示例保留进一步下降 40.9%。所有冻结的本地门槛通过，24 组完整问题/报告哈希与计数一致。[字典阶段原始数据](benchmarks/rf03/lookups-rules.json)、[最终原始数据](benchmarks/rf03/after-rules.json)。
+
+性能检查脚本已加入独立 PostgreSQL CI Job，检查环境/数据等价及冻结门槛；环境漂移必须显式复测。脚本正反例 6/6、一致性测试 15/15、Restore/Release Build（0 警告/错误）通过。全量本地 Unit 659/659、Architecture 51/51、Contract 12/12、Migration 11/11 通过；Integration 8 通过/128 因 Docker 不可用失败/3 跳过，定向一致性集成测试同样在容器初始化失败。候选 CI 待完成；本地 Docker 命令仍不存在，真实容器验收由 CI 提供。
+
+局限：全量快照、索引及重复规则分组仍为 O(rows)，每条问题仍构造消息/对象，仅保留示例有界；13 次非原子顺序读取不变。生命周期峰值不等于单次扫描峰值，不宣称生产负载/SLO 收益，不关闭既有人工/真实环境待验收项。

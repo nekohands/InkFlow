@@ -52,3 +52,5 @@ The dated table below remains historical. Human counterpart:
 Rules: a local pass never substitutes for CI; fixture/live/manual evidence stay
 distinct; `NOT RUN`/`BLOCKED` stay explicit. Live source verification is opt-in
 and separate from PR CI.
+
+RF-03 adds frozen performance/report-equivalence checks to the independent PostgreSQL measurement job. Version/environment mismatch fails and requires an explicit rebaseline; no automatic budget relaxation. See [RF-03](../work-packages/2026-10-22-rf03-consistency-performance.md).

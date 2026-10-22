@@ -215,3 +215,5 @@ dotnet test InkFlow.sln -c Release
 | 下一步 | 评审本方案；后续启动 RF-01，以可失败的架构约束和合法依赖清单作为第一批交付 |
 
 RF-02 is now Accepted at `3a38ad1` following explicit user authorization and all required gates; see [RF-02](consistency-check-refactoring.md). The original findings above describe the pre-refactor baseline.
+
+RF-03 已授权并进入 In Progress；先复测并冻结目标，再优化。当前证据见 [性能记录](consistency-check-performance.md)，RF-04/05 仍为 Planned。

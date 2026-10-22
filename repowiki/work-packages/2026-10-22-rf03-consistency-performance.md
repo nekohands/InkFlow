@@ -35,3 +35,22 @@ Freeze numerical targets from repeatability evidence before edits. Preserve comp
 - [Plan](2026-10-22-optimization-refactoring-plan.md), [RF-02](2026-10-22-rf02-consistency.md), [architecture](../architecture.md).
 - [Human record](../../docs/engineering/consistency-check-performance.md).
 - [Benchmark](../../tools/InkFlow.ConsistencyBenchmarks/Program.cs), [validator](../../src/Modules/InkFlow.Modules.Operations/Application/Consistency/ConsistencyCheckValidator.cs).
+
+## Implementation and local evidence
+
+Frozen target commit `95184eb` precedes production edits. Stage 1 (`0ba30b1`) replaces nine GroupBy/First lookup indexes with pre-sized dictionaries and TryAdd (first row retained; ordinal source keys). Stage 2 routes service evaluation through a max-priority queue, retains <=1,000 issue references, counts every emission, then sorts the retained sample using the original four ordinal keys. Equal ordering keys are identical error records. Public complete validation uses the same rules with an unbounded diagnostic result; no duplicated rule engine. No EF/rule predicate/schema/auth changes.
+
+Local before -> lookup-only -> final (median-of-round p50/p95 ms; median allocated MiB):
+
+| Shape | Baseline | Lookup-only | Final |
+| --- | --- | --- | --- |
+| 100k healthy | 566.56 / 663.50 / 290.48 | 364.79 / 401.25 / 159.87 | 354.79 / 411.79 / 159.87 |
+| 100k corrupt | 915.66 / 1042.45 / 379.34 | 603.29 / 706.39 / 230.94 | 356.73 / 392.84 / 217.09 |
+
+Both stages retained: indexes cut large allocations; bounded sampling additionally reduces corrupt p50 by 40.9% versus lookup-only and prevents retaining all 200,030 issue records. Every fixture/round complete/report hash and count matches. All frozen local budgets PASS. [Lookup raw](../../docs/engineering/benchmarks/rf03/lookups-rules.json), [final raw](../../docs/engineering/benchmarks/rf03/after-rules.json).
+
+[Budget checker](../../scripts/compare-consistency-benchmarks.py) checks exact environment, complete/report equivalence, full sample/round coverage, SQL/rows and frozen numerical thresholds. Six positive/negative script tests pass; baseline-versus-itself fails the required improvement tests as expected. CI enforces the PostgreSQL budgets; environment/version drift requires explicit remeasurement, not silently refreshed limits.
+
+Consistency focused tests 15/15 PASS, including 999/1000/1001 boundaries, reverse arrival, duplicate keys, tied-resource message ordering, complete baseline hashes and cancellation. Release restore/build PASS (0 warnings/errors). Full local run: Unit 659/659, Architecture 51/51, Contract 12/12 PASS; Integration 8 passed / 128 Docker-unavailable failures / 3 skipped. Focused PostgreSQL consistency test reproduces the Docker endpoint failure before test execution. Migration drift 11/11 PASS. Candidate CI pending. Local Docker command still absent; real PostgreSQL/runtime must be evidenced in CI. Scope/security diff review: no foreign module edge, input/payload/authorization, secret, schema or query change.
+
+Limitations: full snapshots, lookup indexes and duplicate-rule grouping remain O(rows). Every issue still constructs its message/record before selection; only retained examples are bounded. Existing sequential cross-schema reads remain non-atomic. Process lifetime peak is diagnostic only. No production SLO/load claim or unrelated manual acceptance closure.

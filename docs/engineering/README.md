@@ -11,3 +11,5 @@ Scope: 开发、验收、交付、前端设计和基准记录的能力说明与�
 - [强制开发、验收与交付流程](development-workflow.md)
 - [前端设计](frontend-design.md)
 - [基准记录](benchmarks/README.md)
+
+- [RF-03 一致性检查性能优化](consistency-check-performance.md)

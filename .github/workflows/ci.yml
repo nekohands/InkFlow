@@ -21,6 +21,10 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Measure fixed PostgreSQL consistency fixtures
         run: dotnet run --project tools/InkFlow.ConsistencyBenchmarks -c Release -- artifacts/consistency/postgres.json --postgres
+      - name: Verify frozen consistency performance budgets and report equivalence
+        run: |
+          python3 scripts/tests/compare-consistency-benchmarks.test.py
+          python3 scripts/compare-consistency-benchmarks.py docs/engineering/benchmarks/rf03/before-postgres.json artifacts/consistency/postgres.json
       - name: Upload consistency measurements
         if: always()
         uses: actions/upload-artifact@v4

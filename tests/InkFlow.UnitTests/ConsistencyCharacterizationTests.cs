@@ -77,6 +77,21 @@ public sealed class ConsistencyCharacterizationTests
     }
 
     [TestMethod]
+    public async Task Sample_uses_ordinal_message_order_when_resource_keys_tie()
+    {
+        var snapshot = ConsistencySnapshot.Empty with
+        {
+            CrawlerTasks = Enumerable.Range(0, 1200).Reverse().Select(i =>
+                new CrawlerTaskSnapshot(ConsistencyFixture.Id(1), $"missing-{i:D4}-中", (int)CrawlerTaskStatus.Pending)).ToArray(),
+        };
+        var report = await new ConsistencyCheckService(new ConsistencyFixture.Reader(snapshot), new ConsistencyFixture.Clock(), ConsistencyDomainValues.Current).CheckAsync();
+        Assert.AreEqual(1200, report.TotalIssueCount);
+        CollectionAssert.AreEqual(
+            ConsistencyCheckValidator.Validate(snapshot, ConsistencyDomainValues.Current).Take(1000).ToArray(),
+            report.Issues.ToArray());
+    }
+
+    [TestMethod]
     public async Task Duplicate_lookup_keys_keep_first_row_and_resolve_late_references()
     {
         var snapshot = ConsistencyFixture.Create(1000, false);

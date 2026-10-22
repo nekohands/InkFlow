@@ -8,3 +8,5 @@ Scope: Web Reader、Reader/PWA 与 Operations Center 的基准和验收参考。
 - [Operations Center v1](operations-center-v1.md)
 
 - [RF-02 一致性检查测量与原始数据](../consistency-check-refactoring.md)
+
+- [RF-03 冻结目标与前后原始测量](../consistency-check-performance.md)
