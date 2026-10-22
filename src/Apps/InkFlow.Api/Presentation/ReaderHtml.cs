@@ -1,3 +1,4 @@
+using static InkFlow.Api.Presentation.ReaderAssets;
 using InkFlow.Modules.Content.Application;
 using System.Net;
 using System.Text;
@@ -12,23 +13,6 @@ namespace InkFlow.Api.Presentation;
 /// </summary>
 public static partial class ReaderHtml
 {
-    /// <summary>
-    /// 浏览器会话客户端：只处理同源认证 API，令牌保留在当前 tab 的 sessionStorage，
-    /// 不把凭据写入 URL、HTML 或长期 localStorage。除登录/注册页外，读者页面必须
-    /// 先有可验证的会话；服务端 API 仍独立执行认证与授权。
-    /// </summary>
-    private static readonly string ReaderClientScript = ReaderAssets.ReaderClientScript;
-
-    private static readonly string Head = ReaderAssets.Head;
-
-    private static readonly string ReaderScript = ReaderAssets.ReaderScript;
-
-    private static readonly string ReaderHeader = ReaderAssets.ReaderHeader;
-
-    private static readonly string ReaderPwaScript = ReaderAssets.ReaderPwaScript;
-
-    private static string Tail => ReaderAccountScript + ReaderDashboardScript + ReaderPwaScript + "</body></html>";
-
     /// <summary>
     /// 书目列表页(含搜索)。searched=false 表示浏览全部书库;true 表示按 query 过滤,
     /// 两种空态文案不同。sourceDegraded 是来源发现部分失败提示——只渲染人话,

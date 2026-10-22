@@ -9,6 +9,15 @@ internal static class ReaderAssets
     internal static readonly string ReaderHeader = Read("reader-header.html");
     internal static readonly string ReaderPwaScript = Script("reader-pwa.js");
 
+    internal static readonly string PwaManifestJson = Read("manifest.webmanifest");
+    internal static readonly string PwaIconSvg = Read("icon.svg");
+    internal static readonly string ReaderServiceWorkerScript = Read("service-worker.js");
+    internal static readonly string ReaderAccountScript = Script("reader-account.js");
+    internal static readonly string ReaderDashboardScript = Script("reader-dashboard.js");
+    internal static readonly string ReaderDetailScript = Script("reader-detail.js");
+    internal static readonly string ProgressScript = Script("reader-progress.js");
+    internal static readonly string Tail = ReaderAccountScript + ReaderDashboardScript + ReaderPwaScript + "</body></html>";
+
     private static string Script(string name) => "<script>\n" + Read(name) + "\n</script>";
 
     private static string Read(string name)

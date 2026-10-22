@@ -35,3 +35,5 @@ Production `9e9f9eb`; 22 canonical-LF complete output hashes, 28 focused tests P
 Operations confirmation pre-fills a suggested reason; blank validation explicitly clears it. SW scope `/reader/` excludes `/reader`; offline tests enter scope first. No production behavior changed to accommodate harness assumptions. Browser fixtures do not prove real response headers/auth/storage; existing API runtime and contract gates remain mandatory.
 
 Increment 1: baseline frozen at `1c258c3`; repeat browser run matched all 40 screenshots. The three partial files share shell members and move ownership atomically to API Presentation; Reader/shared shell assets are extracted first. 22 complete output hashes and all 28 focused tests PASS. No routes, protocols or business queries changed.
+
+Increment 2: Account/session, shelf/history, detail/progress and PWA scripts/manifest/icon are embedded resources; Guid-only progress substitutions preserve escaped HTML and exact output. 28 focused tests including 22 frozen output hashes PASS.

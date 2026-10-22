@@ -1,0 +1,24 @@
+{
+  "name": "墨流 · InkFlow",
+  "short_name": "墨流",
+  "start_url": "/reader",
+  "scope": "/reader/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "theme_color": "#f6f4ef",
+  "background_color": "#f6f4ef",
+  "icons": [
+    {
+      "src": "/reader/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/reader/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

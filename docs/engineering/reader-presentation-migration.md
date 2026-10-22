@@ -41,3 +41,5 @@ AI 权威记录：[RF-04 Wiki](../../repowiki/work-packages/2026-10-22-rf04-pres
 复现：`dotnet run --project tools/InkFlow.ReaderFixtures -c Release -- artifacts/reader-fixtures`；在 `tools/InkFlow.ReaderBrowser` 执行 `npm ci --ignore-scripts`、`npx playwright install chromium`，再执行 `node verify.cjs ../../artifacts/reader-fixtures ../../artifacts/reader-browser [同环境基线目录]`。API 是固定夹具，所有账户/令牌均为测试值，无真实服务连接。
 
 第一切片：基线已提交 `1c258c3`，重复浏览器验证 40 张截图完全一致。三个共享外壳的分部文件整体迁入 API Presentation，先拆出 Reader/共享外壳资源；完整输出哈希 22 项及定向测试 28 项通过。尚待账户/PWA、Operations 资源拆分和完整交付门禁。
+
+第二切片：账户、书架/历史、详情/进度与 PWA 脚本/Manifest/图标已独立为嵌入资源；进度模板只替换 Guid。完整输出哈希 22 项及定向测试 28 项通过。

@@ -1,3 +1,4 @@
+using static InkFlow.Api.Presentation.ReaderAssets;
 using System.Text;
 
 namespace InkFlow.Api.Presentation;
