@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：当前为优化与重构方案，文档先行；后续代码工作包为 Planned，历史重构记录与真实环境待验收项继续保留。
+- 文档状态：RF-01 架构保护网已实现，本地证据已记录，远端门禁待验证；后续工作包为 Planned，历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
@@ -42,12 +42,11 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 
 ## 3. 当前真实仓库状态
 
-- 当前代码基线：`dev` / `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`，本轮开始时工作树干净；新增内容仅为未提交文档。
-- 先读 [RepoWiki 当前方案](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md) 与 [中文优化重构方案](../engineering/optimization-refactoring-plan-2026-10-22.md)。用户要求“先出文档”；本轮未实施代码、未提交/推送，旧包的提交要求不扩展本轮范围。
-- 2026-10-22 用 `gh` 复核该 SHA 的 CI `39240297876`、Docker `39240297898`、Security `39240298102`，所有 Job 已成功；旧 Collector 失败是历史证据。基线绿色不等于本方案实施完毕，也不替代真实环境验收。
-- 当前 RuleAdapter、CrawlerTaskProcessor、ReadingStateService 及部分 Catalog/BookPackage 职责已拆分。新计划首先补齐架构依赖守卫，再按证据处理一致性检查、展示层和 Developer API，避免重复旧批次。
-- `.codegraph/` 本次实查不存在；Docker 可用性未复核。后续实施前重新检查环境和 HEAD，保持 `.workbuddy-ai/` 不变。
-- 本轮 Build/Tests/Runtime/基准 `NOT RUN`，CI `NOT TRIGGERED`；文档校验以 Wiki 当前方案结果为准。下一实施入口：RF-01。
+- RF-00 方案保存在 `df6c701`；用户随后明确授权先实施 RF-01。先读 [RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md) 与 [中文架构保护网](../engineering/architecture-guards.md)。
+- 已实现四类编译依赖规则、11 模块显式图、项目引用和清单检查，保留加载 smoke。正反例暴露并修复 internal 嵌套类型筛选漏检；临时模块清单探针失败/清理后通过。
+- 本地 Restore/Release Build PASS，Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。全量 Integration：8 通过、128 DockerUnavailable 失败、3 跳过；本地 Runtime BLOCKED，候选 CI/Docker/Security 尚未触发。
+- `.codegraph/` 实查不存在；SDK 10.0.402。`docker` 不在 PATH，Testcontainers 无法连接 `npipe://./pipe/docker_engine`，不能把容器验证标为本地通过。`.workbuddy-ai/` 保持不变。
+- 下一步先完成 RF-01 同一候选 SHA 的远端门禁和文档收口，未通过前不启动 RF-02。RF-02 及以后仍为 Planned；既有真实设备、来源、账户、生产 OTLP/SLO 等验收不在本包关闭。
 
 ### 2026-10-15 历史交接快照
 

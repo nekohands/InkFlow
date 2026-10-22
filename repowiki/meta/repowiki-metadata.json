@@ -493,6 +493,27 @@
       "status": "documented"
     },
     {
+      "path": "work-packages/2026-10-22-rf01-architecture-guards.md",
+      "title": "RF-01 — executable architecture guards",
+      "kind": "topic",
+      "scope": "test-only architecture guards, explicit module dependency inventory, negative/positive fixtures and synchronized delivery documentation.",
+      "sources": [
+        "../../Directory.Packages.props",
+        "../../src/Modules/",
+        "../../tests/InkFlow.ArchitectureTests/",
+        "../architecture.md",
+        "../operations/verification.md",
+        "2026-10-22-optimization-refactoring-plan.md",
+        "artifacts/rf01-inventory-red.log",
+        "artifacts/rf01-tests.log",
+        "artifacts/rf01-tests/",
+        "npipe://./pipe/docker_engine",
+        "scripts/verify-migrations.sh"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
       "path": "work-packages/README.md",
       "title": "Work packages",
       "kind": "index",
@@ -642,6 +663,11 @@
       "type": "PARENT_CHILD",
       "parent": "work-packages/README.md",
       "child": "work-packages/2026-10-22-optimization-refactoring-plan.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-22-rf01-architecture-guards.md"
     }
   ]
 }

@@ -11,7 +11,7 @@ Owner: InkFlow maintainers
 ## 项目概览
 
 - 产品：墨流 / InkFlow —— 以 Canonical Content 为核心的小说内容平台（Legado 与 Web Reader 为主要消费端）。
-- 技术栈：.NET 10（本机 SDK 10.0.401）、ASP.NET Core、PostgreSQL 18、Redis、Docker Compose、服务端渲染 Web/PWA。
+- 技术栈：.NET 10（本机 SDK 10.0.402，2026-10-22 实测）、ASP.NET Core、PostgreSQL 18、Redis、Docker Compose、服务端渲染 Web/PWA。
 - 当前阶段：`1.0 Release Candidate`（保持不标记 `Accepted/Completed`，人工/真实环境验收见 progress.md 第 6 节）。
 - 分支模型：`dev` 为唯一开发主线，经 PR 合入 `main`；CI/Docker/Security 三个 workflow 覆盖 `main` + `dev` 的 push/PR。
 - AI 权威项目参考（RepoWiki）：[repowiki/README.md](../../repowiki/README.md)；中文人文文档入口见根 README 与 AGENTS.md 阅读顺序。
@@ -43,9 +43,9 @@ Runtime smoke: `docker compose -f docker-compose.build.yml config --quiet`; `doc
 Security/scan checks: AGENTS.md SSRF/授权/Secret/Migration 检查；.github/workflows/security.yml；Docker 发布前 Trivy
 CI trigger/status: .github/workflows/ci.yml、docker.yml、security.yml；push/PR 覆盖 main + dev；Completed 前必须确认目标 commit 的强制 Job 全部真实通过
 Status vocabulary: Planned; In Progress; Implemented; Locally Validated; CI Green; Accepted; Completed; Blocked（沿用项目自有词汇，见 development-workflow.md §2）
-Known environment observations: 历史记录中 Windows Docker Engine 不可用，Integration/Compose 由远端 CI 提供证据；2026-10-22 文档工作未重新检查本机 Docker，后续执行前须复核。历史 GitHub 网络偶发中断不作为当前阻塞结论
+Known environment observations: 2026-10-22 RF-01 实测 docker 不在 PATH，Testcontainers 无法连接 npipe://./pipe/docker_engine；全量 Integration 中 128 项因容器初始化失败，Runtime 本地 BLOCKED，须取得候选 SHA 的远端 CI 证据。历史 GitHub 网络偶发中断不作为当前阻塞结论
 RepoWiki/documentation conformance: 2026-10-11 adoption recheck is COMPLIANT after Wiki metadata/source/catalog and docs-index normalization; current/history records normalized again on 2026-10-15
-Initialization intake: grillme recommendation-first selected; historical module refactor authorized on 2026-10-15; current 2026-10-22 request is documentation-first optimization/refactoring planning
+Initialization intake: grillme recommendation-first selected; historical module refactor authorized on 2026-10-15; documentation-first RF-00 followed by explicit RF-01 implementation authorization on 2026-10-22
 ```
 
 ## 交付状态记录（当前/历史）
@@ -72,7 +72,7 @@ Initialization intake: grillme recommendation-first selected; historical module 
 
 ## Work Package
 
-当前：[优化与重构方案](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md)，`Planned`，文档先行。中文方案见 [工程文档](../engineering/optimization-refactoring-plan-2026-10-22.md)。本轮只审查和写文档，不实施代码工作包或提交/推送。
+当前：[RF-01 架构保护网](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)，`Implemented`，本地证据已记录、远端门禁待验证。中文说明见 [架构保护网](../engineering/architecture-guards.md)。用户在文档先行 RF-00 后明确授权先实施 RF-01；包括候选提交/CI 验证，RF-02 及以后保持 Planned。
 
 2026-10-22 复核基线为 `dev` / `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`，该 SHA 的 CI/Docker/Security 均已通过；这不替代新候选提交门禁或真实环境验收。[前序模块化重构](../../repowiki/work-packages/2026-10-15-module-refactor.md) 保留历史状态，当前源码已超出其 Batch 2 记录，不直接沿用旧“下一步”或将整包标记 Accepted。
 

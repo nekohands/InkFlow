@@ -5,7 +5,8 @@ RepoWiki 是 Agent 的唯一项目事实来源；本目录只提供能力说明�
 
 ## 入口
 
-- [当前优化与重构方案（2026-10-22，文档先行）](engineering/optimization-refactoring-plan-2026-10-22.md)
+- [优化与重构方案（2026-10-22）](engineering/optimization-refactoring-plan-2026-10-22.md)
+- [当前 RF-01 架构保护网](engineering/architecture-guards.md)
 - [架构与领域约束](architecture/README.md)
 - [工程流程与前端设计](engineering/README.md)
 - [交付 profile、进度与交接](delivery/README.md)

@@ -39,6 +39,13 @@ Parent/root index: [README.md](README.md)
   Scheduler/Migrations) are composition roots referencing modules.
 - Legado/Web are presentation; they must not leak into the domain.
 
+Executable enforcement: [RF-01](work-packages/2026-10-22-rf01-architecture-guards.md)
+checks compiled types/method bodies for Domain infrastructure, host, foreign
+Infrastructure and disallowed module edges. Project references and the complete
+module inventory are checked separately. The explicit legal graph, generated-code
+boundary and static-analysis limits are recorded in that package and the
+[human guard guide](../docs/engineering/architecture-guards.md).
+
 ## Data and consistency
 
 - PostgreSQL is the source of truth for business data; Redis carries only

@@ -6,6 +6,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MSTest" />
+    <PackageReference Include="NetArchTest.Rules" PrivateAssets="all" />
     <ProjectReference Include="../../src/BuildingBlocks/InkFlow.BuildingBlocks.Domain/InkFlow.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Identity/InkFlow.Modules.Identity.csproj" />
     <ProjectReference Include="../../src/Modules/InkFlow.Modules.Library/InkFlow.Modules.Library.csproj" />

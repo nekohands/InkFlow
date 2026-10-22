@@ -26,6 +26,8 @@ Worker / Scheduler 的 `Program.cs` 保留服务注册与启动，后台任务�
 
 ### 当前实现导航（2026-10-22 核对）
 
+RF-01 已实现编译类型/方法体、项目引用与模块清单守卫，覆盖 Domain 基础设施隔离、模块禁止引用宿主、跨模块 Infrastructure 隔离和显式模块依赖图；规则、合法依赖和验证范围见 [架构保护网](../engineering/architecture-guards.md)。
+
 `RuleAdapter` 已组合预检查、凭据解析、HTTP、前置请求、分页、响应提取和请求预算实现。`CrawlerTaskProcessor` 已区分运行协调、执行、失败和结果处理；`ReadingStateService` 已组合书架查询/命令、历史、进度、偏好与可见性。`CatalogQueryService` 已区分书籍/正文读取，`BookPackageService` 已区分创建、查询与生成职责。
 
 这些是当前源码中已有的拆分。`ReaderHtml*` 仍在 Content.Application，一致性检查 DTO/规则/EF 适配仍在 API；[优化与重构方案](../engineering/optimization-refactoring-plan-2026-10-22.md) 提议调整其职责归属，尚未实施。后续应从当前源码接续，不重复 10 月 15 日旧批次的拆分计划。

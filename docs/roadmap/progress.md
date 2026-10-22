@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：当前为优化与重构方案，文档先行，后续代码工作包为 Planned；前序重构证据和未完成验收继续保留。
+- 文档状态：RF-01 架构保护网已实现，本地证据已记录，远端门禁待验证；后续工作包为 Planned，历史与真实环境待验收项继续保留。
 - 最后更新日期：2026-10-22
 
 ## 1. 总体状态
@@ -45,13 +45,14 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 当前工作包：优化与重构方案（2026-10-22，Planned / 文档先行）
+### 当前工作包：RF-01 架构保护网（2026-10-22，Implemented / 远端门禁待验证）
 
-- 中文产物：[优化与重构方案](../engineering/optimization-refactoring-plan-2026-10-22.md)；合同、源码与证据：[RepoWiki 工作包](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md)。
-- 完成现状审查与分阶段计划，优先补齐架构测试，再处理一致性检查、展示层归属和 Developer API；性能优化先测量，消息/解析器为条件性后续项。
-- 代码基线为 `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`，通过 `gh` 复核该 SHA 的 CI `39240297876`、Docker `39240297898`、Security `39240298102`：所有 Job 成功。旧 Batch 2 的失败记录不再代表当前 HEAD，也不据此追认所有历史批次 Accepted。
-- 本轮只变更文档；本地 Restore/Build/Tests/Runtime/性能基准 `NOT RUN`，文档 CI `NOT TRIGGERED`，无新增 Commit。文档检查结果见 Wiki 工作包。
-- 后续代码工作均未开始；本机 Docker 本轮未复核，真实设备/账户/来源/生产验收仍按下方清单保持开放。下一实施入口为 RF-01 架构保护网。
+- 用户在文档方案后明确授权先实施 RF-01；RF-00 保存在 `df6c701`。中文说明：[架构保护网](../engineering/architecture-guards.md)；合同、源码与证据：[RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)。
+- 已实现 Domain 基础设施、模块到宿主、跨模块 Infrastructure 和显式模块图四类编译依赖规则，覆盖 11 个模块，并检查项目引用/清单。51 项架构测试含正反例与嵌套类型漏检回归；临时新增模块探针证明清单守卫真实失败，清理后恢复通过。
+- Restore/Release Build PASS（0 警告/0 错误）；Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。
+- 全量 Integration 已执行：8 通过、128 因 Docker 初始化不可用失败、3 跳过（两项可选真实源、一项 Redis 配置）。本地 Runtime BLOCKED；候选 CI/Docker/Security 尚未触发，须取得同一提交的实际门禁，当前不标记 Accepted/Completed。
+- 本包未改变生产行为、协议、Schema/Migration 或部署；四类约束未检出生产违规。已修复测试库筛选遗漏 internal 嵌套类型的问题。
+- RF-02 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
 
 ### 前序工作包快照：模块化重构（2026-10-15，Batch 2 Pushed / Remote Gates Incomplete）
 
