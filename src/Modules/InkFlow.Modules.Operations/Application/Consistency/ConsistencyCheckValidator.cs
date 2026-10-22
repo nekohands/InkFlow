@@ -14,21 +14,15 @@ public static class ConsistencyCheckValidator
 internal sealed partial class ConsistencyRuleEvaluation(ConsistencySnapshot snapshot, ConsistencyValueDefinitions values)
 {
     private readonly List<ConsistencyIssue> issues = [];
-    private readonly Dictionary<Guid, CanonicalBookSnapshot> canonicalBooks = FirstById(snapshot.CanonicalBooks, book => book.Id);
-    private readonly Dictionary<Guid, CanonicalChapterSnapshot> canonicalChapters = FirstById(snapshot.CanonicalChapters, chapter => chapter.Id);
-    private readonly Dictionary<string, SourceSnapshot> sources = snapshot.Sources
-            .GroupBy(source => source.Id, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
-    private readonly Dictionary<Guid, SourceBookSnapshot> sourceBooks = FirstById(snapshot.SourceBooks, book => book.Id);
-    private readonly Dictionary<SourceBookIdentity, SourceBookSnapshot> sourceBooksByIdentity = snapshot.SourceBooks
-            .GroupBy(book => new SourceBookIdentity(book.SourceId, book.ExternalBookId))
-            .ToDictionary(group => group.Key, group => group.First());
-    private readonly Dictionary<Guid, SourceChapterSnapshot> sourceChapters = FirstById(snapshot.SourceChapters, chapter => chapter.Id);
-    private readonly Dictionary<SourceChapterIdentity, SourceChapterSnapshot> sourceChaptersByIdentity = snapshot.SourceChapters
-            .GroupBy(chapter => new SourceChapterIdentity(chapter.SourceBookId, chapter.ExternalChapterId))
-            .ToDictionary(group => group.Key, group => group.First());
-    private readonly Dictionary<Guid, ContentVersionSnapshot> contentVersions = FirstById(snapshot.ContentVersions, version => version.Id);
-    private readonly Dictionary<Guid, CrawlerTaskSnapshot> crawlerTasks = FirstById(snapshot.CrawlerTasks, task => task.Id);
+    private readonly Dictionary<Guid, CanonicalBookSnapshot> canonicalBooks = FirstByKey(snapshot.CanonicalBooks, book => book.Id);
+    private readonly Dictionary<Guid, CanonicalChapterSnapshot> canonicalChapters = FirstByKey(snapshot.CanonicalChapters, chapter => chapter.Id);
+    private readonly Dictionary<string, SourceSnapshot> sources = FirstByKey(snapshot.Sources, source => source.Id, StringComparer.Ordinal);
+    private readonly Dictionary<Guid, SourceBookSnapshot> sourceBooks = FirstByKey(snapshot.SourceBooks, book => book.Id);
+    private readonly Dictionary<SourceBookIdentity, SourceBookSnapshot> sourceBooksByIdentity = FirstByKey(snapshot.SourceBooks, book => new SourceBookIdentity(book.SourceId, book.ExternalBookId));
+    private readonly Dictionary<Guid, SourceChapterSnapshot> sourceChapters = FirstByKey(snapshot.SourceChapters, chapter => chapter.Id);
+    private readonly Dictionary<SourceChapterIdentity, SourceChapterSnapshot> sourceChaptersByIdentity = FirstByKey(snapshot.SourceChapters, chapter => new SourceChapterIdentity(chapter.SourceBookId, chapter.ExternalChapterId));
+    private readonly Dictionary<Guid, ContentVersionSnapshot> contentVersions = FirstByKey(snapshot.ContentVersions, version => version.Id);
+    private readonly Dictionary<Guid, CrawlerTaskSnapshot> crawlerTasks = FirstByKey(snapshot.CrawlerTasks, task => task.Id);
 
     public IReadOnlyList<ConsistencyIssue> Run()
     {
@@ -47,12 +41,16 @@ internal sealed partial class ConsistencyRuleEvaluation(ConsistencySnapshot snap
     private void Add(string code, string resourceType, string resourceId, string message) =>
         issues.Add(ConsistencyIssue.Error(code, resourceType, resourceId, message));
 
-    private static Dictionary<Guid, T> FirstById<T>(
-        IEnumerable<T> values,
-        Func<T, Guid> idSelector) =>
-        values
-            .GroupBy(idSelector)
-            .ToDictionary(group => group.Key, group => group.First());
+    private static Dictionary<TKey, T> FirstByKey<T, TKey>(
+        IReadOnlyList<T> values,
+        Func<T, TKey> keySelector,
+        IEqualityComparer<TKey>? comparer = null) where TKey : notnull
+    {
+        var result = new Dictionary<TKey, T>(values.Count, comparer);
+        foreach (var value in values)
+            result.TryAdd(keySelector(value), value); // Duplicate keys retain the first row.
+        return result;
+    }
 
     private static string SourceBookId(string sourceId, string externalBookId) =>
         $"{sourceId}/{externalBookId}";
