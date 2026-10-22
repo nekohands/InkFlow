@@ -91,7 +91,7 @@ Recommended sequence: RF-01 → RF-02 → RF-03 measurement decision → RF-04 �
 
 ## Measurement and verification plan
 
-Measurements are NOT RUN. Use identical Release environment, database version, seed, cache state, data and concurrency for before/after runs. Warm up 3 times, measure ≥30 samples per shape, repeat 3 rounds, retain raw data/parameters. Establish baseline noise and lock improvement targets/regression tolerances before performance code. Require a repeatable improvement in at least one target without exceeding other agreed tolerances; never invent speedup numbers.
+At the RF-00 planning checkpoint measurements were NOT RUN. [RF-02](2026-10-22-rf02-consistency.md) now records completed consistency rule/PostgreSQL measurements; Reader and Developer measurements remain NOT RUN. Use identical Release environment, database version, seed, cache state, data and concurrency for before/after runs. Warm up 3 times, measure ≥30 samples per shape, repeat 3 rounds, retain raw data/parameters. Establish baseline noise and lock improvement targets/regression tolerances before performance code. Require a repeatable improvement in at least one target without exceeding other agreed tolerances; never invent speedup numbers.
 
 - Consistency: 1k/10k/100k canonical chapters, 2 source chapters and 2 content versions each; empty, seeded orphan/duplicate, >1,000 issue cases. Record SQL count/rows/plans, elapsed p50/p95, allocations, peak memory and complete report equivalence.
 - Reader: short/long content and 100/1,000/10,000 chapter TOCs; same device/viewports. Record payload, render/interaction/navigation latency and DOM size. Structural migration first requires behavioral equivalence.
