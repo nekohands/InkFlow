@@ -4,6 +4,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../tools/InkFlow.ConsistencyBenchmarks/ConsistencyFixture.cs" Link="Fixtures/ConsistencyFixture.cs" />
     <None Update="Fixtures\source-rule-dsl-v1.json" CopyToOutputDirectory="PreserveNewest" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
