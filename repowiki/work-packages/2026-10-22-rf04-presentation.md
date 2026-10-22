@@ -4,7 +4,7 @@ Audience: Agent-only.
 Agent read instruction: Read before Reader baseline, presentation migration, verification or closeout.
 Scope: Reader, Account/PWA and Operations browser rendering/resources move from Content.Application to API Presentation, after behavior/browser baselines.
 
-Status: In Progress; baseline commit `9e9f9ebb5476f82ee3e06aaf942d8b423c9c5e67`. User explicitly authorized RF-04 with baseline before migration.
+Status: Accepted / Completed at `4ea9dd0170be7f17055f952f30611f4cf9348e37`; baseline commit `9e9f9ebb5476f82ee3e06aaf942d8b423c9c5e67`. User explicitly authorized RF-04 with baseline before migration.
 
 ## Contract
 
@@ -40,7 +40,7 @@ Increment 2: Account/session, shelf/history, detail/progress and PWA scripts/man
 
 Increment 3: Operations HTML composer stays in API Presentation; styles/script/header are embedded resources. All 28 focused tests and the original 22 complete output hashes PASS. New architecture guards bind Reader ownership and browser resources to API, forbid their return to Content. Candidate verification includes published fixture execution outside the checkout and same-runner before/after browser CI against frozen `1c258c3`.
 
-## Candidate local verification
+## Candidate local verification (before CI)
 
 16 individually editable resources are embedded in API; renderer C# contains page composition/Guid substitution, and migrated Content files are removed. No production dependency/static URL/schema/query change. Restore/Release Build 0 warnings/errors; Unit 660, Architecture 53, Contract 12 PASS. Integration 8 passed / 128 DockerUnavailable / 3 skips; local Runtime BLOCKED pending exact-SHA CI.
 
@@ -57,3 +57,15 @@ Final screenshot protocol moves pointer away, waits fonts/progress, then two ide
 Browser tools require Node 24, with Playwright 1.62.1, pngjs 7.0.0 and pixelmatch 7.1.0 pinned as dev-only dependencies. The PNG-byte gate correction is explicit; no production asset or frozen output expectation changed to make tests pass.
 
 Corrected local replay PASS: all four viewports, 40 screenshots, exact output/DOM/behavior and 450 samples per side; [settled before](../../docs/engineering/benchmarks/rf04/browser-settled-before.json) / [settled after](../../docs/engineering/benchmarks/rf04/browser-settled-after.json). Comparator 3 boundary tests and npm audit PASS. Initial validate (real integration/runtime) and consistency jobs passed; only browser gate failed. Full corrected-SHA CI remains required.
+
+## Acceptance
+
+All required jobs passed at exact candidate SHA `4ea9dd0170be7f17055f952f30611f4cf9348e37`: [CI 39797024080](https://github.com/nekohands/InkFlow/actions/runs/39797024080) (attempt 2, 3/3), [Docker 39797024019](https://github.com/nekohands/InkFlow/actions/runs/39797024019) (6/6), [Security 39797024110](https://github.com/nekohands/InkFlow/actions/runs/39797024110) (4/4). Attempt 1 reported workflow success while the consistency job/check remained in progress after every step completed; a targeted job rerun was requested to resolve that inconsistent terminal state. Attempt 2 reports all three jobs completed/success. No budget, assertion or production change accompanied that rerun.
+
+Restore/Release Build, Unit 660, Architecture 53, Contract 12 and migration drift 11/11 PASS. Real PostgreSQL Integration 136 passed / 3 skipped; configured Redis separately 1/1 PASS. Source-build Compose, Reader frontend/edge/account/content/navigation, Legado, failover, quality, private library, Developer/Admin/Operations, collection-package runtime, Core SLO, OTLP four-surface metrics and backup/restore PASS. Published-image Compose verification and all security scans PASS. The two opt-in live-source cases remain NOT RUN; Redis's default skip is covered by the configured run. Local Docker remains unavailable and is not counted as a local pass.
+
+Browser job evidence from successful attempt-1 browser validation: [Linux before](../../docs/engineering/benchmarks/rf04/browser-linux-before.json) / [Linux after](../../docs/engineering/benchmarks/rf04/browser-linux-after.json), Chromium 151.0.7922.34 / Playwright 1.62.1 / Node 24.21.0, Linux 7.0.0-1017-azure, AMD EPYC 7763, 4 logical CPUs. Same-runner frozen/candidate comparison: all 22 output manifests identical, four viewport behavior summaries and payload/DOM equal, all 40 screenshots have zero changed pixels, no uncaught JS errors; 450 samples per side retained. Timing is diagnostic, not a speedup claim. The original failed candidate and bounded antialiasing protocol above remain documented.
+
+Migration sequence: frozen baseline `1c258c3` -> Reader ownership/resources `3e050c9` -> Account/PWA `2d74a49` -> Operations/guards/CI `17ac880` -> capture correction `4ea9dd0`. Three renderer files plus resource loader now contain 761 C# lines versus the original 4,268 embedded-code lines; 16 assets are independently editable. This measures responsibility separation, not total code deletion or runtime acceleration. Content AST/pure rendering, contracts, queries, authentication and schemas remain unchanged.
+
+Wiki/human architecture, plan, verification, navigation, Progress/Handoff/profile and raw evidence synchronized. RF-04 structural acceptance has no remaining blocker; manual real-device/account/PWA installation/long-reading, live upstream and production acceptance remain open. RF-05 remains Planned and is not part of this delivery. Any documentation closeout commit must have its own CI/Docker/Security results checked; the candidate links above do not substitute for that SHA.

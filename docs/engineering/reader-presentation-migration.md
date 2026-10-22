@@ -1,6 +1,6 @@
 # RF-04 Reader 基线与展示层迁移
 
-状态：In Progress。基线提交 `9e9f9eb`。先建立行为与真实浏览器基线，再按 Reader、账户/PWA、Operations 顺序迁移到 API Presentation；当前已开始展示层迁移。
+状态：Accepted / Completed，验收实现 `4ea9dd0170be7f17055f952f30611f4cf9348e37`。基线提交 `9e9f9eb`；行为与真实浏览器基线先冻结于 `1c258c3`，再按 Reader、账户/PWA、Operations 顺序完成 API Presentation 迁移。
 
 目标是让 Content 只保留内容业务，把页面、会话/PWA 和浏览器资源放入 API 展示层，并将资源嵌入发布程序集。保持 SSR 输出（仅统一跨平台换行）、URL/DOM/字段/转义、内联资源、会话、缓存、状态码和安全头，不改变设计、数据库、协议、静态资源 URL 或认证方式；删除旧实现，不保留转发壳。
 
@@ -46,7 +46,7 @@ AI 权威记录：[RF-04 Wiki](../../repowiki/work-packages/2026-10-22-rf04-pres
 
 第三切片：Operations 头部/样式/脚本拆成嵌入资源，页面组合保留在 API Presentation；22 项原始完整输出哈希及 28 项定向测试通过。新增架构守卫固定归属，CI 将在同一 Linux runner 上发布并比较冻结 `1c258c3` 与候选版本的浏览器输出，避免跨系统字体差异。
 
-## 候选实现本地验证
+## 候选实现本地验证（首次 CI 前记录）
 
 Reader/账户/PWA/Operations 的 16 个资源文件已独立编辑并嵌入 API 程序集；C# 只保留页面组合与 Guid 数据替换，Content 中旧实现已删除。没有新增生产依赖、静态 URL、查询或 Migration。浏览器客户端继续使用同源 API 与当前 tab 的 sessionStorage；服务端授权独立执行。
 
@@ -75,3 +75,24 @@ payload/DOM 未改变，延迟差值含浏览器/系统波动，不据此宣称�
 测试工具要求 Node 24，Playwright 1.62.1 / pngjs 7.0.0 / pixelmatch 7.1.0 均锁定版本；它们不进入生产依赖。PNG 严格字节门禁的修订及其失败证据已保留，未修改生产资源或冻结输出期望来使测试通过。
 
 修正协议后的本地重跑已通过：四屏宽、40 张截图、22 项完整输出/DOM/行为和前后各 450 次采样。原始证据：[前测](benchmarks/rf04/browser-settled-before.json) / [后测](benchmarks/rf04/browser-settled-after.json)。比较器 3 项边界回归与 npm audit 通过；首轮 validate 的真实集成/运行时及一致性 Job 已通过，仅浏览器截图门禁失败。新提交须重跑完整门禁。
+
+## 最终验收
+
+验收实现 `4ea9dd0170be7f17055f952f30611f4cf9348e37` 的 [CI 39797024080](https://github.com/nekohands/InkFlow/actions/runs/39797024080)（attempt 2，3/3）、[Docker 39797024019](https://github.com/nekohands/InkFlow/actions/runs/39797024019)（6/6）、[Security 39797024110](https://github.com/nekohands/InkFlow/actions/runs/39797024110)（4/4）均已明确 completed/success。第一次执行的工作流已成功，但一致性 Job/check 在全部步骤成功后仍停留 in_progress；因此请求定向重跑该 Job，第二次记录中三个 Job 均成功。此次重跑没有修改预算、断言或生产代码。
+
+| 验证 | 结果 |
+| --- | --- |
+| Restore / Release Build | PASS，0 warning / 0 error |
+| Unit / Architecture / Contract | 660 / 53 / 12 项 PASS |
+| PostgreSQL Integration / Redis | 136 passed / 3 skipped；Redis 独立配置后 1/1 PASS |
+| Migration drift | 11/11 PASS |
+| Runtime | 源码 Compose、Reader frontend/edge/account/content/navigation、Legado、多源切换、质量、私库、Developer/Admin/Operations、采集包均 PASS |
+| SLO / OTLP / 备份 | Core SLO、四面指标、备份恢复 PASS |
+| 发布与安全 | 五个镜像构建/扫描/发布及发布镜像 Compose、四项 Security Job PASS |
+| 浏览器 | 22 项完整输出、四屏宽行为、payload/DOM 一致，40 张截图零像素差异，未捕获 JS 错误为 0 |
+
+Linux 原始浏览器证据来自 attempt 1 中已成功的浏览器 Job：[前测](benchmarks/rf04/browser-linux-before.json) / [后测](benchmarks/rf04/browser-linux-after.json)，前后各 450 次采样。环境为 Chromium 151.0.7922.34 / Playwright 1.62.1 / Node 24.21.0、Linux 7.0.0-1017-azure、AMD EPYC 7763 / 4 逻辑 CPU；旧版与候选在同一 runner 比较。延迟数据用于诊断，不据此宣称性能提升。首轮失败与截图协议修正保留在上节。
+
+提交顺序为基线 `1c258c3` → Reader `3e050c9` → 账户/PWA `2d74a49` → Operations/架构保护/CI `17ac880` → 截图协议修复 `4ea9dd0`。三个渲染器加资源加载器共 761 行 C#，原来混合内联资源的三个文件为 4,268 行；16 个资源可独立编辑。这是职责拆分，不代表总代码量减少或运行性能提升。
+
+Wiki、架构、方案、验证入口、Progress/Handoff/profile 及原始数据已同步。本包结构迁移无剩余验收阻塞。本机 Docker 缺失仍为本地限制，未将容器初始化失败算通过；两项可选真实源 NOT RUN，真实设备/账户、PWA 安装、长时间阅读及生产环境验收继续开放。RF-05 保持 Planned。本次验收后的文档收尾提交须另查其自身 CI/Docker/Security，不能沿用上述 SHA 的结果。

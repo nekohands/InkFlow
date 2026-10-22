@@ -5,13 +5,13 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-04 基线建立及展示层迁移进行中；RF-03 一致性性能优化已在 `0a6e641` 验收，所有候选 SHA 门禁通过；RF-02 一致性检查职责拆分与测量已在 `3a38ad1` 验收；RF-01 已验收，其他历史与真实环境待验收项继续保留。
+- 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 保持 Planned，历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
 ## RF-04 当前工作包
 
-In Progress。已建立 22 项完整输出快照与四种屏宽的真实浏览器基线，Reader、账户/PWA 与 Operations 已迁入 API Presentation，正在执行完整验收。验收范围与限制见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。
+Accepted / Completed at `4ea9dd0`。先冻结 22 项完整输出与四屏宽浏览器基线，再将 Reader、账户/PWA、Operations 及 16 个嵌入资源迁入 API Presentation，Content 旧实现已删除。CI 39797024080（attempt 2，3/3）、Docker 39797024019（6/6）、Security 39797024110（4/4）全部 Job 成功；Unit 660、Architecture 53、Contract 12，PostgreSQL Integration 136 passed / 3 skipped、Redis 1/1、Runtime/SLO/OTLP/备份均通过。Linux 40 张截图零像素差异，前后各 450 次采样。首次截图时序/抗锯齿噪声问题已修复并保留证据，未改生产输出或一致性预算。本机 Docker 仍不可用；人工设备/账户/PWA/长时间阅读等验收继续开放。详情见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。文档收尾 SHA 另行验证，RF-05 尚未实施。
 
 ## RF-03 前序工作包
 
@@ -50,7 +50,7 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 
 ## 3. 当前真实仓库状态
 
-### 当前工作包：RF-02 一致性检查职责拆分与测量（2026-10-22，Accepted / Completed）
+### 前序工作包：RF-02 一致性检查职责拆分与测量（2026-10-22，Accepted / Completed）
 
 - 用户授权按既定方案实施 RF-02；[中文实施与测量](../engineering/consistency-check-refactoring.md)、[Wiki 合同与证据](../../repowiki/work-packages/2026-10-22-rf02-consistency.md)。
 - 纯快照/报告、报告编排和四组规则迁入 Operations.Application；API 保留 EF 与枚举元数据转换，无新增跨模块依赖，46 处问题输出及查询实现保持不变。
