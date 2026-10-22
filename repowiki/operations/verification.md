@@ -54,3 +54,7 @@ distinct; `NOT RUN`/`BLOCKED` stay explicit. Live source verification is opt-in
 and separate from PR CI.
 
 RF-03 adds frozen performance/report-equivalence checks to the independent PostgreSQL measurement job. Version/environment mismatch fails and requires an explicit rebaseline; no automatic budget relaxation. See [RF-03](../work-packages/2026-10-22-rf03-consistency-performance.md).
+
+## Reader presentation equivalence (RF-04)
+
+22 canonical-LF output fixtures guard HTML/resources. `tools/InkFlow.ReaderFixtures` exports the real renderer; `tools/InkFlow.ReaderBrowser` runs isolated Playwright/Chromium against loopback API doubles (never real credentials). Four responsive viewports cover keyboard/focus/session/navigation/empty/error/offline/Operations; desktop short/long and 100/1k/10k TOC use 3 warmups, 30 samples, 3 rounds. CI `reader-browser` publishes frozen `1c258c3` and the candidate, executes outside the source checkout and compares exact output manifests, 40 screenshots and payload/DOM in the same environment. Test doubles do not replace existing real API/PG/Redis/runtime/header/auth gates. CSS 200% zoom is a reflow proxy; manual device/account/PWA installation/long-reading acceptance remains open. Evidence and commands: [RF-04](../work-packages/2026-10-22-rf04-presentation.md).

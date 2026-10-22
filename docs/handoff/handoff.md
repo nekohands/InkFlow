@@ -11,7 +11,7 @@
 
 ## RF-04 当前工作包
 
-In Progress。已建立 22 项完整输出快照与四种屏宽的真实浏览器基线，生产代码尚未迁移。验收范围与限制见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。
+In Progress。已建立 22 项完整输出快照与四种屏宽的真实浏览器基线，Reader、账户/PWA 与 Operations 已迁入 API Presentation，正在执行完整验收。验收范围与限制见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。
 
 ## RF-03 前序工作包
 

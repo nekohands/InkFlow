@@ -10,7 +10,7 @@
 
 ## RF-04 当前工作包
 
-In Progress。已建立 22 项完整输出快照与四种屏宽的真实浏览器基线，生产代码尚未迁移。验收范围与限制见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。
+In Progress。已建立 22 项完整输出快照与四种屏宽的真实浏览器基线，Reader、账户/PWA 与 Operations 已迁入 API Presentation，正在执行完整验收。验收范围与限制见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。
 
 ## RF-03 前序工作包
 
@@ -70,7 +70,7 @@ Phase 1A 自动化工作包状态：
 - 全量本地 Integration：8 通过、128 因 Docker 初始化不可用失败、3 跳过（两项可选真实源、一项 Redis 配置），本地 Runtime BLOCKED。修复候选 `f90e6bd658ecc657dc68e34b1936990a4ce99555` 的 [CI 39758029891](https://github.com/nekohands/InkFlow/actions/runs/39758029891)、[Docker 39758029869](https://github.com/nekohands/InkFlow/actions/runs/39758029869)、[Security 39758029837](https://github.com/nekohands/InkFlow/actions/runs/39758029837) 全部 Job 通过，head SHA 一致。
 - CI Integration 136 通过、3 跳过，Redis 独立配置后 1/1；业务 Runtime、SLO/OTLP、备份恢复均通过。两项可选真实源未运行，不在本包验收范围。
 - 四类约束未检出生产违规；已修复 internal 嵌套类型筛选漏检。Docker 原候选 `34cfa8f` 检出 Go 标准库 CVE-2026-111943，Collector Go 1.26.9 → 1.26.10 补丁已通过扫描/发布/拉取与 Runtime；ADR 0012 与安全/架构文档同步。业务、协议、Schema/Migration 不变。
-- RF-02 已验收；RF-03 当前状态见本文顶部，RF-04 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
+- RF-02 已验收；RF-03 当前状态见本文顶部，RF-04 当前状态见本文顶部，RF-05 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
 
 ### 前序工作包快照：模块化重构（2026-10-15，Batch 2 Pushed / Remote Gates Incomplete）
 

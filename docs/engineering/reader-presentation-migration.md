@@ -43,3 +43,25 @@ AI 权威记录：[RF-04 Wiki](../../repowiki/work-packages/2026-10-22-rf04-pres
 第一切片：基线已提交 `1c258c3`，重复浏览器验证 40 张截图完全一致。三个共享外壳的分部文件整体迁入 API Presentation，先拆出 Reader/共享外壳资源；完整输出哈希 22 项及定向测试 28 项通过。尚待账户/PWA、Operations 资源拆分和完整交付门禁。
 
 第二切片：账户、书架/历史、详情/进度与 PWA 脚本/Manifest/图标已独立为嵌入资源；进度模板只替换 Guid。完整输出哈希 22 项及定向测试 28 项通过。
+
+第三切片：Operations 头部/样式/脚本拆成嵌入资源，页面组合保留在 API Presentation；22 项原始完整输出哈希及 28 项定向测试通过。新增架构守卫固定归属，CI 将在同一 Linux runner 上发布并比较冻结 `1c258c3` 与候选版本的浏览器输出，避免跨系统字体差异。
+
+## 候选实现本地验证
+
+Reader/账户/PWA/Operations 的 16 个资源文件已独立编辑并嵌入 API 程序集；C# 只保留页面组合与 Guid 数据替换，Content 中旧实现已删除。没有新增生产依赖、静态 URL、查询或 Migration。浏览器客户端继续使用同源 API 与当前 tab 的 sessionStorage；服务端授权独立执行。
+
+Restore / Release Build PASS（0 warning / 0 error）；Unit 660、Architecture 53、Contract 12 PASS。全量 Integration 为 8 passed / 128 DockerUnavailable / 3 skipped，本机 Runtime BLOCKED，须由目标 SHA CI 补足。
+
+`dotnet publish tools/InkFlow.ReaderFixtures -c Release` 后切换到系统临时目录执行发布程序集，成功导出全部 22 项。迁移后四种屏宽行为、40 张截图、payload、DOM、全部输出哈希完全等价，无未捕获 JS 错误。后测 450 次原始样本见 [browser-after.json](benchmarks/rf04/browser-after.json)；截图与前测同哈希，不重复存储图片。
+
+| 输入 | 后测三轮 p50 范围 ms | 后测三轮 p95 范围 ms |
+| --- | ---: | ---: |
+| short | 48.4–48.6 | 50.5–65.5 |
+| long | 79.9–81.6 | 82.6–83.7 |
+| toc-100 | 65.0–65.2 | 66.2–66.3 |
+| toc-1000 | 114.9–130.8 | 148.7–163.1 |
+| toc-10000 | 248.7–263.9 | 331.4–385.9 |
+
+payload/DOM 未改变，延迟差值含浏览器/系统波动，不据此宣称提速。浏览器脚本的生产输出没有改动。所有新增 JavaScript 的 `node --check` 通过，测试依赖 npm audit 无已知漏洞。远端 CI/Docker/Security 仍待候选提交验证。
+
+迁移模型检查 11/11 通过；定向 ContentPolicy 集成测试复现 Docker named-pipe 不可用，未将本地 128 项容器初始化失败计为通过。

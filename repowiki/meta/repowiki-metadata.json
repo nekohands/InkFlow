@@ -469,12 +469,12 @@
         "../../src/Apps/InkFlow.Api/AuditedResult.cs",
         "../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs",
         "../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs",
+        "../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.Operations.cs",
+        "../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.UserPages.cs",
+        "../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.cs",
         "../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/MessagingStore.cs",
         "../../src/Modules/InkFlow.Modules.Content/Application/BookPackageService.cs",
         "../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs",
-        "../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.Operations.cs",
-        "../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.UserPages.cs",
-        "../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.cs",
         "../../src/Modules/InkFlow.Modules.Crawling/Application/CrawlerTaskProcessor.cs",
         "../../src/Modules/InkFlow.Modules.Reading/Application/ReadingStateService.cs",
         "../../src/Modules/InkFlow.Modules.Sources/Application/RuleAdapter.cs",
@@ -490,7 +490,8 @@
         "../operations/verification.md",
         "2026-10-15-module-refactor.md",
         "2026-10-22-rf02-consistency.md",
-        "2026-10-22-rf03-consistency-performance.md"
+        "2026-10-22-rf03-consistency-performance.md",
+        "2026-10-22-rf04-presentation.md"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"

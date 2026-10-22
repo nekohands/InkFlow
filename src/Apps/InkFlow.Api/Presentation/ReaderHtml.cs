@@ -9,7 +9,7 @@ namespace InkFlow.Api.Presentation;
 /// <summary>
 /// Web Reader v1 的服务端 HTML 渲染(纯函数,便于离线测试)。
 /// 页面流:搜索/书目 → 书详情(含"开始阅读") → 目录 → 正文 + 上一章/下一章。
-/// 阅读设置只保存在当前设备的 localStorage;正文仍只读取已落库的 Canonical Content。
+/// 阅读设置保存在当前设备并同步账户偏好;正文只读取已落库的 Canonical Content。
 /// </summary>
 public static partial class ReaderHtml
 {

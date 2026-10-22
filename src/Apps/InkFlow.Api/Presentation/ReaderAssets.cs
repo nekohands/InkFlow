@@ -18,6 +18,10 @@ internal static class ReaderAssets
     internal static readonly string ProgressScript = Script("reader-progress.js");
     internal static readonly string Tail = ReaderAccountScript + ReaderDashboardScript + ReaderPwaScript + "</body></html>";
 
+    internal static readonly string OperationsHeader = Read("operations-header.html");
+    internal static readonly string OperationsStyles = "<style>\n" + Read("operations.css") + "\n</style>";
+    internal static readonly string OperationsScript = Script("operations.js");
+
     private static string Script(string name) => "<script>\n" + Read(name) + "\n</script>";
 
     private static string Read(string name)

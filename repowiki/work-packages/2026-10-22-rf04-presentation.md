@@ -37,3 +37,13 @@ Operations confirmation pre-fills a suggested reason; blank validation explicitl
 Increment 1: baseline frozen at `1c258c3`; repeat browser run matched all 40 screenshots. The three partial files share shell members and move ownership atomically to API Presentation; Reader/shared shell assets are extracted first. 22 complete output hashes and all 28 focused tests PASS. No routes, protocols or business queries changed.
 
 Increment 2: Account/session, shelf/history, detail/progress and PWA scripts/manifest/icon are embedded resources; Guid-only progress substitutions preserve escaped HTML and exact output. 28 focused tests including 22 frozen output hashes PASS.
+
+Increment 3: Operations HTML composer stays in API Presentation; styles/script/header are embedded resources. All 28 focused tests and the original 22 complete output hashes PASS. New architecture guards bind Reader ownership and browser resources to API, forbid their return to Content. Candidate verification includes published fixture execution outside the checkout and same-runner before/after browser CI against frozen `1c258c3`.
+
+## Candidate local verification
+
+16 individually editable resources are embedded in API; renderer C# contains page composition/Guid substitution, and migrated Content files are removed. No production dependency/static URL/schema/query change. Restore/Release Build 0 warnings/errors; Unit 660, Architecture 53, Contract 12 PASS. Integration 8 passed / 128 DockerUnavailable / 3 skips; local Runtime BLOCKED pending exact-SHA CI.
+
+Published fixture assembly executed from system temp directory exports 22 cases. Before/after output hashes, 40 PNG hashes, four viewport behavior summaries, payload and DOM are identical; no uncaught JS errors. [After raw 450 samples](../../docs/engineering/benchmarks/rf04/browser-after.json); same screenshots as the archived baseline. Timing differences include browser/system noise and are not a claimed speedup. All extracted JS syntax checks and npm dependency audit PASS. Full remote gates pending.
+
+Migration drift check PASS for all 11 contexts. A focused ContentPolicy persistence test reproduced the local Docker named-pipe failure; the 128 integration failures are not treated as passes.

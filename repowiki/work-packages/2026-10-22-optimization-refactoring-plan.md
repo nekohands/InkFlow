@@ -4,7 +4,7 @@ Audience: Agent-only.
 Agent read instruction: Read before assessing or implementing the 2026-10-22 optimization/refactoring plan; distinguish verified baseline facts from proposed changes and preserve the historical module-refactor record.
 Scope: evidence-based assessment, responsibility ownership, ordered work packages, measurement, regression and rollback criteria; documentation only in this delivery.
 ID: optimization-refactoring-plan-2026-10-22
-Status: RF-00 preserved in `df6c701`; RF-01 Accepted / Completed at `f90e6bd`; RF-02 Accepted at `3a38ad1`; RF-03 Accepted at `0a6e641`; RF-04 and later remain Planned.
+Status: RF-00 preserved in `df6c701`; RF-01 Accepted / Completed at `f90e6bd`; RF-02 Accepted at `3a38ad1`; RF-03 Accepted at `0a6e641`; RF-04 is In Progress; RF-05 and later remain Planned.
 Owner: InkFlow maintainers.
 Authorization: explicit user request on 2026-10-22, “优化重构项目, 先出文档”; the follow-up “继续” continues this documentation-first scope. Previous package instructions to implement/commit/push do not expand this request.
 Subsequent authorization: “继续，按方案开始实施，先做 RF-01 架构保护网。” explicitly starts [RF-01](2026-10-22-rf01-architecture-guards.md), including its candidate-commit/CI gates. The documentation-only authorization and baseline below describe RF-00's original delivery, not a restriction on RF-01.
@@ -124,7 +124,7 @@ implementation and gates are recorded in [its package](2026-10-22-rf01-architect
 - [Chinese plan](../../docs/engineering/optimization-refactoring-plan-2026-10-22.md), [architecture invariants](../architecture.md), [verification gates](../operations/verification.md), [previous package](2026-10-15-module-refactor.md).
 - [Architecture smoke](../../tests/InkFlow.ArchitectureTests/ModuleBoundarySmokeTests.cs).
 - [RuleAdapter](../../src/Modules/InkFlow.Modules.Sources/Application/RuleAdapter.cs), [CrawlerTaskProcessor](../../src/Modules/InkFlow.Modules.Crawling/Application/CrawlerTaskProcessor.cs), [ReadingStateService](../../src/Modules/InkFlow.Modules.Reading/Application/ReadingStateService.cs), [CatalogQueryService](../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs), [BookPackageService](../../src/Modules/InkFlow.Modules.Content/Application/BookPackageService.cs).
-- [ReaderHtml](../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.cs), [UserPages](../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.UserPages.cs), [Operations page](../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.Operations.cs), [ReaderHtml tests](../../tests/InkFlow.UnitTests/ReaderHtmlTests.cs), [frontend design](../../docs/engineering/frontend-design.md).
+- [ReaderHtml](../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.cs), [UserPages](../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.UserPages.cs), [Operations page](../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.Operations.cs), [ReaderHtml tests](../../tests/InkFlow.UnitTests/ReaderHtmlTests.cs), [frontend design](../../docs/engineering/frontend-design.md).
 - [Consistency implementation](../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs), [Unit](../../tests/InkFlow.UnitTests/ConsistencyCheckTests.cs), [Integration](../../tests/InkFlow.IntegrationTests/ConsistencyCheckIntegrationTests.cs).
 - [Developer endpoints](../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs), [AuditedResult](../../src/Apps/InkFlow.Api/AuditedResult.cs), [Developer Contract](../../tests/InkFlow.ContractTests/DeveloperApiContractReleaseGateTests.cs).
 - [MessagingStore](../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/MessagingStore.cs), [Messaging integration](../../tests/InkFlow.IntegrationTests/MessagingPersistenceTests.cs), [DSL validator](../../src/Modules/InkFlow.Modules.Sources/Domain/SourceRuleDslValidator.cs), [XPath evaluator](../../src/Modules/InkFlow.Modules.Sources/Infrastructure/HtmlXPathSelectorEvaluator.cs).
@@ -132,4 +132,6 @@ implementation and gates are recorded in [its package](2026-10-22-rf01-architect
 
 RF-02 is now Accepted at `3a38ad1` following explicit user authorization and all required gates; see [RF-02](2026-10-22-rf02-consistency.md). The original findings above describe the pre-refactor baseline.
 
-RF-03 is Accepted at `0a6e641` after explicit authorization: fresh baselines and frozen targets precede production optimization. See [RF-03](2026-10-22-rf03-consistency-performance.md). RF-04/05 remain Planned.
+RF-03 is Accepted at `0a6e641` after explicit authorization: fresh baselines and frozen targets precede production optimization. See [RF-03](2026-10-22-rf03-consistency-performance.md). RF-04 is In Progress; RF-05 remains Planned.
+
+RF-04 implementation is now tracked in [presentation ownership](2026-10-22-rf04-presentation.md). F-02 is the original intake observation; links now navigate to the migrated API renderer.

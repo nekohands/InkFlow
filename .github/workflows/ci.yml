@@ -11,6 +11,48 @@ permissions:
   contents: read
 
 jobs:
+  reader-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Publish frozen and candidate renderers outside the checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline=1c258c3a5c1b18eaec080397ce8d5f17a7f8c95b
+          git fetch --depth=1 origin "$baseline"
+          git worktree add --detach "$RUNNER_TEMP/reader-baseline-source" "$baseline"
+          dotnet publish "$RUNNER_TEMP/reader-baseline-source/tools/InkFlow.ReaderFixtures" -c Release -o "$RUNNER_TEMP/reader-before-host"
+          dotnet publish tools/InkFlow.ReaderFixtures -c Release -o "$RUNNER_TEMP/reader-after-host"
+          cd "$RUNNER_TEMP"
+          dotnet reader-before-host/InkFlow.ReaderFixtures.dll "$GITHUB_WORKSPACE/artifacts/reader/before"
+          dotnet reader-after-host/InkFlow.ReaderFixtures.dll "$GITHUB_WORKSPACE/artifacts/reader/after"
+          diff "$GITHUB_WORKSPACE/artifacts/reader/before/manifest.json" "$GITHUB_WORKSPACE/artifacts/reader/after/manifest.json"
+      - name: Install and audit browser test dependencies
+        working-directory: tools/InkFlow.ReaderBrowser
+        run: |
+          npm ci --ignore-scripts --registry=https://registry.npmjs.org
+          npm audit --audit-level=high --registry=https://registry.npmjs.org
+          npx playwright install --with-deps chromium
+      - name: Compare browser behavior, screenshots, payload and DOM
+        run: |
+          node tools/InkFlow.ReaderBrowser/verify.cjs artifacts/reader/before artifacts/reader/browser-before
+          node tools/InkFlow.ReaderBrowser/verify.cjs artifacts/reader/after artifacts/reader/browser-after artifacts/reader/browser-before
+      - name: Upload Reader browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reader-browser-evidence
+          path: artifacts/reader/
+          if-no-files-found: error
+          retention-days: 30
   consistency-measurement:
     runs-on: ubuntu-latest
     timeout-minutes: 20
