@@ -1,3 +1,4 @@
+using InkFlow.Modules.Operations.Application;
 using InkFlow.Api;
 using InkFlow.Modules.Crawling.Domain;
 using InkFlow.Modules.Library.Domain;
@@ -62,7 +63,7 @@ public sealed class ConsistencyCheckTests
 
         var service = new ConsistencyCheckService(
             new FixedSnapshotReader(snapshot),
-            new FixedClock(T0));
+            new FixedClock(T0), ConsistencyDomainValues.Current);
 
         var report = await service.CheckAsync();
 
@@ -127,7 +128,7 @@ public sealed class ConsistencyCheckTests
 
         var report = await new ConsistencyCheckService(
             new FixedSnapshotReader(snapshot),
-            new FixedClock(T0)).CheckAsync();
+            new FixedClock(T0), ConsistencyDomainValues.Current).CheckAsync();
         var codes = report.Issues.Select(issue => issue.Code).ToHashSet(StringComparer.Ordinal);
 
         Assert.IsFalse(report.IsHealthy);
@@ -164,7 +165,7 @@ public sealed class ConsistencyCheckTests
 
         var report = await new ConsistencyCheckService(
             new FixedSnapshotReader(snapshot),
-            new FixedClock(T0)).CheckAsync();
+            new FixedClock(T0), ConsistencyDomainValues.Current).CheckAsync();
 
         Assert.AreEqual(ConsistencyCheckService.MaxReturnedIssues + 1, report.TotalIssueCount);
         Assert.AreEqual(ConsistencyCheckService.MaxReturnedIssues, report.ReturnedIssueCount);

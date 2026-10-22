@@ -1,3 +1,4 @@
+using InkFlow.Modules.Operations.Application;
 using DotNet.Testcontainers.Images;
 using InkFlow.Api;
 using InkFlow.Modules.Content.Infrastructure.Persistence;
@@ -94,7 +95,7 @@ public sealed class ConsistencyCheckIntegrationTests
 
         var service = new ConsistencyCheckService(
             new FixedSnapshotReader(snapshot),
-            new FixedClock(T0));
+            new FixedClock(T0), ConsistencyDomainValues.Current);
 
         var report = await service.CheckAsync().ConfigureAwait(false);
 

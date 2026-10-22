@@ -60,7 +60,7 @@ RF-00 原交付范围仅为方案、索引和交付状态文档。用户随后�
 | --- | --- | --- | --- |
 | F-01 | [ModuleBoundarySmokeTests](../../tests/InkFlow.ArchitectureTests/ModuleBoundarySmokeTests.cs) 只有程序集加载测试，注释中的真实分层约束尚未实现 | P0：现有 Architecture GREEN 不能证明 Domain、Host 和跨模块持久化边界受到自动保护 | RF-01 增加可检出非法依赖的测试 |
 | F-02 | [ReaderHtml.cs](../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.cs)、[UserPages](../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.UserPages.cs)、[Operations](../../src/Modules/InkFlow.Modules.Content/Application/ReaderHtml.Operations.cs) 分别 1,135 / 1,197 / 1,936 行，共 4,268 行；HTML、CSS、JS、会话和 PWA 行为放在 Content.Application | P1：展示职责与内容业务同模块，修改及测试定位成本高；不是已测得的浏览器性能故障 | RF-04 明确展示所有权，保持输出行为 |
-| F-03 | [ConsistencyCheck.cs](../../src/Apps/InkFlow.Api/ConsistencyCheck.cs) 共 881 行，含快照 DTO、服务、纯规则和 EF 适配器；读取 13 组完整元数据集合，再生成全部问题，最后 `Take(1000)` | P1：响应上限没有约束输入快照及问题中间集合；规模风险已定位，生产延迟/内存影响尚未测量 | RF-02 分离职责并建立基准，RF-03 按证据优化 |
+| F-03 | [ConsistencyCheck.cs](../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs) 共 881 行，含快照 DTO、服务、纯规则和 EF 适配器；读取 13 组完整元数据集合，再生成全部问题，最后 `Take(1000)` | P1：响应上限没有约束输入快照及问题中间集合；规模风险已定位，生产延迟/内存影响尚未测量 | RF-02 分离职责并建立基准，RF-03 按证据优化 |
 | F-04 | [DeveloperEndpoints.cs](../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs) 共 904 行，混合自助管理、管理员套餐操作、外部只读目录、DTO、配额结果和审计 | P1：三类调用者的策略容易在修改时交叉；当前已存在配额公共 helper | RF-05 按协议/使用场景整理，复用既有 helper |
 | F-05 | [MessagingStore.cs](../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/MessagingStore.cs) 共 826 行，同一实现承载 Outbox、Inbox、传输、死信查询和 retention 五个接口 | P2 候选：职责集中，但事务/租约风险高；行数不能证明需要拆分 | RF-06 先验证改动收益和真实 PostgreSQL 回归能力 |
 | F-06 | [SourceRuleDslValidator](../../src/Modules/InkFlow.Modules.Sources/Domain/SourceRuleDslValidator.cs) 883 行；[HtmlXPathSelectorEvaluator](../../src/Modules/InkFlow.Modules.Sources/Infrastructure/HtmlXPathSelectorEvaluator.cs) 870 行 | P2 候选：复杂度部分来自真实安全约束；DSL 已委托分页校验，选择器语言已经分离 | 保留安全边界；只有重复规则或定位成本得到证据支持才继续整理 |
@@ -211,3 +211,5 @@ dotnet test InkFlow.sln -c Release
 | 已处理问题 | 当前状态入口与代码基线不一致的问题；F-01–F-06 的代码问题/候选项尚未实施 |
 | Commit | 未新增；代码基线 `ca15cadbe1df97adf99150df0c9d3d7bc95e32af` |
 | 下一步 | 评审本方案；后续启动 RF-01，以可失败的架构约束和合法依赖清单作为第一批交付 |
+
+RF-02 is now In Progress following explicit user authorization; see [RF-02](consistency-check-refactoring.md). The original findings above describe the pre-refactor baseline.

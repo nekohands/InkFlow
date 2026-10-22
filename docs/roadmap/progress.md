@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-01 架构保护网已在 `f90e6bd` 验收完成；后续工作包为 Planned，历史与真实环境待验收项继续保留。
+- 文档状态：RF-02 一致性检查职责拆分与测量 In Progress；RF-01 已验收，其他历史与真实环境待验收项继续保留。
 - 最后更新日期：2026-10-22
 
 ## 1. 总体状态
@@ -212,3 +212,7 @@ Official Source
 禁止把 `Implemented` 当作 `Completed`；CI Pending/Red 时不得声称已验收；修改代码后必须重新执行适用 Gate。
 
 完整流程见 `../engineering/development-workflow.md`。
+
+## RF-02 当前工作包（2026-10-22）
+
+[实施记录](../engineering/consistency-check-refactoring.md)：行为固定测试与职责拆分已实现，测量和完整门禁进行中；当前不标记 Completed。无 Schema、API JSON、权限或查询隔离变更。

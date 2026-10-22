@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-01 架构保护网已在 `f90e6bd` 验收完成；后续工作包为 Planned，历史与真实环境待验收项继续保留。
+- 文档状态：RF-02 一致性检查职责拆分与测量 In Progress；RF-01 已验收，其他历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
@@ -225,3 +225,7 @@ Phase 2 及以后：
 - [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证、有界响应派生变量、来源级默认 CredentialReference 回退、Administrator-only 默认绑定管理 API 和 Owner Scope 解析契约；secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。
+
+## RF-02 当前工作包（2026-10-22）
+
+[实施记录](../engineering/consistency-check-refactoring.md)：行为固定测试与职责拆分已实现，测量和完整门禁进行中；当前不标记 Completed。无 Schema、API JSON、权限或查询隔离变更。

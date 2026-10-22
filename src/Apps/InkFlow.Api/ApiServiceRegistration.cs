@@ -281,6 +281,7 @@ public static class ApiServiceRegistration
         builder.Services.AddScoped<IBookPackageJobRepository, EfBookPackageJobRepository>();
         builder.Services.AddScoped<BookPackageService>();
         builder.Services.AddScoped<IConsistencySnapshotReader, EfConsistencySnapshotReader>();
+        builder.Services.AddSingleton(ConsistencyDomainValues.Current);
         builder.Services.AddScoped<IConsistencyCheckService, ConsistencyCheckService>();
         builder.Services.AddScoped<IOperationsCenterReader, OperationsCenterReader>();
         builder.Services.AddSingleton(

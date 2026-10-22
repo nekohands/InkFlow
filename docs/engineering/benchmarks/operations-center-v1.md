@@ -84,7 +84,7 @@
 - `src/Apps/InkFlow.Api/SourceHealthEndpoints.cs:9-96` — 来源能力命令、理由规范化与审计结果。
 - `src/Apps/InkFlow.Api/ContentPolicyEndpoints.cs:1-66` — 下架/恢复理由与命令审计。
 - `src/Modules/InkFlow.Modules.Sources/Domain/SourceCapabilityHealth.cs:3-11, 110-111, 210-224` — 来源健康状态和恢复语义。
-- `src/Apps/InkFlow.Api/ConsistencyCheck.cs:126-134` — 一致性报告字段与健康判定。
+- `src/Modules/InkFlow.Modules.Operations/Application/Consistency/ConsistencyContracts.cs` — 一致性报告字段与健康判定。
 - `docs/architecture/architecture.md:94-100` — 任务、Repair/Replay、Operations Center 的架构不变量。
 - `docs/architecture/security-model.md:30-38, 109-115` — 角色策略、理由、审计和敏感数据边界。
 - `docs/engineering/frontend-design.md:1-8, 14-16, 20, 26, 30, 40` — 状态设计、WCAG 2.2 AA、错误/空状态、响应式与 UI 验收要求。

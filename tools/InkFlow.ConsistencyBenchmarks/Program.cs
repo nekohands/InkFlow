@@ -1,3 +1,4 @@
+using InkFlow.Modules.Operations.Application;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -5,6 +6,11 @@ using System.Text.Json;
 using InkFlow.Api;
 using InkFlow.ConsistencyFixtures;
 
+if (args.Contains("--postgres", StringComparer.Ordinal))
+{
+    await PostgreSqlMeasurement.RunAsync(args[0]);
+    return;
+}
 var output = args.Length > 0 ? args[0] : "artifacts/consistency/rules.json";
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
 var measurements = new List<object>();
@@ -12,8 +18,8 @@ foreach (var size in new[] { 0, 1_000, 10_000, 100_000 })
 foreach (var corrupt in new[] { false, true })
 {
     var snapshot = ConsistencyFixture.Create(size, corrupt);
-    var service = new ConsistencyCheckService(new ConsistencyFixture.Reader(snapshot), new ConsistencyFixture.Clock());
-    var completeHash = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(ConsistencyCheckValidator.Validate(snapshot))));
+    var service = new ConsistencyCheckService(new ConsistencyFixture.Reader(snapshot), new ConsistencyFixture.Clock(), ConsistencyDomainValues.Current);
+    var completeHash = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(ConsistencyCheckValidator.Validate(snapshot, ConsistencyDomainValues.Current))));
     var report = await service.CheckAsync();
     var reportHash = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(report)));
     for (var round = 1; round <= 3; round++)

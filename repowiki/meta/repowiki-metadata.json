@@ -466,8 +466,8 @@
         "../../docs/handoff/handoff.md",
         "../../docs/roadmap/progress.md",
         "../../src/Apps/InkFlow.Api/AuditedResult.cs",
-        "../../src/Apps/InkFlow.Api/ConsistencyCheck.cs",
         "../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs",
+        "../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs",
         "../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/MessagingStore.cs",
         "../../src/Modules/InkFlow.Modules.Content/Application/BookPackageService.cs",
         "../../src/Modules/InkFlow.Modules.Content/Application/CatalogQueryService.cs",
@@ -487,7 +487,8 @@
         "../../tests/InkFlow.UnitTests/ReaderHtmlTests.cs",
         "../architecture.md",
         "../operations/verification.md",
-        "2026-10-15-module-refactor.md"
+        "2026-10-15-module-refactor.md",
+        "2026-10-22-rf02-consistency.md"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"
@@ -514,6 +515,23 @@
         "artifacts/rf01-tests/",
         "npipe://./pipe/docker_engine",
         "scripts/verify-migrations.sh"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-22-rf02-consistency.md",
+      "title": "RF-02 — consistency responsibilities and measurement",
+      "kind": "topic",
+      "scope": "pure consistency contracts/service/rules in Operations, EF and enum metadata adaptation in API, characterization and reproducible baseline.",
+      "sources": [
+        "../../.github/workflows/ci.yml",
+        "../../src/Apps/InkFlow.Api/ConsistencyDomainValues.cs",
+        "../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs",
+        "../../src/Modules/InkFlow.Modules.Operations/Application/Consistency/",
+        "../../tests/InkFlow.IntegrationTests/ConsistencyCheckIntegrationTests.cs",
+        "../../tests/InkFlow.UnitTests/ConsistencyCharacterizationTests.cs",
+        "../../tools/InkFlow.ConsistencyBenchmarks/"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"
@@ -673,6 +691,11 @@
       "type": "PARENT_CHILD",
       "parent": "work-packages/README.md",
       "child": "work-packages/2026-10-22-rf01-architecture-guards.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-22-rf02-consistency.md"
     }
   ]
 }

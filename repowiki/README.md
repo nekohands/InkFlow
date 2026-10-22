@@ -32,9 +32,9 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
   archives completed/superseded progress, handoff and profile blocks into the
   existing docs histories, preserves pending acceptance items, and updates host
   navigation; the current package below supersedes the old no-active-work state.
-- Current work package: [RF-01 architecture guards](work-packages/2026-10-22-rf01-architecture-guards.md),
+- Previous accepted work package: [RF-01 architecture guards](work-packages/2026-10-22-rf01-architecture-guards.md),
   Accepted / Completed at implementation SHA `f90e6bd` after all exact-SHA
-  CI/Docker/Security jobs passed. Later packages remain Planned.
+  CI/Docker/Security jobs passed. RF-02 is now In Progress; RF-03 and later remain Planned.
   The [module refactor](work-packages/2026-10-15-module-refactor.md) preserves its
   historical checkpoint; current source has advanced beyond its Batch 2 record.
 - Required project gates: Restore, Release Build, affected Unit/Architecture/
@@ -51,7 +51,9 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Current work: [RF-01 architecture guards](work-packages/2026-10-22-rf01-architecture-guards.md), Accepted / Completed at `f90e6bd658ecc657dc68e34b1936990a4ce99555`. CI `39758029891`, Docker `39758029869` and Security `39758029837` passed every required job at that SHA. Architecture 51/51, Unit 648/648, Contract 12/12, Release Restore/Build and migration model 11/11 passed. CI Integration: 136 passed / 3 skipped, configured Redis separately 1/1; runtime/SLO/OTLP and backup/restore passed. Local Integration remains 8 passed / 128 DockerUnavailable failures / 3 skips. The original `34cfa8f` Docker HIGH finding was fixed by the minimal Collector Go 1.26.10 patch. Human guide: [架构保护网](../docs/engineering/architecture-guards.md). RF-00 is preserved in `df6c701`; RF-02 and later remain Planned, and existing live/manual/production acceptance stays open.
+Active: [RF-02 consistency responsibilities and measurement](work-packages/2026-10-22-rf02-consistency.md), In Progress. Full gates and measurements are pending. The RF-01 evidence below is historical and does not substitute for RF-02 validation.
+
+Previous work: [RF-01 architecture guards](work-packages/2026-10-22-rf01-architecture-guards.md), Accepted / Completed at `f90e6bd658ecc657dc68e34b1936990a4ce99555`. CI `39758029891`, Docker `39758029869` and Security `39758029837` passed every required job at that SHA. Architecture 51/51, Unit 648/648, Contract 12/12, Release Restore/Build and migration model 11/11 passed. CI Integration: 136 passed / 3 skipped, configured Redis separately 1/1; runtime/SLO/OTLP and backup/restore passed. Local Integration remains 8 passed / 128 DockerUnavailable failures / 3 skips. The original `34cfa8f` Docker HIGH finding was fixed by the minimal Collector Go 1.26.10 patch. Human guide: [架构保护网](../docs/engineering/architecture-guards.md). RF-00 is preserved in `df6c701`; RF-03 and later remain Planned, and existing live/manual/production acceptance stays open.
 
 Baseline rechecked on 2026-10-22: `dev` at `ca15cadbe1df97adf99150df0c9d3d7bc95e32af`; exact-SHA CI `39240297876`, Docker `39240297898` and Security `39240298102` all completed successfully. This is baseline evidence, not RF-01 CI or acceptance of all previous batches. The old Collector failure is historical. RF-01 rechecked local Docker: command absent and Testcontainers could not connect to `npipe://./pipe/docker_engine`. See the current package for findings and gate evidence.
 
@@ -128,6 +130,7 @@ Navigation is grouped by RepoWiki folder; topic pages retain their own source ci
   - [Project simplification — host composition and audited responses](work-packages/2026-10-15-project-simplification.md)
   - [Optimization and refactoring plan — documentation first](work-packages/2026-10-22-optimization-refactoring-plan.md) — evidence-based assessment, responsibility ownership, ordered work packages, measurement, regression and rollback criteria; documentation only in this delivery.
   - [RF-01 — executable architecture guards](work-packages/2026-10-22-rf01-architecture-guards.md) — architecture-test guards, explicit module inventory, negative/positive fixtures and synchronized documentation; minimal Collector Go patch required by the mandatory Docker gate.
+  - [RF-02 — consistency responsibilities and measurement](work-packages/2026-10-22-rf02-consistency.md) — pure consistency contracts/service/rules in Operations, EF and enum metadata adaptation in API, characterization and reproducible baseline.
 - [Architecture](architecture.md) — binding invariants, dependency direction, data consistency, and source
 
 Catalog metadata: [meta/repowiki-metadata.json](meta/repowiki-metadata.json)

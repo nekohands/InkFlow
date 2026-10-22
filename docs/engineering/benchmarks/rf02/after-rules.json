@@ -1,0 +1,3900 @@
+{
+  "mode": "rules-only",
+  "framework": ".NET 10.0.13",
+  "os": "Microsoft Windows 10.0.26300",
+  "cpuCount": 32,
+  "warmups": 3,
+  "samplesPerRound": 30,
+  "rounds": 3,
+  "concurrency": 1,
+  "measurements": [
+    {
+      "size": 0,
+      "corrupt": false,
+      "round": 1,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 0.0637,
+      "p95": 0.1838,
+      "samples": [
+        {
+          "milliseconds": 0.0144,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33103872
+        },
+        {
+          "milliseconds": 0.0482,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33173504
+        },
+        {
+          "milliseconds": 0.1003,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33181696
+        },
+        {
+          "milliseconds": 0.0485,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33181696
+        },
+        {
+          "milliseconds": 0.0482,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33189888
+        },
+        {
+          "milliseconds": 0.0554,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33198080
+        },
+        {
+          "milliseconds": 0.108,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33198080
+        },
+        {
+          "milliseconds": 0.0483,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33206272
+        },
+        {
+          "milliseconds": 0.0547,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33214464
+        },
+        {
+          "milliseconds": 0.1431,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33214464
+        },
+        {
+          "milliseconds": 0.0541,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33218560
+        },
+        {
+          "milliseconds": 0.0637,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33226752
+        },
+        {
+          "milliseconds": 0.1726,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33345536
+        },
+        {
+          "milliseconds": 0.0652,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33447936
+        },
+        {
+          "milliseconds": 0.0736,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33513472
+        },
+        {
+          "milliseconds": 0.1838,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33550336
+        },
+        {
+          "milliseconds": 0.1306,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33878016
+        },
+        {
+          "milliseconds": 0.1915,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33964032
+        },
+        {
+          "milliseconds": 0.1612,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33992704
+        },
+        {
+          "milliseconds": 0.0466,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 33992704
+        },
+        {
+          "milliseconds": 0.0562,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34086912
+        },
+        {
+          "milliseconds": 0.128,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34091008
+        },
+        {
+          "milliseconds": 0.1045,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34226176
+        },
+        {
+          "milliseconds": 0.078,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34234368
+        },
+        {
+          "milliseconds": 0.1263,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34246656
+        },
+        {
+          "milliseconds": 0.0455,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34246656
+        },
+        {
+          "milliseconds": 0.0436,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34254848
+        },
+        {
+          "milliseconds": 0.1408,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34263040
+        },
+        {
+          "milliseconds": 0.0475,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34263040
+        },
+        {
+          "milliseconds": 0.0547,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 34271232
+        }
+      ]
+    },
+    {
+      "size": 0,
+      "corrupt": false,
+      "round": 2,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 0.0512,
+      "p95": 0.1723,
+      "samples": [
+        {
+          "milliseconds": 0.0036,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36392960
+        },
+        {
+          "milliseconds": 0.0486,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36397056
+        },
+        {
+          "milliseconds": 0.0522,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36397056
+        },
+        {
+          "milliseconds": 0.1314,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36405248
+        },
+        {
+          "milliseconds": 0.0534,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36417536
+        },
+        {
+          "milliseconds": 0.0467,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36417536
+        },
+        {
+          "milliseconds": 0.0431,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36425728
+        },
+        {
+          "milliseconds": 0.1723,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36438016
+        },
+        {
+          "milliseconds": 0.0521,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36438016
+        },
+        {
+          "milliseconds": 0.0708,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36446208
+        },
+        {
+          "milliseconds": 0.096,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36454400
+        },
+        {
+          "milliseconds": 0.0512,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36462592
+        },
+        {
+          "milliseconds": 0.0641,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36462592
+        },
+        {
+          "milliseconds": 0.1745,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36466688
+        },
+        {
+          "milliseconds": 0.0436,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36700160
+        },
+        {
+          "milliseconds": 0.0447,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 36855808
+        },
+        {
+          "milliseconds": 0.0418,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37191680
+        },
+        {
+          "milliseconds": 0.1159,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37699584
+        },
+        {
+          "milliseconds": 0.0411,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37765120
+        },
+        {
+          "milliseconds": 0.1479,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37773312
+        },
+        {
+          "milliseconds": 0.0415,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37781504
+        },
+        {
+          "milliseconds": 0.0945,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37781504
+        },
+        {
+          "milliseconds": 0.0582,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37789696
+        },
+        {
+          "milliseconds": 0.0411,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37797888
+        },
+        {
+          "milliseconds": 0.037,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37797888
+        },
+        {
+          "milliseconds": 0.0378,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37801984
+        },
+        {
+          "milliseconds": 0.1625,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37810176
+        },
+        {
+          "milliseconds": 0.0439,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37810176
+        },
+        {
+          "milliseconds": 0.038,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37822464
+        },
+        {
+          "milliseconds": 0.0556,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37830656
+        }
+      ]
+    },
+    {
+      "size": 0,
+      "corrupt": false,
+      "round": 3,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 0.0369,
+      "p95": 0.1769,
+      "samples": [
+        {
+          "milliseconds": 0.0038,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37842944
+        },
+        {
+          "milliseconds": 0.0423,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37851136
+        },
+        {
+          "milliseconds": 0.0568,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 37916672
+        },
+        {
+          "milliseconds": 0.0699,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38064128
+        },
+        {
+          "milliseconds": 0.1794,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38166528
+        },
+        {
+          "milliseconds": 0.0445,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38428672
+        },
+        {
+          "milliseconds": 0.0358,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38584320
+        },
+        {
+          "milliseconds": 0.0537,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38596608
+        },
+        {
+          "milliseconds": 0.129,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38596608
+        },
+        {
+          "milliseconds": 0.0395,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38608896
+        },
+        {
+          "milliseconds": 0.0369,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38617088
+        },
+        {
+          "milliseconds": 0.0839,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38617088
+        },
+        {
+          "milliseconds": 0.0411,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 38633472
+        },
+        {
+          "milliseconds": 0.109,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 40980480
+        },
+        {
+          "milliseconds": 0.1503,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42446848
+        },
+        {
+          "milliseconds": 0.1769,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42725376
+        },
+        {
+          "milliseconds": 0.0174,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42782720
+        },
+        {
+          "milliseconds": 0.0159,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42917888
+        },
+        {
+          "milliseconds": 0.0148,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42950656
+        },
+        {
+          "milliseconds": 0.0168,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42962944
+        },
+        {
+          "milliseconds": 0.0249,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42975232
+        },
+        {
+          "milliseconds": 0.0305,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42987520
+        },
+        {
+          "milliseconds": 0.0161,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 42995712
+        },
+        {
+          "milliseconds": 0.0257,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43003904
+        },
+        {
+          "milliseconds": 0.0379,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43003904
+        },
+        {
+          "milliseconds": 0.012,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43012096
+        },
+        {
+          "milliseconds": 0.0247,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43020288
+        },
+        {
+          "milliseconds": 0.0128,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43020288
+        },
+        {
+          "milliseconds": 0.0411,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43028480
+        },
+        {
+          "milliseconds": 0.0198,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43032576
+        }
+      ]
+    },
+    {
+      "size": 0,
+      "corrupt": true,
+      "round": 1,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 0.021,
+      "p95": 0.0571,
+      "samples": [
+        {
+          "milliseconds": 0.0007,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43040768
+        },
+        {
+          "milliseconds": 0.0571,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43081728
+        },
+        {
+          "milliseconds": 0.0162,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43089920
+        },
+        {
+          "milliseconds": 0.0235,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43098112
+        },
+        {
+          "milliseconds": 0.0251,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43098112
+        },
+        {
+          "milliseconds": 0.0411,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43106304
+        },
+        {
+          "milliseconds": 0.013,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43114496
+        },
+        {
+          "milliseconds": 0.0154,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43114496
+        },
+        {
+          "milliseconds": 0.0164,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43118592
+        },
+        {
+          "milliseconds": 0.0259,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43122688
+        },
+        {
+          "milliseconds": 0.0137,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43122688
+        },
+        {
+          "milliseconds": 0.0201,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43122688
+        },
+        {
+          "milliseconds": 0.021,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43122688
+        },
+        {
+          "milliseconds": 0.0342,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43122688
+        },
+        {
+          "milliseconds": 0.0221,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43122688
+        },
+        {
+          "milliseconds": 0.0222,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43130880
+        },
+        {
+          "milliseconds": 0.0142,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43130880
+        },
+        {
+          "milliseconds": 0.039,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43139072
+        },
+        {
+          "milliseconds": 0.0216,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43147264
+        },
+        {
+          "milliseconds": 0.0138,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43147264
+        },
+        {
+          "milliseconds": 0.0146,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43155456
+        },
+        {
+          "milliseconds": 0.0447,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43159552
+        },
+        {
+          "milliseconds": 0.017,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43159552
+        },
+        {
+          "milliseconds": 0.0095,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43167744
+        },
+        {
+          "milliseconds": 0.0254,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43180032
+        },
+        {
+          "milliseconds": 0.0377,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43180032
+        },
+        {
+          "milliseconds": 0.0237,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43188224
+        },
+        {
+          "milliseconds": 0.0207,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43196416
+        },
+        {
+          "milliseconds": 0.0143,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43196416
+        },
+        {
+          "milliseconds": 0.0581,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43204608
+        }
+      ]
+    },
+    {
+      "size": 0,
+      "corrupt": true,
+      "round": 2,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 0.0175,
+      "p95": 0.0559,
+      "samples": [
+        {
+          "milliseconds": 0.0005,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43212800
+        },
+        {
+          "milliseconds": 0.0135,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43220992
+        },
+        {
+          "milliseconds": 0.0261,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43225088
+        },
+        {
+          "milliseconds": 0.0475,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43225088
+        },
+        {
+          "milliseconds": 0.0145,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43233280
+        },
+        {
+          "milliseconds": 0.0135,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43245568
+        },
+        {
+          "milliseconds": 0.0198,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43253760
+        },
+        {
+          "milliseconds": 0.0341,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43253760
+        },
+        {
+          "milliseconds": 0.0135,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43261952
+        },
+        {
+          "milliseconds": 0.0148,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43270144
+        },
+        {
+          "milliseconds": 0.0175,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43270144
+        },
+        {
+          "milliseconds": 0.0198,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43278336
+        },
+        {
+          "milliseconds": 0.0346,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43286528
+        },
+        {
+          "milliseconds": 0.0138,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43286528
+        },
+        {
+          "milliseconds": 0.0219,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43290624
+        },
+        {
+          "milliseconds": 0.0813,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43298816
+        },
+        {
+          "milliseconds": 0.0165,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43298816
+        },
+        {
+          "milliseconds": 0.0104,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43311104
+        },
+        {
+          "milliseconds": 0.0232,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43319296
+        },
+        {
+          "milliseconds": 0.0356,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43319296
+        },
+        {
+          "milliseconds": 0.0163,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43327488
+        },
+        {
+          "milliseconds": 0.0321,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43335680
+        },
+        {
+          "milliseconds": 0.0137,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43335680
+        },
+        {
+          "milliseconds": 0.0277,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43343872
+        },
+        {
+          "milliseconds": 0.0267,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43352064
+        },
+        {
+          "milliseconds": 0.0139,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43352064
+        },
+        {
+          "milliseconds": 0.0117,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43356160
+        },
+        {
+          "milliseconds": 0.0559,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43364352
+        },
+        {
+          "milliseconds": 0.0113,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43364352
+        },
+        {
+          "milliseconds": 0.0475,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43376640
+        }
+      ]
+    },
+    {
+      "size": 0,
+      "corrupt": true,
+      "round": 3,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 0.0151,
+      "p95": 0.0334,
+      "samples": [
+        {
+          "milliseconds": 0.0005,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43405312
+        },
+        {
+          "milliseconds": 0.0142,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43413504
+        },
+        {
+          "milliseconds": 0.0245,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43417600
+        },
+        {
+          "milliseconds": 0.0151,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43417600
+        },
+        {
+          "milliseconds": 0.0138,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43425792
+        },
+        {
+          "milliseconds": 0.0312,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43433984
+        },
+        {
+          "milliseconds": 0.0115,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43433984
+        },
+        {
+          "milliseconds": 0.0264,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43438080
+        },
+        {
+          "milliseconds": 0.0132,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43446272
+        },
+        {
+          "milliseconds": 0.0334,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43458560
+        },
+        {
+          "milliseconds": 0.013,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43458560
+        },
+        {
+          "milliseconds": 0.0137,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43466752
+        },
+        {
+          "milliseconds": 0.0085,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43474944
+        },
+        {
+          "milliseconds": 0.0323,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43474944
+        },
+        {
+          "milliseconds": 0.022,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43483136
+        },
+        {
+          "milliseconds": 0.0226,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43491328
+        },
+        {
+          "milliseconds": 0.0093,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43491328
+        },
+        {
+          "milliseconds": 0.0319,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43499520
+        },
+        {
+          "milliseconds": 0.035,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43503616
+        },
+        {
+          "milliseconds": 0.0281,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43503616
+        },
+        {
+          "milliseconds": 0.013,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43511808
+        },
+        {
+          "milliseconds": 0.0228,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43524096
+        },
+        {
+          "milliseconds": 0.0273,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43524096
+        },
+        {
+          "milliseconds": 0.0143,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43532288
+        },
+        {
+          "milliseconds": 0.0216,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43540480
+        },
+        {
+          "milliseconds": 0.0118,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43540480
+        },
+        {
+          "milliseconds": 0.027,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43548672
+        },
+        {
+          "milliseconds": 0.0287,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43556864
+        },
+        {
+          "milliseconds": 0.014,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43556864
+        },
+        {
+          "milliseconds": 0.0119,
+          "allocated": 1536,
+          "processLifetimePeakBytes": 43565056
+        }
+      ]
+    },
+    {
+      "size": 1000,
+      "corrupt": false,
+      "round": 1,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 3.6,
+      "p95": 5.3934,
+      "samples": [
+        {
+          "milliseconds": 5.0759,
+          "allocated": 3173112,
+          "processLifetimePeakBytes": 62091264
+        },
+        {
+          "milliseconds": 3.0097,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 62308352
+        },
+        {
+          "milliseconds": 5.8098,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 63344640
+        },
+        {
+          "milliseconds": 3.6,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 63496192
+        },
+        {
+          "milliseconds": 5.2318,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 63696896
+        },
+        {
+          "milliseconds": 2.7964,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 63836160
+        },
+        {
+          "milliseconds": 3.57,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 64036864
+        },
+        {
+          "milliseconds": 3.0083,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 64237568
+        },
+        {
+          "milliseconds": 4.998,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 64520192
+        },
+        {
+          "milliseconds": 3.6168,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 64806912
+        },
+        {
+          "milliseconds": 4.1522,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65048576
+        },
+        {
+          "milliseconds": 3.5536,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65052672
+        },
+        {
+          "milliseconds": 3.9049,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65052672
+        },
+        {
+          "milliseconds": 3.5697,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65052672
+        },
+        {
+          "milliseconds": 3.3699,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65060864
+        },
+        {
+          "milliseconds": 3.6642,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65060864
+        },
+        {
+          "milliseconds": 4.0848,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 3.5907,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 5.0065,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 3.4537,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 3.6273,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 3.8557,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 3.6665,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 3.1466,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 2.9717,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 5.3934,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 2.0821,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 3.7384,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 1.8398,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        },
+        {
+          "milliseconds": 1.768,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65064960
+        }
+      ]
+    },
+    {
+      "size": 1000,
+      "corrupt": false,
+      "round": 2,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 1.6015,
+      "p95": 2.9508,
+      "samples": [
+        {
+          "milliseconds": 2.3498,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65191936
+        },
+        {
+          "milliseconds": 1.9678,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65191936
+        },
+        {
+          "milliseconds": 2.1261,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65191936
+        },
+        {
+          "milliseconds": 1.7569,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65191936
+        },
+        {
+          "milliseconds": 1.6015,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65191936
+        },
+        {
+          "milliseconds": 2.6628,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65191936
+        },
+        {
+          "milliseconds": 2.1408,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65236992
+        },
+        {
+          "milliseconds": 1.5326,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 2.6234,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.557,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.5433,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 5.5338,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.5414,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.4945,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 2.2004,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 2.5958,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 2.9508,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.5179,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.4734,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.5397,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.5622,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 2.1612,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 1.6588,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65241088
+        },
+        {
+          "milliseconds": 2.4696,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.52,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.4629,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.4489,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.5124,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.5087,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 2.0574,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        }
+      ]
+    },
+    {
+      "size": 1000,
+      "corrupt": false,
+      "round": 3,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 1.4931,
+      "p95": 2.3518,
+      "samples": [
+        {
+          "milliseconds": 1.4351,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.6096,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.8745,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.6239,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.8992,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 2.0999,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.3508,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.7286,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.4076,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 2.2094,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.4788,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 2.3518,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 1.3933,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65269760
+        },
+        {
+          "milliseconds": 2.1471,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.3817,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.3375,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.3473,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 2.0215,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.4721,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.8014,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.4931,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 2.6228,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.3751,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.3475,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.3714,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.6575,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.4058,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 2.1769,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 2.1172,
+          "allocated": 3172832,
+          "processLifetimePeakBytes": 65355776
+        },
+        {
+          "milliseconds": 1.446,
+          "allocated": 3171824,
+          "processLifetimePeakBytes": 65355776
+        }
+      ]
+    },
+    {
+      "size": 1000,
+      "corrupt": true,
+      "round": 1,
+      "completeHash": "4EE3B84A11590B77B4116B42477C09F8E486A320B076D0204F4BE22535248815",
+      "reportHash": "5BCF65D86B4D7F019E4D2B0D69A2F8ECD1054EF7EBBBDE93F475A225C13DCB66",
+      "TotalIssueCount": 2030,
+      "p50": 2.3495,
+      "p95": 5.4403,
+      "samples": [
+        {
+          "milliseconds": 2.0507,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 66736128
+        },
+        {
+          "milliseconds": 4.9492,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 68579328
+        },
+        {
+          "milliseconds": 2.2487,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 69062656
+        },
+        {
+          "milliseconds": 5.4403,
+          "allocated": 4133744,
+          "processLifetimePeakBytes": 69705728
+        },
+        {
+          "milliseconds": 2.2316,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 69709824
+        },
+        {
+          "milliseconds": 2.3495,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 69709824
+        },
+        {
+          "milliseconds": 2.7844,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 69713920
+        },
+        {
+          "milliseconds": 2.3541,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 69722112
+        },
+        {
+          "milliseconds": 2.2387,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.1423,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.6064,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.5257,
+          "allocated": 4157000,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 4.075,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.3512,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 4.2284,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.3125,
+          "allocated": 4132824,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.3488,
+          "allocated": 4132984,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0107,
+          "allocated": 4132984,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8328,
+          "allocated": 4132984,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.1944,
+          "allocated": 4133992,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0633,
+          "allocated": 4132984,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9576,
+          "allocated": 4132984,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0638,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.996,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.4245,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.1095,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.1425,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.1254,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8233,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 5.5098,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        }
+      ]
+    },
+    {
+      "size": 1000,
+      "corrupt": true,
+      "round": 2,
+      "completeHash": "4EE3B84A11590B77B4116B42477C09F8E486A320B076D0204F4BE22535248815",
+      "reportHash": "5BCF65D86B4D7F019E4D2B0D69A2F8ECD1054EF7EBBBDE93F475A225C13DCB66",
+      "TotalIssueCount": 2030,
+      "p50": 2.1404,
+      "p95": 3.6881,
+      "samples": [
+        {
+          "milliseconds": 2.8367,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9902,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 5.8342,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.2666,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0218,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.4721,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.9848,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.2338,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.852,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0064,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9021,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.5407,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.1885,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.8729,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9134,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0241,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.6651,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.129,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0224,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9362,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9739,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.609,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.1598,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.0757,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0242,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9401,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8398,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.6881,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0894,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.1404,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        }
+      ]
+    },
+    {
+      "size": 1000,
+      "corrupt": true,
+      "round": 3,
+      "completeHash": "4EE3B84A11590B77B4116B42477C09F8E486A320B076D0204F4BE22535248815",
+      "reportHash": "5BCF65D86B4D7F019E4D2B0D69A2F8ECD1054EF7EBBBDE93F475A225C13DCB66",
+      "TotalIssueCount": 2030,
+      "p50": 2.0756,
+      "p95": 3.1933,
+      "samples": [
+        {
+          "milliseconds": 3.0197,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0756,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9907,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.4172,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8193,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.1417,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.1933,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9972,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9984,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8141,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8397,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9385,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.8671,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9864,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.6009,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8847,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.851,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0325,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.8602,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.552,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.1354,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9768,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9515,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.0188,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8146,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.8499,
+          "allocated": 4133768,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 2.1185,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.991,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 1.9258,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        },
+        {
+          "milliseconds": 3.49,
+          "allocated": 4132760,
+          "processLifetimePeakBytes": 70107136
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "corrupt": false,
+      "round": 1,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 29.2065,
+      "p95": 46.1918,
+      "samples": [
+        {
+          "milliseconds": 42.2916,
+          "allocated": 32233760,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 29.1315,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 26.0958,
+          "allocated": 32230568,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 35.1475,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 41.0194,
+          "allocated": 32230664,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 34.8558,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 30.5901,
+          "allocated": 32230688,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 31.8549,
+          "allocated": 32229744,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 26.766,
+          "allocated": 32231552,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 28.921,
+          "allocated": 32229688,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 23.4223,
+          "allocated": 32229616,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 25.2617,
+          "allocated": 32230584,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 25.8512,
+          "allocated": 32229688,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 28.0746,
+          "allocated": 32229600,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 30.1065,
+          "allocated": 32231016,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 31.2671,
+          "allocated": 32230544,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 47.1483,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 23.5449,
+          "allocated": 32230728,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 34.3015,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 120184832
+        },
+        {
+          "milliseconds": 26.866,
+          "allocated": 32230656,
+          "processLifetimePeakBytes": 123355136
+        },
+        {
+          "milliseconds": 27.3762,
+          "allocated": 32229688,
+          "processLifetimePeakBytes": 123355136
+        },
+        {
+          "milliseconds": 24.5815,
+          "allocated": 32230656,
+          "processLifetimePeakBytes": 123355136
+        },
+        {
+          "milliseconds": 46.1918,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 123355136
+        },
+        {
+          "milliseconds": 34.6264,
+          "allocated": 32229760,
+          "processLifetimePeakBytes": 127135744
+        },
+        {
+          "milliseconds": 34.9707,
+          "allocated": 32230680,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 26.4504,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 33.6989,
+          "allocated": 32230608,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 29.2065,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 42.4669,
+          "allocated": 32230616,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 21.8271,
+          "allocated": 32229736,
+          "processLifetimePeakBytes": 127504384
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "corrupt": false,
+      "round": 2,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 30.249,
+      "p95": 42.2548,
+      "samples": [
+        {
+          "milliseconds": 21.7322,
+          "allocated": 32229672,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 32.1507,
+          "allocated": 32231288,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 34.4727,
+          "allocated": 32229688,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 33.9085,
+          "allocated": 32229584,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 29.4929,
+          "allocated": 32229680,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 23.6949,
+          "allocated": 32229728,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 30.2816,
+          "allocated": 32230656,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 30.561,
+          "allocated": 32230704,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 27.3175,
+          "allocated": 32229592,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 24.8973,
+          "allocated": 32230680,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 37.7311,
+          "allocated": 32229672,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 45.6679,
+          "allocated": 32230688,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 27.3158,
+          "allocated": 32229736,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 25.9771,
+          "allocated": 32229640,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 24.8808,
+          "allocated": 32231048,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 41.4574,
+          "allocated": 32229672,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 30.996,
+          "allocated": 32230616,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 31.1653,
+          "allocated": 32229680,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 35.0764,
+          "allocated": 32230680,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 29.6434,
+          "allocated": 32230696,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 28.2198,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 29.4928,
+          "allocated": 32230712,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 42.2548,
+          "allocated": 32229608,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 27.138,
+          "allocated": 32230704,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 31.7327,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 29.2031,
+          "allocated": 32230552,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 32.5393,
+          "allocated": 32229736,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 30.249,
+          "allocated": 32230560,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 30.9032,
+          "allocated": 32229672,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 28.659,
+          "allocated": 32230544,
+          "processLifetimePeakBytes": 127504384
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "corrupt": false,
+      "round": 3,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 32.051,
+      "p95": 61.9544,
+      "samples": [
+        {
+          "milliseconds": 44.2081,
+          "allocated": 32230664,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 26.8267,
+          "allocated": 32229736,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 28.8596,
+          "allocated": 32230592,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 25.5948,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 65.8117,
+          "allocated": 32236760,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 26.109,
+          "allocated": 32229624,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 34.8137,
+          "allocated": 32231688,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 32.051,
+          "allocated": 32228712,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 26.6134,
+          "allocated": 32238216,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 38.0589,
+          "allocated": 32236248,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 53.6618,
+          "allocated": 32228688,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 28.598,
+          "allocated": 32230656,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 33.6183,
+          "allocated": 32229736,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 47.0093,
+          "allocated": 32230568,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 28.6293,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 33.0231,
+          "allocated": 32229656,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 28.6441,
+          "allocated": 32231872,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 61.9544,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 22.9616,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 51.9975,
+          "allocated": 32230664,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 26.5063,
+          "allocated": 32229736,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 33.455,
+          "allocated": 32229608,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 28.0757,
+          "allocated": 32230840,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 39.6232,
+          "allocated": 32229712,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 33.6596,
+          "allocated": 32235384,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 27.1203,
+          "allocated": 32229720,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 31.4888,
+          "allocated": 32230688,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 39.022,
+          "allocated": 32229680,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 29.4866,
+          "allocated": 32229584,
+          "processLifetimePeakBytes": 127504384
+        },
+        {
+          "milliseconds": 34.3366,
+          "allocated": 32229632,
+          "processLifetimePeakBytes": 127504384
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "corrupt": true,
+      "round": 1,
+      "completeHash": "F8511D22F3505CECDC0B465B7C847091DE7D601EA545C5EC6D13A112B04D13E4",
+      "reportHash": "F1AE1B0A30EF0F88D1C0823E667705FF731B8D3B1375AC36073CC5F2232AE30B",
+      "TotalIssueCount": 20030,
+      "p50": 66.2729,
+      "p95": 80.4422,
+      "samples": [
+        {
+          "milliseconds": 67.8299,
+          "allocated": 41847640,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 67.4252,
+          "allocated": 41848936,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 49.7259,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 69.0807,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 72.8147,
+          "allocated": 41847784,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 41.2866,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 66.2729,
+          "allocated": 41850376,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 78.9283,
+          "allocated": 41850136,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 47.331,
+          "allocated": 41847840,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 64.2128,
+          "allocated": 41847784,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 56.1012,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 67.721,
+          "allocated": 41847776,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 61.0753,
+          "allocated": 41847736,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 74.9687,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 53.9385,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 158314496
+        },
+        {
+          "milliseconds": 45.871,
+          "allocated": 41847664,
+          "processLifetimePeakBytes": 161759232
+        },
+        {
+          "milliseconds": 66.2881,
+          "allocated": 41847776,
+          "processLifetimePeakBytes": 161759232
+        },
+        {
+          "milliseconds": 80.4422,
+          "allocated": 41847784,
+          "processLifetimePeakBytes": 161759232
+        },
+        {
+          "milliseconds": 42.5953,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 161759232
+        },
+        {
+          "milliseconds": 76.6086,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 161759232
+        },
+        {
+          "milliseconds": 65.7446,
+          "allocated": 41847688,
+          "processLifetimePeakBytes": 161759232
+        },
+        {
+          "milliseconds": 45.1902,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 69.0743,
+          "allocated": 41847736,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 38.6965,
+          "allocated": 41847664,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 71.352,
+          "allocated": 41847728,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 56.6249,
+          "allocated": 41847848,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 76.4685,
+          "allocated": 41847800,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 66.993,
+          "allocated": 41847864,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 38.8349,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 83.5196,
+          "allocated": 41847640,
+          "processLifetimePeakBytes": 174182400
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "corrupt": true,
+      "round": 2,
+      "completeHash": "F8511D22F3505CECDC0B465B7C847091DE7D601EA545C5EC6D13A112B04D13E4",
+      "reportHash": "F1AE1B0A30EF0F88D1C0823E667705FF731B8D3B1375AC36073CC5F2232AE30B",
+      "TotalIssueCount": 20030,
+      "p50": 69.2999,
+      "p95": 93.569,
+      "samples": [
+        {
+          "milliseconds": 86.4158,
+          "allocated": 41849072,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 67.2532,
+          "allocated": 41847760,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 59.5775,
+          "allocated": 41847792,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 67.0394,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 89.6866,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 69.453,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 69.2999,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 71.0936,
+          "allocated": 41847680,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 50.804,
+          "allocated": 41847824,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 65.7039,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 69.8746,
+          "allocated": 41850456,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 36.985,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 91.1517,
+          "allocated": 41847648,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 74.3976,
+          "allocated": 41847608,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 63.8054,
+          "allocated": 41847752,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 53.5198,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 80.0964,
+          "allocated": 41847808,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 74.6316,
+          "allocated": 41847680,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 60.653,
+          "allocated": 41847760,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 61.1882,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 96.5881,
+          "allocated": 41847680,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 86.1199,
+          "allocated": 41847776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 93.569,
+          "allocated": 41847784,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 80.2078,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 50.4147,
+          "allocated": 41847680,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 42.206,
+          "allocated": 41847776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 64.4801,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 92.7489,
+          "allocated": 41847624,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 64.1996,
+          "allocated": 41852856,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 78.1823,
+          "allocated": 41847800,
+          "processLifetimePeakBytes": 174182400
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "corrupt": true,
+      "round": 3,
+      "completeHash": "F8511D22F3505CECDC0B465B7C847091DE7D601EA545C5EC6D13A112B04D13E4",
+      "reportHash": "F1AE1B0A30EF0F88D1C0823E667705FF731B8D3B1375AC36073CC5F2232AE30B",
+      "TotalIssueCount": 20030,
+      "p50": 73.0654,
+      "p95": 105.8401,
+      "samples": [
+        {
+          "milliseconds": 68.5444,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 48.309,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 80.1794,
+          "allocated": 41856808,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 70.4994,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 48.3962,
+          "allocated": 41847648,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 64.1377,
+          "allocated": 41847824,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 74.6377,
+          "allocated": 41847776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 55.143,
+          "allocated": 41847784,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 31.7008,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 60.8312,
+          "allocated": 41848120,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 51.8193,
+          "allocated": 41847800,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 38.4597,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 72.8477,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 76.7423,
+          "allocated": 41847616,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 84.7096,
+          "allocated": 41855920,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 73.2908,
+          "allocated": 41847856,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 73.0654,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 86.4424,
+          "allocated": 41847816,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 77.2923,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 86.3355,
+          "allocated": 41847824,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 76.5917,
+          "allocated": 41847808,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 48.17,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 91.9906,
+          "allocated": 41847792,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 105.8401,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 51.3049,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 95.9375,
+          "allocated": 41847688,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 105.9442,
+          "allocated": 41852304,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 91.2577,
+          "allocated": 41855392,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 54.1819,
+          "allocated": 41846776,
+          "processLifetimePeakBytes": 174182400
+        },
+        {
+          "milliseconds": 91.2107,
+          "allocated": 41847768,
+          "processLifetimePeakBytes": 174182400
+        }
+      ]
+    },
+    {
+      "size": 100000,
+      "corrupt": false,
+      "round": 1,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 613.7774,
+      "p95": 690.6843,
+      "samples": [
+        {
+          "milliseconds": 640.8276,
+          "allocated": 304590360,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 602.96,
+          "allocated": 304586616,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 660.7504,
+          "allocated": 304593432,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 595.629,
+          "allocated": 304588232,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 607.5018,
+          "allocated": 304586496,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 628.8937,
+          "allocated": 304586720,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 639.3887,
+          "allocated": 304586648,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 621.6789,
+          "allocated": 304585352,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 687.3648,
+          "allocated": 304592696,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 602.5385,
+          "allocated": 304585600,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 580.659,
+          "allocated": 304586600,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 629.6149,
+          "allocated": 304586744,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 600.5738,
+          "allocated": 304592264,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 632.6647,
+          "allocated": 304586680,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 606.9321,
+          "allocated": 304586576,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 690.6843,
+          "allocated": 304596104,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 720.2795,
+          "allocated": 304586632,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 678.1062,
+          "allocated": 304589976,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 613.7774,
+          "allocated": 304592072,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 607.9813,
+          "allocated": 304591680,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 626.4852,
+          "allocated": 304591968,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 587.5782,
+          "allocated": 304587440,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 625.4366,
+          "allocated": 304587512,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 636.0994,
+          "allocated": 304587568,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 654.03,
+          "allocated": 304587408,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 591.3481,
+          "allocated": 304587704,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 570.3977,
+          "allocated": 304587640,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 610.1897,
+          "allocated": 304590984,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 558.0001,
+          "allocated": 304590184,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 549.1487,
+          "allocated": 304590488,
+          "processLifetimePeakBytes": 382267392
+        }
+      ]
+    },
+    {
+      "size": 100000,
+      "corrupt": false,
+      "round": 2,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 572.1385,
+      "p95": 625.33,
+      "samples": [
+        {
+          "milliseconds": 547.6674,
+          "allocated": 304593944,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 625.33,
+          "allocated": 304588440,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 553.6859,
+          "allocated": 304587448,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 597.5308,
+          "allocated": 304591136,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 574.8362,
+          "allocated": 304587392,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 572.9343,
+          "allocated": 304587432,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 568.7801,
+          "allocated": 304587640,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 575.7537,
+          "allocated": 304587608,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 561.1988,
+          "allocated": 304587680,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 590.4544,
+          "allocated": 304587616,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 672.9766,
+          "allocated": 304587624,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 619.071,
+          "allocated": 304588584,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 495.3384,
+          "allocated": 304585680,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 513.1352,
+          "allocated": 304586672,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 553.4612,
+          "allocated": 304591256,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 503.9332,
+          "allocated": 304594384,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 578.6986,
+          "allocated": 304594632,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 567.0231,
+          "allocated": 304586712,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 549.1998,
+          "allocated": 304586608,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 574.6077,
+          "allocated": 304586656,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 593.1444,
+          "allocated": 304586624,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 610.5289,
+          "allocated": 304587632,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 527.5222,
+          "allocated": 304585552,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 572.1385,
+          "allocated": 304587552,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 580.0991,
+          "allocated": 304586488,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 577.6138,
+          "allocated": 304586776,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 561.2821,
+          "allocated": 304585584,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 560.5127,
+          "allocated": 304594120,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 541.9259,
+          "allocated": 304585592,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 590.5267,
+          "allocated": 304587632,
+          "processLifetimePeakBytes": 382267392
+        }
+      ]
+    },
+    {
+      "size": 100000,
+      "corrupt": false,
+      "round": 3,
+      "completeHash": "4F53CDA18C2BAA0C0354BB5F9A3ECBE5ED12AB4D8E11BA873C2F11161202B945",
+      "reportHash": "7FAAD4A47D4DF7E3D3BD775AF7671149FD2895B29BE7AC7643F1AA8C7F0E9FD6",
+      "TotalIssueCount": 0,
+      "p50": 568.7777,
+      "p95": 718.667,
+      "samples": [
+        {
+          "milliseconds": 561.0287,
+          "allocated": 304593216,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 530.0145,
+          "allocated": 304591944,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 551.3849,
+          "allocated": 304587384,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 562.6533,
+          "allocated": 304586496,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 594.1818,
+          "allocated": 304588896,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 633.5416,
+          "allocated": 304587448,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 588.6358,
+          "allocated": 304588944,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 610.2361,
+          "allocated": 304587360,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 603.7142,
+          "allocated": 304587672,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 597.1774,
+          "allocated": 304587688,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 597.4049,
+          "allocated": 304588584,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 570.086,
+          "allocated": 304587736,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 544.5194,
+          "allocated": 304586656,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 581.554,
+          "allocated": 304587688,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 554.9155,
+          "allocated": 304586312,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 669.9387,
+          "allocated": 304595152,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 524.0076,
+          "allocated": 304586824,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 590.446,
+          "allocated": 304588440,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 546.589,
+          "allocated": 304591736,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 492.2205,
+          "allocated": 304587344,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 502.0948,
+          "allocated": 304586624,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 522.7285,
+          "allocated": 304585632,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 555.015,
+          "allocated": 304586688,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 476.4831,
+          "allocated": 304585672,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 549.6434,
+          "allocated": 304586624,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 572.9409,
+          "allocated": 304585600,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 568.7777,
+          "allocated": 304586624,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 573.2054,
+          "allocated": 304587544,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 719.4428,
+          "allocated": 304585616,
+          "processLifetimePeakBytes": 382267392
+        },
+        {
+          "milliseconds": 718.667,
+          "allocated": 304586480,
+          "processLifetimePeakBytes": 382267392
+        }
+      ]
+    },
+    {
+      "size": 100000,
+      "corrupt": true,
+      "round": 1,
+      "completeHash": "6AD16D8CE4EC499C2B69A359BD34D9292C8610E723ACD5D9AE57110287961DB3",
+      "reportHash": "C2BB45CCD40A07D4EEA1A5457A7F4252659239C7C2B98A29FA66DA14DD16FC25",
+      "TotalIssueCount": 200030,
+      "p50": 873.7146,
+      "p95": 986.8813,
+      "samples": [
+        {
+          "milliseconds": 930.648,
+          "allocated": 397766760,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 855.1665,
+          "allocated": 397771512,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 870.3745,
+          "allocated": 397764680,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 871.248,
+          "allocated": 397764600,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 859.4692,
+          "allocated": 397772424,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 782.0016,
+          "allocated": 397764888,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 894.4738,
+          "allocated": 397764672,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 922.4048,
+          "allocated": 397764680,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 820.1971,
+          "allocated": 397770560,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 867.0903,
+          "allocated": 397764592,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 841.2055,
+          "allocated": 397764952,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 873.7146,
+          "allocated": 397769176,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 873.1582,
+          "allocated": 397764952,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 902.2818,
+          "allocated": 397764720,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 896.8688,
+          "allocated": 397764608,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 787.0647,
+          "allocated": 397771968,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 927.9034,
+          "allocated": 397764864,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 894.2895,
+          "allocated": 397764616,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 842.1788,
+          "allocated": 397765408,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 909.6524,
+          "allocated": 397764896,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 899.3642,
+          "allocated": 397766688,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 839.4553,
+          "allocated": 397764896,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 830.5642,
+          "allocated": 397764952,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 914.2236,
+          "allocated": 397765592,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 868.2892,
+          "allocated": 397764872,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 880.8555,
+          "allocated": 397764944,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 986.8813,
+          "allocated": 397768608,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 944.5552,
+          "allocated": 397771984,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1045.7765,
+          "allocated": 397764928,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 916.9117,
+          "allocated": 397764936,
+          "processLifetimePeakBytes": 791564288
+        }
+      ]
+    },
+    {
+      "size": 100000,
+      "corrupt": true,
+      "round": 2,
+      "completeHash": "6AD16D8CE4EC499C2B69A359BD34D9292C8610E723ACD5D9AE57110287961DB3",
+      "reportHash": "C2BB45CCD40A07D4EEA1A5457A7F4252659239C7C2B98A29FA66DA14DD16FC25",
+      "TotalIssueCount": 200030,
+      "p50": 921.3276,
+      "p95": 1035.0044,
+      "samples": [
+        {
+          "milliseconds": 916.8052,
+          "allocated": 397764920,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 836.2128,
+          "allocated": 397764752,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 948.3361,
+          "allocated": 397765672,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 847.0404,
+          "allocated": 397764704,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1015.6206,
+          "allocated": 397770968,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1189.441,
+          "allocated": 397764776,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 969.436,
+          "allocated": 397764880,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1021.3272,
+          "allocated": 397765672,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 938.0249,
+          "allocated": 397764872,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 944.1339,
+          "allocated": 397768712,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 947.2708,
+          "allocated": 397766008,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 852.3027,
+          "allocated": 397764808,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1033.5906,
+          "allocated": 397766552,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 922.0218,
+          "allocated": 397764800,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1035.0044,
+          "allocated": 397764640,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 894.5148,
+          "allocated": 397769560,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 886.4352,
+          "allocated": 397765392,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 895.5857,
+          "allocated": 397772936,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 859.7217,
+          "allocated": 397764808,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1007.9244,
+          "allocated": 397765744,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 899.4331,
+          "allocated": 397764832,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 961.9289,
+          "allocated": 397764752,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 843.1948,
+          "allocated": 397771824,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 921.3276,
+          "allocated": 397764856,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 904.6507,
+          "allocated": 397764576,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 883.8608,
+          "allocated": 397778464,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 951.5785,
+          "allocated": 397764944,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 891.1086,
+          "allocated": 397764880,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 923.7891,
+          "allocated": 397764512,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 920.9985,
+          "allocated": 397764824,
+          "processLifetimePeakBytes": 791564288
+        }
+      ]
+    },
+    {
+      "size": 100000,
+      "corrupt": true,
+      "round": 3,
+      "completeHash": "6AD16D8CE4EC499C2B69A359BD34D9292C8610E723ACD5D9AE57110287961DB3",
+      "reportHash": "C2BB45CCD40A07D4EEA1A5457A7F4252659239C7C2B98A29FA66DA14DD16FC25",
+      "TotalIssueCount": 200030,
+      "p50": 883.2879,
+      "p95": 1040.5565,
+      "samples": [
+        {
+          "milliseconds": 885.9918,
+          "allocated": 397765776,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 771.8149,
+          "allocated": 397764656,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 892.8276,
+          "allocated": 397765392,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 882.5778,
+          "allocated": 397764912,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 840.9896,
+          "allocated": 397766728,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 883.2879,
+          "allocated": 397764384,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 894.6182,
+          "allocated": 397764584,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1040.5565,
+          "allocated": 397765352,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 1155.1967,
+          "allocated": 397766512,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 922.6083,
+          "allocated": 397764816,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 930.5931,
+          "allocated": 397766008,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 901.6995,
+          "allocated": 397764816,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 896.2574,
+          "allocated": 397765632,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 828.0619,
+          "allocated": 397764968,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 857.3348,
+          "allocated": 397765664,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 938.7617,
+          "allocated": 397764840,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 868.2976,
+          "allocated": 397765616,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 863.3856,
+          "allocated": 397764824,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 979.797,
+          "allocated": 397766176,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 884.5845,
+          "allocated": 397764808,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 769.8255,
+          "allocated": 397765888,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 839.8265,
+          "allocated": 397764992,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 849.1548,
+          "allocated": 397764728,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 872.7187,
+          "allocated": 397769640,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 968.1315,
+          "allocated": 397764824,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 885.1669,
+          "allocated": 397764920,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 884.5912,
+          "allocated": 397770248,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 788.3935,
+          "allocated": 397764880,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 834.2818,
+          "allocated": 397765992,
+          "processLifetimePeakBytes": 791564288
+        },
+        {
+          "milliseconds": 858.983,
+          "allocated": 397764880,
+          "processLifetimePeakBytes": 791564288
+        }
+      ]
+    }
+  ]
+}

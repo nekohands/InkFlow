@@ -20,3 +20,17 @@ Human counterpart: [一致性检查拆分与测量](../../docs/engineering/consi
 ## Verification
 
 NOT RUN for this package: Restore/Release Build, Unit/Architecture/Contract/Integration, migration drift 11 contexts, Admin/Operations runtime and exact-SHA CI/Docker/Security. Local Docker was unavailable in RF-01; recheck and obtain real remote evidence if still blocked. Existing live/manual/production gates stay open.
+
+Update: local Restore/Release Build (solution and benchmark) PASS, zero warnings/errors; Unit 656/656, Architecture 51/51, Contract 12/12 PASS. Full Integration actually ran: 8 passed / 128 DockerUnavailable failures / 3 skipped. Local PostgreSQL benchmark also BLOCKED on the Docker named pipe. Migration/remote gates pending. All 46 issue emission sites retained and EF reader body unchanged by direct comparison.
+
+Before/after rule measurements: 720 samples each, all 24 paired rounds match complete issue and report hashes, including 200,030 issues. [Before raw](../../docs/engineering/benchmarks/rf02/before-rules.json), [after raw](../../docs/engineering/benchmarks/rf02/after-rules.json); baseline production aa15b51, harness a043e24, after = this extraction. Shared local machine had concurrent build activity; an attempted benchmark rebuild hit Windows apphost locking and passed after the measurement exited. These are equivalence/cost-scale evidence, NOT speedup or RF-03 budget evidence. RF-03 must remeasure isolated conditions and freeze noise/targets before optimizing. Peak memory is process-lifetime Working Set; allocations are process-total deltas; hashes are outside timed work. PostgreSQL job uses an owned container, warm caches and no user-supplied database. UNIQUE-protected duplicates are tested in memory only; database corruption is a persistable cross-schema orphan. Existing live/manual/production gates remain open.
+
+## Sources
+
+- [Pure rules and contracts](../../src/Modules/InkFlow.Modules.Operations/Application/Consistency/)
+- [EF adapter](../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs)
+- [Host enum metadata](../../src/Apps/InkFlow.Api/ConsistencyDomainValues.cs)
+- [Characterization](../../tests/InkFlow.UnitTests/ConsistencyCharacterizationTests.cs)
+- [PostgreSQL regression](../../tests/InkFlow.IntegrationTests/ConsistencyCheckIntegrationTests.cs)
+- [Measurement harness](../../tools/InkFlow.ConsistencyBenchmarks/)
+- [CI](../../.github/workflows/ci.yml)
