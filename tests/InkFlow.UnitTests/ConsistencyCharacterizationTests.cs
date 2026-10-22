@@ -60,6 +60,40 @@ public sealed class ConsistencyCharacterizationTests
     }
 
     [TestMethod]
+    public async Task Late_issues_and_ties_preserve_complete_count_and_full_sort_sample()
+    {
+        var snapshot = ConsistencyFixture.Create(10000, true);
+        // Reverse arrival order and repeat an issue at the sample boundary.
+        snapshot = snapshot with
+        {
+            CrawlerTasks = snapshot.CrawlerTasks.Reverse().Concat(snapshot.CrawlerTasks.Take(2)).ToArray(),
+            ContentVersions = snapshot.ContentVersions.Reverse().ToArray(),
+        };
+        var all = ConsistencyCheckValidator.Validate(snapshot, ConsistencyDomainValues.Current);
+        var report = await new ConsistencyCheckService(new ConsistencyFixture.Reader(snapshot), new ConsistencyFixture.Clock(), ConsistencyDomainValues.Current).CheckAsync();
+        Assert.IsTrue(all.Count > 1000);
+        Assert.AreEqual(all.Count, report.TotalIssueCount);
+        CollectionAssert.AreEqual(all.Take(1000).ToArray(), report.Issues.ToArray());
+    }
+
+    [TestMethod]
+    public async Task Duplicate_lookup_keys_keep_first_row_and_resolve_late_references()
+    {
+        var snapshot = ConsistencyFixture.Create(1000, false);
+        var first = snapshot.CanonicalChapters[0];
+        // Conflicting duplicate is last: references must still resolve to the first parent.
+        snapshot = snapshot with
+        {
+            CanonicalChapters = snapshot.CanonicalChapters.Append(first with { BookId = ConsistencyFixture.Id(-1) }).ToArray(),
+            Sources = snapshot.Sources.Concat(snapshot.Sources).ToArray(),
+            SourceChapters = snapshot.SourceChapters.Reverse().ToArray(),
+        };
+        var report = await new ConsistencyCheckService(new ConsistencyFixture.Reader(snapshot), new ConsistencyFixture.Clock(), ConsistencyDomainValues.Current).CheckAsync();
+        Assert.AreEqual(1, report.TotalIssueCount);
+        Assert.AreEqual("canonical_chapter_book_missing", report.Issues.Single().Code);
+    }
+
+    [TestMethod]
     public async Task Cancellation_is_forwarded_to_reader_and_no_report_is_returned()
     {
         using var cancellation = new CancellationTokenSource();
