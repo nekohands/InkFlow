@@ -124,4 +124,3 @@ public sealed record ConsistencyCheckReport(
 {
     public bool IsHealthy => TotalIssueCount == 0;
 }
-

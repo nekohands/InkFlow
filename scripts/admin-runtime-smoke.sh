@@ -132,6 +132,21 @@ expect_status /api/v1/admin/plans 200 "$work_dir/plans.json" \
 "$jq_bin" -e 'any(.[]; .code == "free") and any(.[]; .code == "pro")' \
   "$work_dir/plans.json" >/dev/null || fail 'admin plan list is incomplete'
 
+get_json "/api/v1/admin/consistency" "$admin_token" "$work_dir/consistency.json"
+"$jq_bin" -e '
+  (.checkedAt | type == "string") and
+  (.totalIssueCount | type == "number") and (.totalIssueCount >= 0) and
+  (.returnedIssueCount == ([.totalIssueCount, 1000] | min)) and
+  (.returnedIssueCount == (.issues | length)) and
+  (.truncated == (.returnedIssueCount < .totalIssueCount)) and
+  (.isHealthy == (.totalIssueCount == 0)) and
+  (.status == (if .isHealthy then "healthy" else "issues_found" end)) and
+  (.issues | all(.[];
+    (.code | type == "string") and (.severity == "error") and
+    (.resourceType | type == "string") and (.resourceId | type == "string") and
+    (.message | type == "string")))
+' "$work_dir/consistency.json" >/dev/null || fail 'consistency report contract is invalid'
+
 get_json "/api/v1/admin/operations/overview?limit=10" "$admin_token" \
   "$work_dir/operations.json"
 "$jq_bin" -e \

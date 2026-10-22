@@ -9,6 +9,8 @@ bash -n "$script"
 bash -n "$fixture_launcher"
 for required in \
   '/api/v1/admin/plans' \
+  '/api/v1/admin/consistency' \
+  'consistency report contract is invalid' \
   '/api/v1/admin/operations/overview' \
   '/api/v1/admin/operations/alerts/history' \
   '/api/v1/admin/audit/events' \

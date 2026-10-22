@@ -14,6 +14,8 @@ Operations index: [README.md](README.md)
 
 ## Current verification (2026-10-22)
 
+[RF-02](../work-packages/2026-10-22-rf02-consistency.md) is Accepted at `3a38ad1`: local Restore/Release Build, Unit 656/656, Architecture 51/51, Contract 12/12, migration drift 11/11 passed. Local Integration = 8 passed / 128 DockerUnavailable / 3 skips; local Runtime blocked. Rule measurements before/after match; PostgreSQL benchmark job passed 720 samples with SQL/row/plan evidence. Exact-SHA CI 39766807840 (attempt 2), Docker 39766808118 and Security 39766807728 passed all jobs. CI Integration 136 passed / 3 skips, configured Redis 1/1, runtime/SLO/OTLP and backup passed. Initial Ubuntu package-index hash mismatch was resolved by rerunning the failed job with integrity checks intact. RF-01 below is previous-package evidence.
+
 [RF-01](../work-packages/2026-10-22-rf01-architecture-guards.md) implements compiled
 dependency, project graph and inventory guards. Local Restore/Release Build,
 Architecture 51/51, Unit 648/648, Contract 12/12 and model drift 11/11 passed.

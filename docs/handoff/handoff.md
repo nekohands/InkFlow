@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-02 一致性检查职责拆分与测量 In Progress；RF-01 已验收，其他历史与真实环境待验收项继续保留。
+- 文档状态：RF-02 一致性检查职责拆分与测量已在 `3a38ad1` 验收；RF-01 已验收，其他历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
@@ -42,12 +42,23 @@ InkFlow 是以 Canonical Content 为核心、以 Legado 与 Web Reader 为主要
 
 ## 3. 当前真实仓库状态
 
-- RF-00 方案保存在 `df6c701`；用户随后明确授权先实施 RF-01。先读 [RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md) 与 [中文架构保护网](../engineering/architecture-guards.md)。
+### 当前工作包：RF-02 一致性检查职责拆分与测量（2026-10-22，Accepted / Completed）
+
+- 用户授权按既定方案实施 RF-02；[中文实施与测量](../engineering/consistency-check-refactoring.md)、[Wiki 合同与证据](../../repowiki/work-packages/2026-10-22-rf02-consistency.md)。
+- 纯快照/报告、报告编排和四组规则迁入 Operations.Application；API 保留 EF 与枚举元数据转换，无新增跨模块依赖，46 处问题输出及查询实现保持不变。
+- 本地 Restore/Release Build 零警告通过，Unit 656/656、Architecture 51/51、Contract 12/12、迁移模型 11/11 通过；Integration 8 passed / 128 DockerUnavailable / 3 skipped。本地 Runtime 仍 BLOCKED。
+- 规则前后各 720 次采样完整报告等价；远端 PostgreSQL 720 次测量通过。100k 章节读取 500,005 行、13 条 SQL，健康/孤儿 p50 约 1.13/1.36 秒、分配约 448/530 MiB；原始数据与限制已归档，不宣称提速。
+- 验收实现 `3a38ad1`：CI 39766807840（attempt 2）、Docker 39766808118、Security 39766807728 全部 Job 通过；Integration 136 passed / 3 skipped，Redis 独立 1/1；Admin/Operations、SLO/OTLP、备份恢复通过。首轮 Ubuntu 索引哈希不一致保留为历史失败，重跑未绕过完整性检查。收尾增加直接一致性报告字段断言，由收尾 CI 执行。
+- RF-03 未开始；需稳定重测并先冻结目标/容忍度。既有真实设备、账户、来源与生产治理验收仍开放。
+
+### RF-01 验收历史
+
+- RF-00 方案保存在 `df6c701`；用户随后明确授权先实施 RF-01。RF-01 历史见 [RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md) 与 [中文架构保护网](../engineering/architecture-guards.md)。
 - 已实现四类编译依赖规则、11 模块显式图、项目引用和清单检查，保留加载 smoke。正反例暴露并修复 internal 嵌套类型筛选漏检；临时模块清单探针失败/清理后通过。
 - 本地 Restore/Release Build PASS，Unit 648/648、Architecture 51/51、Contract 12/12、Migration 模型 11/11 PASS。全量本地 Integration：8 通过、128 DockerUnavailable 失败、3 跳过，本地 Runtime BLOCKED。候选 `34cfa8f` 的 Docker HIGH 失败保留为历史证据，Collector Go 1.26.10 补丁已修复该门禁。
 - 验收实现 SHA：`f90e6bd658ecc657dc68e34b1936990a4ce99555`；CI `39758029891`、Docker `39758029869`、Security `39758029837` 所有 Job 均成功，证据链接见 RF-01。CI Integration 136 通过/3 跳过，Redis 独立 1/1；Runtime/SLO/OTLP、备份恢复、镜像扫描与发布拉取均通过。
 - `.codegraph/` 实查不存在；SDK 10.0.402。`docker` 不在 PATH，Testcontainers 无法连接 `npipe://./pipe/docker_engine`，不能把容器验证标为本地通过。`.workbuddy-ai/` 保持不变。
-- RF-01 Accepted / Completed，无剩余包内验收阻塞。下一步 RF-02（未开始）；既有真实设备、来源、账户、生产 OTLP/SLO 等验收不在本包关闭。保留静态规则的反射/动态加载限制与本地 Docker 缺失。
+- RF-01 Accepted / Completed，无剩余包内验收阻塞。RF-02 验收见上方当前记录；既有真实设备、来源、账户、生产 OTLP/SLO 等验收不在本包关闭。保留静态规则的反射/动态加载限制与本地 Docker 缺失。
 
 ### 2026-10-15 历史交接快照
 
@@ -225,7 +236,3 @@ Phase 2 及以后：
 - [x] Source DSL v1 已定义可测试的最小 schema/AST，并已接入受控 XPath/JSONPath 执行子集、next-link Pagination、page-number/cursor Pagination、受控 response-cookie Session、有界请求模板变量、任务级 CredentialReference typed 初始认证、有界响应派生变量、来源级默认 CredentialReference 回退、Administrator-only 默认绑定管理 API 和 Owner Scope 解析契约；secret 材料 Owner/Admin 管理、真实 SecretProvider、持久会话及三种受控分页之外的多请求/递归预算仍待后续工作包。
 - [x] Fixture 驱动，无真实第三方 Source PR-CI 依赖。
 - [x] 新 Source 网络能力必须同步安全测试。
-
-## RF-02 当前工作包（2026-10-22）
-
-[实施记录](../engineering/consistency-check-refactoring.md)：行为固定测试与职责拆分已实现，测量和完整门禁进行中；当前不标记 Completed。无 Schema、API JSON、权限或查询隔离变更。

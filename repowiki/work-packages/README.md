@@ -36,4 +36,4 @@ Parent/root index: [../README.md](../README.md)
 - [5.81 Reading state bounded metadata projection](2026-10-08-reading-state-bounded-projection.md)
 - [Code adapter response and regex bounds](2026-10-08-code-adapter-bounds.md)
 
-- Active: [RF-02 consistency responsibilities and measurement](2026-10-22-rf02-consistency.md), In Progress.
+- Current: [RF-02 consistency responsibilities and measurement](2026-10-22-rf02-consistency.md), Accepted / Completed at `3a38ad1`.

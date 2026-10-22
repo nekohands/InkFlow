@@ -5,7 +5,7 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-02 一致性检查职责拆分与测量 In Progress；RF-01 已验收，其他历史与真实环境待验收项继续保留。
+- 文档状态：RF-02 一致性检查职责拆分与测量已在 `3a38ad1` 验收；RF-01 已验收，其他历史与真实环境待验收项继续保留。
 - 最后更新日期：2026-10-22
 
 ## 1. 总体状态
@@ -45,7 +45,16 @@ Phase 1A 自动化工作包状态：
 14. ✅ 单来源自动追更链路（自动化基线已完成）。
 15. 🚧 Phase 1A E2E / Contract / Runtime 验收（自动化门禁已通过，真实设备/来源/人工链路待定）。
 
-### 当前工作包：RF-01 架构保护网（2026-10-22，Accepted / Completed）
+### 当前工作包：RF-02 一致性检查职责拆分与测量（2026-10-22，Accepted / Completed）
+
+- 用户授权按既定方案实施 RF-02；[中文实施与测量](../engineering/consistency-check-refactoring.md)、[Wiki 合同与证据](../../repowiki/work-packages/2026-10-22-rf02-consistency.md)。
+- 纯快照/报告、报告编排和四组规则迁入 Operations.Application；API 保留 EF 与枚举元数据转换，无新增跨模块依赖，46 处问题输出及查询实现保持不变。
+- 本地 Restore/Release Build 零警告通过，Unit 656/656、Architecture 51/51、Contract 12/12、迁移模型 11/11 通过；Integration 8 passed / 128 DockerUnavailable / 3 skipped。本地 Runtime 仍 BLOCKED。
+- 规则前后各 720 次采样完整报告等价；远端 PostgreSQL 720 次测量通过。100k 章节读取 500,005 行、13 条 SQL，健康/孤儿 p50 约 1.13/1.36 秒、分配约 448/530 MiB；原始数据与限制已归档，不宣称提速。
+- 验收实现 `3a38ad1`：CI 39766807840（attempt 2）、Docker 39766808118、Security 39766807728 全部 Job 通过；Integration 136 passed / 3 skipped，Redis 独立 1/1；Admin/Operations、SLO/OTLP、备份恢复通过。首轮 Ubuntu 索引哈希不一致保留为历史失败，重跑未绕过完整性检查。收尾增加直接一致性报告字段断言，由收尾 CI 执行。
+- RF-03 未开始；需稳定重测并先冻结目标/容忍度。既有真实设备、账户、来源与生产治理验收仍开放。
+
+### 前序工作包：RF-01 架构保护网（2026-10-22，Accepted / Completed）
 
 - 用户在文档方案后明确授权先实施 RF-01；RF-00 保存在 `df6c701`。中文说明：[架构保护网](../engineering/architecture-guards.md)；合同、源码与证据：[RF-01 工作包](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)。
 - 已实现 Domain 基础设施、模块到宿主、跨模块 Infrastructure 和显式模块图四类编译依赖规则，覆盖 11 个模块，并检查项目引用/清单。51 项架构测试含正反例与嵌套类型漏检回归；临时新增模块探针证明清单守卫真实失败，清理后恢复通过。
@@ -53,7 +62,7 @@ Phase 1A 自动化工作包状态：
 - 全量本地 Integration：8 通过、128 因 Docker 初始化不可用失败、3 跳过（两项可选真实源、一项 Redis 配置），本地 Runtime BLOCKED。修复候选 `f90e6bd658ecc657dc68e34b1936990a4ce99555` 的 [CI 39758029891](https://github.com/nekohands/InkFlow/actions/runs/39758029891)、[Docker 39758029869](https://github.com/nekohands/InkFlow/actions/runs/39758029869)、[Security 39758029837](https://github.com/nekohands/InkFlow/actions/runs/39758029837) 全部 Job 通过，head SHA 一致。
 - CI Integration 136 通过、3 跳过，Redis 独立配置后 1/1；业务 Runtime、SLO/OTLP、备份恢复均通过。两项可选真实源未运行，不在本包验收范围。
 - 四类约束未检出生产违规；已修复 internal 嵌套类型筛选漏检。Docker 原候选 `34cfa8f` 检出 Go 标准库 CVE-2026-111943，Collector Go 1.26.9 → 1.26.10 补丁已通过扫描/发布/拉取与 Runtime；ADR 0012 与安全/架构文档同步。业务、协议、Schema/Migration 不变。
-- RF-02 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
+- RF-02 已验收，RF-03 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
 
 ### 前序工作包快照：模块化重构（2026-10-15，Batch 2 Pushed / Remote Gates Incomplete）
 
@@ -212,7 +221,3 @@ Official Source
 禁止把 `Implemented` 当作 `Completed`；CI Pending/Red 时不得声称已验收；修改代码后必须重新执行适用 Gate。
 
 完整流程见 `../engineering/development-workflow.md`。
-
-## RF-02 当前工作包（2026-10-22）
-
-[实施记录](../engineering/consistency-check-refactoring.md)：行为固定测试与职责拆分已实现，测量和完整门禁进行中；当前不标记 Completed。无 Schema、API JSON、权限或查询隔离变更。

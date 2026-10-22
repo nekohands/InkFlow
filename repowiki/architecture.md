@@ -48,6 +48,8 @@ boundary and static-analysis limits are recorded in that package and the
 
 ## Data and consistency
 
+[RF-02](work-packages/2026-10-22-rf02-consistency.md): pure consistency DTOs/report orchestration and four grouped rule methods belong to Operations.Application. API owns cross-schema EF reads and projects owning-domain enum sets into immutable value definitions. Operations has no foreign module edge; full metadata/count/order/sample and non-atomic sequential reads are unchanged.
+
 - PostgreSQL is the source of truth for business data; Redis carries only
   rebuildable state (rate-limit snapshots, cache).
 - Writes that span aggregates go through Transactional Outbox → at-least-once

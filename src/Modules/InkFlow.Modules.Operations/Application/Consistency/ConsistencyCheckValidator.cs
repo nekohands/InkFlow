@@ -90,4 +90,3 @@ internal sealed partial class ConsistencyRuleEvaluation(ConsistencySnapshot snap
         public override string ToString() => $"{CanonicalChapterId:D}/{CanonicalHash}";
     }
 }
-

@@ -526,6 +526,7 @@
       "scope": "pure consistency contracts/service/rules in Operations, EF and enum metadata adaptation in API, characterization and reproducible baseline.",
       "sources": [
         "../../.github/workflows/ci.yml",
+        "../../docs/engineering/benchmarks/rf02/postgres.json",
         "../../src/Apps/InkFlow.Api/ConsistencyDomainValues.cs",
         "../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs",
         "../../src/Modules/InkFlow.Modules.Operations/Application/Consistency/",

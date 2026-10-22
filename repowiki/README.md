@@ -34,7 +34,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
   navigation; the current package below supersedes the old no-active-work state.
 - Previous accepted work package: [RF-01 architecture guards](work-packages/2026-10-22-rf01-architecture-guards.md),
   Accepted / Completed at implementation SHA `f90e6bd` after all exact-SHA
-  CI/Docker/Security jobs passed. RF-02 is now In Progress; RF-03 and later remain Planned.
+  CI/Docker/Security jobs passed. RF-02 is Accepted at `3a38ad1`; RF-03 and later remain Planned.
   The [module refactor](work-packages/2026-10-15-module-refactor.md) preserves its
   historical checkpoint; current source has advanced beyond its Batch 2 record.
 - Required project gates: Restore, Release Build, affected Unit/Architecture/
@@ -51,7 +51,7 @@ Workflow profile (Chinese, operational): [docs/delivery/PROJECT_WORKFLOW.md](../
 
 ## Current work
 
-Active: [RF-02 consistency responsibilities and measurement](work-packages/2026-10-22-rf02-consistency.md), In Progress. Full gates and measurements are pending. The RF-01 evidence below is historical and does not substitute for RF-02 validation.
+Current: [RF-02 consistency responsibilities and measurement](work-packages/2026-10-22-rf02-consistency.md), Accepted / Completed at `3a38ad1`. CI 39766807840 (attempt 2), Docker 39766808118 and Security 39766807728 passed all jobs. Unit 656, Architecture 51, Contract 12; Integration 136 passed / 3 skips, configured Redis 1/1; runtime/SLO/OTLP/backup passed. Pure before/after 720 samples each match; PostgreSQL 720-sample baseline and SQL/plans are archived. Local Docker remains unavailable. The RF-01 evidence below is historical and does not substitute for RF-02 validation.
 
 Previous work: [RF-01 architecture guards](work-packages/2026-10-22-rf01-architecture-guards.md), Accepted / Completed at `f90e6bd658ecc657dc68e34b1936990a4ce99555`. CI `39758029891`, Docker `39758029869` and Security `39758029837` passed every required job at that SHA. Architecture 51/51, Unit 648/648, Contract 12/12, Release Restore/Build and migration model 11/11 passed. CI Integration: 136 passed / 3 skipped, configured Redis separately 1/1; runtime/SLO/OTLP and backup/restore passed. Local Integration remains 8 passed / 128 DockerUnavailable failures / 3 skips. The original `34cfa8f` Docker HIGH finding was fixed by the minimal Collector Go 1.26.10 patch. Human guide: [架构保护网](../docs/engineering/architecture-guards.md). RF-00 is preserved in `df6c701`; RF-03 and later remain Planned, and existing live/manual/production acceptance stays open.
 

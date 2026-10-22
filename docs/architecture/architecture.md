@@ -30,7 +30,7 @@ RF-01 已实现编译类型/方法体、项目引用与模块清单守卫，覆�
 
 `RuleAdapter` 已组合预检查、凭据解析、HTTP、前置请求、分页、响应提取和请求预算实现。`CrawlerTaskProcessor` 已区分运行协调、执行、失败和结果处理；`ReadingStateService` 已组合书架查询/命令、历史、进度、偏好与可见性。`CatalogQueryService` 已区分书籍/正文读取，`BookPackageService` 已区分创建、查询与生成职责。
 
-这些是当前源码中已有的拆分。`ReaderHtml*` 仍在 Content.Application，一致性检查 DTO/规则/EF 适配仍在 API；[优化与重构方案](../engineering/optimization-refactoring-plan-2026-10-22.md) 提议调整其职责归属，尚未实施。后续应从当前源码接续，不重复 10 月 15 日旧批次的拆分计划。
+这些是当前源码中已有的拆分。`ReaderHtml*` 仍在 Content.Application（RF-04 待实施）。[RF-02](../engineering/consistency-check-refactoring.md) 将一致性快照/报告 DTO、报告编排和四组纯规则迁入 Operations.Application；EF 跨 schema 读取与领域枚举合法值投影保留在 API 组合根。Operations 不新增其他模块引用，13 组完整元数据读取、完整计数、排序后最多返回 1,000 条问题及顺序查询非原子语义保持不变。后续应从当前源码接续，不重复 10 月 15 日旧批次的拆分计划。
 
 ### 业务模块
 
