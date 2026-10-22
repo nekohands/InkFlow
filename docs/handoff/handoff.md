@@ -5,11 +5,15 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-03 一致性性能优化已在 `0a6e641` 验收，所有候选 SHA 门禁通过；RF-02 一致性检查职责拆分与测量已在 `3a38ad1` 验收；RF-01 已验收，其他历史与真实环境待验收项继续保留。
+- 文档状态：RF-04 基线建立及展示层迁移进行中；RF-03 一致性性能优化已在 `0a6e641` 验收，所有候选 SHA 门禁通过；RF-02 一致性检查职责拆分与测量已在 `3a38ad1` 验收；RF-01 已验收，其他历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
 
-## RF-03 当前工作包
+## RF-04 当前工作包
+
+In Progress。已建立 22 项完整输出快照与四种屏宽的真实浏览器基线，生产代码尚未迁移。验收范围与限制见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。
+
+## RF-03 前序工作包
 
 复测基线与量化目标已先于生产优化冻结。直接建字典与最多 1,000 条问题示例保留已实现，精确全量计数/排序/公共报告不变。已在 `0a6e641` Accepted / Completed；Unit 659、Architecture 51、Contract 12、真实 PostgreSQL/Redis、Runtime/SLO/备份及 CI/Docker/Security 全部通过。本地 Docker 缺失由远端真实证据补足；证据与限制见 [性能记录](../engineering/consistency-check-performance.md)。真实环境待验收清单继续保留。
 

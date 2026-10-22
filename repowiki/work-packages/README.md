@@ -36,6 +36,8 @@ Parent/root index: [../README.md](../README.md)
 - [5.81 Reading state bounded metadata projection](2026-10-08-reading-state-bounded-projection.md)
 - [Code adapter response and regex bounds](2026-10-08-code-adapter-bounds.md)
 
-- Current: [RF-02 consistency responsibilities and measurement](2026-10-22-rf02-consistency.md), Accepted / Completed at `3a38ad1`.
+- Previous: [RF-02 consistency responsibilities and measurement](2026-10-22-rf02-consistency.md), Accepted / Completed at `3a38ad1`.
 
 - [RF-03 — measured consistency optimization](2026-10-22-rf03-consistency-performance.md)
+
+- Current: [RF-04 presentation ownership](2026-10-22-rf04-presentation.md), In Progress.

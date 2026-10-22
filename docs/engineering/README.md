@@ -13,3 +13,5 @@ Scope: 开发、验收、交付、前端设计和基准记录的能力说明与�
 - [基准记录](benchmarks/README.md)
 
 - [RF-03 一致性检查性能优化](consistency-check-performance.md)
+
+- [RF-04 Reader 基线与展示层迁移](reader-presentation-migration.md)

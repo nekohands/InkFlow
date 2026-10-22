@@ -7,7 +7,7 @@ RepoWiki 是 Agent 的唯一项目事实来源；本目录只提供能力说明�
 
 - [优化与重构方案（2026-10-22）](engineering/optimization-refactoring-plan-2026-10-22.md)
 - [RF-01 架构保护网](engineering/architecture-guards.md)
-- [当前 RF-02 一致性检查拆分与测量](engineering/consistency-check-refactoring.md)
+- [RF-02 一致性检查拆分与测量](engineering/consistency-check-refactoring.md)
 - [架构与领域约束](architecture/README.md)
 - [工程流程与前端设计](engineering/README.md)
 - [交付 profile、进度与交接](delivery/README.md)
@@ -19,3 +19,5 @@ RepoWiki 是 Agent 的唯一项目事实来源；本目录只提供能力说明�
 - [RepoWiki（Agent 权威索引）](../repowiki/README.md)
 
 各主题页描述能力和入口；合同、状态、证据和 Agent 续作上下文以 RepoWiki 为准。
+
+- [RF-04 Reader 基线与展示层迁移](engineering/reader-presentation-migration.md)

@@ -5,6 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../tools/InkFlow.ConsistencyBenchmarks/ConsistencyFixture.cs" Link="Fixtures/ConsistencyFixture.cs" />
+    <Compile Include="../../tools/InkFlow.ReaderFixtures/ReaderFixture.cs" Link="Fixtures/ReaderFixture.cs" />
+    <None Update="Fixtures/reader-output-baseline.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Fixtures\source-rule-dsl-v1.json" CopyToOutputDirectory="PreserveNewest" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />

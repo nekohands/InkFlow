@@ -72,11 +72,13 @@ Initialization intake: grillme recommendation-first selected; historical module 
 
 ## Work Package
 
-当前实施：[RF-03 一致性性能优化](../engineering/consistency-check-performance.md)，Accepted / Completed at `0a6e641`，冻结预算及 CI 39778042207、Docker 39778042314、Security 39778042320 全部 Job 通过。
+当前实施：[RF-04 Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)，In Progress；先冻结行为与浏览器基线，再迁移展示职责。
+
+前序：[RF-03 一致性性能优化](../engineering/consistency-check-performance.md)，Accepted / Completed at `0a6e641`，冻结预算及 CI 39778042207、Docker 39778042314、Security 39778042320 全部 Job 通过。
 
 前序：[RF-02 一致性检查职责拆分与测量](../engineering/consistency-check-refactoring.md)，Accepted / Completed at `3a38ad1`；CI 39766807840（attempt 2）、Docker 39766808118、Security 39766807728 全部 Job 通过。以下 RF-01 记录保留为上一包证据。
 
-前序：[RF-01 架构保护网](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)，`Accepted / Completed`，验收实现 SHA 为 `f90e6bd658ecc657dc68e34b1936990a4ce99555`；CI `39758029891`、Docker `39758029869`、Security `39758029837` 全部 Job 通过。中文说明见 [架构保护网](../engineering/architecture-guards.md)。RF-02 已验收，RF-03 已验收，RF-04 及以后保持 Planned。
+前序：[RF-01 架构保护网](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)，`Accepted / Completed`，验收实现 SHA 为 `f90e6bd658ecc657dc68e34b1936990a4ce99555`；CI `39758029891`、Docker `39758029869`、Security `39758029837` 全部 Job 通过。中文说明见 [架构保护网](../engineering/architecture-guards.md)。RF-02 已验收，RF-03 已验收，RF-04 进行中，RF-05 及以后保持 Planned。
 
 候选 `34cfa8f` 的 Docker 门禁发现既有 Collector Go 标准库 HIGH 漏洞，最小 Go 1.26.10 工具链补丁已通过镜像与运行时门禁；具体失败/修复证据与范围扩展见 RF-01 及 ADR 0012。本地 Docker 仍不可用，容器/运行时通过结论来自远端实测。
 

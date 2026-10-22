@@ -1,0 +1,200 @@
+[
+  {
+    "name": "catalog",
+    "Path": "/reader",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "catalog.txt",
+    "bytes": 58291,
+    "sha256": "A35CC424DE7AF639735660CA6F1C469077FEC3AE24F9878404B8425CDF26EBDF"
+  },
+  {
+    "name": "empty",
+    "Path": "/reader/empty",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "empty.txt",
+    "bytes": 58063,
+    "sha256": "B0DFA385ADD2AD744D1A3DBBB21F6C4FE6A7789B0583D6D85A7907E835829ACC"
+  },
+  {
+    "name": "search-empty",
+    "Path": "/reader/search-empty",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "search-empty.txt",
+    "bytes": 58090,
+    "sha256": "E6089F26B27719E13BEFC63A7922CCB55FC785DE28B875B3DC172363A9172A55"
+  },
+  {
+    "name": "search-degraded",
+    "Path": "/reader/search-degraded",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "search-degraded.txt",
+    "bytes": 58484,
+    "sha256": "7A240C86314C1737A6E80ACEA38D76210BFED84CFE1FD53B68296D73B7E214C7"
+  },
+  {
+    "name": "search-xss",
+    "Path": "/reader/search-xss",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "search-xss.txt",
+    "bytes": 58180,
+    "sha256": "F6AE71F44DE09F2607E0B304BB56CCB01626CF60ED6A8502601C2ED478723363"
+  },
+  {
+    "name": "toc-0",
+    "Path": "/reader/books/000186a1-0000-0000-0000-000000000000",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "toc-0.txt",
+    "bytes": 64191,
+    "sha256": "1A31DD6B979E384B00F9E2F3AEE8D6EC5425C4F6F912E5192CCA4F2F48E8C0CA"
+  },
+  {
+    "name": "toc-100",
+    "Path": "/reader/books/000186a0-0000-0000-0000-000000000000",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "toc-100.txt",
+    "bytes": 76724,
+    "sha256": "1203C13D5E32444D6C130821D6113937C04D7D4DCB84007045F81E456E857D55"
+  },
+  {
+    "name": "toc-1000",
+    "Path": "/reader/books/00018a89-0000-0000-0000-000000000000",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "toc-1000.txt",
+    "bytes": 191026,
+    "sha256": "47276D9CC2407D3F4CFDAE6FE3785E9828459EC11BAD7C4493606B7B0EB5111C"
+  },
+  {
+    "name": "toc-10000",
+    "Path": "/reader/books/0001adb1-0000-0000-0000-000000000000",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "toc-10000.txt",
+    "bytes": 1352028,
+    "sha256": "340B24F493BE37E2356C6A2DE2886455BA4682CC32DDFDD9441FD26F0007DD51"
+  },
+  {
+    "name": "short",
+    "Path": "/reader/read/00000001-0000-0000-0000-000000000000",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "short.txt",
+    "bytes": 68607,
+    "sha256": "704B19324E6B3861D9377F3DBC9DE40DB803475FC60AFC0CC1EFF54756FFF388"
+  },
+  {
+    "name": "long",
+    "Path": "/reader/read/00000002-0000-0000-0000-000000000000",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "long.txt",
+    "bytes": 402851,
+    "sha256": "69DA23B582B1F62FE4344DC85AC1B9E04C8CD88F21630F8A182FDC610C7ECC0A"
+  },
+  {
+    "name": "missing",
+    "Path": "/reader/read/0001869f-0000-0000-0000-000000000000",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 404,
+    "file": "missing.txt",
+    "bytes": 57407,
+    "sha256": "11CD89DE05D34DFC9B42104E0851694ACBEE046C297E25D3611426869B08E4DC"
+  },
+  {
+    "name": "account",
+    "Path": "/reader/account",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "account.txt",
+    "bytes": 66927,
+    "sha256": "843287C081A325D2EB39E16FFE4A025DBBEF9B196DD0D4285BE133FE5F664291"
+  },
+  {
+    "name": "register",
+    "Path": "/reader/account/register",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "register.txt",
+    "bytes": 66980,
+    "sha256": "677467452E62C2C96BF8ED0B6740F777E5F56897D67DF2E2C54F04BB646753B0"
+  },
+  {
+    "name": "shelf",
+    "Path": "/reader/shelf",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "shelf.txt",
+    "bytes": 57879,
+    "sha256": "C4B87B26FF59FF5CECD92BD3CBD56B847D06C3AA28367A6C1093EF66B8221432"
+  },
+  {
+    "name": "history",
+    "Path": "/reader/history",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "history.txt",
+    "bytes": 57887,
+    "sha256": "F3FF778EF82A253A63FC82801AEB9CBEB14D016E23018463AF19CC1D59EF082B"
+  },
+  {
+    "name": "offline",
+    "Path": "/reader/offline",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "offline.txt",
+    "bytes": 57681,
+    "sha256": "D000E1D5BD8621157FBCF009C5BD0BEEAB72CFEE27C6C3207FD0C9E2072BFAB8"
+  },
+  {
+    "name": "operations",
+    "Path": "/admin/operations",
+    "ContentType": "text/html; charset=utf-8",
+    "Status": 200,
+    "file": "operations.txt",
+    "bytes": 125694,
+    "sha256": "E709184D7D00290426A6DF9C4E156C193B7A9FDF6EED828EC5E827788B7F48D2"
+  },
+  {
+    "name": "manifest",
+    "Path": "/reader/manifest.webmanifest",
+    "ContentType": "application/manifest\u002Bjson; charset=utf-8",
+    "Status": 200,
+    "file": "manifest.txt",
+    "bytes": 556,
+    "sha256": "FF21C794AE575259B788B2182272BFD0D3741342722BEAC456EB798832E66053"
+  },
+  {
+    "name": "service-worker",
+    "Path": "/reader/sw.js",
+    "ContentType": "application/javascript; charset=utf-8",
+    "Status": 200,
+    "file": "service-worker.txt",
+    "bytes": 1437,
+    "sha256": "1F79F1351342D377BF19B2C17D36BBD6A432C163606ADF9B484C574D87F16B41"
+  },
+  {
+    "name": "icon",
+    "Path": "/reader/icon-192.svg",
+    "ContentType": "image/svg\u002Bxml",
+    "Status": 200,
+    "file": "icon.txt",
+    "bytes": 538,
+    "sha256": "F635C8F7F78F61418848DECB27D13AADACAD2AFFA42BB6A63AD1BB493601B482"
+  },
+  {
+    "name": "icon-large",
+    "Path": "/reader/icon-512.svg",
+    "ContentType": "image/svg\u002Bxml",
+    "Status": 200,
+    "file": "icon-large.txt",
+    "bytes": 538,
+    "sha256": "F635C8F7F78F61418848DECB27D13AADACAD2AFFA42BB6A63AD1BB493601B482"
+  }
+]

@@ -556,6 +556,23 @@
       "status": "documented"
     },
     {
+      "path": "work-packages/2026-10-22-rf04-presentation.md",
+      "title": "RF-04 presentation ownership",
+      "kind": "topic",
+      "scope": "Reader, Account/PWA and Operations browser rendering/resources move from Content.Application to API Presentation, after behavior/browser baselines.",
+      "sources": [
+        "../../docs/engineering/frontend-design.md",
+        "../../docs/engineering/reader-presentation-migration.md",
+        "../../src/Apps/InkFlow.Api/ReaderEndpoints.cs",
+        "../../tools/InkFlow.ReaderFixtures/ReaderFixture.cs",
+        "../architecture.md",
+        "../operations/verification.md",
+        "2026-10-22-optimization-refactoring-plan.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
       "path": "work-packages/README.md",
       "title": "Work packages",
       "kind": "index",
@@ -720,6 +737,11 @@
       "type": "PARENT_CHILD",
       "parent": "work-packages/README.md",
       "child": "work-packages/2026-10-22-rf03-consistency-performance.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-22-rf04-presentation.md"
     }
   ]
 }
