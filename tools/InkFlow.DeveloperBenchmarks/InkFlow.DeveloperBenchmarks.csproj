@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Apps/InkFlow.Api/InkFlow.Api.csproj" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <Compile Include="../../tests/InkFlow.UnitTests/DeveloperEndpointFixture.cs" Link="DeveloperEndpointFixture.cs" />
+  </ItemGroup>
+</Project>

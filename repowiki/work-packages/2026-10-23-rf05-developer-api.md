@@ -1,0 +1,31 @@
+# RF-05 Developer API responsibility separation
+
+Audience: Agent-only.
+Agent read instruction: Read before Developer API baseline, implementation, verification or closeout.
+Scope: characterize authentication, validation, quota, catalog reads and command audits before separating self-service management, Administrator plan management and external read-only mappings.
+
+Status: In Progress. Explicit user authorization on 2026-10-23. Starting SHA `5841f3043fda70aa2f90f3824db3a5014219be84`; RF-04 is accepted. No `.codegraph/` directory at intake.
+
+## Contract
+
+Freeze behavior first, then split route ownership and colocate protocol-specific DTO/result mapping. Reuse `DeveloperEndpointResults.ReserveAsync`; do not introduce generic middleware or another quota algorithm. Host composes three mapping entry points. Remove the mixed implementation; preserve public DTO names/namespaces and wire contracts. No schema, query, authentication policy, lifecycle service, UI, package upgrade or RF-06 change. This follows ADR 0009 and the accepted plan; no new architecture decision is required.
+
+High-risk invariants: per-route identity -> validation -> quota -> catalog order; operation/units/TraceId/UTC period; status/error bodies, Retry-After and no-store placement; raw secrets only on successful issuance/rotation; owner isolation, disabled/expired/revoked credentials and scope enforcement. Developer command audit semantics remain distinct from AuditedResult: non-cancellation sink failures are logged/suppressed after the command, sink calls use CancellationToken.None, sink OperationCanceledException propagates. Successful command audit status is 200 even when HTTP uses 201/204. Early catalog validation and charged 404 responses currently do not set the helper's no-store header; preserve this observed behavior and document it rather than silently changing the contract.
+
+## Verification plan
+
+1. Add executable HTTP characterization around real routes/auth handlers/policies, with deterministic service/store doubles for failure injection. Cover all routes, exact payload/headers, authentication boundaries, validation/quota/read ordering, audit actor/resource/reference/reason/trace, cancellation and audit failure. Existing real application/lifecycle and PostgreSQL concurrency tests remain required; doubles do not prove persistence.
+2. Freeze the passing baseline in a separate commit before production edits. Record deterministic before/after observations and diagnostic measurements; no speedup claim or new performance target for structural separation. Existing Core SLO and RF-03 budgets remain mandatory.
+3. Separate management and external catalog routes in compilable increments, retaining helpers and protocol differences. Inspect diff before builds, run focused baseline/Contract/Architecture per affected slice.
+4. Restore/Release Build/full Tests, 11-context migration drift, Developer/Billing PostgreSQL/Redis, Developer/Admin and existing runtime/SLO/backup, exact-SHA CI/Docker/Security. Recheck local Docker; blocked local checks must be explicit and supplemented by real CI evidence.
+5. Synchronize Wiki, Chinese record, architecture/module navigation, Progress/Handoff/profile. Only mark Accepted when every applicable gate passes. Existing manual device/account/live-source/production acceptance remains open.
+
+Sources: [plan](2026-10-22-optimization-refactoring-plan.md), [protocol](../../docs/architecture/developer-api.md), [ADR 0009](../../docs/adr/0009-developer-api-commercial-foundation.md), [human record](../../docs/engineering/developer-api-refactoring.md), [current mappings](../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs).
+
+## Baseline preparation
+
+Production untouched. Focused tests: 70 PASS (62 new route/audit/cancellation cases, 8 lifecycle service cases including 4 new isolation/credential cases). TestHost canonicalizes Cache-Control token order; assertions use its normalized `no-store, private`, production still writes `private, no-store`.
+
+Diagnostic harness: `tools/InkFlow.DeveloperBenchmarks`, PostgreSQL 18 Alpine, fixed one-book/one-chapter/current-version fixture and UTC clock, concurrency 1, nine shapes, 3 warmups then 30 measured samples per shape in each of 3 rounds (810 samples). Real persisted key authentication, Billing reservation/ledger and Library/Content/policy repositories. Eligibility/rate counter/audit sink are deterministic; quota cache is a no-op and optional content reselection is excluded. SQL means EF executed commands on these four contexts, including reads/writes; parameter values and raw credentials are never recorded. Responses, protocol headers, ledger count/units, SQL count/hash and elapsed milliseconds are retained. Exact behavioral/SQL equivalence is required; latency is diagnostic only, existing Core SLO/RF-03 budgets unchanged. These scoped measurements do not replace full runtime/security/Redis gates. Local Docker command remains unavailable; CI will produce the actual PostgreSQL baseline before production edits.
+
+Local baseline gates: Restore/Release Build PASS (0 warnings/errors); Unit 726/726, Architecture 53/53, Contract 12/12 PASS. Full solution tests executed: Integration 8 passed, 128 DockerUnavailable failures, 3 skips; Windows pipe `npipe://./pipe/docker_engine` unavailable. PostgreSQL/runtime are BLOCKED locally, not passed.

@@ -11,6 +11,24 @@ permissions:
   contents: read
 
 jobs:
+  developer-measurement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Measure fixed Developer API PostgreSQL fixtures
+        run: dotnet run --project tools/InkFlow.DeveloperBenchmarks -c Release -- artifacts/developer/measurement.json
+      - name: Upload Developer measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: developer-measurements
+          path: artifacts/developer/
+          if-no-files-found: error
+          retention-days: 30
   reader-browser:
     runs-on: ubuntu-latest
     timeout-minutes: 20

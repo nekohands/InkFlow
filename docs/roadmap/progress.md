@@ -5,12 +5,16 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 保持 Planned，历史与真实环境待验收项继续保留。
+- 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 已获授权并进入 In Progress，历史与真实环境待验收项继续保留。
 - 最后更新日期：2026-10-22
 
-## RF-04 当前工作包
+## RF-05 当前工作包
 
-Accepted / Completed at `4ea9dd0`。先冻结 22 项完整输出与四屏宽浏览器基线，再将 Reader、账户/PWA、Operations 及 16 个嵌入资源迁入 API Presentation，Content 旧实现已删除。CI 39797024080（attempt 2，3/3）、Docker 39797024019（6/6）、Security 39797024110（4/4）全部 Job 成功；Unit 660、Architecture 53、Contract 12，PostgreSQL Integration 136 passed / 3 skipped、Redis 1/1、Runtime/SLO/OTLP/备份均通过。Linux 40 张截图零像素差异，前后各 450 次采样。首次截图时序/抗锯齿噪声问题已修复并保留证据，未改生产输出或一致性预算。本机 Docker 仍不可用；人工设备/账户/PWA/长时间阅读等验收继续开放。详情见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。文档收尾 SHA 另行验证，RF-05 尚未实施。
+In Progress。先建立真实路由/认证/策略的 HTTP 基线与固定 PostgreSQL 测量，再拆分自助管理、管理员套餐管理和外部读取职责。生产代码尚未修改；本地基线定向 70 项通过，包含 62 项新 HTTP/取消/审计用例及 8 项应用服务用例。完整门禁尚未执行，本机 docker 命令不可用。详见 [RF-05 记录](../engineering/developer-api-refactoring.md)。
+
+## RF-04 前序工作包
+
+Accepted / Completed at `4ea9dd0`。先冻结 22 项完整输出与四屏宽浏览器基线，再将 Reader、账户/PWA、Operations 及 16 个嵌入资源迁入 API Presentation，Content 旧实现已删除。CI 39797024080（attempt 2，3/3）、Docker 39797024019（6/6）、Security 39797024110（4/4）全部 Job 成功；Unit 660、Architecture 53、Contract 12，PostgreSQL Integration 136 passed / 3 skipped、Redis 1/1、Runtime/SLO/OTLP/备份均通过。Linux 40 张截图零像素差异，前后各 450 次采样。首次截图时序/抗锯齿噪声问题已修复并保留证据，未改生产输出或一致性预算。本机 Docker 仍不可用；人工设备/账户/PWA/长时间阅读等验收继续开放。详情见 [Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)。文档收尾 SHA 另行验证，RF-05 已开始行为基线。
 
 ## RF-03 前序工作包
 

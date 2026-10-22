@@ -152,6 +152,44 @@ public sealed class DeveloperApplicationServiceTests
             new ActiveUserReader(),
             new FixedClock(T0));
 
+    [TestMethod]
+    public async Task Non_owner_cannot_list_mutate_or_rotate_another_users_keys()
+    {
+        var applications = new FakeApplicationRepository();
+        var keys = new FakeKeyRepository();
+        var service = CreateService(applications, keys);
+        var owner = Guid.NewGuid();
+        var outsider = Guid.NewGuid();
+        var app = (await service.CreateApplicationAsync(owner, "Owned")).Value!;
+        var key = (await service.IssueKeyAsync(owner, app.ApplicationId, "Key", 1)).Value!;
+        Assert.IsEmpty(await service.ListApplicationsAsync(outsider));
+        Assert.IsEmpty(await service.ListKeysAsync(outsider, app.ApplicationId));
+        Assert.AreEqual(DeveloperOperationStatus.NotFound, (await service.IssueKeyAsync(outsider, app.ApplicationId, "Key", 1)).Status);
+        Assert.AreEqual(DeveloperOperationStatus.NotFound, (await service.RotateKeyAsync(outsider, app.ApplicationId, key.Key.KeyId, 1)).Status);
+        Assert.AreEqual(DeveloperOperationStatus.NotFound, await service.RevokeKeyAsync(outsider, app.ApplicationId, key.Key.KeyId));
+        Assert.AreEqual(DeveloperOperationStatus.NotFound, await service.RevokeApplicationAsync(outsider, app.ApplicationId));
+        Assert.IsNotNull(await service.ValidateAsync(key.RawKey));
+    }
+
+    [TestMethod]
+    [DataRow("disabled")]
+    [DataRow("expired")]
+    [DataRow("revoked")]
+    public async Task Disabled_expired_or_revoked_credentials_are_not_authenticated_or_marked_used(string state)
+    {
+        var applications = new FakeApplicationRepository();
+        var keys = new FakeKeyRepository();
+        var service = CreateService(applications, keys);
+        var owner = Guid.NewGuid();
+        var app = (await service.CreateApplicationAsync(owner, "Owned")).Value!;
+        var key = (await service.IssueKeyAsync(owner, app.ApplicationId, "Key", 1)).Value!;
+        if (state == "revoked") await service.RevokeKeyAsync(owner, app.ApplicationId, key.Key.KeyId);
+        var validator = new DeveloperApplicationService(applications, keys, new FixedSecretGenerator(),
+            new ActiveUserReader { Active = state != "disabled" }, new FixedClock(state == "expired" ? T0.AddDays(1) : T0));
+        Assert.IsNull(await validator.ValidateAsync(key.RawKey));
+        Assert.IsNull((await keys.GetAsync(owner, app.ApplicationId, key.Key.KeyId))!.LastUsedAt);
+    }
+
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
@@ -159,10 +197,11 @@ public sealed class DeveloperApplicationServiceTests
 
     private sealed class ActiveUserReader : IDeveloperUserStatusReader
     {
+        public bool Active { get; init; } = true;
         public Task<bool> IsActiveAsync(
             Guid userId,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(userId != Guid.Empty);
+            Task.FromResult(Active && userId != Guid.Empty);
     }
 
     private sealed class FixedSecretGenerator : IDeveloperApiKeySecretGenerator
