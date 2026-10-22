@@ -4,7 +4,7 @@ Audience: Agent-only.
 Agent read instruction: Read before assessing or implementing the 2026-10-22 optimization/refactoring plan; distinguish verified baseline facts from proposed changes and preserve the historical module-refactor record.
 Scope: evidence-based assessment, responsibility ownership, ordered work packages, measurement, regression and rollback criteria; documentation only in this delivery.
 ID: optimization-refactoring-plan-2026-10-22
-Status: RF-00 preserved in `df6c701`; RF-01 Accepted / Completed at `f90e6bd`; RF-02 Accepted at `3a38ad1`; RF-03 Accepted at `0a6e641`; RF-04 is Accepted at `4ea9dd0`; RF-05 is In Progress; RF-06 and later remain Planned.
+Status: RF-00 preserved in `df6c701`; RF-01 Accepted / Completed at `f90e6bd`; RF-02 Accepted at `3a38ad1`; RF-03 Accepted at `0a6e641`; RF-04 is Accepted at `4ea9dd0`; RF-05 is Accepted at `51fa810`; RF-06 and later remain Planned.
 Owner: InkFlow maintainers.
 Authorization: explicit user request on 2026-10-22, “优化重构项目, 先出文档”; the follow-up “继续” continues this documentation-first scope. Previous package instructions to implement/commit/push do not expand this request.
 Subsequent authorization: “继续，按方案开始实施，先做 RF-01 架构保护网。” explicitly starts [RF-01](2026-10-22-rf01-architecture-guards.md), including its candidate-commit/CI gates. The documentation-only authorization and baseline below describe RF-00's original delivery, not a restriction on RF-01.
@@ -91,7 +91,7 @@ Recommended sequence: RF-01 → RF-02 → RF-03 measurement decision → RF-04 �
 
 ## Measurement and verification plan
 
-At the RF-00 planning checkpoint measurements were NOT RUN. [RF-02](2026-10-22-rf02-consistency.md) now records completed consistency rule/PostgreSQL measurements; Reader and Developer measurements remain NOT RUN. Use identical Release environment, database version, seed, cache state, data and concurrency for before/after runs. Warm up 3 times, measure ≥30 samples per shape, repeat 3 rounds, retain raw data/parameters. Establish baseline noise and lock improvement targets/regression tolerances before performance code. Require a repeatable improvement in at least one target without exceeding other agreed tolerances; never invent speedup numbers.
+At the RF-00 planning checkpoint measurements were NOT RUN. [RF-02](2026-10-22-rf02-consistency.md) now records completed consistency rule/PostgreSQL measurements; Reader measurements are recorded in RF-04, and Developer before/after measurements in [RF-05](2026-10-23-rf05-developer-api.md) (810 observations per side, exact protocol/ledger/SQL equivalence). Use identical Release environment, database version, seed, cache state, data and concurrency for before/after runs. Warm up 3 times, measure ≥30 samples per shape, repeat 3 rounds, retain raw data/parameters. Establish baseline noise and lock improvement targets/regression tolerances before performance code. Require a repeatable improvement in at least one target without exceeding other agreed tolerances; never invent speedup numbers.
 
 - Consistency: 1k/10k/100k canonical chapters, 2 source chapters and 2 content versions each; empty, seeded orphan/duplicate, >1,000 issue cases. Record SQL count/rows/plans, elapsed p50/p95, allocations, peak memory and complete report equivalence.
 - Reader: short/long content and 100/1,000/10,000 chapter TOCs; same device/viewports. Record payload, render/interaction/navigation latency and DOM size. Structural migration first requires behavioral equivalence.
@@ -132,6 +132,6 @@ implementation and gates are recorded in [its package](2026-10-22-rf01-architect
 
 RF-02 is now Accepted at `3a38ad1` following explicit user authorization and all required gates; see [RF-02](2026-10-22-rf02-consistency.md). The original findings above describe the pre-refactor baseline.
 
-RF-03 is Accepted at `0a6e641` after explicit authorization: fresh baselines and frozen targets precede production optimization. See [RF-03](2026-10-22-rf03-consistency-performance.md). RF-04 is Accepted at `4ea9dd0`; RF-05 is In Progress.
+RF-03 is Accepted at `0a6e641` after explicit authorization: fresh baselines and frozen targets precede production optimization. See [RF-03](2026-10-22-rf03-consistency-performance.md). RF-04 is Accepted at `4ea9dd0`; RF-05 is Accepted at `51fa810`.
 
 RF-04 implementation and acceptance are tracked in [presentation ownership](2026-10-22-rf04-presentation.md). F-02 is the original intake observation; links now navigate to the migrated API renderer.

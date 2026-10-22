@@ -1,6 +1,6 @@
 # InkFlow 优化与重构方案
 
-日期：2026-10-22。状态：RF-00 文档已提交（`df6c701`）；RF-01 在实现提交 `f90e6bd` 完成验收，RF-02 在 `3a38ad1` 验收，RF-03 在 `0a6e641` 验收，RF-04 在 `4ea9dd0` 验收，RF-05 已进入 In Progress；RF-06 及以后保持 `Planned`。实施与验收见 [架构保护网](architecture-guards.md)。
+日期：2026-10-22。状态：RF-00 文档已提交（`df6c701`）；RF-01 在实现提交 `f90e6bd` 完成验收，RF-02 在 `3a38ad1` 验收，RF-03 在 `0a6e641` 验收，RF-04 在 `4ea9dd0` 验收，RF-05 在 `51fa810` 验收；RF-06 及以后保持 `Planned`。实施与验收见 [架构保护网](architecture-guards.md)。
 
 本轮需求：优化重构项目，先出文档。本文提供现状审查、推荐方向、实施顺序和验收计划。Agent 合同与证据入口为 [RepoWiki 工作包](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md)；本文是对应的中文工程方案。
 
@@ -15,7 +15,7 @@
 
 Sources 执行器、Crawling 调度协调、Reading 用例和内容包已经有较多职责拆分，先保留并验证，不重复执行旧计划。消息持久化和复杂解析器只有在明确收益与回归条件满足后才进入后续工作包。
 
-RF-00 原交付范围仅为方案、索引和交付状态文档。用户随后明确要求“继续，按方案开始实施，先做 RF-01 架构保护网”，据此启动 RF-01 的测试、测试依赖、文档及 candidate commit/CI 门禁；随后 RF-02 也获明确授权并完成验收；RF-03 已按复测/冻结目标/优化顺序验收；RF-04 也已按基线先行、分片迁移顺序验收，RF-05 已获授权并进入 In Progress，RF-06 及以后仍为 Planned。以下基线表保留 RF-00 审查时点，当前执行结果见 [RF-04](reader-presentation-migration.md)。
+RF-00 原交付范围仅为方案、索引和交付状态文档。用户随后明确要求“继续，按方案开始实施，先做 RF-01 架构保护网”，据此启动 RF-01 的测试、测试依赖、文档及 candidate commit/CI 门禁；随后 RF-02 也获明确授权并完成验收；RF-03 已按复测/冻结目标/优化顺序验收；RF-04 也已按基线先行、分片迁移顺序验收，RF-05 也已按基线先行完成验收（`51fa810`），RF-06 及以后仍为 Planned。以下基线表保留 RF-00 审查时点，当前执行结果见 [RF-05](developer-api-refactoring.md)。
 
 ## 2. 已核实的基线
 
@@ -157,7 +157,7 @@ RF-03 的技术路径由基准决定：可先让报告收集器只保留最多 1
 
 ### 7.1 性能基准计划（RF-00 时均未执行）
 
-RF-02 已完成一致性纯规则及 PostgreSQL 测量，原始数据和边界见 [测量记录](consistency-check-refactoring.md)；Reader 与 Developer 测量仍未执行。
+RF-02 已完成一致性纯规则及 PostgreSQL 测量，原始数据和边界见 [测量记录](consistency-check-refactoring.md)；Reader 测量见 [RF-04](reader-presentation-migration.md)，Developer 前后各 810 项观察及协议/账本/SQL 完全等价证据见 [RF-05](developer-api-refactoring.md)。
 
 | 场景 | 固定数据 / 负载 | 必须记录的指标 |
 | --- | --- | --- |
@@ -216,6 +216,6 @@ dotnet test InkFlow.sln -c Release
 
 RF-02 is now Accepted at `3a38ad1` following explicit user authorization and all required gates; see [RF-02](consistency-check-refactoring.md). The original findings above describe the pre-refactor baseline.
 
-RF-03 已授权并在 `0a6e641` 验收；先复测并冻结目标，再优化。当前证据见 [性能记录](consistency-check-performance.md)，RF-04 在 `4ea9dd0` 验收，RF-05 已进入 In Progress。
+RF-03 已授权并在 `0a6e641` 验收；先复测并冻结目标，再优化。当前证据见 [性能记录](consistency-check-performance.md)，RF-04 在 `4ea9dd0` 验收，RF-05 在 `51fa810` 验收。
 
 RF-04 实施与验收见 [Reader 基线与展示层迁移](reader-presentation-migration.md)。F-02 保留原始盘点事实，源码链接现指向迁移后的 API 展示层。
