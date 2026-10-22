@@ -26,7 +26,7 @@ AI 权威记录：[RF-04 Wiki](../../repowiki/work-packages/2026-10-22-rf04-pres
 
 ## 冻结基线（生产迁移前）
 
-生产基点 `9e9f9eb`；完整输出 22 项，Reader/输出/Reading 定向测试 28 项通过。Chromium 151.0.7922.34 / Playwright 1.62.1 / Windows，浏览器独占采样；环境与全部 450 次原始样本见 [browser.json](benchmarks/rf04/browser-before/browser.json)，同目录保留 40 张截图。四种屏宽验证行为，性能固定在 1440×900；每项 3 轮，每轮 3 次预热、30 次采样。renderMs 为导航起点到脚本/字体就绪后两帧的测量代理，不等于 LCP 或真实用户耗时。200% 检查使用 CSS zoom 重排代理，不替代系统/浏览器缩放及真机验收。
+生产基点 `9e9f9eb`；完整输出 22 项，Reader/输出/Reading 定向测试 28 项通过。Chromium 151.0.7922.34 / Playwright 1.62.1 / Windows，浏览器独占采样；环境与全部 450 次原始样本见 [browser.json](benchmarks/rf04/browser-before/browser.json)，同目录保留 40 张截图。四种屏宽验证行为，性能固定在 1440×900；每项 3 轮，每轮 3 次预热、30 次采样。renderMs 为导航起点到认证外壳/字体就绪后两帧的测量代理，不等于 LCP 或真实用户耗时。200% 检查使用 CSS zoom 重排代理，不替代系统/浏览器缩放及真机验收。
 
 | 输入 | UTF-8 字节 | DOM 节点 | 三轮 p50 范围 ms | 三轮 p95 范围 ms |
 | --- | ---: | ---: | ---: | ---: |
@@ -65,3 +65,13 @@ Restore / Release Build PASS（0 warning / 0 error）；Unit 660、Architecture 
 payload/DOM 未改变，延迟差值含浏览器/系统波动，不据此宣称提速。浏览器脚本的生产输出没有改动。所有新增 JavaScript 的 `node --check` 通过，测试依赖 npm audit 无已知漏洞。远端 CI/Docker/Security 仍待候选提交验证。
 
 迁移模型检查 11/11 通过；定向 ContentPolicy 集成测试复现 Docker named-pipe 不可用，未将本地 128 项容器初始化失败计为通过。
+
+## 浏览器门禁修复（候选 `17ac880` 后）
+
+首轮 CI `39792862294` 的浏览器 Job 因 `long-768` 截图失败：冻结旧版的截图在进度保存前，候选在“已同步”后；22 项发布输出 manifest 完全一致。修正为等待同步状态后再截屏。后续旧/新固定 HTML 的本地复测还发现圆角 9 个像素出现 1 级 RGB 量化差，另一处 19 个边缘像素最大相差 5 级；连续稳定帧及关闭 GPU 均未消除，不能将 PNG 字节不同直接等同于 UI 回归。
+
+最终协议：移开鼠标、等待字体和进度就绪、连续两张 PNG 稳定后逐像素比较。每张图最多允许 32 个像素不同；1/255 的 RGB 量化差直接记录，更大的差异必须由 pixelmatch 在零色差阈值下判定为抗锯齿，任何非抗锯齿颜色差异、alpha 或尺寸变化都失败，不遮蔽区域。比较器边界回归覆盖 32/33 像素、1/2 级差值、尺寸及透明度。原始 22 项输出/DOM/行为仍精确比较，截图报告逐张记录 changedPixels/maxRgbDelta/materialChanges；原始冻结数据保持不改。首轮 Docker/Security 已全绿，一致性预算通过；候选仍不得标记 Completed，需修复后的完整 CI 通过。
+
+测试工具要求 Node 24，Playwright 1.62.1 / pngjs 7.0.0 / pixelmatch 7.1.0 均锁定版本；它们不进入生产依赖。PNG 严格字节门禁的修订及其失败证据已保留，未修改生产资源或冻结输出期望来使测试通过。
+
+修正协议后的本地重跑已通过：四屏宽、40 张截图、22 项完整输出/DOM/行为和前后各 450 次采样。原始证据：[前测](benchmarks/rf04/browser-settled-before.json) / [后测](benchmarks/rf04/browser-settled-after.json)。比较器 3 项边界回归与 npm audit 通过；首轮 validate 的真实集成/运行时及一致性 Job 已通过，仅浏览器截图门禁失败。新提交须重跑完整门禁。

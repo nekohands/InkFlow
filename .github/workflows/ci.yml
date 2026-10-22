@@ -40,6 +40,7 @@ jobs:
         run: |
           npm ci --ignore-scripts --registry=https://registry.npmjs.org
           npm audit --audit-level=high --registry=https://registry.npmjs.org
+          node --test compare-screenshots.test.cjs
           npx playwright install --with-deps chromium
       - name: Compare browser behavior, screenshots, payload and DOM
         run: |

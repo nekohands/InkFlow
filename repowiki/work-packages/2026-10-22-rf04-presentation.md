@@ -30,7 +30,7 @@ Inspect diff, restore/build/test, Architecture/Contract/Reading/Reader tests, pu
 
 ## Frozen pre-migration evidence
 
-Production `9e9f9eb`; 22 canonical-LF complete output hashes, 28 focused tests PASS; four viewport behavior runs, 40 screenshots, 450 isolated desktop samples PASS. Raw data/environment/screenshots: [browser-before](../../docs/engineering/benchmarks/rf04/browser-before/browser.json); human record holds payload/node/p50/p95 table. Measurements use navigation start through script/font readiness and two animation frames, not LCP. 200% CSS zoom is a reflow proxy only. No uncaught JS errors; console/network errors are injected 404/503/401/offline only. The exploratory run overlapping build activity was discarded.
+Production `9e9f9eb`; 22 canonical-LF complete output hashes, 28 focused tests PASS; four viewport behavior runs, 40 screenshots, 450 isolated desktop samples PASS. Raw data/environment/screenshots: [browser-before](../../docs/engineering/benchmarks/rf04/browser-before/browser.json); human record holds payload/node/p50/p95 table. Measurements use navigation start through authentication-shell/font readiness and two animation frames, not LCP. 200% CSS zoom is a reflow proxy only. No uncaught JS errors; console/network errors are injected 404/503/401/offline only. The exploratory run overlapping build activity was discarded.
 
 Operations confirmation pre-fills a suggested reason; blank validation explicitly clears it. SW scope `/reader/` excludes `/reader`; offline tests enter scope first. No production behavior changed to accommodate harness assumptions. Browser fixtures do not prove real response headers/auth/storage; existing API runtime and contract gates remain mandatory.
 
@@ -47,3 +47,13 @@ Increment 3: Operations HTML composer stays in API Presentation; styles/script/h
 Published fixture assembly executed from system temp directory exports 22 cases. Before/after output hashes, 40 PNG hashes, four viewport behavior summaries, payload and DOM are identical; no uncaught JS errors. [After raw 450 samples](../../docs/engineering/benchmarks/rf04/browser-after.json); same screenshots as the archived baseline. Timing differences include browser/system noise and are not a claimed speedup. All extracted JS syntax checks and npm dependency audit PASS. Full remote gates pending.
 
 Migration drift check PASS for all 11 contexts. A focused ContentPolicy persistence test reproduced the local Docker named-pipe failure; the 128 integration failures are not treated as passes.
+
+## Browser gate correction after `17ac880`
+
+CI 39792862294 browser job failed at `long-768`: before screenshot preceded progress acknowledgement, after showed 已同步; all 22 published output manifests matched. Wait for acknowledgement before screenshots. Further local replay of identical output found 9 rounded-edge pixels differing by one RGB level and another 19 edge pixels by up to five levels; two stable frames and disabling GPU did not eliminate quantization.
+
+Final screenshot protocol moves pointer away, waits fonts/progress, then two identical captures; pixel comparison accepts at most 32 changed pixels per image: RGB delta <=1 is quantization, larger deltas must be classified as antialiasing by pixelmatch at zero color threshold. Any other color change, alpha or dimension change fails; no masked regions. Boundary regressions cover 32/33 pixels, delta 1/2, alpha/dimensions. Output/DOM/behavior remain exact; report retains all PNG hashes and per-image changedPixels/maxRgbDelta/materialChanges. Original frozen artifacts are retained unchanged. Docker/Security and consistency budget gates passed for the first candidate; corrected full CI is still required.
+
+Browser tools require Node 24, with Playwright 1.62.1, pngjs 7.0.0 and pixelmatch 7.1.0 pinned as dev-only dependencies. The PNG-byte gate correction is explicit; no production asset or frozen output expectation changed to make tests pass.
+
+Corrected local replay PASS: all four viewports, 40 screenshots, exact output/DOM/behavior and 450 samples per side; [settled before](../../docs/engineering/benchmarks/rf04/browser-settled-before.json) / [settled after](../../docs/engineering/benchmarks/rf04/browser-settled-after.json). Comparator 3 boundary tests and npm audit PASS. Initial validate (real integration/runtime) and consistency jobs passed; only browser gate failed. Full corrected-SHA CI remains required.

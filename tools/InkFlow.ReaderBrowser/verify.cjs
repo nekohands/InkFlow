@@ -5,6 +5,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const os = require('node:os');
+const { compareScreenshots } = require('./compare-screenshots.cjs');
 
 const input = path.resolve(process.argv[2] || '../../artifacts/reader-fixtures');
 const output = path.resolve(process.argv[3] || '../../artifacts/reader-browser');
@@ -15,7 +16,7 @@ const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 (async () => {
   const fixture = await startServer(input);
   const browser = await chromium.launch({ headless: true });
-  const report = { browser: browser.version(), platform: process.platform, environment: { os: os.release(), architecture: process.arch, cpu: os.cpus()[0].model, logicalCpus: os.cpus().length, node: process.version, playwright: require('playwright/package.json').version }, viewports: [], measurements: [], pageErrors: [], consoleMessages: [], failedRequests: [], screenshots: {} };
+  const report = { browser: browser.version(), platform: process.platform, environment: { os: os.release(), architecture: process.arch, cpu: os.cpus()[0].model, logicalCpus: os.cpus().length, node: process.version, playwright: require('playwright/package.json').version }, viewports: [], measurements: [], pageErrors: [], consoleMessages: [], failedRequests: [], screenshots: {}, visualComparisons: {} };
   const byName = Object.fromEntries(fixture.manifest.map(item => [item.name, item]));
   const visit = async (page, name) => {
     await page.goto(fixture.baseUrl + byName[name].Path);
@@ -30,9 +31,31 @@ const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
     await page.locator('.book-grid').waitFor();
   };
   const screenshot = async (page, name) => {
-    const bytes = await page.screenshot({ path: path.join(output, name + '.png'), animations: 'disabled' });
+    // Chapter progress saves after two async frames. Compare the completed UI,
+    // not a race between an empty status and the visible "已同步" acknowledgement.
+    if (await page.locator('#reader-sync-status').count()) {
+      await page.waitForFunction(() => document.querySelector('#reader-sync-status').textContent === '已同步');
+    }
+    // Keep pointer hover out of the snapshot and wait for two identical frames;
+    // compare pixels only after asynchronous UI state has settled.
+    await page.mouse.move(0, 0);
+    await page.evaluate(() => document.fonts.ready);
+    let previous = null;
+    let bytes;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      bytes = await page.screenshot({ animations: 'disabled' });
+      if (previous && hash(bytes) === hash(previous)) break;
+      previous = bytes;
+      if (attempt === 9) throw new Error(`Screenshot did not stabilize: ${name}`);
+    }
+    fs.writeFileSync(path.join(output, name + '.png'), bytes);
     report.screenshots[name] = hash(bytes);
-    if (baseline) assert.equal(hash(bytes), hash(fs.readFileSync(path.join(baseline, name + '.png'))), `Screenshot changed: ${name}`);
+    if (baseline) {
+      const comparison = compareScreenshots(bytes, fs.readFileSync(path.join(baseline, name + '.png')));
+      report.visualComparisons[name] = comparison;
+      assert.ok(comparison.equivalent, `Screenshot changed: ${name}: ${JSON.stringify(comparison)}`);
+    }
   };
   try {
     for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
