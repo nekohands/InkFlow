@@ -230,3 +230,7 @@ CI 同时将 metrics 周期导出缩短到 1 秒，Collector metrics batch 缩�
 当前 CI 在 Runtime smoke 产生真实审计数据后执行 PostgreSQL custom-format 备份恢复演练：恢复到隔离数据库，并比较所有非系统表的行数签名与 `audit.events` 数量。该验证证明数据库归档可恢复，不等同于生产异地备份、审计法律保留、删除授权、RPO/RTO 或告警治理。
 
 RF-03 实现：一致性查找索引直接建字典并保留重复键首条；服务完整计数、用最大堆保留 ordinal 最小的 1,000 条问题。完整验证入口继续用于诊断/等价校验。13 次 EF 全量快照、规则判定、公共 JSON 和非原子读取语义不变。已在 `0a6e641` 验收，见 [性能记录](../engineering/consistency-check-performance.md)。
+
+### RF-05 Developer API 映射职责
+
+API Host 显式组合 `DeveloperManagementEndpoints`（自助应用/密钥及本人权益）、`DeveloperAdministrationEndpoints`（管理员套餐管理）、`DeveloperCatalogEndpoints`（外部只读目录）。公共 DTO 继续使用 `InkFlow.Api` 命名空间，在 `DeveloperEndpointContracts` 声明；原配额与审计 helper 保持各自语义。Billing 的计费事实/锁、Developers 的密钥生命周期与 Content 的入库读取职责不变，没有新增模块依赖、通用配额中间件或数据库修改。详见 [RF-05 记录](../engineering/developer-api-refactoring.md)。

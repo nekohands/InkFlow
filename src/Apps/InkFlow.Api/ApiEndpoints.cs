@@ -12,7 +12,9 @@ public static class ApiEndpoints
         AccountEndpointResults.Map(api);
         LegadoTokenEndpointResults.Map(api);
         api.MapPrivateLibraryEndpoints();
-        app.MapDeveloperEndpoints(api);
+        api.MapDeveloperManagementEndpoints();
+        api.MapDeveloperAdministrationEndpoints();
+        app.MapDeveloperCatalogEndpoints();
         ReadingEndpointResults.Map(api);
         OperationsEndpoints.Map(api);
         SourceHealthEndpointResults.Map(api);

@@ -6,11 +6,11 @@
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
 - 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 已获授权并进入 In Progress，历史与真实环境待验收项继续保留。
-- 最后更新日期：2026-10-22
+- 最后更新日期：2026-10-23
 
 ## RF-05 当前工作包
 
-In Progress。先建立真实路由/认证/策略的 HTTP 基线与固定 PostgreSQL 测量，再拆分自助管理、管理员套餐管理和外部读取职责。生产代码尚未修改；本地基线定向 70 项通过，包含 62 项新 HTTP/取消/审计用例及 8 项应用服务用例。完整门禁尚未执行，本机 docker 命令不可用。详见 [RF-05 记录](../engineering/developer-api-refactoring.md)。
+In Progress。`4804dc0` 行为基线与 `9d7c558` 真实 PostgreSQL 810 项观察先于生产修改冻结；已拆分自助管理、管理员套餐管理、外部读取三个入口，保留 DTO/配额/审计语义。相关测试 82 项通过；完整候选门禁待执行。本机 Docker 缺失由远端真实门禁补足，详见 [RF-05 记录](../engineering/developer-api-refactoring.md)。
 
 ## RF-04 前序工作包
 
@@ -74,7 +74,7 @@ Phase 1A 自动化工作包状态：
 - 全量本地 Integration：8 通过、128 因 Docker 初始化不可用失败、3 跳过（两项可选真实源、一项 Redis 配置），本地 Runtime BLOCKED。修复候选 `f90e6bd658ecc657dc68e34b1936990a4ce99555` 的 [CI 39758029891](https://github.com/nekohands/InkFlow/actions/runs/39758029891)、[Docker 39758029869](https://github.com/nekohands/InkFlow/actions/runs/39758029869)、[Security 39758029837](https://github.com/nekohands/InkFlow/actions/runs/39758029837) 全部 Job 通过，head SHA 一致。
 - CI Integration 136 通过、3 跳过，Redis 独立配置后 1/1；业务 Runtime、SLO/OTLP、备份恢复均通过。两项可选真实源未运行，不在本包验收范围。
 - 四类约束未检出生产违规；已修复 internal 嵌套类型筛选漏检。Docker 原候选 `34cfa8f` 检出 Go 标准库 CVE-2026-111943，Collector Go 1.26.9 → 1.26.10 补丁已通过扫描/发布/拉取与 Runtime；ADR 0012 与安全/架构文档同步。业务、协议、Schema/Migration 不变。
-- RF-02 已验收；RF-03 当前状态见本文顶部，RF-04 当前状态见本文顶部，RF-05 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
+- RF-02 已验收；RF-03 当前状态见本文顶部，RF-04 当前状态见本文顶部，RF-05 当前状态见本文顶部，RF-06 及后续保持 Planned。真实设备/账户/来源/生产验收仍按下方清单保持开放。
 
 ### 前序工作包快照：模块化重构（2026-10-15，Batch 2 Pushed / Remote Gates Incomplete）
 

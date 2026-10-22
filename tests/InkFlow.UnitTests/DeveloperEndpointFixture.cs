@@ -102,7 +102,10 @@ internal sealed class DeveloperEndpointFixture : IAsyncDisposable, IDeveloperApi
         });
         app.UseRateLimiter();
         app.UseAuthorization();
-        app.MapDeveloperEndpoints(app.MapGroup("/api/v1").RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName));
+        var api = app.MapGroup("/api/v1").RequireRateLimiting(ApiRateLimitPolicies.PublicPolicyName);
+        api.MapDeveloperManagementEndpoints();
+        api.MapDeveloperAdministrationEndpoints();
+        app.MapDeveloperCatalogEndpoints();
         await app.StartAsync();
         fixture.Client = app.GetTestClient();
         return fixture;

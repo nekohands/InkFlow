@@ -20,7 +20,7 @@ High-risk invariants: per-route identity -> validation -> quota -> catalog order
 4. Restore/Release Build/full Tests, 11-context migration drift, Developer/Billing PostgreSQL/Redis, Developer/Admin and existing runtime/SLO/backup, exact-SHA CI/Docker/Security. Recheck local Docker; blocked local checks must be explicit and supplemented by real CI evidence.
 5. Synchronize Wiki, Chinese record, architecture/module navigation, Progress/Handoff/profile. Only mark Accepted when every applicable gate passes. Existing manual device/account/live-source/production acceptance remains open.
 
-Sources: [plan](2026-10-22-optimization-refactoring-plan.md), [protocol](../../docs/architecture/developer-api.md), [ADR 0009](../../docs/adr/0009-developer-api-commercial-foundation.md), [human record](../../docs/engineering/developer-api-refactoring.md), [current mappings](../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs).
+Sources: [plan](2026-10-22-optimization-refactoring-plan.md), [protocol](../../docs/architecture/developer-api.md), [ADR 0009](../../docs/adr/0009-developer-api-commercial-foundation.md), [human record](../../docs/engineering/developer-api-refactoring.md), [external mapping](../../src/Apps/InkFlow.Api/DeveloperCatalogEndpoints.cs).
 
 ## Baseline preparation
 
@@ -31,3 +31,9 @@ Diagnostic harness: `tools/InkFlow.DeveloperBenchmarks`, PostgreSQL 18 Alpine, f
 Local baseline gates: Restore/Release Build PASS (0 warnings/errors); Unit 726/726, Architecture 53/53, Contract 12/12 PASS. Full solution tests executed: Integration 8 passed, 128 DockerUnavailable failures, 3 skips; Windows pipe `npipe://./pipe/docker_engine` unavailable. PostgreSQL/runtime are BLOCKED locally, not passed.
 
 Frozen production baseline: `4804dc0ce0eb3b6dc8420b7ac0c1e58c7eca2c7d`. CI `39814163301` / developer-measurement job `119948108625` completed successfully before production edits; raw 810 observations are in [before-postgres.json](../../docs/engineering/benchmarks/rf05/before-postgres.json). SQL commands per request: search/list 10, book/chapters 11, content 13, invalid key 1, invalid parameter 3, charged missing content 9, exceeded 7. Comparator rejects missing/duplicate samples and protocol/ledger/SQL drift; its mutation regression tests pass. Host composition test also freezes all 15 Developer route/policy/rate-limit combinations. Full baseline CI gates still pending at this checkpoint; this is not RF-05 acceptance.
+
+## Implementation checkpoint
+
+Frozen baseline/observations commits `4804dc0` and `9d7c558` precede all production changes. The mixed 904-line file is removed: management 326 lines, administration 79, catalog 273; separate protocol contracts, original quota/audit helpers and user-status adapter. Host composes the three owners. Baseline fixture changed only composition calls; test expectations remain frozen. Text comparison confirms exact audit implementation, quota helper (only nested identity owner changes) and DTO declarations. Focused Developer/composition/AuditedResponse 82/82 PASS. Final Build/Tests/Runtime/Security/CI and documentation acceptance are pending.
+
+Candidate local verification: Restore/Release Build and benchmark build PASS, 0 warnings/errors; full Unit 726, Architecture 53, Contract 12 PASS; full Integration executed with 8 passed / 128 DockerUnavailable failures / 3 skips. Migration drift PASS 11/11. Diff/security review: no authentication policy, schema, transaction, query, public DTO or secret exposure changes; only mapping ownership/composition and helper placement. Exact candidate PostgreSQL equivalence/runtime/security/CI gates are NOT RUN until push.

@@ -33,3 +33,9 @@ AI 合同与证据：[RF-05 Wiki](../../repowiki/work-packages/2026-10-23-rf05-d
 本地基线门禁：Restore/Release Build 通过（0 警告/错误）；Unit 726/726、Architecture 53/53、Contract 12/12 通过。已实际执行全量测试：Integration 8 通过、128 项 DockerUnavailable 失败、3 跳过，Windows Docker named pipe 不可用；本地 PostgreSQL/Runtime 为 BLOCKED，等待远端实测。
 
 已冻结生产基线 `4804dc0`：CI `39814163301` 的 developer-measurement Job `119948108625` 在生产改动前成功完成，810 项原始观察保存在 [before-postgres.json](benchmarks/rf05/before-postgres.json)。每请求 SQL 命令数：搜索/列表 10、书详情/目录 11、正文 13、无效密钥 1、无效参数 3、扣费后正文缺失 9、超额 7。比较器拒绝缺失/重复采样及协议/账本/SQL 漂移，故障注入测试通过；Host 组合测试补齐全部 15 条 Developer 路由的策略与限流元数据。此时完整基线 CI 尚未结束，不作为 RF-05 验收。
+
+## 实现检查点
+
+`4804dc0` 行为基线及 `9d7c558` PostgreSQL 观察冻结提交先于所有生产修改。原 904 行混合文件已删除，自助管理 326 行、管理员管理 79 行、外部目录 273 行；DTO、原配额/审计 helper、用户状态适配器各自归位。Host 显式组合三个入口。基线 fixture 仅改组合调用，断言未改；文本核对审计、配额 helper（仅身份类型归属变化）和公共 DTO 声明一致。相关 Developer/组合/AuditedResponse 测试 82/82 通过，最终完整门禁及验收仍待执行。
+
+候选本地验证：Restore/Release Build 与测量程序 Build 通过，0 警告/错误；Unit 726、Architecture 53、Contract 12 全通过；全量 Integration 实际执行为 8 通过 / 128 DockerUnavailable 失败 / 3 跳过。迁移模型 11/11 通过。Diff/安全审查确认认证策略、Schema、事务、查询、公共 DTO 与密钥暴露规则未改，仅职责/组合及 helper 位置变化。候选 PostgreSQL 等价、运行时、安全和 CI 在推送前为 NOT RUN。

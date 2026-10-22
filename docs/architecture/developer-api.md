@@ -51,7 +51,7 @@ audit behavior are unchanged.
 | `GET` | `/api/developer/v1/books/{bookId}/chapters` | 1 |
 | `GET` | `/api/developer/v1/chapters/{chapterId}/content` | 5 |
 
-`limit` is bounded to 1–100 and is applied at the stored Canonical summary query before response mapping; Content Policy filtering may therefore return fewer than the requested limit. Content is returned from the current stored Canonical version and is subject to Content Policy. Responses use `Cache-Control: private, no-store` because access is key- and quota-scoped.
+`limit` is bounded to 1–100 and is applied at the stored Canonical summary query before response mapping; Content Policy filtering may therefore return fewer than the requested limit. Content is returned from the current stored Canonical version and is subject to Content Policy. Successful reads and quota-helper failures use `Cache-Control: private, no-store` because access is key- and quota-scoped. Early validation errors and charged not-found responses currently do not set that helper header; RF-05 preserves this existing placement.
 
 ## Quota and errors
 
@@ -64,3 +64,7 @@ Each authorized operation appends a `UsageLedger` fact and increments the Postgr
 - `503 quota_unavailable`: authoritative quota storage is unavailable; the request fails closed.
 
 Redis may cache the display snapshot but never authorizes a request or becomes the source of quota truth.
+
+## Mapping ownership (RF-05)
+
+The API host explicitly composes `DeveloperManagementEndpoints` (owned apps/keys and own entitlement), `DeveloperAdministrationEndpoints` (Administrator plans/assignment), and `DeveloperCatalogEndpoints` (external stored reads). Public DTO names remain in `InkFlow.Api`, declared in `DeveloperEndpointContracts`. `DeveloperEndpointResults.ReserveAsync` remains the single protocol quota helper. `DeveloperEndpointAudit` remains separate from `AuditedResult`: after a completed command it appends with `CancellationToken.None`, suppresses non-cancellation sink exceptions, and propagates sink cancellation; successful command events use status 200 even for HTTP 201/204. See the [RF-05 record](../engineering/developer-api-refactoring.md) for characterization and measurement boundaries.

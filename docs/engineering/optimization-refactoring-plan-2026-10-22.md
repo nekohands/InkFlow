@@ -1,6 +1,6 @@
 # InkFlow 优化与重构方案
 
-日期：2026-10-22。状态：RF-00 文档已提交（`df6c701`）；RF-01 在实现提交 `f90e6bd` 完成验收，RF-02 在 `3a38ad1` 验收，RF-03 在 `0a6e641` 验收，RF-04 在 `4ea9dd0` 验收，RF-05 及以后保持 `Planned`。实施与验收见 [架构保护网](architecture-guards.md)。
+日期：2026-10-22。状态：RF-00 文档已提交（`df6c701`）；RF-01 在实现提交 `f90e6bd` 完成验收，RF-02 在 `3a38ad1` 验收，RF-03 在 `0a6e641` 验收，RF-04 在 `4ea9dd0` 验收，RF-05 已进入 In Progress；RF-06 及以后保持 `Planned`。实施与验收见 [架构保护网](architecture-guards.md)。
 
 本轮需求：优化重构项目，先出文档。本文提供现状审查、推荐方向、实施顺序和验收计划。Agent 合同与证据入口为 [RepoWiki 工作包](../../repowiki/work-packages/2026-10-22-optimization-refactoring-plan.md)；本文是对应的中文工程方案。
 
@@ -15,7 +15,7 @@
 
 Sources 执行器、Crawling 调度协调、Reading 用例和内容包已经有较多职责拆分，先保留并验证，不重复执行旧计划。消息持久化和复杂解析器只有在明确收益与回归条件满足后才进入后续工作包。
 
-RF-00 原交付范围仅为方案、索引和交付状态文档。用户随后明确要求“继续，按方案开始实施，先做 RF-01 架构保护网”，据此启动 RF-01 的测试、测试依赖、文档及 candidate commit/CI 门禁；随后 RF-02 也获明确授权并完成验收；RF-03 已按复测/冻结目标/优化顺序验收；RF-04 也已按基线先行、分片迁移顺序验收，RF-05 及以后仍为 Planned。以下基线表保留 RF-00 审查时点，当前执行结果见 [RF-04](reader-presentation-migration.md)。
+RF-00 原交付范围仅为方案、索引和交付状态文档。用户随后明确要求“继续，按方案开始实施，先做 RF-01 架构保护网”，据此启动 RF-01 的测试、测试依赖、文档及 candidate commit/CI 门禁；随后 RF-02 也获明确授权并完成验收；RF-03 已按复测/冻结目标/优化顺序验收；RF-04 也已按基线先行、分片迁移顺序验收，RF-05 已获授权并进入 In Progress，RF-06 及以后仍为 Planned。以下基线表保留 RF-00 审查时点，当前执行结果见 [RF-04](reader-presentation-migration.md)。
 
 ## 2. 已核实的基线
 
@@ -61,7 +61,7 @@ RF-00 原交付范围仅为方案、索引和交付状态文档。用户随后�
 | F-01 | [ModuleBoundarySmokeTests](../../tests/InkFlow.ArchitectureTests/ModuleBoundarySmokeTests.cs) 只有程序集加载测试，注释中的真实分层约束尚未实现 | P0：现有 Architecture GREEN 不能证明 Domain、Host 和跨模块持久化边界受到自动保护 | RF-01 增加可检出非法依赖的测试 |
 | F-02 | [ReaderHtml.cs](../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.cs)、[UserPages](../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.UserPages.cs)、[Operations](../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.Operations.cs) 分别 1,135 / 1,197 / 1,936 行，共 4,268 行；HTML、CSS、JS、会话和 PWA 行为放在 Content.Application | P1：展示职责与内容业务同模块，修改及测试定位成本高；不是已测得的浏览器性能故障 | RF-04 明确展示所有权，保持输出行为 |
 | F-03 | 原 `ConsistencyCheck.cs` 共 881 行（迁移后入口：[EF 适配器](../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs)），含快照 DTO、服务、纯规则和 EF 适配器；读取 13 组完整元数据集合，再生成全部问题，最后 `Take(1000)` | P1：响应上限没有约束输入快照及问题中间集合；规模风险已定位，生产延迟/内存影响尚未测量 | RF-02 分离职责并建立基准，RF-03 按证据优化 |
-| F-04 | [DeveloperEndpoints.cs](../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs) 共 904 行，混合自助管理、管理员套餐操作、外部只读目录、DTO、配额结果和审计 | P1：三类调用者的策略容易在修改时交叉；当前已存在配额公共 helper | RF-05 按协议/使用场景整理，复用既有 helper |
+| F-04 | `DeveloperEndpoints.cs`（RF-00 时点；现见 [RF-05](developer-api-refactoring.md)） 共 904 行，混合自助管理、管理员套餐操作、外部只读目录、DTO、配额结果和审计 | P1：三类调用者的策略容易在修改时交叉；当前已存在配额公共 helper | RF-05 按协议/使用场景整理，复用既有 helper |
 | F-05 | [MessagingStore.cs](../../src/BuildingBlocks/InkFlow.BuildingBlocks.Persistence/MessagingStore.cs) 共 826 行，同一实现承载 Outbox、Inbox、传输、死信查询和 retention 五个接口 | P2 候选：职责集中，但事务/租约风险高；行数不能证明需要拆分 | RF-06 先验证改动收益和真实 PostgreSQL 回归能力 |
 | F-06 | [SourceRuleDslValidator](../../src/Modules/InkFlow.Modules.Sources/Domain/SourceRuleDslValidator.cs) 883 行；[HtmlXPathSelectorEvaluator](../../src/Modules/InkFlow.Modules.Sources/Infrastructure/HtmlXPathSelectorEvaluator.cs) 870 行 | P2 候选：复杂度部分来自真实安全约束；DSL 已委托分页校验，选择器语言已经分离 | 保留安全边界；只有重复规则或定位成本得到证据支持才继续整理 |
 | F-07 | Wiki、Progress、Handoff 和 profile 的当前指针仍描述 10 月 15 日 Batch 2 和旧 Docker RED | P0 文档：可能导致重复实现和错误接续 | 本轮同步当前入口，保留历史证据 |
@@ -216,6 +216,6 @@ dotnet test InkFlow.sln -c Release
 
 RF-02 is now Accepted at `3a38ad1` following explicit user authorization and all required gates; see [RF-02](consistency-check-refactoring.md). The original findings above describe the pre-refactor baseline.
 
-RF-03 已授权并在 `0a6e641` 验收；先复测并冻结目标，再优化。当前证据见 [性能记录](consistency-check-performance.md)，RF-04 在 `4ea9dd0` 验收，RF-05 仍为 Planned。
+RF-03 已授权并在 `0a6e641` 验收；先复测并冻结目标，再优化。当前证据见 [性能记录](consistency-check-performance.md)，RF-04 在 `4ea9dd0` 验收，RF-05 已进入 In Progress。
 
 RF-04 实施与验收见 [Reader 基线与展示层迁移](reader-presentation-migration.md)。F-02 保留原始盘点事实，源码链接现指向迁移后的 API 展示层。

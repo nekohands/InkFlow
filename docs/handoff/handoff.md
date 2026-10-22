@@ -7,11 +7,11 @@
 - 当前工作分支：`dev`（2026-08-25 起）
 - 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 已获授权并进入 In Progress，历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
-- 交接日期：2026-10-22；dev 骨架重建更新：2026-08-25
+- 交接日期：2026-10-23；dev 骨架重建更新：2026-08-25
 
 ## RF-05 当前工作包
 
-In Progress。先建立真实路由/认证/策略的 HTTP 基线与固定 PostgreSQL 测量，再拆分自助管理、管理员套餐管理和外部读取职责。生产代码尚未修改；本地基线定向 70 项通过，包含 62 项新 HTTP/取消/审计用例及 8 项应用服务用例。完整门禁尚未执行，本机 docker 命令不可用。详见 [RF-05 记录](../engineering/developer-api-refactoring.md)。
+In Progress。`4804dc0` 行为基线与 `9d7c558` 真实 PostgreSQL 810 项观察先于生产修改冻结；已拆分自助管理、管理员套餐管理、外部读取三个入口，保留 DTO/配额/审计语义。相关测试 82 项通过；完整候选门禁待执行。本机 Docker 缺失由远端真实门禁补足，详见 [RF-05 记录](../engineering/developer-api-refactoring.md)。
 
 ## RF-04 前序工作包
 

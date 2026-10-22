@@ -42,4 +42,4 @@ Parent/root index: [../README.md](../README.md)
 
 - [RF-03 — measured consistency optimization](2026-10-22-rf03-consistency-performance.md)
 
-- Current: [RF-04 presentation ownership](2026-10-22-rf04-presentation.md), Accepted / Completed at `4ea9dd0`; CI (attempt 2)/Docker/Security all jobs PASS. RF-05 remains Planned.
+- Previous accepted: [RF-04 presentation ownership](2026-10-22-rf04-presentation.md), Accepted / Completed at `4ea9dd0`; CI (attempt 2)/Docker/Security all jobs PASS. RF-05 is In Progress; see the current package above.

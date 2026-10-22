@@ -106,3 +106,5 @@ boundary and static-analysis limits are recorded in that package and the
   Kanunu8 static extraction regexes use the finite `MaxRegexTime` ceiling.
 
 RF-03 implementation: first-row lookup dictionaries avoid grouping buffers; the service counts all issues and retains the ordinal smallest 1,000 in a max-priority queue. The complete validator remains available for diagnostics/equivalence. EF snapshots, 13 reads, rule predicates, public JSON and isolation are unchanged. Accepted at `0a6e641`; see [RF-03](work-packages/2026-10-22-rf03-consistency-performance.md).
+
+RF-05 preserves ADR 0009 and module directions: API owns separate self-service, Administrator and external Developer mappings. Billing still owns quota facts/locking, Developers owns key lifecycle, Content owns stored reads. API quota/audit protocol helpers and public DTO contracts are preserved; no generic authorization/quota middleware was introduced. [Evidence and limits](work-packages/2026-10-23-rf05-developer-api.md).
