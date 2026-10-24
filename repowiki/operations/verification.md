@@ -14,7 +14,7 @@ Operations index: [README.md](README.md)
 
 ## Current verification (2026-10-24)
 
-[RF-07](../work-packages/2026-10-24-rf07-regression-closeout.md) is In Progress: 15/15 implementation workflows and 14/15 historical closeout workflows PASS; cancelled c3347ca CI is being rerun at its exact SHA. Fresh local Unit 726, Architecture 53, Contract 12, migration 11/11, comparator regressions and isolated 720-sample rule budgets PASS. Local Integration = 8 passed / 128 DockerUnavailable failures / 3 skips; candidate real PostgreSQL/Redis/runtime/browser/security/CI remains PENDING. Preserve the first overlapping local measurement failure; run local performance gates without concurrent task-local builds/downloads.
+[RF-07](../work-packages/2026-10-24-rf07-regression-closeout.md) is Accepted at `096eb3e`: all 30 historical workflows/124 jobs reconciled after exact-SHA c3347ca CI attempt 2 repair; current CI 40060934590 (4/4), Docker 40060934577 (6/6), Security 40060934575 (4/4) all jobs PASS. Fresh local Unit 726, Architecture 53, Contract 12, migrations 11/11, comparator regressions and isolated 720-sample rule budgets PASS; real PG 136 passed / 3 skips, configured Redis 1/1 and runtime/SLO/OTLP/backup PASS. Current PG 720 samples, Developer 810 observations and Reader 22 outputs/four viewports/40 zero-pixel-difference screenshots PASS. Local Integration remains 8 passed / 128 DockerUnavailable failures / 3 skips. Preserve the first overlapping local measurement failure and historical cancellations; future local performance gates must have no concurrent task-local builds/downloads. Manual/live/production acceptance remains open.
 
 ## Previous verification checkpoint (2026-10-22)
 

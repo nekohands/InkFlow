@@ -1,0 +1,11 @@
+PASS: 810 responses, headers, ledger deltas and SQL counts/hashes match.
+Latency is diagnostic only; frozen Core SLO and RF-03 gates still apply.
+book: SQL=[11], before p50/p95=9.409/11.154 ms, after=9.433/10.372 ms
+chapters: SQL=[11], before p50/p95=9.405/10.552 ms, after=8.776/10.113 ms
+content: SQL=[13], before p50/p95=10.722/12.794 ms, after=10.014/11.199 ms
+exceeded: SQL=[7], before p50/p95=5.684/6.816 ms, after=5.428/6.285 ms
+invalid-key: SQL=[1], before p50/p95=1.255/1.365 ms, after=1.242/1.461 ms
+invalid-parameter: SQL=[3], before p50/p95=2.798/3.470 ms, after=2.725/3.176 ms
+list: SQL=[10], before p50/p95=9.244/10.381 ms, after=8.611/9.677 ms
+missing: SQL=[9], before p50/p95=7.688/9.211 ms, after=7.368/8.321 ms
+search: SQL=[10], before p50/p95=9.475/11.497 ms, after=8.743/10.312 ms

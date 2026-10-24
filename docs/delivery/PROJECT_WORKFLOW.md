@@ -72,9 +72,9 @@ Initialization intake: grillme recommendation-first selected; historical module 
 
 ## Work Package
 
-当前实施：[RF-07 综合回归与收尾](../engineering/optimization-refactoring-closeout-2026-10-24.md)，In Progress；先核对 RF-01 至 RF-05 证据，再验证当前候选所有适用门禁。RF-06 条件项保留延期，人工/生产验收继续开放。
+当前验收：[RF-07 综合回归与收尾](../engineering/optimization-refactoring-closeout-2026-10-24.md)，Accepted / Completed at `096eb3e`；历史 30 条 workflow / 124 个 Job 复核通过，RF-02 原取消 CI 已补齐，候选 CI 40060934590（4/4）、Docker 40060934577（6/6）、Security 40060934575（4/4）全部通过。选定首轮已收尾，RF-06 条件延期；1.0 RC 的人工/真实来源/生产验收继续开放。本地 Docker 阻塞和首次性能失败记录保留。
 
-前序验收：[RF-05 Developer API](../engineering/developer-api-refactoring.md)，Accepted / Completed at `51fa810`；基线先于生产拆分，810 项协议/账本/SQL 完全等价，CI 39815455574（4/4）、Docker 39815455624（6/6）、Security 39815455651（4/4）全部 Job 通过。下一步 RF-07，RF-06 保持条件项；本地 Docker 缺失和人工/真实环境验收仍按记录保留。
+前序验收：[RF-05 Developer API](../engineering/developer-api-refactoring.md)，Accepted / Completed at `51fa810`；基线先于生产拆分，810 项协议/账本/SQL 完全等价，CI 39815455574（4/4）、Docker 39815455624（6/6）、Security 39815455651（4/4）全部 Job 通过。RF-07 综合收尾见上方，RF-06 条件延期；本地 Docker 缺失和人工/真实环境验收仍按记录保留。
 
 前序验收：[RF-04 Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)，Accepted / Completed at `4ea9dd0`；先冻结行为与浏览器基线，再完成展示职责迁移。CI 39797024080（attempt 2）、Docker 39797024019、Security 39797024110 全部 Job 通过。RF-05 已在 `51fa810` 验收。
 
@@ -82,7 +82,7 @@ Initialization intake: grillme recommendation-first selected; historical module 
 
 前序：[RF-02 一致性检查职责拆分与测量](../engineering/consistency-check-refactoring.md)，Accepted / Completed at `3a38ad1`；CI 39766807840（attempt 2）、Docker 39766808118、Security 39766807728 全部 Job 通过。以下 RF-01 记录保留为上一包证据。
 
-前序：[RF-01 架构保护网](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)，`Accepted / Completed`，验收实现 SHA 为 `f90e6bd658ecc657dc68e34b1936990a4ce99555`；CI `39758029891`、Docker `39758029869`、Security `39758029837` 全部 Job 通过。中文说明见 [架构保护网](../engineering/architecture-guards.md)。RF-02、RF-03、RF-04 已验收，RF-05 已在 `51fa810` 验收，RF-06 及以后保持 Planned。
+前序：[RF-01 架构保护网](../../repowiki/work-packages/2026-10-22-rf01-architecture-guards.md)，`Accepted / Completed`，验收实现 SHA 为 `f90e6bd658ecc657dc68e34b1936990a4ce99555`；CI `39758029891`、Docker `39758029869`、Security `39758029837` 全部 Job 通过。中文说明见 [架构保护网](../engineering/architecture-guards.md)。RF-02、RF-03、RF-04 已验收，RF-05 已在 `51fa810` 验收，RF-07 已在 `096eb3e` 验收，RF-06 条件延期。
 
 候选 `34cfa8f` 的 Docker 门禁发现既有 Collector Go 标准库 HIGH 漏洞，最小 Go 1.26.10 工具链补丁已通过镜像与运行时门禁；具体失败/修复证据与范围扩展见 RF-01 及 ADR 0012。本地 Docker 仍不可用，容器/运行时通过结论来自远端实测。
 

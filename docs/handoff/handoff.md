@@ -5,13 +5,13 @@
 - 产品：墨流 / InkFlow
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
-- 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 在 `51fa810` 验收，历史与真实环境待验收项继续保留。
+- 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 在 `51fa810`、RF-07 在 `096eb3e` 验收；选定首轮已收尾，RF-06 条件延期，历史与真实环境待验收项继续保留。
 - `dev` 骨架 root commit：`c5f2048`
 - 交接日期：2026-10-24；dev 骨架重建更新：2026-08-25
 
 ## RF-07 当前工作包
 
-In Progress（2026-10-24）。已核对 RF-01 至 RF-05 的 10 个实现/收尾提交与 30 条 workflow：实现 15/15 通过，收尾 14/15 通过，RF-02 的 c3347ca CI 曾取消，正在原 SHA 补跑。40 页 Wiki 结构/索引修复通过；本地 Build、726/53/12 测试、迁移 11/11、比较器和隔离 720 项预算通过。初次性能越界及本地 Docker 阻塞保留；候选完整 CI 与历史补跑需共同通过后验收。详见 [RF-07 记录](../engineering/optimization-refactoring-closeout-2026-10-24.md)。RF-06 条件项保留延期，人工/生产验收继续开放。
+Accepted / Completed at `096eb3e`（2026-10-24）。RF-01 至 RF-05 的 10 个实现/收尾提交、30 条 workflow、124 个 Job 已核对通过；RF-02 c3347ca 原取消 CI 已在 原 SHA 的 attempt 2 补齐。综合回归 CI 40060934590（4/4）、Docker 40060934577（6/6）、Security 40060934575（4/4）全部 Job 成功；Unit 726、Architecture 53、Contract 12、迁移 11/11，PostgreSQL 136 passed / 3 skipped、Redis 1/1、Runtime/SLO/OTLP/备份 PASS。本地隔离与 PG 各 720 项预算、Developer 810 项、Reader 22 输出/四屏/40 张零像素差异截图通过。初次性能失败、历史取消与本地 Docker 阻塞均保留。选定首轮 RF-01–05/RF-07 已收尾，RF-06 条件延期；项目仍为 1.0 RC，人工/真实来源/生产验收继续开放。详见 [RF-07 记录](../engineering/optimization-refactoring-closeout-2026-10-24.md)，文档收尾 SHA 自身 CI 另行核对。
 
 ## RF-05 前序工作包
 

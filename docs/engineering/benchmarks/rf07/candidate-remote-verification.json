@@ -1,0 +1,2120 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-24T04:29:27.667178+00:00",
+  "producer": "authenticated gh run view terminal snapshots; exact target and complete expected job-set checks",
+  "regressionCandidate": "096eb3ebef1d200bb017943fbbcf56dee618906c",
+  "runs": [
+    {
+      "run": 39770903564,
+      "name": "CI",
+      "sha": "c3347caa1027025788f5c9dd66696a0d8d23ae3e",
+      "attempt": 2,
+      "status": "completed",
+      "conclusion": "success",
+      "passed": 2,
+      "total": 2,
+      "active": [],
+      "failed": [],
+      "jobs": [
+        {
+          "completedAt": "2026-10-24T04:13:12Z",
+          "conclusion": "success",
+          "databaseId": 120771244283,
+          "name": "validate",
+          "startedAt": "2026-10-24T03:51:26Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T03:51:28Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T03:51:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:51:29Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T03:51:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:51:37Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T03:51:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:51:43Z",
+              "conclusion": "success",
+              "name": "Restore",
+              "number": 4,
+              "startedAt": "2026-10-24T03:51:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:51:45Z",
+              "conclusion": "success",
+              "name": "Restore .NET tools",
+              "number": 5,
+              "startedAt": "2026-10-24T03:51:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:52:16Z",
+              "conclusion": "success",
+              "name": "Build",
+              "number": 6,
+              "startedAt": "2026-10-24T03:51:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:52:47Z",
+              "conclusion": "success",
+              "name": "Verify migrations",
+              "number": 7,
+              "startedAt": "2026-10-24T03:52:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:01Z",
+              "conclusion": "success",
+              "name": "Test",
+              "number": 8,
+              "startedAt": "2026-10-24T03:52:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:02Z",
+              "conclusion": "success",
+              "name": "Validate Compose",
+              "number": 9,
+              "startedAt": "2026-10-24T03:54:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:02Z",
+              "conclusion": "success",
+              "name": "Core SLO probe script regression",
+              "number": 10,
+              "startedAt": "2026-10-24T03:54:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Reader frontend smoke script regression",
+              "number": 11,
+              "startedAt": "2026-10-24T03:54:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Reader edge metadata smoke script regression",
+              "number": 12,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Reader account smoke script regression",
+              "number": 13,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Reader content smoke script regression",
+              "number": 14,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Reader navigation smoke script regression",
+              "number": 15,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Legado runtime smoke script regression",
+              "number": 16,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Source failover runtime smoke script regression",
+              "number": 17,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Quality failure runtime smoke script regression",
+              "number": 18,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Opt-in live source acceptance script regression",
+              "number": 19,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Private library smoke script regression",
+              "number": 20,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:03Z",
+              "conclusion": "success",
+              "name": "Developer API smoke script regression",
+              "number": 21,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:04Z",
+              "conclusion": "success",
+              "name": "Admin runtime smoke script regression",
+              "number": 22,
+              "startedAt": "2026-10-24T03:54:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:04Z",
+              "conclusion": "success",
+              "name": "Collection and package smoke script regression",
+              "number": 23,
+              "startedAt": "2026-10-24T03:54:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:54:04Z",
+              "conclusion": "success",
+              "name": "Local env loader regression",
+              "number": 24,
+              "startedAt": "2026-10-24T03:54:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:01:06Z",
+              "conclusion": "success",
+              "name": "Runtime smoke test",
+              "number": 25,
+              "startedAt": "2026-10-24T03:54:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:01:07Z",
+              "conclusion": "success",
+              "name": "Frontend 1.0 runtime smoke",
+              "number": 26,
+              "startedAt": "2026-10-24T04:01:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:01:49Z",
+              "conclusion": "success",
+              "name": "Reader edge metadata runtime smoke",
+              "number": 27,
+              "startedAt": "2026-10-24T04:01:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:03:06Z",
+              "conclusion": "success",
+              "name": "Reader account runtime smoke",
+              "number": 28,
+              "startedAt": "2026-10-24T04:01:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:03:42Z",
+              "conclusion": "success",
+              "name": "Legado contract runtime smoke",
+              "number": 29,
+              "startedAt": "2026-10-24T04:03:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:30Z",
+              "conclusion": "success",
+              "name": "Source failover runtime smoke",
+              "number": 30,
+              "startedAt": "2026-10-24T04:03:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:04Z",
+              "conclusion": "success",
+              "name": "Quality failure runtime smoke",
+              "number": 31,
+              "startedAt": "2026-10-24T04:05:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:05Z",
+              "conclusion": "success",
+              "name": "Private library runtime smoke",
+              "number": 32,
+              "startedAt": "2026-10-24T04:06:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:53Z",
+              "conclusion": "success",
+              "name": "Developer API runtime smoke",
+              "number": 33,
+              "startedAt": "2026-10-24T04:06:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:11:29Z",
+              "conclusion": "success",
+              "name": "Admin runtime smoke",
+              "number": 34,
+              "startedAt": "2026-10-24T04:07:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:11:29Z",
+              "conclusion": "success",
+              "name": "Core SLO synthetic probe",
+              "number": 35,
+              "startedAt": "2026-10-24T04:11:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:11:34Z",
+              "conclusion": "success",
+              "name": "Core SLO telemetry receipt smoke",
+              "number": 36,
+              "startedAt": "2026-10-24T04:11:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:11:36Z",
+              "conclusion": "success",
+              "name": "Upload Core SLO synthetic evidence",
+              "number": 37,
+              "startedAt": "2026-10-24T04:11:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:11:37Z",
+              "conclusion": "success",
+              "name": "Redis distributed rate-limit integration",
+              "number": 38,
+              "startedAt": "2026-10-24T04:11:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:11:39Z",
+              "conclusion": "success",
+              "name": "PostgreSQL backup and restore drill",
+              "number": 39,
+              "startedAt": "2026-10-24T04:11:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:13:08Z",
+              "conclusion": "success",
+              "name": "Runtime diagnostics",
+              "number": 40,
+              "startedAt": "2026-10-24T04:11:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:13:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 79,
+              "startedAt": "2026-10-24T04:13:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:13:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 80,
+              "startedAt": "2026-10-24T04:13:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:13:08Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 81,
+              "startedAt": "2026-10-24T04:13:08Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/39770903564/job/120771244283"
+        },
+        {
+          "completedAt": "2026-10-24T03:57:19Z",
+          "conclusion": "success",
+          "databaseId": 120771244495,
+          "name": "consistency-measurement",
+          "startedAt": "2026-10-24T03:51:26Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T03:51:29Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T03:51:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:51:30Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T03:51:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:52:02Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T03:51:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:57:16Z",
+              "conclusion": "success",
+              "name": "Measure fixed PostgreSQL consistency fixtures",
+              "number": 4,
+              "startedAt": "2026-10-24T03:52:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:57:17Z",
+              "conclusion": "success",
+              "name": "Upload consistency measurements",
+              "number": 5,
+              "startedAt": "2026-10-24T03:57:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:57:17Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 9,
+              "startedAt": "2026-10-24T03:57:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:57:17Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 10,
+              "startedAt": "2026-10-24T03:57:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T03:57:17Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-24T03:57:17Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/39770903564/job/120771244495"
+        }
+      ]
+    },
+    {
+      "run": 40060934590,
+      "name": "CI",
+      "sha": "096eb3ebef1d200bb017943fbbcf56dee618906c",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "passed": 4,
+      "total": 4,
+      "active": [],
+      "failed": [],
+      "jobs": [
+        {
+          "completedAt": "2026-10-24T04:09:12Z",
+          "conclusion": "success",
+          "databaseId": 120774066676,
+          "name": "consistency-measurement",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:13Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:15Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:23Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:08Z",
+              "conclusion": "success",
+              "name": "Measure fixed PostgreSQL consistency fixtures",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:08Z",
+              "conclusion": "success",
+              "name": "Verify frozen consistency performance budgets and report equivalence",
+              "number": 5,
+              "startedAt": "2026-10-24T04:09:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:09Z",
+              "conclusion": "success",
+              "name": "Upload consistency measurements",
+              "number": 6,
+              "startedAt": "2026-10-24T04:09:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:10Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 11,
+              "startedAt": "2026-10-24T04:09:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:10Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 12,
+              "startedAt": "2026-10-24T04:09:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:10Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 13,
+              "startedAt": "2026-10-24T04:09:10Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934590/job/120774066676"
+        },
+        {
+          "completedAt": "2026-10-24T04:09:11Z",
+          "conclusion": "success",
+          "databaseId": 120774066877,
+          "name": "reader-browser",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:13Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:15Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:20Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:22Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@v6",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:51Z",
+              "conclusion": "success",
+              "name": "Publish frozen and candidate renderers outside the checkout",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:15Z",
+              "conclusion": "success",
+              "name": "Install and audit browser test dependencies",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:06Z",
+              "conclusion": "success",
+              "name": "Compare browser behavior, screenshots, payload and DOM",
+              "number": 7,
+              "startedAt": "2026-10-24T04:06:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:08Z",
+              "conclusion": "success",
+              "name": "Upload Reader browser evidence",
+              "number": 8,
+              "startedAt": "2026-10-24T04:09:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@v6",
+              "number": 14,
+              "startedAt": "2026-10-24T04:09:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 15,
+              "startedAt": "2026-10-24T04:09:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:08Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 16,
+              "startedAt": "2026-10-24T04:09:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:08Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-24T04:09:08Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934590/job/120774066877"
+        },
+        {
+          "completedAt": "2026-10-24T04:06:16Z",
+          "conclusion": "success",
+          "databaseId": 120774066921,
+          "name": "developer-measurement",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:12Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:13Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:21Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:11Z",
+              "conclusion": "success",
+              "name": "Measure fixed Developer API PostgreSQL fixtures",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:11Z",
+              "conclusion": "success",
+              "name": "Verify frozen Developer protocol ledger and SQL equivalence",
+              "number": 5,
+              "startedAt": "2026-10-24T04:06:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:13Z",
+              "conclusion": "success",
+              "name": "Upload Developer measurements",
+              "number": 6,
+              "startedAt": "2026-10-24T04:06:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:13Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 11,
+              "startedAt": "2026-10-24T04:06:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:13Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 12,
+              "startedAt": "2026-10-24T04:06:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:13Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 13,
+              "startedAt": "2026-10-24T04:06:13Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934590/job/120774066921"
+        },
+        {
+          "completedAt": "2026-10-24T04:26:46Z",
+          "conclusion": "success",
+          "databaseId": 120774067081,
+          "name": "validate",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:11Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:12Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:18Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:26Z",
+              "conclusion": "success",
+              "name": "Restore",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:27Z",
+              "conclusion": "success",
+              "name": "Restore .NET tools",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:00Z",
+              "conclusion": "success",
+              "name": "Build",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:31Z",
+              "conclusion": "success",
+              "name": "Verify migrations",
+              "number": 7,
+              "startedAt": "2026-10-24T04:06:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:46Z",
+              "conclusion": "success",
+              "name": "Test",
+              "number": 8,
+              "startedAt": "2026-10-24T04:06:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:46Z",
+              "conclusion": "success",
+              "name": "Validate Compose",
+              "number": 9,
+              "startedAt": "2026-10-24T04:07:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:47Z",
+              "conclusion": "success",
+              "name": "Core SLO probe script regression",
+              "number": 10,
+              "startedAt": "2026-10-24T04:07:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:47Z",
+              "conclusion": "success",
+              "name": "Reader frontend smoke script regression",
+              "number": 11,
+              "startedAt": "2026-10-24T04:07:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:47Z",
+              "conclusion": "success",
+              "name": "Reader edge metadata smoke script regression",
+              "number": 12,
+              "startedAt": "2026-10-24T04:07:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:47Z",
+              "conclusion": "success",
+              "name": "Reader account smoke script regression",
+              "number": 13,
+              "startedAt": "2026-10-24T04:07:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:47Z",
+              "conclusion": "success",
+              "name": "Reader content smoke script regression",
+              "number": 14,
+              "startedAt": "2026-10-24T04:07:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:47Z",
+              "conclusion": "success",
+              "name": "Reader navigation smoke script regression",
+              "number": 15,
+              "startedAt": "2026-10-24T04:07:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Legado runtime smoke script regression",
+              "number": 16,
+              "startedAt": "2026-10-24T04:07:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Source failover runtime smoke script regression",
+              "number": 17,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Quality failure runtime smoke script regression",
+              "number": 18,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Opt-in live source acceptance script regression",
+              "number": 19,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Private library smoke script regression",
+              "number": 20,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Developer API smoke script regression",
+              "number": 21,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Admin runtime smoke script regression",
+              "number": 22,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Collection and package smoke script regression",
+              "number": 23,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:48Z",
+              "conclusion": "success",
+              "name": "Local env loader regression",
+              "number": 24,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:14:49Z",
+              "conclusion": "success",
+              "name": "Runtime smoke test",
+              "number": 25,
+              "startedAt": "2026-10-24T04:07:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:14:49Z",
+              "conclusion": "success",
+              "name": "Frontend 1.0 runtime smoke",
+              "number": 26,
+              "startedAt": "2026-10-24T04:14:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:15:29Z",
+              "conclusion": "success",
+              "name": "Reader edge metadata runtime smoke",
+              "number": 27,
+              "startedAt": "2026-10-24T04:14:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:16:42Z",
+              "conclusion": "success",
+              "name": "Reader account runtime smoke",
+              "number": 28,
+              "startedAt": "2026-10-24T04:15:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:17:18Z",
+              "conclusion": "success",
+              "name": "Legado contract runtime smoke",
+              "number": 29,
+              "startedAt": "2026-10-24T04:16:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:19:06Z",
+              "conclusion": "success",
+              "name": "Source failover runtime smoke",
+              "number": 30,
+              "startedAt": "2026-10-24T04:17:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:19:40Z",
+              "conclusion": "success",
+              "name": "Quality failure runtime smoke",
+              "number": 31,
+              "startedAt": "2026-10-24T04:19:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:19:41Z",
+              "conclusion": "success",
+              "name": "Private library runtime smoke",
+              "number": 32,
+              "startedAt": "2026-10-24T04:19:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:21:29Z",
+              "conclusion": "success",
+              "name": "Developer API runtime smoke",
+              "number": 33,
+              "startedAt": "2026-10-24T04:19:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:25:05Z",
+              "conclusion": "success",
+              "name": "Admin runtime smoke",
+              "number": 34,
+              "startedAt": "2026-10-24T04:21:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:25:05Z",
+              "conclusion": "success",
+              "name": "Core SLO synthetic probe",
+              "number": 35,
+              "startedAt": "2026-10-24T04:25:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:25:11Z",
+              "conclusion": "success",
+              "name": "Core SLO telemetry receipt smoke",
+              "number": 36,
+              "startedAt": "2026-10-24T04:25:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:25:11Z",
+              "conclusion": "success",
+              "name": "Upload Core SLO synthetic evidence",
+              "number": 37,
+              "startedAt": "2026-10-24T04:25:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:25:13Z",
+              "conclusion": "success",
+              "name": "Redis distributed rate-limit integration",
+              "number": 38,
+              "startedAt": "2026-10-24T04:25:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:25:15Z",
+              "conclusion": "success",
+              "name": "PostgreSQL backup and restore drill",
+              "number": 39,
+              "startedAt": "2026-10-24T04:25:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:26:44Z",
+              "conclusion": "success",
+              "name": "Runtime diagnostics",
+              "number": 40,
+              "startedAt": "2026-10-24T04:25:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:26:44Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 79,
+              "startedAt": "2026-10-24T04:26:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:26:45Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 80,
+              "startedAt": "2026-10-24T04:26:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:26:45Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 81,
+              "startedAt": "2026-10-24T04:26:45Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934590/job/120774067081"
+        }
+      ]
+    },
+    {
+      "run": 40060934577,
+      "name": "Docker",
+      "sha": "096eb3ebef1d200bb017943fbbcf56dee618906c",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "passed": 6,
+      "total": 6,
+      "active": [],
+      "failed": [],
+      "jobs": [
+        {
+          "completedAt": "2026-10-24T04:06:48Z",
+          "conclusion": "success",
+          "databaseId": 120774066702,
+          "name": "build-push (migrations, deploy/docker/Dockerfile.migrations)",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:14Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:14Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:20Z",
+              "conclusion": "success",
+              "name": "Run docker/setup-buildx-action@v4",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:20Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v4",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:21Z",
+              "conclusion": "success",
+              "name": "Run docker/metadata-action@v6",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:24Z",
+              "conclusion": "success",
+              "name": "Run docker/build-push-action@v7",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:32Z",
+              "conclusion": "success",
+              "name": "Scan image before publishing",
+              "number": 7,
+              "startedAt": "2026-10-24T04:06:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:36Z",
+              "conclusion": "success",
+              "name": "Publish scanned image tags",
+              "number": 8,
+              "startedAt": "2026-10-24T04:06:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:36Z",
+              "conclusion": "success",
+              "name": "Post Scan image before publishing",
+              "number": 12,
+              "startedAt": "2026-10-24T04:06:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:37Z",
+              "conclusion": "success",
+              "name": "Post Run docker/build-push-action@v7",
+              "number": 13,
+              "startedAt": "2026-10-24T04:06:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:37Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v4",
+              "number": 14,
+              "startedAt": "2026-10-24T04:06:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:46Z",
+              "conclusion": "success",
+              "name": "Post Run docker/setup-buildx-action@v4",
+              "number": 15,
+              "startedAt": "2026-10-24T04:06:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:46Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 16,
+              "startedAt": "2026-10-24T04:06:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:47Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-24T04:06:46Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934577/job/120774066702"
+        },
+        {
+          "completedAt": "2026-10-24T04:06:32Z",
+          "conclusion": "success",
+          "databaseId": 120774066928,
+          "name": "build-push (api, deploy/docker/Dockerfile.api)",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:12Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:13Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:20Z",
+              "conclusion": "success",
+              "name": "Run docker/setup-buildx-action@v4",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:20Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v4",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:20Z",
+              "conclusion": "success",
+              "name": "Run docker/metadata-action@v6",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:14Z",
+              "conclusion": "success",
+              "name": "Run docker/build-push-action@v7",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:22Z",
+              "conclusion": "success",
+              "name": "Scan image before publishing",
+              "number": 7,
+              "startedAt": "2026-10-24T04:06:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:24Z",
+              "conclusion": "success",
+              "name": "Publish scanned image tags",
+              "number": 8,
+              "startedAt": "2026-10-24T04:06:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:24Z",
+              "conclusion": "success",
+              "name": "Post Scan image before publishing",
+              "number": 12,
+              "startedAt": "2026-10-24T04:06:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:25Z",
+              "conclusion": "success",
+              "name": "Post Run docker/build-push-action@v7",
+              "number": 13,
+              "startedAt": "2026-10-24T04:06:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:26Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v4",
+              "number": 14,
+              "startedAt": "2026-10-24T04:06:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:30Z",
+              "conclusion": "success",
+              "name": "Post Run docker/setup-buildx-action@v4",
+              "number": 15,
+              "startedAt": "2026-10-24T04:06:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:31Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 16,
+              "startedAt": "2026-10-24T04:06:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:31Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-24T04:06:31Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934577/job/120774066928"
+        },
+        {
+          "completedAt": "2026-10-24T04:06:00Z",
+          "conclusion": "success",
+          "databaseId": 120774066988,
+          "name": "build-push (otel-collector, deploy/docker/Dockerfile.otel)",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:13Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:14Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:34Z",
+              "conclusion": "success",
+              "name": "Run docker/setup-buildx-action@v4",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:35Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v4",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:35Z",
+              "conclusion": "success",
+              "name": "Run docker/metadata-action@v6",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:41Z",
+              "conclusion": "success",
+              "name": "Run docker/build-push-action@v7",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:48Z",
+              "conclusion": "success",
+              "name": "Scan image before publishing",
+              "number": 7,
+              "startedAt": "2026-10-24T04:05:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:50Z",
+              "conclusion": "success",
+              "name": "Publish scanned image tags",
+              "number": 8,
+              "startedAt": "2026-10-24T04:05:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:50Z",
+              "conclusion": "success",
+              "name": "Post Scan image before publishing",
+              "number": 12,
+              "startedAt": "2026-10-24T04:05:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:51Z",
+              "conclusion": "success",
+              "name": "Post Run docker/build-push-action@v7",
+              "number": 13,
+              "startedAt": "2026-10-24T04:05:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:51Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v4",
+              "number": 14,
+              "startedAt": "2026-10-24T04:05:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:58Z",
+              "conclusion": "success",
+              "name": "Post Run docker/setup-buildx-action@v4",
+              "number": 15,
+              "startedAt": "2026-10-24T04:05:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:58Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 16,
+              "startedAt": "2026-10-24T04:05:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:58Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-24T04:05:58Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934577/job/120774066988"
+        },
+        {
+          "completedAt": "2026-10-24T04:06:52Z",
+          "conclusion": "success",
+          "databaseId": 120774067021,
+          "name": "build-push (worker, deploy/docker/Dockerfile.worker)",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:15Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:16Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:21Z",
+              "conclusion": "success",
+              "name": "Run docker/setup-buildx-action@v4",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:22Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v4",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:23Z",
+              "conclusion": "success",
+              "name": "Run docker/metadata-action@v6",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:28Z",
+              "conclusion": "success",
+              "name": "Run docker/build-push-action@v7",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:39Z",
+              "conclusion": "success",
+              "name": "Scan image before publishing",
+              "number": 7,
+              "startedAt": "2026-10-24T04:06:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:42Z",
+              "conclusion": "success",
+              "name": "Publish scanned image tags",
+              "number": 8,
+              "startedAt": "2026-10-24T04:06:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:42Z",
+              "conclusion": "success",
+              "name": "Post Scan image before publishing",
+              "number": 12,
+              "startedAt": "2026-10-24T04:06:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:44Z",
+              "conclusion": "success",
+              "name": "Post Run docker/build-push-action@v7",
+              "number": 13,
+              "startedAt": "2026-10-24T04:06:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:45Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v4",
+              "number": 14,
+              "startedAt": "2026-10-24T04:06:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:50Z",
+              "conclusion": "success",
+              "name": "Post Run docker/setup-buildx-action@v4",
+              "number": 15,
+              "startedAt": "2026-10-24T04:06:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:50Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 16,
+              "startedAt": "2026-10-24T04:06:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:50Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-24T04:06:50Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934577/job/120774067021"
+        },
+        {
+          "completedAt": "2026-10-24T04:06:43Z",
+          "conclusion": "success",
+          "databaseId": 120774067040,
+          "name": "build-push (scheduler, deploy/docker/Dockerfile.scheduler)",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:15Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:16Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:23Z",
+              "conclusion": "success",
+              "name": "Run docker/setup-buildx-action@v4",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:24Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v4",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:24Z",
+              "conclusion": "success",
+              "name": "Run docker/metadata-action@v6",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:21Z",
+              "conclusion": "success",
+              "name": "Run docker/build-push-action@v7",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:30Z",
+              "conclusion": "success",
+              "name": "Scan image before publishing",
+              "number": 7,
+              "startedAt": "2026-10-24T04:06:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:34Z",
+              "conclusion": "success",
+              "name": "Publish scanned image tags",
+              "number": 8,
+              "startedAt": "2026-10-24T04:06:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:34Z",
+              "conclusion": "success",
+              "name": "Post Scan image before publishing",
+              "number": 12,
+              "startedAt": "2026-10-24T04:06:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:36Z",
+              "conclusion": "success",
+              "name": "Post Run docker/build-push-action@v7",
+              "number": 13,
+              "startedAt": "2026-10-24T04:06:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:36Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v4",
+              "number": 14,
+              "startedAt": "2026-10-24T04:06:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:41Z",
+              "conclusion": "success",
+              "name": "Post Run docker/setup-buildx-action@v4",
+              "number": 15,
+              "startedAt": "2026-10-24T04:06:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:41Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 16,
+              "startedAt": "2026-10-24T04:06:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:41Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-24T04:06:41Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934577/job/120774067040"
+        },
+        {
+          "completedAt": "2026-10-24T04:07:11Z",
+          "conclusion": "success",
+          "databaseId": 120774431577,
+          "name": "Verify published Compose images",
+          "startedAt": "2026-10-24T04:06:55Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:06:57Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:06:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:06:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:59Z",
+              "conclusion": "success",
+              "name": "Run docker/login-action@v4",
+              "number": 3,
+              "startedAt": "2026-10-24T04:06:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:09Z",
+              "conclusion": "success",
+              "name": "Pull every image referenced by the release Compose file",
+              "number": 4,
+              "startedAt": "2026-10-24T04:06:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:09Z",
+              "conclusion": "success",
+              "name": "Post Run docker/login-action@v4",
+              "number": 7,
+              "startedAt": "2026-10-24T04:07:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:09Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 8,
+              "startedAt": "2026-10-24T04:07:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:07:09Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-24T04:07:09Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934577/job/120774431577"
+        }
+      ]
+    },
+    {
+      "run": 40060934575,
+      "name": "Security",
+      "sha": "096eb3ebef1d200bb017943fbbcf56dee618906c",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "passed": 4,
+      "total": 4,
+      "active": [],
+      "failed": [],
+      "jobs": [
+        {
+          "completedAt": "2026-10-24T04:05:18Z",
+          "conclusion": "success",
+          "databaseId": 120774066505,
+          "name": "Source SBOM",
+          "startedAt": "2026-10-24T04:05:09Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:11Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:12Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:16Z",
+              "conclusion": "success",
+              "name": "Generate CycloneDX SBOM",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:16Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:16Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 7,
+              "startedAt": "2026-10-24T04:05:16Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934575/job/120774066505"
+        },
+        {
+          "completedAt": "2026-10-24T04:05:32Z",
+          "conclusion": "success",
+          "databaseId": 120774066652,
+          "name": "Filesystem security scan",
+          "startedAt": "2026-10-24T04:05:09Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:11Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:12Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:26Z",
+              "conclusion": "success",
+              "name": "Scan source, configuration and dependencies",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:27Z",
+              "conclusion": "success",
+              "name": "Upload Trivy report",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:31Z",
+              "conclusion": "success",
+              "name": "Post Scan source, configuration and dependencies",
+              "number": 7,
+              "startedAt": "2026-10-24T04:05:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:31Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 8,
+              "startedAt": "2026-10-24T04:05:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:31Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-24T04:05:31Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934575/job/120774066652"
+        },
+        {
+          "completedAt": "2026-10-24T04:11:00Z",
+          "conclusion": "success",
+          "databaseId": 120774066787,
+          "name": "CodeQL SAST",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:12Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:13Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:21Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:22Z",
+              "conclusion": "success",
+              "name": "Initialize CodeQL",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:06:28Z",
+              "conclusion": "success",
+              "name": "Restore",
+              "number": 5,
+              "startedAt": "2026-10-24T04:06:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:09:09Z",
+              "conclusion": "success",
+              "name": "Build for CodeQL",
+              "number": 6,
+              "startedAt": "2026-10-24T04:06:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:10:41Z",
+              "conclusion": "success",
+              "name": "Analyze",
+              "number": 7,
+              "startedAt": "2026-10-24T04:09:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:10:42Z",
+              "conclusion": "success",
+              "name": "Upload CodeQL results",
+              "number": 8,
+              "startedAt": "2026-10-24T04:10:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:10:42Z",
+              "conclusion": "success",
+              "name": "Post Analyze",
+              "number": 13,
+              "startedAt": "2026-10-24T04:10:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:10:58Z",
+              "conclusion": "success",
+              "name": "Post Initialize CodeQL",
+              "number": 14,
+              "startedAt": "2026-10-24T04:10:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:10:58Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 15,
+              "startedAt": "2026-10-24T04:10:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:10:58Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 16,
+              "startedAt": "2026-10-24T04:10:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:10:58Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 17,
+              "startedAt": "2026-10-24T04:10:58Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934575/job/120774066787"
+        },
+        {
+          "completedAt": "2026-10-24T04:05:51Z",
+          "conclusion": "success",
+          "databaseId": 120774066789,
+          "name": "NuGet dependency audit",
+          "startedAt": "2026-10-24T04:05:10Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-24T04:05:12Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-24T04:05:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:14Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v7",
+              "number": 2,
+              "startedAt": "2026-10-24T04:05:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:20Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-dotnet@v6",
+              "number": 3,
+              "startedAt": "2026-10-24T04:05:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:25Z",
+              "conclusion": "success",
+              "name": "Restore",
+              "number": 4,
+              "startedAt": "2026-10-24T04:05:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:46Z",
+              "conclusion": "success",
+              "name": "Scan transitive packages for known vulnerabilities",
+              "number": 5,
+              "startedAt": "2026-10-24T04:05:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:48Z",
+              "conclusion": "success",
+              "name": "Upload dependency audit report",
+              "number": 6,
+              "startedAt": "2026-10-24T04:05:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:48Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-dotnet@v6",
+              "number": 11,
+              "startedAt": "2026-10-24T04:05:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:48Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v7",
+              "number": 12,
+              "startedAt": "2026-10-24T04:05:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-24T04:05:48Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 13,
+              "startedAt": "2026-10-24T04:05:48Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/nekohands/InkFlow/actions/runs/40060934575/job/120774066789"
+        }
+      ]
+    }
+  ]
+}

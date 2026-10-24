@@ -491,7 +491,8 @@
         "2026-10-15-module-refactor.md",
         "2026-10-22-rf02-consistency.md",
         "2026-10-22-rf03-consistency-performance.md",
-        "2026-10-22-rf04-presentation.md"
+        "2026-10-22-rf04-presentation.md",
+        "2026-10-24-rf07-regression-closeout.md"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"

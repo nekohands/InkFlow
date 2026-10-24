@@ -63,3 +63,7 @@ Restore、Release Build（含独立基准项目）PASS，0 warning / error；Uni
 首轮 apt 校验失败已通过只重跑失败 Job 解除，保留原失败证据，没有关闭完整性检查。收尾另补管理端 `/api/v1/admin/consistency` 的已授权 JSON 字段/计数/截断断言；本机无 jq，实际执行依赖收尾提交的 CI。本机 Docker 仍缺失，不能把远端结果写成本地通过。最终源码格式整理后再次 Release Build 零警告、Unit/Architecture/Contract 同计数通过；本地 Integration 保持相同 Docker 阻塞。
 
 下一步为 RF-03 测量决策：先隔离复测并冻结目标/容忍度，再决定是否优化；RF-02 没有实现查询裁剪、流式处理、保留问题上限优化或隔离级别变化。
+
+## 2026-10-24 RF-07 历史收尾复核
+
+RF-02 实现 `3a38ad1` 的验收证据有效；文档收尾 `c3347ca` 的 CI `39770903564` attempt 1 曾在测量和运行时结束前被取消，未生成测量文件，上传因此失败。RF-07 保存原始记录并读取日志后，在原 SHA 补跑完整 CI；[attempt 2](https://github.com/nekohands/InkFlow/actions/runs/39770903564/attempts/2) 两个 Job 均完成并通过，未改源码、断言、workflow 或预算。该 SHA 的 Docker `39770903527`、Security `39770903581` 原已通过。历史缺口已补齐，首次取消记录继续保留，取消发起者与原因未获得证据。整体综合回归与当前状态见 [RF-07 记录](optimization-refactoring-closeout-2026-10-24.md)。

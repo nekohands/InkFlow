@@ -1,0 +1,29 @@
+validate	Verify migrations	2026-10-24T04:06:31.8926823Z verify-migrations: PASS (11 contexts, configuration=Release)
+validate	Test	2026-10-24T04:06:35.3366880Z Total tests: 12
+validate	Test	2026-10-24T04:06:35.3396653Z      Passed: 12
+validate	Test	2026-10-24T04:06:36.6844625Z Total tests: 53
+validate	Test	2026-10-24T04:06:36.6877511Z      Passed: 53
+validate	Test	2026-10-24T04:06:46.7075753Z Total tests: 726
+validate	Test	2026-10-24T04:06:46.7076855Z      Passed: 726
+validate	Test	2026-10-24T04:07:46.4133145Z Total tests: 139
+validate	Test	2026-10-24T04:07:46.4133424Z      Passed: 136
+validate	Test	2026-10-24T04:07:46.4135064Z     Skipped: 3
+validate	Core SLO probe script regression	2026-10-24T04:07:47.1475622Z core-slo-runtime-smoke: PASS (evidence=/tmp/inkflow-core-slo-test-evidence.G4LXnV.json)
+validate	Frontend 1.0 runtime smoke	2026-10-24T04:14:49.5474438Z reader-frontend-runtime-smoke: PASS (Reader/PWA/Operations frontend contracts)
+validate	Reader edge metadata runtime smoke	2026-10-24T04:15:29.5630327Z reader-edge-metadata-runtime-smoke: PASS (max-length metadata, escaping, wrapping, and no-cover detail path)
+validate	Reader account runtime smoke	2026-10-24T04:16:06.8572547Z reader-account-runtime-smoke: PASS (register, login, refresh rotation, logout, preferences, shelf, progress, history, Legado token revoke-and-delete)
+validate	Reader account runtime smoke	2026-10-24T04:16:06.9740448Z reader-content-runtime-smoke: PASS (published content, reader progress contract)
+validate	Reader account runtime smoke	2026-10-24T04:16:07.0472148Z reader-navigation-runtime-smoke: PASS (previous/next chapter links and boundaries)
+validate	Legado contract runtime smoke	2026-10-24T04:17:18.8557297Z legado-runtime-smoke: PASS (manifest, Search, BookInfo, TOC, Content)
+validate	Source failover runtime smoke	2026-10-24T04:18:31.7471570Z source-failover-runtime-smoke: PASS (stable Web/Legado identities, A→B failover, A recovery)
+validate	Quality failure runtime smoke	2026-10-24T04:19:40.6575789Z quality-failure-runtime-smoke: PASS (good version remains selected across Web, Legado, and Reader)
+validate	Private library runtime smoke	2026-10-24T04:19:41.8407150Z private-library-runtime-smoke: PASS (auth, ownership, CRUD, TXT/EPUB import/read/export, duplicate isolation, failed-import rollback)
+validate	Developer API runtime smoke	2026-10-24T04:20:21.2038680Z developer-api-runtime-smoke: PASS (account, entitlement, app/key lifecycle, redaction, header-only auth, catalog quota path, quota 429/retry-after, cross-account isolation, disabled-user rejection, rotation, revoke)
+validate	Admin runtime smoke	2026-10-24T04:23:16.7797195Z admin-runtime-smoke: PASS (admin/operations, audit, source permissions and health, credential binding, content policy, entitlement)
+validate	Admin runtime smoke	2026-10-24T04:23:54.0279249Z collection-package-runtime-smoke: PASS (direct URL, durable controls, ZIP/EPUB/TXT packages, integrity, audit)
+validate	Core SLO synthetic probe	2026-10-24T04:25:05.6316791Z core-slo-runtime-smoke: PASS (evidence=/home/runner/work/_temp/inkflow-core-slo-evidence.json)
+validate	Core SLO telemetry receipt smoke	2026-10-24T04:25:05.6367924Z ^[[36;1mecho "Collector received Core SLO metrics for all four surfaces."^[[0m
+validate	Core SLO telemetry receipt smoke	2026-10-24T04:25:11.0318548Z Collector received Core SLO metrics for all four surfaces.
+validate	Redis distributed rate-limit integration	2026-10-24T04:25:13.3811729Z Total tests: 1
+validate	Redis distributed rate-limit integration	2026-10-24T04:25:13.3812143Z      Passed: 1
+validate	PostgreSQL backup and restore drill	2026-10-24T04:25:15.2292056Z backup-restore-drill: PASS (archive=135018 bytes, audit_events=510)

@@ -1,0 +1,92 @@
+{
+  "candidate": "096eb3ebef1d200bb017943fbbcf56dee618906c",
+  "runId": 40060934590,
+  "observedAt": "2026-10-24T04:13:06.004132+00:00",
+  "producer": "gh run download; gh api artifacts; raw byte SHA-256",
+  "files": [
+    {
+      "path": "candidate-postgres.json",
+      "sha256": "51aaa290b009a64cc2ed0052daad24cd1013f9310408c70d12811c72d25b5b6f",
+      "bytes": 661234
+    },
+    {
+      "path": "candidate-postgres-comparison.txt",
+      "sha256": "3841e9e6d990f93bd6833a7f960518cc68b574fec1b08fbb71ec5288645d5c5a",
+      "bytes": 805
+    },
+    {
+      "path": "candidate-developer.json",
+      "sha256": "87a54cc1912cfb3689d576eb9b08dd6165143cb706caec44abd321b4a0f4b09c",
+      "bytes": 443955
+    },
+    {
+      "path": "candidate-developer-comparison.txt",
+      "sha256": "5f9db0c1d5a5dd0ff2cffe38935fe9cf96ec85096ffb9e9357e6f9f05e91f45b",
+      "bytes": 801
+    },
+    {
+      "path": "candidate-reader-before.json",
+      "sha256": "ee59f134f9e9de1d927147df1453d5067d6f6ef68b3eed66f4f947127b27b194",
+      "bytes": 71694
+    },
+    {
+      "path": "candidate-reader-after.json",
+      "sha256": "f1fe4731b482dc034ffe6622128c3f942fa416432b59ae3b2f51e8856ba8e38a",
+      "bytes": 77739
+    },
+    {
+      "path": "candidate-reader-manifest.json",
+      "sha256": "a8825ee2f5ae228fbe8ed4af002bc6dcdda3587f38c9d19aebd3021f60623df4",
+      "bytes": 5994
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 12547855261,
+      "name": "reader-browser-evidence",
+      "size_in_bytes": 7392189,
+      "digest": "sha256:72e40cec584d0d5678d494c493ab574888edcd026cc5e493e3d18d66a90a865a",
+      "workflow_run": {
+        "id": 40060934590,
+        "repository_id": 1340747528,
+        "head_repository_id": 1340747528,
+        "head_branch": "dev",
+        "head_sha": "096eb3ebef1d200bb017943fbbcf56dee618906c"
+      }
+    },
+    {
+      "id": 12547621308,
+      "name": "consistency-measurements",
+      "size_in_bytes": 17790,
+      "digest": "sha256:23933b07d480f851aadc8be26647e829a79a9e185304b66579ae1a5e51da2685",
+      "workflow_run": {
+        "id": 40060934590,
+        "repository_id": 1340747528,
+        "head_repository_id": 1340747528,
+        "head_branch": "dev",
+        "head_sha": "096eb3ebef1d200bb017943fbbcf56dee618906c"
+      }
+    },
+    {
+      "id": 12547203553,
+      "name": "developer-measurements",
+      "size_in_bytes": 12832,
+      "digest": "sha256:476c8a6850dce463aa924d683d3b0721f41bd89912cfede72f066a8b9ec61212",
+      "workflow_run": {
+        "id": 40060934590,
+        "repository_id": 1340747528,
+        "head_repository_id": 1340747528,
+        "head_branch": "dev",
+        "head_sha": "096eb3ebef1d200bb017943fbbcf56dee618906c"
+      }
+    }
+  ],
+  "reader": {
+    "viewports": 4,
+    "screenshots": 40,
+    "zeroChanged": 40,
+    "maxChangedPixels": 0,
+    "samplesPerSide": 450,
+    "pageErrors": 0
+  }
+}

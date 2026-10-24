@@ -1,6 +1,6 @@
 # RF-07 综合回归与文档收尾
 
-日期：2026-10-24。状态：In Progress。起点 `dev` / `6a5b1c9`。
+日期：2026-10-24。状态：Accepted / Completed at `096eb3e`。起点 `dev` / `6a5b1c9`。
 
 本轮先核对 RF-01 至 RF-05 的验收提交、完整 CI Job 与冻结数据，再执行当前候选的综合回归，最后整理验收与交接。权威合同和证据入口见 [RF-07 Wiki](../../repowiki/work-packages/2026-10-24-rf07-regression-closeout.md)。
 
@@ -47,3 +47,35 @@
 首次本地复测的 1k 健康场景 p95 为 4.3031ms，高于 4.23496ms 限值；运行与本轮产物下载核对重叠，隔离前提不满足。原始失败完整保留，停止本轮并行构建/下载后，以相同二进制、预热、轮次、采样、阈值和哈希协议隔离重测，p95 为 2.3926ms，所有门禁通过。本轮没有修改性能代码或放宽预算。后续每次本地性能门禁继续执行“无本轮并行构建/下载”的运行控制（RF07-M01，维护者负责），外部主机活动仍是测量限制。
 
 原始结果：[产物来源与字节核对](benchmarks/rf07/artifact-provenance.json)、[本地验证清单](benchmarks/rf07/local-verification.json)、[初次失败](benchmarks/rf07/initial-rules-comparison.txt)、[隔离复测](benchmarks/rf07/isolated-rules-comparison.txt)。当前候选完整远端门禁及历史 RF-02 补跑仍为 PENDING，尚不标记 RF-07 完成。
+
+## 历史缺口修复与候选测量
+
+RF-02 `c3347ca` 的 CI `39770903564` attempt 2 已 2/2 完成并通过，原取消记录保留。修复后重新核对全部历史：10 个实现/收尾提交、30 条 workflow、124 个 Job 的目标 SHA、完整集合、终态和结果均通过；[最终审计快照](benchmarks/rf07/historical-audit-final.json) 与初始失败快照分开保存，RF-02 中英文记录已补充说明。
+
+候选 `096eb3e` 的三项独立回归已通过：PostgreSQL 720 项采样满足全部既定预算，Developer 810 项响应/头/账本/SQL 完全一致，Reader 四屏行为与 22 个输出清单一致，前后各 450 项采样，40 张截图全部零像素差异、无未捕获页面错误。数据与来源见 [候选产物记录](benchmarks/rf07/candidate-artifact-provenance.json)。完整候选运行时仍在执行，RF-07 尚未验收。
+
+## 最终验收
+
+候选 `096eb3ebef1d200bb017943fbbcf56dee618906c` 的 [CI 40060934590](https://github.com/nekohands/InkFlow/actions/runs/40060934590)（4/4）、[Docker 40060934577](https://github.com/nekohands/InkFlow/actions/runs/40060934577)（6/6）、[Security 40060934575](https://github.com/nekohands/InkFlow/actions/runs/40060934575)（4/4）全部 Job 已完成并成功。完整结果见 [终态快照](benchmarks/rf07/candidate-remote-verification.json) 和 [CI 验证摘要](benchmarks/rf07/candidate-validation-summary.txt)。
+
+| 验收面 | 结果 |
+| --- | --- |
+| 前序证据 | 10 个实现/收尾提交、30 条 workflow、124 个 Job 完整核对 PASS；RF-02 原取消记录与 attempt 2 修复分开保存 |
+| Build / Migration | 本地与 CI Restore/Release Build、三个工具 Build，0 警告/错误；迁移模型 11/11 PASS |
+| Tests | Unit 726、Architecture 53、Contract 12 PASS；真实 PostgreSQL 136 通过 / 3 跳过，Redis 配置后独立 1/1 PASS |
+| 一致性 | 本地隔离 720 项与候选 PostgreSQL 720 项均满足冻结预算、完整报告和 SQL 边界；未放宽阈值 |
+| Developer | 810 项状态/协议头/正文/账本增量/SQL 数量与哈希全部一致 |
+| Reader | 22 项输出、四屏行为、前后各 450 项采样一致；40 张截图零像素差异，无未捕获页面错误 |
+| Runtime | 源码 Compose API/Worker/Scheduler/Collector，Reader/Legado/Source failover/质量/私有书库/Developer/Admin/采集包、Core SLO/OTLP、备份恢复均 PASS |
+| Security / 镜像 | 依赖/文件系统/CodeQL/SBOM、五个镜像扫描及发布镜像 Compose 全部 PASS |
+| 文档 | 方案、Wiki 索引/元数据、RF-02 历史补充、验证入口、Progress/Handoff/profile 与原始数据已同步；提交前复核链接与生成器 |
+
+发现并解决的三项问题：RF-05 来源章节结构导致索引检查失败；RF-02 文档收尾 CI 曾被取消；首次本地性能测量并行干扰、隔离前提不成立。原失败均保留，修复过程没有变更生产逻辑、断言或预算。最初本地 Integration 的 128 项 DockerUnavailable 失败仍保留，不能算本地通过，实际容器证据来自本次候选 CI。
+
+## 首轮范围结论与后续
+
+RF-01 至 RF-05 与 RF-07 的选定首轮工作已验收完成。RF-06 明确按条件延期：原始 Messaging/Parser 盘点是候选线索，首轮未选择具体改造；后续需单独提出可审查的维护收益或缺陷证据，并配套 PostgreSQL 事务/幂等/租约/回滚或确定性解析/安全回归，才进入实施。此结论不表示对整个 Messaging/Parser 做过穷尽审计。
+
+项目仍处于 1.0 Release Candidate。真实设备/阅读 3.0/Personal Token、真实账户/PWA/长时间阅读、真实上游与第二来源切换、生产凭据/OTLP/SLO 窗口/备份与安全治理，继续按 Progress 第 6 节开放，由维护者在专门的设备、账户和环境中逐项取得证据。两项可选真实源测试 NOT RUN，默认 Redis skip 已由配置后独立运行覆盖；本机 Docker 待 engine 可连接时再复验。未来本地性能门禁继续执行 RF07-M01 隔离控制。
+
+RF-07 当前自动化范围无剩余验收 Blocker。文档收尾提交需要另查自身 CI/Docker/Security，不能沿用本候选的绿灯；不据此进行 main 合入或生产部署。
