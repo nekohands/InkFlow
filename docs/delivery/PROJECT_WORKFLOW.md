@@ -1,7 +1,7 @@
 # InkFlow 项目工作流档案
 
 Status: Active profile
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-24
 Owner: InkFlow maintainers
 
 本文件是唯一的操作型工作流 profile。项目自身的强制工程规范仍以
@@ -72,7 +72,9 @@ Initialization intake: grillme recommendation-first selected; historical module 
 
 ## Work Package
 
-当前验收：[RF-05 Developer API](../engineering/developer-api-refactoring.md)，Accepted / Completed at `51fa810`；基线先于生产拆分，810 项协议/账本/SQL 完全等价，CI 39815455574（4/4）、Docker 39815455624（6/6）、Security 39815455651（4/4）全部 Job 通过。下一步 RF-07，RF-06 保持条件项；本地 Docker 缺失和人工/真实环境验收仍按记录保留。
+当前实施：[RF-07 综合回归与收尾](../engineering/optimization-refactoring-closeout-2026-10-24.md)，In Progress；先核对 RF-01 至 RF-05 证据，再验证当前候选所有适用门禁。RF-06 条件项保留延期，人工/生产验收继续开放。
+
+前序验收：[RF-05 Developer API](../engineering/developer-api-refactoring.md)，Accepted / Completed at `51fa810`；基线先于生产拆分，810 项协议/账本/SQL 完全等价，CI 39815455574（4/4）、Docker 39815455624（6/6）、Security 39815455651（4/4）全部 Job 通过。下一步 RF-07，RF-06 保持条件项；本地 Docker 缺失和人工/真实环境验收仍按记录保留。
 
 前序验收：[RF-04 Reader 基线与展示层迁移](../engineering/reader-presentation-migration.md)，Accepted / Completed at `4ea9dd0`；先冻结行为与浏览器基线，再完成展示职责迁移。CI 39797024080（attempt 2）、Docker 39797024019、Security 39797024110 全部 Job 通过。RF-05 已在 `51fa810` 验收。
 

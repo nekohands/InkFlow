@@ -12,7 +12,11 @@ Parent/root index: [../README.md](../README.md)
 
 Operations index: [README.md](README.md)
 
-## Current verification (2026-10-22)
+## Current verification (2026-10-24)
+
+[RF-07](../work-packages/2026-10-24-rf07-regression-closeout.md) is In Progress: 15/15 implementation workflows and 14/15 historical closeout workflows PASS; cancelled c3347ca CI is being rerun at its exact SHA. Fresh local Unit 726, Architecture 53, Contract 12, migration 11/11, comparator regressions and isolated 720-sample rule budgets PASS. Local Integration = 8 passed / 128 DockerUnavailable failures / 3 skips; candidate real PostgreSQL/Redis/runtime/browser/security/CI remains PENDING. Preserve the first overlapping local measurement failure; run local performance gates without concurrent task-local builds/downloads.
+
+## Previous verification checkpoint (2026-10-22)
 
 [RF-02](../work-packages/2026-10-22-rf02-consistency.md) is Accepted at `3a38ad1`: local Restore/Release Build, Unit 656/656, Architecture 51/51, Contract 12/12, migration drift 11/11 passed. Local Integration = 8 passed / 128 DockerUnavailable / 3 skips; local Runtime blocked. Rule measurements before/after match; PostgreSQL benchmark job passed 720 samples with SQL/row/plan evidence. Exact-SHA CI 39766807840 (attempt 2), Docker 39766808118 and Security 39766807728 passed all jobs. CI Integration 136 passed / 3 skips, configured Redis 1/1, runtime/SLO/OTLP and backup passed. Initial Ubuntu package-index hash mismatch was resolved by rerunning the failed job with integrity checks intact. RF-01 below is previous-package evidence.
 

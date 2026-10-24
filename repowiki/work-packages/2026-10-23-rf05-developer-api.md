@@ -20,7 +20,9 @@ High-risk invariants: per-route identity -> validation -> quota -> catalog order
 4. Restore/Release Build/full Tests, 11-context migration drift, Developer/Billing PostgreSQL/Redis, Developer/Admin and existing runtime/SLO/backup, exact-SHA CI/Docker/Security. Recheck local Docker; blocked local checks must be explicit and supplemented by real CI evidence.
 5. Synchronize Wiki, Chinese record, architecture/module navigation, Progress/Handoff/profile. Only mark Accepted when every applicable gate passes. Existing manual device/account/live-source/production acceptance remains open.
 
-Sources: [plan](2026-10-22-optimization-refactoring-plan.md), [protocol](../../docs/architecture/developer-api.md), [ADR 0009](../../docs/adr/0009-developer-api-commercial-foundation.md), [human record](../../docs/engineering/developer-api-refactoring.md), [external mapping](../../src/Apps/InkFlow.Api/DeveloperCatalogEndpoints.cs).
+## Sources
+
+- [Plan](2026-10-22-optimization-refactoring-plan.md), [protocol](../../docs/architecture/developer-api.md), [ADR 0009](../../docs/adr/0009-developer-api-commercial-foundation.md), [human record](../../docs/engineering/developer-api-refactoring.md), [external mapping](../../src/Apps/InkFlow.Api/DeveloperCatalogEndpoints.cs).
 
 ## Baseline preparation
 

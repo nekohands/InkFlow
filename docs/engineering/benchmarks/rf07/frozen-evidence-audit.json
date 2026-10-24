@@ -1,0 +1,144 @@
+{
+  "entry": "6a5b1c982dca489fb8f09f9bf3c6668b994de2ba",
+  "checks": [
+    {
+      "check": "RF02 exact report equivalence",
+      "result": "PASS",
+      "detail": "24 paired fixture/rounds; 720 samples per side"
+    },
+    {
+      "check": "rf02/before-rules.json coverage",
+      "result": "PASS",
+      "detail": "24 records, 720 samples"
+    },
+    {
+      "check": "rf02/after-rules.json coverage",
+      "result": "PASS",
+      "detail": "24 records, 720 samples"
+    },
+    {
+      "check": "rf02/postgres.json coverage",
+      "result": "PASS",
+      "detail": "24 records, 720 samples"
+    },
+    {
+      "check": "rf02/postgres.json SQL",
+      "result": "PASS",
+      "detail": "13 SQL commands per sample"
+    },
+    {
+      "check": "rf03/before-rules.json coverage",
+      "result": "PASS",
+      "detail": "24 records, 720 samples"
+    },
+    {
+      "check": "rf03/after-rules.json coverage",
+      "result": "PASS",
+      "detail": "24 records, 720 samples"
+    },
+    {
+      "check": "rf03/before-postgres.json coverage",
+      "result": "PASS",
+      "detail": "24 records, 720 samples"
+    },
+    {
+      "check": "rf03/before-postgres.json SQL",
+      "result": "PASS",
+      "detail": "13 SQL commands per sample"
+    },
+    {
+      "check": "rf03/after-postgres.json coverage",
+      "result": "PASS",
+      "detail": "24 records, 720 samples"
+    },
+    {
+      "check": "rf03/after-postgres.json SQL",
+      "result": "PASS",
+      "detail": "13 SQL commands per sample"
+    },
+    {
+      "check": "RF04 behavior",
+      "result": "PASS",
+      "detail": "4 viewport behavior observations"
+    },
+    {
+      "check": "RF04 captures",
+      "result": "PASS",
+      "detail": "40 zero-pixel-difference captures in accepted Linux artifact"
+    },
+    {
+      "check": "RF04 samples",
+      "result": "PASS",
+      "detail": "450 samples per side"
+    },
+    {
+      "check": "RF04 page errors",
+      "result": "PASS",
+      "detail": "No uncaught page errors"
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/engineering/benchmarks/rf02/after-rules.json",
+      "gitBlob": "2a3006161b4c0feab8ceb348db0e6108c2cbf8b1"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf02/before-rules.json",
+      "gitBlob": "cbf872cc5473febda649e467ed7dd0f9f762f40e"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf02/postgres.json",
+      "gitBlob": "5b8c300895b5894629b09b12b170aa920b49d20f"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf03/after-postgres.json",
+      "gitBlob": "2d2b5c0e06a8bf6d2f7bd1312b36223931125bfc"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf03/after-rules.json",
+      "gitBlob": "66b50b8832abae90fa6afd056492acb34322481f"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf03/before-postgres.json",
+      "gitBlob": "9c0b8d5484e19d3c5d84f8d5bbeee4e31a13802b"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf03/before-rules.json",
+      "gitBlob": "c97bd271b9e6004af54e3e973112afbaad671808"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf03/lookups-rules.json",
+      "gitBlob": "4ce28a815d6324018667028ec6ccfead0d477af8"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf04/browser-after.json",
+      "gitBlob": "17b9cd2b3b794e2027917b355da2a71a8f15f6d9"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf04/browser-linux-after.json",
+      "gitBlob": "20b8d81fa617db1264ca5a05952167d88d483504"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf04/browser-linux-before.json",
+      "gitBlob": "2a4393eacc173bb218d3ff3f707b5a96f9768958"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf04/browser-settled-after.json",
+      "gitBlob": "6f7563f00cb5e2c21ad62ab696977b2c469434c3"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf04/browser-settled-before.json",
+      "gitBlob": "1f72a831f252eee74ce3dbe8e668dbcbe479cbe5"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf05/after-postgres.json",
+      "gitBlob": "375f13433715d1c577a6d275a0a3476353930895"
+    },
+    {
+      "path": "docs/engineering/benchmarks/rf05/before-postgres.json",
+      "gitBlob": "2f9d153ce06819194a0890b506e53c259e93859b"
+    }
+  ],
+  "observedAt": "2026-10-24T04:03:07.262488+00:00",
+  "producer": "git blob identity lookup; frozen JSON fixture/coverage/visual result inspection"
+}

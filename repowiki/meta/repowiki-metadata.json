@@ -467,7 +467,7 @@
         "../../docs/handoff/handoff.md",
         "../../docs/roadmap/progress.md",
         "../../src/Apps/InkFlow.Api/AuditedResult.cs",
-        "../../src/Apps/InkFlow.Api/DeveloperEndpoints.cs",
+        "../../src/Apps/InkFlow.Api/DeveloperCatalogEndpoints.cs",
         "../../src/Apps/InkFlow.Api/EfConsistencySnapshotReader.cs",
         "../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.Operations.cs",
         "../../src/Apps/InkFlow.Api/Presentation/ReaderHtml.UserPages.cs",
@@ -569,6 +569,44 @@
         "../architecture.md",
         "../operations/verification.md",
         "2026-10-22-optimization-refactoring-plan.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-23-rf05-developer-api.md",
+      "title": "RF-05 Developer API responsibility separation",
+      "kind": "topic",
+      "scope": "characterize authentication, validation, quota, catalog reads and command audits before separating self-service management, Administrator plan management and external read-only mappings.",
+      "sources": [
+        "../../docs/adr/0009-developer-api-commercial-foundation.md",
+        "../../docs/architecture/developer-api.md",
+        "../../docs/engineering/developer-api-refactoring.md",
+        "../../src/Apps/InkFlow.Api/DeveloperCatalogEndpoints.cs",
+        "2026-10-22-optimization-refactoring-plan.md"
+      ],
+      "parent": "work-packages/README.md",
+      "status": "documented"
+    },
+    {
+      "path": "work-packages/2026-10-24-rf07-regression-closeout.md",
+      "title": "RF-07 integrated regression and evidence closeout",
+      "kind": "topic",
+      "scope": "audit RF-01 through RF-05 acceptance, run cross-surface regression, synchronize documentation and explicitly disposition conditional RF-06.",
+      "sources": [
+        "../../.github/workflows/",
+        "../../docs/delivery/PROJECT_WORKFLOW.md",
+        "../../docs/engineering/development-workflow.md",
+        "../../scripts/",
+        "../../tests/",
+        "../../tools/",
+        "../operations/verification.md",
+        "2026-10-22-optimization-refactoring-plan.md",
+        "2026-10-22-rf01-architecture-guards.md",
+        "2026-10-22-rf02-consistency.md",
+        "2026-10-22-rf03-consistency-performance.md",
+        "2026-10-22-rf04-presentation.md",
+        "2026-10-23-rf05-developer-api.md"
       ],
       "parent": "work-packages/README.md",
       "status": "documented"
@@ -743,6 +781,16 @@
       "type": "PARENT_CHILD",
       "parent": "work-packages/README.md",
       "child": "work-packages/2026-10-22-rf04-presentation.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-23-rf05-developer-api.md"
+    },
+    {
+      "type": "PARENT_CHILD",
+      "parent": "work-packages/README.md",
+      "child": "work-packages/2026-10-24-rf07-regression-closeout.md"
     }
   ]
 }

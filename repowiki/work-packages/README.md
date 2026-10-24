@@ -7,6 +7,8 @@ Parent/root index: [../README.md](../README.md)
 
 ## Package records
 
+- Current: [RF-07 integrated regression and closeout](2026-10-24-rf07-regression-closeout.md), In Progress.
+
 - [RF-05 Developer API baseline and responsibility separation](2026-10-23-rf05-developer-api.md)
 
 - [RF-01 — executable architecture guards](2026-10-22-rf01-architecture-guards.md)

@@ -1,0 +1,151 @@
+{
+  "entry": "6a5b1c982dca489fb8f09f9bf3c6668b994de2ba",
+  "comparisons": [
+    {
+      "frozen": "docs/engineering/benchmarks/rf02/postgres.json",
+      "artifact": "rf02/postgres.json",
+      "comparison": "exact-byte-v1",
+      "equal": true,
+      "gitContentSha256": "89ee17f5b0dd88d542e325fd516d12b3899d60244d27123c25848d2ef062eb8b",
+      "downloadSha256": "89ee17f5b0dd88d542e325fd516d12b3899d60244d27123c25848d2ef062eb8b",
+      "runId": 39766807840,
+      "artifactMetadata": {
+        "id": 12421190590,
+        "name": "consistency-measurements",
+        "size_in_bytes": 18201,
+        "digest": "sha256:c0adec1f87d9607d909205bc3033003fa7ad51022a8f06addd63809030125b4d",
+        "created_at": "2026-10-22T11:02:14Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 39766807840,
+          "repository_id": 1340747528,
+          "head_repository_id": 1340747528,
+          "head_branch": "dev",
+          "head_sha": "3a38ad175faaf041dea94df599477ac5f32cc869"
+        }
+      }
+    },
+    {
+      "frozen": "docs/engineering/benchmarks/rf03/after-postgres.json",
+      "artifact": "rf03/postgres.json",
+      "comparison": "exact-byte-v1",
+      "equal": true,
+      "gitContentSha256": "e12249f258811a273bae1811d6036640783ab77f1ce5b95719b59228d9e55c2c",
+      "downloadSha256": "e12249f258811a273bae1811d6036640783ab77f1ce5b95719b59228d9e55c2c",
+      "runId": 39778042207,
+      "artifactMetadata": {
+        "id": 12425327640,
+        "name": "consistency-measurements",
+        "size_in_bytes": 17804,
+        "digest": "sha256:b8b5dca866d8695ae5f0a6b5a9c637645f6c1ac2a8c48fa73f97d7cca63702ad",
+        "created_at": "2026-10-22T12:28:14Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 39778042207,
+          "repository_id": 1340747528,
+          "head_repository_id": 1340747528,
+          "head_branch": "dev",
+          "head_sha": "0a6e64191e43f2abf32d5088dda4bc0399730bcd"
+        }
+      }
+    },
+    {
+      "frozen": "docs/engineering/benchmarks/rf04/browser-linux-before.json",
+      "artifact": "rf04/browser-before/browser.json",
+      "comparison": "exact-byte-v1",
+      "equal": true,
+      "gitContentSha256": "4892cdaaa0023c6dcb302acc46ba849bff3a8825d60cb1435955c978ff376ef9",
+      "downloadSha256": "4892cdaaa0023c6dcb302acc46ba849bff3a8825d60cb1435955c978ff376ef9",
+      "runId": 39797024080,
+      "artifactMetadata": {
+        "id": 12434855753,
+        "name": "reader-browser-evidence",
+        "size_in_bytes": 7392731,
+        "digest": "sha256:74aaee3848d753479b6d8b496a70fdbc7d3598d57534e401fefc0375be732454",
+        "created_at": "2026-10-22T14:43:34Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 39797024080,
+          "repository_id": 1340747528,
+          "head_repository_id": 1340747528,
+          "head_branch": "dev",
+          "head_sha": "4ea9dd0170be7f17055f952f30611f4cf9348e37"
+        }
+      }
+    },
+    {
+      "frozen": "docs/engineering/benchmarks/rf04/browser-linux-after.json",
+      "artifact": "rf04/browser-after/browser.json",
+      "comparison": "exact-byte-v1",
+      "equal": true,
+      "gitContentSha256": "c9c0c05f57d9af5fe9aad1833ecdf32e1271e8149a520bfea396ef3682298d43",
+      "downloadSha256": "c9c0c05f57d9af5fe9aad1833ecdf32e1271e8149a520bfea396ef3682298d43",
+      "runId": 39797024080,
+      "artifactMetadata": {
+        "id": 12434855753,
+        "name": "reader-browser-evidence",
+        "size_in_bytes": 7392731,
+        "digest": "sha256:74aaee3848d753479b6d8b496a70fdbc7d3598d57534e401fefc0375be732454",
+        "created_at": "2026-10-22T14:43:34Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 39797024080,
+          "repository_id": 1340747528,
+          "head_repository_id": 1340747528,
+          "head_branch": "dev",
+          "head_sha": "4ea9dd0170be7f17055f952f30611f4cf9348e37"
+        }
+      }
+    },
+    {
+      "frozen": "docs/engineering/benchmarks/rf05/before-postgres.json",
+      "artifact": "rf05-before/measurement.json",
+      "comparison": "exact-byte-v1",
+      "equal": true,
+      "gitContentSha256": "e1d359867a418fa07a2d0ffac7e3b217fc3d1d01c2668a71d8910a9da26c5e68",
+      "downloadSha256": "e1d359867a418fa07a2d0ffac7e3b217fc3d1d01c2668a71d8910a9da26c5e68",
+      "runId": 39814163301,
+      "artifactMetadata": {
+        "id": 12441980717,
+        "name": "developer-measurements",
+        "size_in_bytes": 12359,
+        "digest": "sha256:03c9e3981c22d7ca8cb9820320dd094fa74a57da1b5d57b025c579dcf30d1923",
+        "created_at": "2026-10-22T16:28:02Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 39814163301,
+          "repository_id": 1340747528,
+          "head_repository_id": 1340747528,
+          "head_branch": "dev",
+          "head_sha": "4804dc0ce0eb3b6dc8420b7ac0c1e58c7eca2c7d"
+        }
+      }
+    },
+    {
+      "frozen": "docs/engineering/benchmarks/rf05/after-postgres.json",
+      "artifact": "rf05-after/measurement.json",
+      "comparison": "exact-byte-v1",
+      "equal": true,
+      "gitContentSha256": "05f9ba648a0f1c045244cd9389dcf0d36eaa3d93fcce70646530d7e7e82de45b",
+      "downloadSha256": "05f9ba648a0f1c045244cd9389dcf0d36eaa3d93fcce70646530d7e7e82de45b",
+      "runId": 39815455574,
+      "artifactMetadata": {
+        "id": 12441263269,
+        "name": "developer-measurements",
+        "size_in_bytes": 12946,
+        "digest": "sha256:39edf24339ea67c392557bb96ab5b9bde9dfc60b7877a0c854e93ac62be767c2",
+        "created_at": "2026-10-22T16:37:57Z",
+        "expired": false,
+        "workflow_run": {
+          "id": 39815455574,
+          "repository_id": 1340747528,
+          "head_repository_id": 1340747528,
+          "head_branch": "dev",
+          "head_sha": "51fa810613ba90261f379905bc91b1cefc88ac93"
+        }
+      }
+    }
+  ],
+  "observedAt": "2026-10-24T03:57:45.232411+00:00",
+  "producer": "gh run download and gh api artifacts; git show entry:path; exact raw-byte SHA-256 comparison"
+}

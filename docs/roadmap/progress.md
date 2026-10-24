@@ -6,9 +6,13 @@
 - 当前阶段：1.0 Release Candidate（历史自动化验收不替代当前提交门禁；真实设备、来源与账户验收仍待完成）
 - 当前工作分支：`dev`（2026-08-25 起）
 - 文档状态：RF-04 Reader 基线与展示层迁移已在 `4ea9dd0` 验收；RF-03 在 `0a6e641`、RF-02 在 `3a38ad1`、RF-01 在 `f90e6bd` 验收。RF-05 在 `51fa810` 验收，历史与真实环境待验收项继续保留。
-- 最后更新日期：2026-10-23
+- 最后更新日期：2026-10-24
 
-## RF-05 当前工作包
+## RF-07 当前工作包
+
+In Progress（2026-10-24）。已核对 RF-01 至 RF-05 的 10 个实现/收尾提交与 30 条 workflow：实现 15/15 通过，收尾 14/15 通过，RF-02 的 c3347ca CI 曾取消，正在原 SHA 补跑。40 页 Wiki 结构/索引修复通过；本地 Build、726/53/12 测试、迁移 11/11、比较器和隔离 720 项预算通过。初次性能越界及本地 Docker 阻塞保留；候选完整 CI 与历史补跑需共同通过后验收。详见 [RF-07 记录](../engineering/optimization-refactoring-closeout-2026-10-24.md)。RF-06 条件项保留延期，人工/生产验收继续开放。
+
+## RF-05 前序工作包
 
 Accepted / Completed at `51fa810`。行为基线 `4804dc0` 与 PostgreSQL 观察冻结 `9d7c558` 先于生产拆分；自助管理、管理员套餐管理、外部读取已分离，公共 DTO/配额/审计语义不变。810 项响应/账本/SQL 完全等价。CI 39815455574（4/4）、Docker 39815455624（6/6）、Security 39815455651（4/4）全部 Job 通过；Unit 726、Architecture 53、Contract 12、迁移 11/11，真实 PostgreSQL 136 passed / 3 skipped、Redis 1/1、Runtime/SLO/OTLP/备份 PASS。本地 Docker 缺失仍记录为 BLOCKED，人工设备/账户/生产验收继续开放。详见 [RF-05 记录](../engineering/developer-api-refactoring.md)。下一步 RF-07 综合回归与收尾，RF-06 条件项不自动开展；文档收尾提交自身 CI 另行验证。
 

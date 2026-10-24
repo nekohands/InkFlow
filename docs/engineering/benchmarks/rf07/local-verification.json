@@ -1,0 +1,97 @@
+{
+  "entry": "6a5b1c982dca489fb8f09f9bf3c6668b994de2ba",
+  "observedAt": "2026-10-24T04:03:07.850491+00:00",
+  "sourceInputs": {
+    "src": "a6f16d2d17014fcd31f1c3c1765877fb14f1c19c",
+    "tests": "112eeea6c9a7a4ace4e174dd1fd8f9dd7bbab881",
+    "tools": "593f60647bd204e199a562488930954f275fd6c4",
+    "scripts": "ab5a827430788203aa4c9a8151b8647ea6833bec",
+    ".github/workflows": "0db8d19811ade534c1737bb19e205cfcab3e7173",
+    "Directory.Build.props": "ed9620b47d68fe36b236b69196140ff62a3fb690",
+    "Directory.Packages.props": "22c6147cae0abb4ba254770429c689b300320ba7",
+    "InkFlow.sln": "71c0cc4440afae8fcccf679c5a4f106ca67b9037",
+    "global.json": "d46d21e50b3f3284ca3589173cac1e0af1076810",
+    ".editorconfig": "00cc21eef80301d72b48eaf39b5497dfd977c901",
+    ".config/dotnet-tools.json": "f7c35c1411e3e250c4f05f9dc2f2d766afc15c86"
+  },
+  "environment": {
+    "framework": ".NET 10.0.13",
+    "os": "Microsoft Windows 10.0.26300",
+    "cpuCount": 32,
+    "warmups": 3,
+    "samplesPerRound": 30,
+    "rounds": 3,
+    "concurrency": 1
+  },
+  "gates": [
+    {
+      "gate": "Restore/Release solution and three tool builds",
+      "result": "PASS",
+      "warnings": 0,
+      "errors": 0
+    },
+    {
+      "gate": "Unit",
+      "result": "PASS",
+      "passed": 726
+    },
+    {
+      "gate": "Architecture",
+      "result": "PASS",
+      "passed": 53
+    },
+    {
+      "gate": "Contract",
+      "result": "PASS",
+      "passed": 12
+    },
+    {
+      "gate": "Full local Integration",
+      "result": "BLOCKED",
+      "passed": 8,
+      "failed": 128,
+      "skipped": 3,
+      "reason": "DockerUnavailable at npipe://./pipe/docker_engine; docker command absent; not a local pass"
+    },
+    {
+      "gate": "Migration model drift",
+      "result": "PASS",
+      "contexts": 11
+    },
+    {
+      "gate": "Consistency comparator regressions",
+      "result": "PASS",
+      "tests": 6
+    },
+    {
+      "gate": "Developer comparator regressions",
+      "result": "PASS",
+      "tests": 2
+    },
+    {
+      "gate": "Screenshot comparator regressions",
+      "result": "PASS",
+      "tests": 3
+    },
+    {
+      "gate": "Historical RF03/RF05 raw comparator replay",
+      "result": "PASS"
+    },
+    {
+      "gate": "First fresh local rule measurement",
+      "result": "FAIL",
+      "disposition": "Retained; concurrent artifact-provenance gh/download work overlapped this trial; isolation precondition not satisfied",
+      "shape": "1000/healthy p95",
+      "actualMilliseconds": 4.3031,
+      "limitMilliseconds": 4.23496
+    },
+    {
+      "gate": "Isolated local rule measurement",
+      "result": "PASS",
+      "samples": 720,
+      "groups": 24,
+      "definition": "Identical Release binary, fixture, warmups, rounds, concurrency and frozen comparison; no concurrent local build/download from this task",
+      "healthy1kP95Milliseconds": 2.3926
+    }
+  ]
+}

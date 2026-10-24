@@ -20,5 +20,6 @@ RepoWiki 是 Agent 的唯一项目事实来源；本目录只提供能力说明�
 
 各主题页描述能力和入口；合同、状态、证据和 Agent 续作上下文以 RepoWiki 为准。
 
+- [RF-07 综合回归与文档收尾](engineering/optimization-refactoring-closeout-2026-10-24.md)
 - [RF-05 Developer API 基线与职责拆分](engineering/developer-api-refactoring.md)
 - [RF-04 Reader 基线与展示层迁移](engineering/reader-presentation-migration.md)
